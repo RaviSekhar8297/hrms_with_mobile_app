@@ -1,0 +1,470 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ✅ CRITICAL: Enable class-based dark mode for Tailwind v4
+   Without this, dark: utilities use OS media query and the .dark class does nothing */
+@custom-variant dark (&:where(.dark, .dark *));
+
+
+:root {
+  --background: #0a0f1d;
+  --foreground: #f8fafc;
+  --card: #13192b;
+}
+
+/* Nordic Light theme overrides (no dark class) */
+html.theme-nordic-light {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --font-sans: "DM Sans", sans-serif;
+  --font-outfit: "Outfit", "Plus Jakarta Sans", sans-serif;
+  --font-dmsans: "DM Sans", sans-serif;
+}
+
+.font-sidebar {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif !important;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans) !important;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.premium-scrollbar::-webkit-scrollbar {
+  height: 4px;
+}
+.premium-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.premium-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+.premium-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+.premium-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+/* Animations for premium components */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes toastSlideUp {
+  from {
+    transform: translateY(24px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-slideIn {
+  animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-toast {
+  animation: toastSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.shimmer-loading {
+  background: linear-gradient(90deg, 
+    rgba(148, 163, 184, 0.08) 25%, 
+    rgba(148, 163, 184, 0.18) 37%, 
+    rgba(148, 163, 184, 0.08) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.dark .shimmer-loading {
+  background: linear-gradient(90deg, 
+    rgba(30, 41, 59, 0.2) 25%, 
+    rgba(51, 65, 85, 0.35) 37%, 
+    rgba(30, 41, 59, 0.2) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* ==========================================================================
+   ✨ PREMIUM GLOBAL DASHBOARD STYLING
+   ========================================================================== */
+
+/* 1. Theme-Aware Card Containers */
+.rounded-2xl.border.bg-white,
+.rounded-2xl.border.bg-card {
+  background-color: var(--card) !important;
+  border-color: rgba(148, 163, 184, 0.12) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 8px -1px rgba(0, 0, 0, 0.03) !important;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.dark .rounded-2xl.border.bg-white,
+.dark .rounded-2xl.border.bg-card {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 2. Premium Forms & Input Controls */
+label {
+  font-size: 9.5px !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 6px !important;
+}
+.dark label {
+  color: #94a3b8 !important;
+}
+html:not(.dark) label {
+  color: #64748b !important;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="date"],
+select,
+textarea {
+  background-color: rgba(148, 163, 184, 0.05) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  color: var(--foreground) !important;
+  font-family: var(--font-sans) !important;
+  border-radius: 12px !important;
+  padding: 9px 12px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  outline: none !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Helper to override global input padding for search boxes containing absolute icons */
+input[type="text"].pl-search,
+input.pl-search,
+input.pl-search-lg,
+input.form-input-with-icon,
+input[type="text"].form-input-with-icon,
+input[type="email"].form-input-with-icon,
+input[type="password"].form-input-with-icon {
+  padding-left: 2.75rem !important;
+}
+input[type="text"].pr-search,
+input.pr-search,
+input.pr-search-lg {
+  padding-right: 4rem !important;
+}
+
+/* 🔐 Login Page Specific Overrides for Light Gradient Theme */
+.login-card label,
+.dark .login-card label,
+html body .login-card label {
+  font-size: 13px !important;
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  margin-bottom: 6px !important;
+  color: #0f172a !important;
+}
+
+.login-card input[type="text"],
+.login-card input[type="password"],
+.login-card input[type="email"],
+.dark .login-card input[type="text"],
+.dark .login-card input[type="password"],
+.dark .login-card input[type="email"],
+html body .login-card input[type="text"],
+html body .login-card input[type="password"],
+html body .login-card input[type="email"] {
+  padding: 0 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  height: auto !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+}
+
+/* Fix Browser Autofill for Light Theme */
+.login-card input:-webkit-autofill,
+.login-card input:-webkit-autofill:hover, 
+.login-card input:-webkit-autofill:focus,
+.login-card input:-webkit-autofill:active,
+.dark .login-card input:-webkit-autofill,
+.dark .login-card input:-webkit-autofill:hover, 
+.dark .login-card input:-webkit-autofill:focus,
+.dark .login-card input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #f8fafc inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+.login-card input[type="text"]:focus,
+.login-card input[type="password"]:focus,
+.login-card input[type="email"]:focus,
+.dark .login-card input[type="text"]:focus,
+.dark .login-card input[type="password"]:focus,
+.dark .login-card input[type="email"]:focus {
+  background-color: #0f172a !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25) !important;
+}
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="number"],
+.dark input[type="password"],
+.dark input[type="date"],
+.dark select,
+.dark textarea {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #3b82f6 !important;
+  background-color: var(--card) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Select dropdown options style */
+select option {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+  font-weight: 600 !important;
+}
+
+/* 3. Tables Redesign */
+table thead tr {
+  border-bottom: 2px solid rgba(148, 163, 184, 0.12) !important;
+  background-color: rgba(148, 163, 184, 0.02) !important;
+}
+.dark table thead tr {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+table th {
+  color: #475569 !important;
+  font-size: 9.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  padding: 14px 12px !important;
+}
+.dark table th {
+  color: #94a3b8 !important;
+}
+
+table tbody tr {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08) !important;
+  transition: background-color 0.15s ease !important;
+}
+.dark table tbody tr {
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
+}
+table tbody tr:hover {
+  background-color: rgba(148, 163, 184, 0.03) !important;
+}
+.dark table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+table td {
+  padding: 14px 12px !important;
+  color: var(--foreground) !important;
+  font-size: 11.5px !important;
+}
+
+/* 4. Sliding Drawers Glassmorphic Upgrade */
+aside.animate-slideIn {
+  background-color: var(--card) !important;
+  border-left: 1px solid rgba(148, 163, 184, 0.12) !important;
+  box-shadow: -12px 0 45px -5px rgba(0, 0, 0, 0.12) !important;
+}
+.dark aside.animate-slideIn {
+  border-left-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: -15px 0 50px -5px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* 5. Heading Enhancements */
+.dark h3, .dark .text-slate-800, .dark .text-slate-700 {
+  color: var(--foreground) !important;
+}
+.dark .text-slate-500, .dark .text-slate-400 {
+  color: var(--foreground) !important;
+  opacity: 0.65 !important;
+}
+
+/* 6. Custom Staggered Entrance Animations */
+@keyframes fadeUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  opacity: 0;
+  animation: fadeUpIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 7. Slow Spin for More Apps Icon */
+@keyframes slowSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-slow-spin {
+  display: inline-block;
+  animation: slowSpin 4s linear infinite;
+  transform-origin: center;
+}
+
+.group:hover .animate-slow-spin {
+  animation-duration: 1s;
+}
+
+/* 8. Premium Celebration Animations */
+@keyframes pulsePink {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(244, 63, 94, 0.2), 0 0 10px rgba(244, 63, 94, 0.1);
+    border-color: rgba(244, 63, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(244, 63, 94, 0.5), 0 0 25px rgba(244, 63, 94, 0.2);
+    border-color: rgba(244, 63, 94, 0.6);
+  }
+}
+
+@keyframes pulseGold {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(245, 158, 11, 0.2), 0 0 10px rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.5), 0 0 25px rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.6);
+  }
+}
+
+@keyframes floatEmoji {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.1);
+  }
+}
+
+.animate-pulse-pink {
+  animation: pulsePink 3s infinite ease-in-out;
+}
+
+.animate-pulse-gold {
+  animation: pulseGold 3s infinite ease-in-out;
+}
+
+.animate-float-emoji {
+  display: inline-block;
+  animation: floatEmoji 2.5s infinite ease-in-out;
+}
+
