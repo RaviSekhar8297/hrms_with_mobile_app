@@ -624,9 +624,18 @@ export default function PayrollFormulaPage() {
   const totalPages = Math.ceil(filteredList.length / pageSize) || 1;
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="formula-page-container font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full">
       <style dangerouslySetInnerHTML={{__html: `
-        .font-sans, .font-mono, td, th, button, input, select, label, span, div, p, h3, h4, h5, h6 {
+        .formula-page-container,
+        .formula-page-container td,
+        .formula-page-container th,
+        .formula-page-container button,
+        .formula-page-container input,
+        .formula-page-container select,
+        .formula-page-container label,
+        .formula-page-container span,
+        .formula-page-container div,
+        .formula-page-container p {
           font-family: 'DM Sans', sans-serif !important;
         }
       `}} />

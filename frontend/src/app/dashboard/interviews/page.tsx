@@ -13,7 +13,7 @@ export default function InterviewsDashboard() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('SCHEDULED');
 
   const [feedback, setFeedback] = useState({
     technical_rating: 4,

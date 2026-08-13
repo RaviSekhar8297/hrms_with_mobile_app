@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
@@ -12,6 +13,7 @@ import { usePermissions } from '../hooks/usePermissions';
 interface Company {
   id: string;
   name: string;
+  company_code?: string;
   subdomain: string;
   status: string;
   created_at: string;
@@ -257,6 +259,32 @@ export default function EmployeesPage() {
     password: ''
   });
 
+  const activeCompIdForCheck = empForm.companyId || companyId;
+  const fullInputCode = (empForm.emp_id_code || '').trim();
+
+  const duplicateEmp = React.useMemo(() => {
+    if (!fullInputCode || editMode) return null;
+    const cleanInput = fullInputCode.toLowerCase();
+
+    return employees.find(emp => {
+      const sameCompany = !activeCompIdForCheck || activeCompIdForCheck === 'all' || emp.company_id === activeCompIdForCheck;
+      if (!sameCompany) return false;
+
+      const empCode = (emp.emp_id_code || '').toLowerCase();
+      if (!empCode) return false;
+
+      const rawCode = empCode.replace(/^[a-z0-9]+-/i, '');
+      const rawInput = cleanInput.replace(/^[a-z0-9]+-/i, '');
+
+      return (
+        empCode === cleanInput ||
+        rawCode === rawInput ||
+        empCode.endsWith(`-${rawInput}`) ||
+        cleanInput.endsWith(`-${empCode}`)
+      );
+    });
+  }, [fullInputCode, employees, activeCompIdForCheck, editMode]);
+
   const [isRotational, setIsRotational] = useState(false);
   const [daysInterval, setDaysInterval] = useState(7);
   const [rotationShifts, setRotationShifts] = useState<string[]>([]);
@@ -501,6 +529,11 @@ export default function EmployeesPage() {
       return;
     }
 
+    if (!editMode && duplicateEmp) {
+      showToast(`❌ This ID is already assigned to ${duplicateEmp.first_name} ${duplicateEmp.last_name} (${duplicateEmp.emp_id_code})`, 'error');
+      return;
+    }
+
     const endpoint = editMode
       ? `http://localhost:5000/api/v1/employees/${selectedEmployeeId}`
       : 'http://localhost:5000/api/v1/employees';
@@ -592,6 +625,32 @@ export default function EmployeesPage() {
     } else {
       localStorage.removeItem('companyId');
     }
+  };
+
+  const deduplicateOptions = (options: { value: string; label: string }[], currentValue?: string) => {
+    const seenValues = new Set<string>();
+    const seenLabels = new Set<string>();
+    const result: { value: string; label: string }[] = [];
+
+    if (currentValue) {
+      const currentOpt = options.find(o => o.value === currentValue);
+      if (currentOpt && currentOpt.value) {
+        seenValues.add(currentOpt.value);
+        seenLabels.add(currentOpt.label.trim().toLowerCase());
+        result.push(currentOpt);
+      }
+    }
+
+    for (const opt of options) {
+      if (!opt.value) continue;
+      const cleanLabel = opt.label.trim().toLowerCase();
+      if (!seenValues.has(opt.value) && !seenLabels.has(cleanLabel)) {
+        seenValues.add(opt.value);
+        seenLabels.add(cleanLabel);
+        result.push(opt);
+      }
+    }
+    return result;
   };
 
   // Helper variables for cascade filtering in SlideDrawer
@@ -702,9 +761,9 @@ export default function EmployeesPage() {
         >
           {hasPermission('create_employees') && (
             <div className="flex items-center gap-2">
-              {/* Bulk Upload Button */}
-              <button
-                onClick={() => { setBulkFile(null); setBulkResults(null); setBulkDrawerOpen(true); }}
+              {/* Bulk Upload Button - Navigates to Onboarding Hub in Bulk Mode */}
+              <Link
+                href="/dashboard/employees/create?mode=bulk"
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 hover:shadow-lg hover:shadow-emerald-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
               >
                 <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors">
@@ -713,10 +772,10 @@ export default function EmployeesPage() {
                   </svg>
                 </span>
                 <span className="tracking-wide">Bulk Upload</span>
-              </button>
+              </Link>
               {/* Add Employee Button */}
-              <button
-                onClick={openAddDrawer}
+              <Link
+                href="/dashboard/employees/create"
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
               >
                 <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors">
@@ -725,7 +784,7 @@ export default function EmployeesPage() {
                   </svg>
                 </span>
                 <span className="tracking-wide">Add Employee</span>
-              </button>
+              </Link>
             </div>
           )}
         </DashboardPageHeader>
@@ -1163,15 +1222,44 @@ export default function EmployeesPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Employee ID / Code *</label>
-            <input
-              type="text" required placeholder="e.g. EMP0001"
-              value={empForm.emp_id_code}
-              onChange={e => setEmpForm({ ...empForm, emp_id_code: e.target.value })}
-              className={inputStyle}
-            />
-          </div>
+          {(() => {
+            const activeCompObj = companies.find(c => c.id === (empForm.companyId || companyId)) || companies[0];
+            const activeCode = activeCompObj ? (activeCompObj.company_code || activeCompObj.subdomain?.toUpperCase() || 'EMP') : 'EMP';
+            return (
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Employee ID / Code *</label>
+                <div className={`relative flex items-center w-full rounded-xl border bg-slate-50/50 dark:bg-slate-950/20 overflow-hidden focus-within:ring-2 transition-all duration-200 ${
+                  duplicateEmp
+                    ? 'border-amber-400 dark:border-amber-600 focus-within:ring-amber-200 dark:focus:ring-amber-900/40'
+                    : 'border-slate-200 dark:border-slate-800 focus-within:border-blue-500 focus-within:ring-blue-100 dark:focus:ring-blue-900/30'
+                }`}>
+                  <span className="px-3 py-2.5 bg-slate-200/80 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 font-mono font-extrabold text-xs border-r border-slate-300 dark:border-slate-700 select-none flex-shrink-0 uppercase tracking-wider">
+                    {activeCode}-
+                  </span>
+                  <input
+                    type="text" required placeholder="1001"
+                    value={empForm.emp_id_code}
+                    onChange={e => setEmpForm({ ...empForm, emp_id_code: e.target.value })}
+                    className="w-full bg-transparent px-3 py-2.5 text-xs text-slate-800 dark:text-slate-200 font-mono font-bold placeholder-slate-400 outline-none border-none"
+                  />
+                </div>
+
+                {duplicateEmp && (
+                  <div className="mt-2.5 p-3 rounded-2xl border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 flex items-start gap-2.5 shadow-2xs text-amber-800 dark:text-amber-300 animate-fadeIn">
+                    <span className="text-base shrink-0">⚠️</span>
+                    <div className="text-xs font-semibold leading-relaxed">
+                      <p className="font-extrabold uppercase tracking-wide text-[10.5px] text-amber-700 dark:text-amber-400">
+                        Employee ID Already Assigned!
+                      </p>
+                      <p className="mt-0.5">
+                        This ID is already assigned to <strong className="font-black text-amber-900 dark:text-amber-200">{duplicateEmp.first_name} {duplicateEmp.last_name}</strong> (Code: <span className="font-mono font-black">{duplicateEmp.emp_id_code}</span>).
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1254,7 +1342,7 @@ export default function EmployeesPage() {
             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Office Branch</label>
             <SearchableSelect
               placeholder={activeCompanyId ? "Select Branch" : "Choose Company Context first"}
-              options={filteredBranches.map(b => ({ value: b.id, label: b.name }))}
+              options={deduplicateOptions(filteredBranches.map(b => ({ value: b.id, label: b.name })), empForm.branch_id)}
               value={empForm.branch_id}
               onChange={val => setEmpForm({ ...empForm, branch_id: val, department_id: '', designation_id: '' })}
               disabled={!activeCompanyId}
@@ -1265,7 +1353,7 @@ export default function EmployeesPage() {
             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Department</label>
             <SearchableSelect
               placeholder={empForm.branch_id ? "Select Department" : "Choose Office Branch first"}
-              options={filteredDepartments.map(d => ({ value: d.id, label: d.name }))}
+              options={deduplicateOptions(filteredDepartments.map(d => ({ value: d.id, label: d.name })), empForm.department_id)}
               value={empForm.department_id}
               onChange={val => setEmpForm({ ...empForm, department_id: val, designation_id: '' })}
               disabled={!empForm.branch_id}
@@ -1276,7 +1364,7 @@ export default function EmployeesPage() {
             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Job Designation</label>
             <SearchableSelect
               placeholder={empForm.department_id ? "Select Designation" : "Choose Department first"}
-              options={filteredDesignations.map(ds => ({ value: ds.id, label: ds.name }))}
+              options={deduplicateOptions(filteredDesignations.map(ds => ({ value: ds.id, label: ds.name })), empForm.designation_id)}
               value={empForm.designation_id}
               onChange={val => setEmpForm({ ...empForm, designation_id: val })}
               disabled={!empForm.department_id}
@@ -1287,7 +1375,7 @@ export default function EmployeesPage() {
             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Access Role</label>
             <SearchableSelect
               placeholder={activeCompanyId ? "Select Role" : "Choose Company Context first"}
-              options={filteredRoles.map(r => ({ value: r.id, label: r.name }))}
+              options={deduplicateOptions(filteredRoles.map(r => ({ value: r.id, label: r.name })), empForm.role_id)}
               value={empForm.role_id}
               onChange={val => setEmpForm({ ...empForm, role_id: val })}
               disabled={!activeCompanyId}

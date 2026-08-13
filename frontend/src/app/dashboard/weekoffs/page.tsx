@@ -1089,11 +1089,11 @@ export default function WeekOffsPage() {
           {/* Backdrop Overlay */}
           <div 
             onClick={() => setIsDrawerOpen(false)}
-            className="fixed inset-0 bg-black/45 backdrop-blur-sm z-40 transition-opacity duration-300 animate-fadeIn"
+            className="fixed inset-0 bg-slate-950/50 backdrop-blur-md z-40 transition-opacity duration-300 animate-fadeIn"
           />
 
           {/* Drawer Body */}
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-slate-50 dark:bg-slate-950 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 transform animate-slideInRight text-left">
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-white dark:bg-slate-950 shadow-2xl border-l border-slate-200/80 dark:border-slate-800 flex flex-col transition-all duration-300 transform animate-slideInRight text-left font-sans">
             <style dangerouslySetInnerHTML={{__html: `
               @keyframes slideInRight {
                 from { transform: translateX(100%); }
@@ -1105,15 +1105,22 @@ export default function WeekOffsPage() {
             `}} />
 
             {/* Drawer Header */}
-            <div className="p-5 border-b border-slate-205 dark:border-slate-800 bg-card flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-black text-slate-850 dark:text-slate-100 uppercase tracking-widest font-sans">Configure Week-off Policy</h3>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5 font-sans">Define recurring weekly holidays and seasonal calendar overrides</p>
+            <div className="p-6 border-b border-slate-200/80 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/50 backdrop-blur-md flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 border border-white/20">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest font-sans">Configure Week-off Policy</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-0.5 font-sans">Define recurring weekly holidays and seasonal calendar overrides</p>
+                </div>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsDrawerOpen(false)}
-                className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 transition-colors p-1"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-all cursor-pointer"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1122,23 +1129,26 @@ export default function WeekOffsPage() {
             </div>
 
             {/* Drawer Scrollable Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              
+              {/* Policy Name & Mode Selector */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30">
                 <div>
-                  <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 font-sans">Policy Name</label>
+                  <label className="block text-[9.5px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 font-sans">Policy Name *</label>
                   <input
                     type="text"
                     value={weekoffForm.name}
                     onChange={e => setWeekoffForm({ ...weekoffForm, name: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 transition-all font-sans font-semibold shadow-inner"
+                    placeholder="e.g. Standard Week-off"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-sans shadow-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 font-sans">Policy Mode</label>
-                  <div className="relative flex items-center bg-slate-100 dark:bg-slate-900 rounded-xl p-1 w-full max-w-xs h-9 border border-slate-200/40 dark:border-slate-800 select-none">
+                  <label className="block text-[9.5px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 font-sans">Policy Mode *</label>
+                  <div className="relative flex items-center bg-slate-200/70 dark:bg-slate-900 rounded-xl p-1 w-full h-[38px] border border-slate-300/40 dark:border-slate-800 select-none">
                     <div
-                      className="absolute top-1 bottom-1 rounded-lg bg-white dark:bg-slate-800 shadow-sm transition-all duration-300 ease-in-out"
+                      className="absolute top-1 bottom-1 rounded-lg bg-white dark:bg-slate-800 shadow-sm border border-slate-200/50 dark:border-slate-700 transition-all duration-300 ease-in-out"
                       style={{
                         left: policyType === 'year-round' ? '4px' : 'calc(50% + 2px)',
                         width: 'calc(50% - 6px)'
@@ -1149,7 +1159,7 @@ export default function WeekOffsPage() {
                       onClick={() => setPolicyType('year-round')}
                       className={`relative z-10 flex-1 text-center text-[10px] font-black uppercase tracking-wider transition-colors duration-250 cursor-pointer ${
                         policyType === 'year-round'
-                          ? 'text-blue-600 dark:text-blue-400'
+                          ? 'text-indigo-600 dark:text-indigo-400'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
@@ -1174,7 +1184,7 @@ export default function WeekOffsPage() {
                       }}
                       className={`relative z-10 flex-1 text-center text-[10px] font-black uppercase tracking-wider transition-colors duration-250 cursor-pointer ${
                         policyType === 'seasonal'
-                          ? 'text-blue-600 dark:text-blue-400'
+                          ? 'text-indigo-600 dark:text-indigo-400'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
@@ -1185,9 +1195,11 @@ export default function WeekOffsPage() {
               </div>
 
               {policyType === 'seasonal' && (
-                <div className="p-4 rounded-xl border border-slate-200/50 dark:border-slate-800/80 bg-white/40 dark:bg-slate-900/10 space-y-4">
+                <div className="p-4.5 rounded-2xl border border-indigo-200/60 dark:border-indigo-900/40 bg-indigo-50/30 dark:bg-indigo-950/20 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider font-sans">Configured Month Ranges</span>
+                    <span className="text-[10px] font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest font-sans flex items-center gap-1.5">
+                      <span>🌀</span> Configured Month Ranges
+                    </span>
                     <button
                       type="button"
                       onClick={() => {
@@ -1218,7 +1230,7 @@ export default function WeekOffsPage() {
                         ]);
                         setSelectedPeriodId(newId);
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[9.5px] font-black uppercase tracking-widest transition-all shadow-sm cursor-pointer"
                     >
                       + Add Period
                     </button>
@@ -1231,10 +1243,10 @@ export default function WeekOffsPage() {
                         <div
                           key={p.id}
                           onClick={() => setSelectedPeriodId(p.id)}
-                          className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 flex flex-col justify-between shadow-sm hover:shadow-md ${
+                          className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 flex flex-col justify-between shadow-xs hover:shadow-md ${
                             isSelected
-                              ? 'bg-gradient-to-br from-blue-500/5 to-indigo-500/5 dark:from-blue-900/10 dark:to-indigo-900/10 border-blue-500 dark:border-blue-500 ring-1 ring-blue-500/20'
-                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-755'
+                              ? 'bg-gradient-to-br from-indigo-500/10 to-blue-500/10 dark:from-indigo-950/40 dark:to-blue-950/40 border-indigo-500 dark:border-indigo-500 ring-2 ring-indigo-500/20'
+                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
@@ -1248,13 +1260,13 @@ export default function WeekOffsPage() {
                                   updateSeasonalPeriodsAndTrim(autoFillGaps(updated));
                                 }}
                                 onClick={e => e.stopPropagation()}
-                                className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1 text-[10px] font-black text-slate-800 dark:text-slate-200 outline-none cursor-pointer focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 transition-all shadow-sm"
+                                className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1 text-[10px] font-black text-slate-800 dark:text-slate-200 outline-none cursor-pointer focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/25 transition-all shadow-xs"
                               >
                                 {monthNames.map((m, idx) => (
                                   <option key={m} value={idx + 1}>{m}</option>
                                 ))}
                               </select>
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest font-sans">to</span>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest font-sans">to</span>
                               <select
                                 value={p.endMonth}
                                 onChange={e => {
@@ -1264,7 +1276,7 @@ export default function WeekOffsPage() {
                                   updateSeasonalPeriodsAndTrim(autoFillGaps(updated));
                                 }}
                                 onClick={e => e.stopPropagation()}
-                                className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1 text-[10px] font-black text-slate-800 dark:text-slate-200 outline-none cursor-pointer focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 transition-all shadow-sm"
+                                className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1 text-[10px] font-black text-slate-800 dark:text-slate-200 outline-none cursor-pointer focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/25 transition-all shadow-xs"
                               >
                                 {monthNames.map((m, idx) => (
                                   <option key={m} value={idx + 1}>{m}</option>
@@ -1283,7 +1295,7 @@ export default function WeekOffsPage() {
                                     setSelectedPeriodId(updated[0].id);
                                   }
                                 }}
-                                className="text-red-500 hover:text-red-600 transition-colors p-1 cursor-pointer hover:bg-red-500/10 rounded-lg"
+                                className="text-rose-500 hover:text-rose-600 transition-colors p-1 cursor-pointer hover:bg-rose-500/10 rounded-lg"
                                 title="Delete Period"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -1293,7 +1305,7 @@ export default function WeekOffsPage() {
                             )}
                           </div>
 
-                          <div className="mt-3 text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
+                          <div className="mt-3 text-[9.5px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider font-sans border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
                             {p.off_days.length === 0 ? (
                               <span className="text-slate-400 font-bold italic">No off-days configured</span>
                             ) : (
@@ -1311,9 +1323,9 @@ export default function WeekOffsPage() {
                   </div>
 
                   {validation.error && (
-                    <div className="p-4 rounded-2xl border border-red-200/50 dark:border-red-900/30 bg-red-50/50 dark:bg-red-950/15 text-red-700 dark:text-red-400 text-xs font-semibold flex items-start gap-2.5 animate-fadeIn shadow-sm">
+                    <div className="p-4 rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-start gap-2.5 animate-fadeIn shadow-xs">
                       <div className="mt-0.5 flex-shrink-0">
-                        <svg className="w-4 h-4 text-red-500 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-rose-500 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                       </div>
@@ -1323,28 +1335,40 @@ export default function WeekOffsPage() {
                 </div>
               )}
 
-              <div className="space-y-3">
-                <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest font-sans">
-                  {policyType === 'seasonal' ? 'Configure Days for Selected Period' : 'Configure Days of the Week'}
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Configure Days Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2">
+                  <label className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest font-sans flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+                    {policyType === 'seasonal' ? 'Configure Days for Selected Period' : 'Configure Days of the Week'}
+                  </label>
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    Click toggles to mark week-offs
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => {
                     const isChecked = policyType === 'seasonal' ? (currentPeriod?.off_days.includes(day) || false) : weekoffForm.off_days.includes(day);
                     const activeWeeks = policyType === 'seasonal' ? (currentPeriod?.alternate_rules[day] || []) : (alternateRules[day] || []);
+
                     return (
                       <div 
                         key={day} 
-                        className={`p-4 rounded-2xl border transition-all duration-350 flex flex-col justify-between h-30 hover:scale-[1.015] ${
+                        className={`p-4.5 rounded-2xl transition-all duration-300 flex flex-col justify-between space-y-3.5 ${
                           isChecked 
-                            ? 'bg-gradient-to-br from-blue-500/5 to-indigo-500/5 dark:from-blue-900/10 dark:to-indigo-900/15 border-blue-300 dark:border-blue-900/80 shadow-md shadow-blue-500/5'
-                            : 'bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-750'
+                            ? 'bg-gradient-to-br from-indigo-500/10 via-blue-500/5 to-purple-500/10 dark:from-indigo-950/40 dark:via-blue-950/30 dark:to-purple-950/40 border-2 border-indigo-500/80 dark:border-indigo-500/80 shadow-md shadow-indigo-500/10'
+                            : 'bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
+                        {/* Day Card Header with Title & Switch */}
+                        <div className="flex items-center justify-between gap-3">
                           <div>
-                            <span className="text-xs font-black text-slate-855 dark:text-slate-200 uppercase tracking-wider font-sans">{day}</span>
-                            <span className={`block text-[8px] font-bold mt-0.5 uppercase tracking-widest ${
-                              isChecked ? 'text-blue-600 dark:text-blue-450 font-black' : 'text-slate-400 dark:text-slate-500'
+                            <span className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider font-sans block">{day}</span>
+                            <span className={`inline-block text-[9px] font-black uppercase tracking-widest mt-0.5 px-2 py-0.5 rounded-full border ${
+                              isChecked 
+                                ? 'bg-indigo-100/80 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' 
+                                : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 border-slate-200/50 dark:border-slate-700/50'
                             }`}>
                               {isChecked 
                                 ? activeWeeks.length === 0
@@ -1357,6 +1381,7 @@ export default function WeekOffsPage() {
                             </span>
                           </div>
 
+                          {/* Toggle Switch */}
                           <button
                             type="button"
                             onClick={() => {
@@ -1370,7 +1395,7 @@ export default function WeekOffsPage() {
 
                               const updatedAltRules = { ...currentAltRules };
                               if (!isCurrentlyChecked) {
-                                updatedAltRules[day] = [];
+                                updatedAltRules[day] = [1, 2, 3, 4, 5]; // Default all weeks on when toggled ON
                               } else {
                                 delete updatedAltRules[day];
                               }
@@ -1382,20 +1407,20 @@ export default function WeekOffsPage() {
                                 setAlternateRules(updatedAltRules);
                               }
                             }}
-                            className={`relative inline-flex h-5 w-9.5 flex-shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-250 ease-in-out outline-none shadow-inner ${
-                              isChecked ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-slate-200 dark:bg-slate-800'
+                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-300 ease-in-out outline-none shadow-sm ${
+                              isChecked ? 'bg-gradient-to-r from-indigo-600 to-blue-600' : 'bg-slate-300 dark:bg-slate-700'
                             }`}
                           >
                             <span
-                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-250 ease-in-out ${
-                                isChecked ? 'translate-x-4.5' : 'translate-x-0.5'
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
+                                isChecked ? 'translate-x-5' : 'translate-x-0'
                               }`}
-                              style={{ marginTop: '1.5px' }}
                             />
                           </button>
                         </div>
 
-                        <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-850 flex items-center justify-center min-h-[35px]">
+                        {/* Weeks Selection Row */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-center min-h-[42px]">
                           {isChecked ? (
                             <div className="flex items-center gap-1.5 animate-fadeIn">
                               {[1, 2, 3, 4, 5].map(weekNum => {
@@ -1423,11 +1448,12 @@ export default function WeekOffsPage() {
                                         setAlternateRules(updatedAltRules);
                                       }
                                     }}
-                                    className={`w-5.5 h-5.5 rounded-lg text-[8px] flex items-center justify-center transition-all border cursor-pointer ${
+                                    className={`w-7 h-7 rounded-xl text-xs flex items-center justify-center transition-all cursor-pointer font-black ${
                                       isWeekChecked
-                                        ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-200/80 dark:border-blue-900/60 text-blue-600 dark:text-blue-400 font-extrabold shadow-sm scale-105 hover:bg-blue-100 dark:hover:bg-blue-900'
-                                        : 'bg-slate-50/50 dark:bg-slate-900/50 border-slate-200/30 dark:border-slate-800/80 text-slate-400 dark:text-slate-500 font-medium hover:bg-slate-100 dark:hover:bg-slate-800'
+                                        ? 'bg-gradient-to-tr from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/30 scale-105 border border-indigo-400/50'
+                                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-slate-800 dark:hover:text-slate-200'
                                     }`}
+                                    title={`Toggle Week ${weekNum}`}
                                   >
                                     {weekNum}
                                   </button>
@@ -1435,7 +1461,9 @@ export default function WeekOffsPage() {
                               })}
                             </div>
                           ) : (
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium italic uppercase tracking-wider font-sans">No off-weeks</span>
+                            <div className="w-full py-1.5 text-center rounded-xl bg-slate-100/50 dark:bg-slate-950/40 border border-dashed border-slate-200 dark:border-slate-800/60">
+                              <span className="text-[9.5px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest font-sans">No Off-Weeks</span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1443,29 +1471,42 @@ export default function WeekOffsPage() {
                   })}
                 </div>
               </div>
+
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-550/5 dark:bg-slate-900/60 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setIsDrawerOpen(false)}
-                className="px-4.5 py-2 rounded-xl border border-slate-250 dark:border-slate-800 text-slate-700 dark:text-slate-350 text-xs font-black uppercase tracking-wider hover:bg-slate-105 dark:hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveWeekoffs}
-                disabled={policyType === 'seasonal' && !validation.isValid}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-md transition-all duration-200 ${
-                  policyType === 'seasonal' && !validation.isValid
-                    ? 'bg-slate-400/70 dark:bg-slate-700/60 cursor-not-allowed shadow-none'
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg shadow-blue-500/15 cursor-pointer transform hover:-translate-y-0.5'
-                }`}
-              >
-                Save Policy
-              </button>
+            <div className="p-5 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-black text-slate-700 dark:text-slate-300 font-sans uppercase tracking-wider">
+                  {(policyType === 'seasonal' ? (currentPeriod?.off_days.length || 0) : weekoffForm.off_days.length)} Days Off Configured
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-black uppercase tracking-wider hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveWeekoffs}
+                  disabled={policyType === 'seasonal' && !validation.isValid}
+                  className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white shadow-lg transition-all duration-200 flex items-center gap-2 ${
+                    policyType === 'seasonal' && !validation.isValid
+                      ? 'bg-slate-400/70 dark:bg-slate-700/60 cursor-not-allowed shadow-none'
+                      : 'bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-600/30 cursor-pointer active:scale-[0.98]'
+                  }`}
+                >
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  Save Policy
+                </button>
+              </div>
             </div>
           </div>
         </>

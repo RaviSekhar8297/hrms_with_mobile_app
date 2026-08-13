@@ -23,9 +23,9 @@ export default function Home() {
     const timer = setTimeout(() => {
       const token = localStorage.getItem('access_token');
       if (token) {
-        router.push('/dashboard');
+        router.replace('/dashboard');
       } else {
-        router.push('/login');
+        router.replace('/login');
       }
     }, 900);
 

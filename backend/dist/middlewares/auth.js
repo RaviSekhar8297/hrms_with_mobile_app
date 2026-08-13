@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.buildDataScopeCondition = exports.getEmployeeDataScope = void 0;
 exports.authenticateToken = authenticateToken;
 exports.requireSuperAdmin = requireSuperAdmin;
 exports.requirePermission = requirePermission;
@@ -40,52 +41,34 @@ function getKey(header, callback) {
 async function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) {
+    if (!token || token === 'undefined' || token === 'null') {
         return res.status(401).json({ error: 'Access token required' });
     }
-    if (token === 'mock_token_dev_bypass') {
-        req.user = {
-            keycloakId: 'mock-id-superadmin',
-            email: 'superadmin@hrms.com',
-            roles: ['SuperAdmin'],
-        };
-        return next();
+    // Ensure token has 3 dot-separated parts before calling jwt.verify
+    if (token.split('.').length !== 3) {
+        return res.status(401).json({ error: 'Invalid or malformed access token format' });
     }
-    if (token.startsWith('mock_token_employee_')) {
-        const email = token.replace('mock_token_employee_', '');
-        req.user = {
-            keycloakId: 'mock-id-employee',
-            email: email,
-            roles: ['Employee'],
-        };
-        try {
-            const empQuery = await (0, db_1.query)('SELECT company_id FROM hrms.employees WHERE email = $1 AND status = \'ACTIVE\'', [email]);
-            if (empQuery.rows.length > 0) {
-                req.user.companyId = empQuery.rows[0].company_id;
-            }
-            else {
-                return res.status(403).json({ error: 'User is not registered as an active employee' });
-            }
-        }
-        catch (dbErr) {
-            console.error('Error fetching employee company details:', dbErr);
-            return res.status(500).json({ error: 'Internal server authorization error' });
-        }
-        return next();
-    }
-    jsonwebtoken_1.default.verify(token, getKey, { algorithms: ['RS256'] }, async (err, decoded) => {
+    jsonwebtoken_1.default.verify(token, getKey, { algorithms: ['RS256'], ignoreExpiration: true }, async (err, decoded) => {
         if (err || !decoded || typeof decoded === 'string') {
             console.error('JWT Verification Error:', err);
             return res.status(401).json({ error: 'Invalid or expired token' });
         }
         const payload = decoded;
+        // Enforce 1 Hour (3600 seconds) maximum token lifespan
+        const nowInSec = Math.floor(Date.now() / 1000);
+        const tokenIssuedAt = payload.iat || 0;
+        if (tokenIssuedAt && (nowInSec - tokenIssuedAt > 3600)) {
+            console.error(`JWT Verification Error: Token expired. Issued at: ${new Date(tokenIssuedAt * 1000).toISOString()}, Now: ${new Date().toISOString()}`);
+            return res.status(401).json({ error: 'Token expired (1 hour limit reached)' });
+        }
         const tokenRoles = payload.realm_access?.roles || [];
-        const email = payload.email || '';
-        const preferredUsername = payload.preferred_username || '';
+        const email = payload.email || payload.preferred_username || payload.sub || '';
+        const preferredUsername = payload.preferred_username || payload.email || '';
         // Check if user is SuperAdmin
         const isSuper = tokenRoles.includes('SuperAdmin') ||
             tokenRoles.includes('superadmin') ||
-            preferredUsername.toLowerCase() === 'superadmin';
+            preferredUsername.toLowerCase() === 'superadmin' ||
+            preferredUsername.toLowerCase() === 'admin';
         const roles = [...tokenRoles];
         if (isSuper && !roles.includes('SuperAdmin')) {
             roles.push('SuperAdmin');
@@ -100,7 +83,7 @@ async function authenticateToken(req, res, next) {
         // Otherwise, we fetch their company_id and employee details from our DB using their email
         if (!isSuper && email) {
             try {
-                const empQuery = await (0, db_1.query)('SELECT company_id FROM hrms.employees WHERE email = $1 AND status = \'ACTIVE\'', [email]);
+                const empQuery = await (0, db_1.query)("SELECT company_id FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)) AND status = 'ACTIVE' LIMIT 1", [email]);
                 if (empQuery.rows.length > 0) {
                     req.user.companyId = empQuery.rows[0].company_id;
                 }
@@ -161,3 +144,6 @@ function requirePermission(permissionName) {
         }
     };
 }
+var dataScope_1 = require("../utils/dataScope");
+Object.defineProperty(exports, "getEmployeeDataScope", { enumerable: true, get: function () { return dataScope_1.getEmployeeDataScope; } });
+Object.defineProperty(exports, "buildDataScopeCondition", { enumerable: true, get: function () { return dataScope_1.buildDataScopeCondition; } });

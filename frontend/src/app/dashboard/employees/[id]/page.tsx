@@ -11,6 +11,7 @@ import Link from 'next/link';
 interface Company {
   id: string;
   name: string;
+  company_code?: string;
   subdomain: string;
   status: string;
   created_at: string;
@@ -213,7 +214,20 @@ export default function DedicatedEmployeeEditPage() {
     languages_known: ''
   });
 
+  const [initialFormData, setInitialFormData] = useState<any>(null);
+
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+
+  const currentSnap = {
+    ...formData,
+    emergency_contacts: JSON.stringify(formData.emergency_contacts || []),
+    education: JSON.stringify(formData.education || []),
+    experience: JSON.stringify(formData.experience || []),
+  };
+
+  const hasEmployeeChanges = initialFormData ? Object.keys(initialFormData).some(
+    key => String((currentSnap as any)[key] ?? '') !== String((initialFormData as any)[key] ?? '')
+  ) : false;
 
   // Fetch Engine Slabs & Configurations from Database
   useEffect(() => {
@@ -534,7 +548,7 @@ export default function DedicatedEmployeeEditPage() {
           variable_pay: Number(topRow?.variable_pay) || 0
         } : computeSalaryBreakups(0);
 
-        setFormData({
+        const loadedData = {
           emp_id_code: emp.emp_id_code || '',
           first_name: emp.first_name || '',
           last_name: emp.last_name || '',
@@ -575,6 +589,14 @@ export default function DedicatedEmployeeEditPage() {
           certifications: (emp as any).certifications || '',
           languages_known: (emp as any).languages_known || '',
           ...salaryCalc
+        };
+
+        setFormData(loadedData);
+        setInitialFormData({
+          ...loadedData,
+          emergency_contacts: JSON.stringify(loadedData.emergency_contacts),
+          education: JSON.stringify(loadedData.education),
+          experience: JSON.stringify(loadedData.experience),
         });
       } else {
         showToast('Employee profile not found in system', 'error');
@@ -632,6 +654,10 @@ export default function DedicatedEmployeeEditPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasEmployeeChanges) {
+      showToast('ℹ️ No changes detected to save.', 'info');
+      return;
+    }
     if (formData.password && formData.password.trim() !== '') {
       if (formData.password !== confirmPassword) {
         showToast('New Password and Confirm Password do not match!', 'error');
@@ -663,7 +689,7 @@ export default function DedicatedEmployeeEditPage() {
       };
 
       // 1. Update Employee Main Record
-      const res = await fetch(`http://localhost:5000/api/v1/employees/${employeeId}`, {
+      const res = await fetch(getUrl(`/api/v1/employees/${employeeId}`, activeComp), {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify(payload)
@@ -766,18 +792,92 @@ export default function DedicatedEmployeeEditPage() {
     { value: 'INTERN', label: 'Internship' }
   ];
 
-  const companyOptions = companies.map(c => ({ value: c.id, label: c.name }));
-  const branchOptions = branches.map(b => ({ value: b.id, label: b.name }));
-  const departmentOptions = departments.map(d => ({ value: d.id, label: d.name }));
-  const designationOptions = designations.map(des => ({ value: des.id, label: des.name }));
-  const roleOptions = tenantRoles.map(r => ({ value: r.id, label: r.name }));
-  const shiftOptions = shifts.map(s => ({ value: s.id, label: `${s.name} (${s.start_time} - ${s.end_time})` }));
+  // Deduplicate helper for select options
+  const deduplicateOptions = (options: { value: string; label: string }[], currentValue?: string) => {
+    const seenValues = new Set<string>();
+    const seenLabels = new Set<string>();
+    const result: { value: string; label: string }[] = [];
+
+    if (currentValue) {
+      const currentOpt = options.find(o => o.value === currentValue);
+      if (currentOpt && currentOpt.value) {
+        seenValues.add(currentOpt.value);
+        seenLabels.add(currentOpt.label.trim().toLowerCase());
+        result.push(currentOpt);
+      }
+    }
+
+    for (const opt of options) {
+      if (!opt.value) continue;
+      const cleanLabel = opt.label.trim().toLowerCase();
+      if (!seenValues.has(opt.value) && !seenLabels.has(cleanLabel)) {
+        seenValues.add(opt.value);
+        seenLabels.add(cleanLabel);
+        result.push(opt);
+      }
+    }
+    return result;
+  };
+
+  const targetCompId = formData.companyId || companyId;
+
+  const companyOptions = deduplicateOptions(
+    companies.map(c => ({ value: c.id, label: c.name })),
+    formData.companyId
+  );
+
+  const rawFilteredBranches = (targetCompId && targetCompId !== 'all')
+    ? branches.filter(b => b.company_id === targetCompId)
+    : branches;
+  const branchOptions = deduplicateOptions(
+    rawFilteredBranches.map(b => ({ value: b.id, label: b.name })),
+    formData.branch_id
+  );
+
+  const rawFilteredDepartments = (targetCompId && targetCompId !== 'all')
+    ? departments.filter(d => d.company_id === targetCompId && (!formData.branch_id || !(d as any).branch_id || (d as any).branch_id === formData.branch_id))
+    : (formData.branch_id ? departments.filter(d => !(d as any).branch_id || (d as any).branch_id === formData.branch_id) : departments);
+  const departmentOptions = deduplicateOptions(
+    rawFilteredDepartments.map(d => ({ value: d.id, label: d.name })),
+    formData.department_id
+  );
+
+  const rawFilteredDesignations = (targetCompId && targetCompId !== 'all')
+    ? designations.filter(des => des.company_id === targetCompId && (!formData.department_id || !(des as any).department_id || (des as any).department_id === formData.department_id))
+    : (formData.department_id ? designations.filter(des => !(des as any).department_id || (des as any).department_id === formData.department_id) : designations);
+  const designationOptions = deduplicateOptions(
+    rawFilteredDesignations.map(des => ({ value: des.id, label: des.name })),
+    formData.designation_id
+  );
+
+  const rawFilteredRoles = (targetCompId && targetCompId !== 'all')
+    ? tenantRoles.filter(r => r.company_id === targetCompId)
+    : tenantRoles;
+  const roleOptions = deduplicateOptions(
+    rawFilteredRoles.map(r => ({ value: r.id, label: r.name })),
+    formData.role_id
+  );
+
+  const rawFilteredShifts = (targetCompId && targetCompId !== 'all')
+    ? shifts.filter(s => (s as any).company_id === targetCompId)
+    : shifts;
+  const shiftOptions = deduplicateOptions(
+    rawFilteredShifts.map(s => ({ value: s.id, label: `${s.name} (${s.start_time} - ${s.end_time})` })),
+    formData.shift_id
+  );
+
+  const rawFilteredManagers = (targetCompId && targetCompId !== 'all')
+    ? allEmployees.filter(e => e.company_id === targetCompId)
+    : allEmployees;
   const managerOptions = [
     { value: '', label: 'Direct / Top Level (No Manager)' },
-    ...allEmployees.map(mgr => ({
-      value: mgr.id,
-      label: `${mgr.emp_id_code || ''} - ${mgr.first_name} ${mgr.last_name}`
-    }))
+    ...deduplicateOptions(
+      rawFilteredManagers.map(mgr => ({
+        value: mgr.id,
+        label: `${mgr.emp_id_code || ''} - ${mgr.first_name} ${mgr.last_name}`
+      })),
+      formData.reporting_to_id
+    )
   ];
 
   // Financial Years Dropdown Options for Salary Structure
@@ -876,22 +976,26 @@ export default function DedicatedEmployeeEditPage() {
         <form onSubmit={handleSave} className="space-y-6">
           
           {/* Executive Overview Header Card */}
-          <div className="bg-card rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+          <div className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 transition-all">
+            {/* Background Subtle Ambient Glow */}
+            <div className="absolute -top-24 -left-24 w-60 h-60 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left z-10">
               
               {/* Profile Avatar Image with Upload Overlay */}
-              <div className="relative group">
+              <div className="relative group shrink-0">
                 {formData.emp_image ? (
-                  <img src={formData.emp_image} alt="Profile" className="w-20 h-20 rounded-2xl object-cover border-2 border-blue-500 shadow-md transition-all group-hover:opacity-80" />
+                  <img src={formData.emp_image} alt="Profile" className="w-22 h-22 rounded-2xl object-cover border-2 border-blue-500/80 shadow-md group-hover:scale-105 transition-all duration-300" />
                 ) : (
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white flex items-center justify-center text-xl font-black shadow-md transition-all group-hover:opacity-80">
+                  <div className="w-22 h-22 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-center text-2xl font-black shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-all duration-300">
                     {getInitials()}
                   </div>
                 )}
 
                 {/* Upload Camera Overlay Button */}
-                <label className="absolute inset-0 bg-slate-950/60 rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-[10px] font-bold transition-all cursor-pointer shadow-lg backdrop-blur-xs">
-                  <svg className="w-5 h-5 text-white mb-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <label className="absolute inset-0 bg-slate-950/70 rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-[10px] font-extrabold transition-all duration-200 cursor-pointer shadow-lg backdrop-blur-xs">
+                  <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
                   </svg>
@@ -913,48 +1017,64 @@ export default function DedicatedEmployeeEditPage() {
                   />
                 </label>
 
-                <span className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white dark:border-slate-900 pointer-events-none ${
+                <span className={`absolute -bottom-1 -right-1 h-4.5 w-4.5 rounded-full border-2 border-white dark:border-slate-900 pointer-events-none shadow-sm ${
                   formData.status === 'ACTIVE' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
                 }`} />
               </div>
 
-              <div>
+              <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                  <h1 className="text-xl font-black text-slate-900 dark:text-slate-100">
+                  <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
                     {formData.first_name} {formData.last_name}
                   </h1>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-black bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 uppercase tracking-wider">
+                  <span className="px-3 py-0.5 rounded-full text-[10.5px] font-black bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 uppercase tracking-widest shadow-2xs">
                     {formData.emp_id_code || 'EMP-NEW'}
                   </span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider ${
+                  <span className={`px-3 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-widest shadow-2xs ${
                     formData.status === 'ACTIVE'
-                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200'
-                      : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200'
+                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
+                      : 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60'
                   }`}>
                     {formData.status}
                   </span>
                 </div>
-                
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                  📧 {formData.email || 'No email provided'} • 📱 {formData.phone || 'No phone'}
-                </p>
 
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                  <span>🏢 Dept: <strong>{departments.find(d => d.id === formData.department_id)?.name || 'General'}</strong></span>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                    </svg>
+                    {formData.email || 'No email provided'}
+                  </span>
                   <span>•</span>
-                  <span>📍 Branch: <strong>{branches.find(b => b.id === formData.branch_id)?.name || 'Main Office'}</strong></span>
-                  <span>•</span>
-                  <span>📅 Joined: <strong>{formData.joining_date || 'N/A'}</strong></span>
+                  <span className="flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.826-1.47-5.112-3.756-6.58-6.58l1.293-.97c.362-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                    </svg>
+                    {formData.phone || 'No phone'}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1.5">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 text-[11px] font-bold">
+                    🏢 <span>Dept:</span> <strong className="text-slate-900 dark:text-white font-extrabold">{departments.find(d => d.id === formData.department_id)?.name || 'Management'}</strong>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 text-[11px] font-bold">
+                    📍 <span>Branch:</span> <strong className="text-slate-900 dark:text-white font-extrabold">{branches.find(b => b.id === formData.branch_id)?.name || 'JUBILEE HILLS'}</strong>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 text-[11px] font-bold">
+                    📅 <span>Joined:</span> <strong className="text-slate-900 dark:text-white font-extrabold">{formData.joining_date || 'N/A'}</strong>
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Save Action Button */}
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex items-center gap-3 w-full md:w-auto z-10 shrink-0">
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full md:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-75 disabled:cursor-not-allowed"
+                className="w-full md:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 text-white text-xs font-black shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-75 disabled:cursor-not-allowed"
               >
                 {saving ? (
                   <>
@@ -966,7 +1086,7 @@ export default function DedicatedEmployeeEditPage() {
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                     </svg>
                     <span>Save Profile Changes</span>
@@ -976,120 +1096,35 @@ export default function DedicatedEmployeeEditPage() {
             </div>
           </div>
 
-          {/* 🌟 NEAT SEGMENTED PILL TABS BAR */}
-          <div className="p-1.5 rounded-2xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center gap-2 font-sans overflow-x-auto shadow-inner">
-            <button
-              type="button"
-              onClick={() => setActiveTab('PERSONAL')}
-              className={`py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2 font-bold whitespace-nowrap ${
-                activeTab === 'PERSONAL'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-md border border-blue-500/20'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <span>👤 Personal & Contact</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('WORK')}
-              className={`py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2 font-bold whitespace-nowrap ${
-                activeTab === 'WORK'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-md border border-blue-500/20'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <span>🏢 Organization & Duty</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('STATUTORY')}
-              className={`py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2 font-bold whitespace-nowrap ${
-                activeTab === 'STATUTORY'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-md border border-blue-500/20'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <span>📜 Statutory & Identity</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('BANK')}
-              className={`py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2 font-bold whitespace-nowrap ${
-                activeTab === 'BANK'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-md border border-blue-500/20'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <span>🏦 Bank Account & Payout</span>
-            </button>
-
-            {/* 💵 TAB: SALARY BREAKUPS */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('SALARY')}
-              className={`py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2 font-bold whitespace-nowrap ${
-                activeTab === 'SALARY'
-                  ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-md border border-emerald-500/30 ring-2 ring-emerald-500/10'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <span>💵 Salary Breakups & CTC</span>
-            </button>
-
-            {/* 🚨 TAB: EMERGENCY CONTACTS */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('EMERGENCY')}
-              className={`py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2 font-bold whitespace-nowrap ${
-                activeTab === 'EMERGENCY'
-                  ? 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-md border border-rose-500/30'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <span>🚨 Emergency Contacts</span>
-            </button>
-
-            {/* 🎓 TAB: EDUCATION & QUALIFICATIONS */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('EDUCATION')}
-              className={`py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2 font-bold whitespace-nowrap ${
-                activeTab === 'EDUCATION'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-md border border-indigo-500/30'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <span>🎓 Education</span>
-            </button>
-
-            {/* 💼 TAB: WORK EXPERIENCE */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('EXPERIENCE')}
-              className={`py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2 font-bold whitespace-nowrap ${
-                activeTab === 'EXPERIENCE'
-                  ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-md border border-amber-500/30'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <span>💼 Experience</span>
-            </button>
-
-            {/* ⚡ TAB: SKILLS & CERTIFICATIONS */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('SKILLS')}
-              className={`py-2.5 px-4 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-2 font-bold whitespace-nowrap ${
-                activeTab === 'SKILLS'
-                  ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-md border border-purple-500/30'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <span>⚡ Skills & Expertise</span>
-            </button>
+          {/* 🌟 PREMIUM SEGMENTED PILL TABS BAR */}
+          <div className="p-1.5 rounded-2xl bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 flex items-center gap-1.5 font-sans overflow-x-auto no-scrollbar shadow-inner">
+            {[
+              { id: 'PERSONAL', label: 'Personal', icon: '👤', color: 'from-blue-600 to-indigo-600' },
+              { id: 'WORK', label: 'Organization', icon: '🏢', color: 'from-blue-600 to-cyan-600' },
+              { id: 'BANK', label: 'Bank Account & Payout', icon: '🏦', color: 'from-cyan-600 to-blue-600' },
+              { id: 'SALARY', label: 'Salary Breakups & CTC', icon: '💵', color: 'from-emerald-600 to-teal-600' },
+              { id: 'EMERGENCY', label: 'Emergency Contacts', icon: '🚨', color: 'from-rose-600 to-red-600' },
+              { id: 'EDUCATION', label: 'Education', icon: '🎓', color: 'from-violet-600 to-purple-600' },
+              { id: 'EXPERIENCE', label: 'Experience', icon: '💼', color: 'from-amber-600 to-orange-600' },
+              { id: 'SKILLS', label: 'Skills & Expertise', icon: '⚡', color: 'from-purple-600 to-pink-600' }
+            ].map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`py-2.5 px-4 rounded-xl text-xs transition-all duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+                    isActive
+                      ? `bg-gradient-to-r ${tab.color} text-white font-black shadow-md shadow-blue-500/20 scale-[1.02]`
+                      : 'text-slate-600 dark:text-slate-400 font-extrabold hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-800 shadow-2xs'
+                  }`}
+                >
+                  <span className="text-sm">{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* TAB 1: PERSONAL INFORMATION */}
@@ -1104,13 +1139,24 @@ export default function DedicatedEmployeeEditPage() {
                   <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
                     Employee ID Code <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.emp_id_code}
-                    onChange={e => setFormData({ ...formData, emp_id_code: e.target.value })}
-                    className={inputStyle}
-                  />
+                  <div className="relative flex items-center w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden focus-within:border-blue-500 transition-all">
+                    {(() => {
+                      const compObj = companies.find(c => c.id === (formData.companyId || companyId)) || companies[0];
+                      const compCode = compObj ? (compObj.company_code || compObj.subdomain?.toUpperCase() || 'EMP') : 'EMP';
+                      return (
+                        <span className="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 font-mono font-extrabold text-xs border-r border-slate-300 dark:border-slate-700 select-none flex-shrink-0 uppercase tracking-wider">
+                          {compCode}-
+                        </span>
+                      );
+                    })()}
+                    <input
+                      type="text"
+                      required
+                      value={formData.emp_id_code}
+                      onChange={e => setFormData({ ...formData, emp_id_code: e.target.value })}
+                      className="w-full bg-transparent px-3 py-2 text-xs text-slate-800 dark:text-slate-200 font-mono font-bold outline-none border-none"
+                    />
+                  </div>
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
@@ -1371,7 +1417,14 @@ export default function DedicatedEmployeeEditPage() {
                     <SearchableSelect
                       options={companyOptions}
                       value={formData.companyId}
-                      onChange={val => setFormData({ ...formData, companyId: val })}
+                      onChange={val => setFormData({
+                        ...formData,
+                        companyId: val,
+                        branch_id: '',
+                        department_id: '',
+                        designation_id: '',
+                        role_id: ''
+                      })}
                       placeholder="Search company..."
                     />
                   </div>
@@ -1384,7 +1437,7 @@ export default function DedicatedEmployeeEditPage() {
                   <SearchableSelect
                     options={branchOptions}
                     value={formData.branch_id}
-                    onChange={val => setFormData({ ...formData, branch_id: val })}
+                    onChange={val => setFormData({ ...formData, branch_id: val, department_id: '', designation_id: '' })}
                     placeholder="Search branch..."
                   />
                 </div>
@@ -1396,7 +1449,7 @@ export default function DedicatedEmployeeEditPage() {
                   <SearchableSelect
                     options={departmentOptions}
                     value={formData.department_id}
-                    onChange={val => setFormData({ ...formData, department_id: val })}
+                    onChange={val => setFormData({ ...formData, department_id: val, designation_id: '' })}
                     placeholder="Search department..."
                   />
                 </div>
@@ -1464,127 +1517,127 @@ export default function DedicatedEmployeeEditPage() {
             </div>
           )}
 
-          {/* TAB 3: STATUTORY & IDENTITY */}
-          {activeTab === 'STATUTORY' && (
-            <div className="bg-card rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-6 font-sans">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-3">
-                Government Identity & Compliance Documents
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    PAN Card Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.pan_number}
-                    onChange={e => setFormData({ ...formData, pan_number: e.target.value.toUpperCase() })}
-                    placeholder="ABCDE1234F"
-                    className={inputStyle}
-                  />
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    Aadhar Card Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.aadhar_number}
-                    onChange={e => setFormData({ ...formData, aadhar_number: e.target.value })}
-                    placeholder="1234 5678 9012"
-                    className={inputStyle}
-                  />
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    UAN (Provident Fund) Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.uan_number}
-                    onChange={e => setFormData({ ...formData, uan_number: e.target.value })}
-                    placeholder="100123456789"
-                    className={inputStyle}
-                  />
-                </div>
-
-                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    ESI Insurance Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.esi_number}
-                    onChange={e => setFormData({ ...formData, esi_number: e.target.value })}
-                    placeholder="310012345678"
-                    className={inputStyle}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: BANK ACCOUNT */}
+          {/* TAB 3: BANK ACCOUNT & STATUTORY COMPLIANCE */}
           {activeTab === 'BANK' && (
             <div className="bg-card rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-6 font-sans">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-3">
-                Bank Account & Salary Disbursement Details
-              </h3>
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-3">
+                  Bank Account & Salary Disbursement Details
+                </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    Bank Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.bank_name}
-                    onChange={e => setFormData({ ...formData, bank_name: e.target.value })}
-                    placeholder="e.g. HDFC Bank, SBI, ICICI"
-                    className={inputStyle}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                    <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                      Bank Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.bank_name}
+                      onChange={e => setFormData({ ...formData, bank_name: e.target.value })}
+                      placeholder="e.g. HDFC Bank, SBI, ICICI"
+                      className={inputStyle}
+                    />
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                    <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                      Account Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.account_number}
+                      onChange={e => setFormData({ ...formData, account_number: e.target.value })}
+                      placeholder="Enter bank account number..."
+                      className={inputStyle}
+                    />
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                    <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                      IFSC Code
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.ifsc_code}
+                      onChange={e => setFormData({ ...formData, ifsc_code: e.target.value.toUpperCase() })}
+                      placeholder="HDFC0001234"
+                      className={inputStyle}
+                    />
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                    <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                      Bank Branch Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.bank_branch}
+                      onChange={e => setFormData({ ...formData, bank_branch: e.target.value })}
+                      placeholder="e.g. Jubilee Hills, Hyderabad"
+                      className={inputStyle}
+                    />
+                  </div>
                 </div>
+              </div>
 
-                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    Account Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.account_number}
-                    onChange={e => setFormData({ ...formData, account_number: e.target.value })}
-                    placeholder="Enter bank account number..."
-                    className={inputStyle}
-                  />
-                </div>
+              {/* STATUTORY & GOVERNMENT IDENTITY SECTION */}
+              <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 pb-3">
+                  Government Identity & Statutory Compliance
+                </h3>
 
-                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    IFSC Code
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.ifsc_code}
-                    onChange={e => setFormData({ ...formData, ifsc_code: e.target.value.toUpperCase() })}
-                    placeholder="HDFC0001234"
-                    className={inputStyle}
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                    <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                      PAN Card Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.pan_number}
+                      onChange={e => setFormData({ ...formData, pan_number: e.target.value.toUpperCase() })}
+                      placeholder="ABCDE1234F"
+                      className={inputStyle}
+                    />
+                  </div>
 
-                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    Bank Branch Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.bank_branch}
-                    onChange={e => setFormData({ ...formData, bank_branch: e.target.value })}
-                    placeholder="e.g. Jubilee Hills, Hyderabad"
-                    className={inputStyle}
-                  />
+                  <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                    <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                      Aadhar Card Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.aadhar_number}
+                      onChange={e => setFormData({ ...formData, aadhar_number: e.target.value })}
+                      placeholder="1234 5678 9012"
+                      className={inputStyle}
+                    />
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                    <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                      UAN (Provident Fund) Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.uan_number}
+                      onChange={e => setFormData({ ...formData, uan_number: e.target.value })}
+                      placeholder="100123456789"
+                      className={inputStyle}
+                    />
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                    <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                      ESI Insurance Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.esi_number}
+                      onChange={e => setFormData({ ...formData, esi_number: e.target.value })}
+                      placeholder="310012345678"
+                      className={inputStyle}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -2591,8 +2644,13 @@ export default function DedicatedEmployeeEditPage() {
 
             <button
               type="submit"
-              disabled={saving}
-              className="px-8 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center gap-2.5 disabled:opacity-75 disabled:cursor-not-allowed"
+              disabled={saving || !hasEmployeeChanges}
+              className={`px-8 py-3 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 ${
+                hasEmployeeChanges && !saving
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white cursor-pointer shadow-md hover:shadow-lg active:scale-95'
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none opacity-60'
+              }`}
+              title={!hasEmployeeChanges ? 'No changes detected to save' : 'Click to save employee profile changes'}
             >
               {saving ? (
                 <>
@@ -2604,10 +2662,11 @@ export default function DedicatedEmployeeEditPage() {
                 </>
               ) : (
                 <>
+                  {hasEmployeeChanges && <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
-                  <span>Save Profile Changes</span>
+                  <span>{hasEmployeeChanges ? 'Save Profile Changes' : 'No Changes'}</span>
                 </>
               )}
             </button>

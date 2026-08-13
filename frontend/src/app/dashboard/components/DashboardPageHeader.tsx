@@ -61,7 +61,7 @@ export default function DashboardPageHeader({
                 placeholder={noneLabel || "Global Scope"}
                 options={[
                   { value: noneLabel ? 'all' : '', label: noneLabel || '-- None (Global Scope) --' },
-                  ...companies.map(c => ({ value: c.id, label: c.name }))
+                  ...(Array.isArray(companies) ? companies : []).map(c => ({ value: c.id, label: c.name }))
                 ]}
                 value={companyId || (noneLabel ? 'all' : '')}
                 onChange={val => handleCompanyChange(val)}

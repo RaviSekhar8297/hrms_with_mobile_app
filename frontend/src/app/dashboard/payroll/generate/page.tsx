@@ -322,9 +322,18 @@ export default function GeneratePayrollPage() {
   ];
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-sans space-y-6 animate-fadeIn w-full pb-24 text-left">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="payroll-generate-container font-sans space-y-6 animate-fadeIn w-full pb-24 text-left">
       <style dangerouslySetInnerHTML={{__html: `
-        .font-sans, button, input, select, label, span, div, p, h1, h2, h3, h4, th, td {
+        .payroll-generate-container,
+        .payroll-generate-container button,
+        .payroll-generate-container input,
+        .payroll-generate-container select,
+        .payroll-generate-container label,
+        .payroll-generate-container span,
+        .payroll-generate-container div,
+        .payroll-generate-container p,
+        .payroll-generate-container th,
+        .payroll-generate-container td {
           font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }
       `}} />

@@ -542,12 +542,25 @@ export default function GlobalConfigurationPage() {
                   <div>
                     <div className="flex items-center gap-2.5">
                       <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Active Mail Server</h4>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleIntegration('SMTP', integrations.find(d => d.provider === 'SMTP')?.is_active)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          integrations.find(d => d.provider === 'SMTP')?.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            integrations.find(d => d.provider === 'SMTP')?.is_active ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
                       <span className={`px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider ${
                         integrations.find(d => d.provider === 'SMTP')?.is_active
                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                          : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-300'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200'
                       }`}>
-                        {integrations.find(d => d.provider === 'SMTP')?.is_active ? '● LIVE' : 'PAUSED'}
+                        {integrations.find(d => d.provider === 'SMTP')?.is_active ? 'ENABLED (LIVE)' : 'OFF (DISABLED)'}
                       </span>
                     </div>
                     <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
@@ -557,16 +570,6 @@ export default function GlobalConfigurationPage() {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <button 
-                    onClick={() => handleToggleIntegration('SMTP', integrations.find(d => d.provider === 'SMTP')?.is_active)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                      integrations.find(d => d.provider === 'SMTP')?.is_active
-                        ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                    }`}
-                  >
-                    {integrations.find(d => d.provider === 'SMTP')?.is_active ? 'Pause Gateway' : 'Enable Gateway'}
-                  </button>
                   <button 
                     onClick={() => setShowSmtpModal(true)}
                     className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
@@ -626,12 +629,25 @@ export default function GlobalConfigurationPage() {
                   <div>
                     <div className="flex items-center gap-2.5">
                       <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Meta WhatsApp Gateway</h4>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleIntegration('WHATSAPP', integrations.find(d => d.provider === 'WHATSAPP')?.is_active)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
                       <span className={`px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider ${
                         integrations.find(d => d.provider === 'WHATSAPP')?.is_active
                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                          : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-300'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200'
                       }`}>
-                        {integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? '● LIVE' : 'PAUSED'}
+                        {integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'ENABLED (LIVE)' : 'OFF (DISABLED)'}
                       </span>
                     </div>
                     <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
@@ -641,16 +657,6 @@ export default function GlobalConfigurationPage() {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <button 
-                    onClick={() => handleToggleIntegration('WHATSAPP', integrations.find(d => d.provider === 'WHATSAPP')?.is_active)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                      integrations.find(d => d.provider === 'WHATSAPP')?.is_active
-                        ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                    }`}
-                  >
-                    {integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'Pause Gateway' : 'Enable Gateway'}
-                  </button>
                   <button 
                     onClick={() => setShowWhatsappModal(true)}
                     className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
@@ -885,7 +891,7 @@ export default function GlobalConfigurationPage() {
                   <input type="text" value={smtpCreds.smtpServer} onChange={e => setSmtpCreds({...smtpCreds, smtpServer: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="smtp.gmail.com" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">SMTP Password / App Key</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">App Code</label>
                   <input type="password" value={smtpCreds.password} onChange={e => setSmtpCreds({...smtpCreds, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" />
                 </div>
                 <div>

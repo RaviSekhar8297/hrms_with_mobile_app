@@ -11,7 +11,7 @@ export interface Toast {
 
 export type LayoutType = 'sidebar' | 'bottom-dock';
 export type ThemeType = 'slate-dark' | 'nordic-light';
-export type FontType = 'Inter' | 'Outfit' | 'Space Grotesk' | 'Playfair Display' | 'DM Sans';
+export type FontType = 'Poppins' | 'Inter' | 'Outfit' | 'Space Grotesk' | 'Playfair Display' | 'DM Sans';
 
 interface DashboardContextType {
   layout: LayoutType;
@@ -33,7 +33,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [layout, setLayoutState] = useState<LayoutType>('sidebar');
   const [theme, setThemeState] = useState<ThemeType>('slate-dark');
-  const [font, setFontState] = useState<FontType>('DM Sans');
+  const [font, setFontState] = useState<FontType>('Poppins');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [bodyLoading, setBodyLoading] = useState(false);
 
@@ -53,7 +53,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
 
     const savedFont = localStorage.getItem('pref_font') as FontType;
-    if (savedFont) setFontState(savedFont);
+    if (savedFont) {
+      setFontState(savedFont);
+    } else {
+      setFontState('Poppins');
+      localStorage.setItem('pref_font', 'Poppins');
+    }
   }, []);
 
   // Sync Layout class
@@ -82,12 +87,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     doc.classList.remove('theme-slate-dark', 'theme-indigo-velvet', 'theme-midnight-emerald', 'theme-nordic-light', 'dark');
 
     // Font mapping
-    let mappedFont = 'Inter, sans-serif';
-    if (font === 'Outfit') mappedFont = 'Outfit, sans-serif';
+    let mappedFont = '"Poppins", "Inter", sans-serif';
+    if (font === 'Poppins') mappedFont = '"Poppins", "Inter", sans-serif';
+    else if (font === 'Inter') mappedFont = '"Inter", "Poppins", sans-serif';
+    else if (font === 'Outfit' || font === 'DM Sans') mappedFont = '"Outfit", "Plus Jakarta Sans", sans-serif';
     else if (font === 'Space Grotesk') mappedFont = '"Space Grotesk", sans-serif';
     else if (font === 'Playfair Display') mappedFont = '"Playfair Display", serif';
-    else if (font === 'DM Sans') mappedFont = '"DM Sans", sans-serif';
+    
     doc.style.fontFamily = mappedFont;
+    document.body.style.fontFamily = mappedFont;
 
     // Theme values configuration
     if (theme === 'nordic-light') {

@@ -9,10 +9,12 @@ import { useDashboard } from '../components/DashboardContext';
 interface Company {
   id: string;
   name: string;
+  company_code?: string;
   subdomain: string;
   domain: string;
   branding_logo: string;
   status: string;
+  established_date?: string;
   created_at: string;
 }
 
@@ -38,10 +40,12 @@ export default function CompaniesPage() {
   // Form states
   const [companyForm, setCompanyForm] = useState({
     name: '',
+    company_code: '',
     subdomain: '',
     domain: '',
     branding_logo: '',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    established_date: ''
   });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
@@ -89,10 +93,12 @@ export default function CompaniesPage() {
     setSelectedCompanyId(null);
     setCompanyForm({
       name: '',
+      company_code: '',
       subdomain: '',
       domain: '',
       branding_logo: '',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      established_date: ''
     });
     setDrawerOpen(true);
   };
@@ -100,12 +106,22 @@ export default function CompaniesPage() {
   const openEditDrawer = (company: Company) => {
     setEditMode(true);
     setSelectedCompanyId(company.id);
+    let estDateFormatted = '';
+    if (company.established_date) {
+      try {
+        estDateFormatted = new Date(company.established_date).toISOString().split('T')[0];
+      } catch (e) {
+        estDateFormatted = company.established_date.split('T')[0] || '';
+      }
+    }
     setCompanyForm({
       name: company.name,
+      company_code: company.company_code || company.subdomain?.toUpperCase() || '',
       subdomain: company.subdomain,
       domain: company.domain || '',
       branding_logo: company.branding_logo || '',
-      status: company.status || 'ACTIVE'
+      status: company.status || 'ACTIVE',
+      established_date: estDateFormatted
     });
     setDrawerOpen(true);
   };
@@ -177,11 +193,6 @@ export default function CompaniesPage() {
     );
   }
 
-  // Calculate statistics metrics
-  const totalCompanies = companies.length;
-  const activeCompanies = companies.filter(c => c.status === 'ACTIVE' || !c.status).length;
-  const customDomains = companies.filter(c => c.domain).length;
-
   // Filtered companies based on search query and status filter
   const filteredCompanies = companies.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -207,66 +218,12 @@ export default function CompaniesPage() {
           email={email}
           hideCompanySelect={true}
           hideUserBadge={true}
-        >
-          <button
-            onClick={openAddDrawer}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors flex-shrink-0">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </span>
-            <span className="tracking-wide">Onboard Tenant</span>
-          </button>
-        </DashboardPageHeader>
-      </div>
-
-      {/* Metrics Statistics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Metric 1 */}
-        <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-card p-5 flex items-center justify-between shadow-xs border-l-4 border-l-indigo-500 hover:shadow-md transition-shadow">
-          <div className="text-left space-y-1">
-            <p className="text-[9.5px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider">Total Corporate Tenants</p>
-            <h4 className="text-2xl font-black text-slate-850 dark:text-slate-100">{totalCompanies}</h4>
-          </div>
-          <div className="h-11 w-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/45 text-indigo-500 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/30">
-            <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Metric 2 */}
-        <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-card p-5 flex items-center justify-between shadow-xs border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
-          <div className="text-left space-y-1">
-            <p className="text-[9.5px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider">Active Instances</p>
-            <h4 className="text-2xl font-black text-slate-850 dark:text-slate-100">{activeCompanies}</h4>
-          </div>
-          <div className="h-11 w-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/45 text-emerald-500 dark:text-emerald-450 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/30">
-            <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Metric 3 */}
-        <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-card p-5 flex items-center justify-between shadow-xs border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
-          <div className="text-left space-y-1">
-            <p className="text-[9.5px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider">Custom Domains Link</p>
-            <h4 className="text-2xl font-black text-slate-850 dark:text-slate-100">{customDomains}</h4>
-          </div>
-          <div className="h-11 w-11 rounded-xl bg-blue-50 dark:bg-blue-950/45 text-blue-500 dark:text-blue-400 flex items-center justify-center border border-blue-100 dark:border-blue-900/30">
-            <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-.778.099-1.533.284-2.253m0 0L21 12" />
-            </svg>
-          </div>
-        </div>
+        />
       </div>
 
       {/* Main Listing & Filters Panel */}
       <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-card p-6 shadow-sm space-y-6">
-             {/* Search & Real-time Filter Bar */}
+        {/* Search & Real-time Filter Bar */}
         <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="relative w-full sm:max-w-xs">
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -283,18 +240,32 @@ export default function CompaniesPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status:</span>
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:bg-card focus:ring-1 focus:ring-blue-100 cursor-pointer"
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:bg-card focus:ring-1 focus:ring-blue-100 cursor-pointer"
+              >
+                <option value="ALL">Show All</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="SUSPENDED">SUSPENDED</option>
+                <option value="INACTIVE">INACTIVE</option>
+              </select>
+            </div>
+
+            <button
+              onClick={openAddDrawer}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
             >
-              <option value="ALL">Show All</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="SUSPENDED">SUSPENDED</option>
-              <option value="INACTIVE">INACTIVE</option>
-            </select>
+              <span className="flex h-4.5 w-4.5 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors flex-shrink-0">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </span>
+              <span className="tracking-wide">Onboard Tenant</span>
+            </button>
           </div>
         </div>
 
@@ -308,14 +279,15 @@ export default function CompaniesPage() {
                 <th className="py-3.5 px-4">Subdomain Access</th>
                 <th className="py-3.5 px-4">Connected Domain</th>
                 <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Registered On</th>
+                <th className="py-3.5 px-4">Established Date</th>
+                <th className="py-3.5 px-4">Created At</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-850/60">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider">
+                  <td colSpan={8} className="py-16 text-center text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider">
                     <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent mr-2.5 align-middle" />
                     Syncing tenant instances...
                   </td>
@@ -346,11 +318,16 @@ export default function CompaniesPage() {
                       </div>
                     </td>
 
-                    {/* Company Details */}
+                    {/* Company Details with Company Code right below Company Name */}
                     <td className="py-3.5 px-4">
-                      <div className="flex flex-col text-left">
+                      <div className="flex flex-col text-left space-y-1">
                         <span className="font-bold text-slate-850 dark:text-slate-100 text-sm tracking-tight">{c.name}</span>
-                        <span className="text-[9.5px] text-slate-400 dark:text-slate-500 font-mono font-semibold tracking-wider mt-0.5">ID: {c.id.substring(0, 8)}...</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">CODE:</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-mono font-extrabold text-[10.5px] border border-indigo-200/70 dark:border-indigo-900/50 uppercase tracking-wider">
+                            {c.company_code || c.subdomain?.toUpperCase() || 'COMP'}
+                          </span>
+                        </div>
                       </div>
                     </td>
 
@@ -396,29 +373,38 @@ export default function CompaniesPage() {
                       </span>
                     </td>
 
-                    {/* Registration Date */}
+                    {/* Established Date */}
+                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300 font-mono font-medium text-xs">
+                      {c.established_date ? (
+                        <span>{new Date(c.established_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                      ) : (
+                        <span className="text-slate-400 dark:text-slate-600 font-medium italic select-none">N/A</span>
+                      )}
+                    </td>
+
+                    {/* Created At */}
                     <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-mono font-bold">
                       {new Date(c.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => openEditDrawer(c)}
-                          title="Modify details"
-                          className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/30 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-900/35 transition-colors cursor-pointer"
+                          title="Modify company details"
+                          className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-blue-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                           </svg>
                         </button>
                         <button
                           onClick={() => setDeletingCompany(c)}
                           title="Delete company"
-                          className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-900/35 transition-colors cursor-pointer"
+                          className="h-8 w-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 hover:bg-gradient-to-r hover:from-rose-600 hover:to-red-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-rose-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                           </svg>
                         </button>
@@ -429,7 +415,7 @@ export default function CompaniesPage() {
               })}
               {!loading && filteredCompanies.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400 dark:text-slate-500 font-bold tracking-wide select-none">
+                  <td colSpan={8} className="py-16 text-center text-slate-400 dark:text-slate-500 font-bold tracking-wide select-none">
                     <div className="flex flex-col items-center gap-2">
                       <svg className="w-8 h-8 text-slate-300 dark:text-slate-700" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15" />
@@ -462,6 +448,18 @@ export default function CompaniesPage() {
 
           <div>
             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+              Company Code (Prefix)
+            </label>
+            <input
+              type="text" placeholder="e.g. BTL, ACME"
+              value={companyForm.company_code}
+              onChange={e => setCompanyForm({ ...companyForm, company_code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '') })}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200 font-mono font-bold uppercase"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
               Tenant Subdomain identifier *
             </label>
             <div className="relative">
@@ -475,6 +473,18 @@ export default function CompaniesPage() {
                 .hrms.com
               </span>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+              Established Date (Date of Incorporation)
+            </label>
+            <input
+              type="date"
+              value={companyForm.established_date}
+              onChange={e => setCompanyForm({ ...companyForm, established_date: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200 font-mono font-medium"
+            />
           </div>
 
           <div>

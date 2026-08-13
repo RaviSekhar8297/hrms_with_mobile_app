@@ -81,6 +81,45 @@ export const Header: React.FC<HeaderProps> = ({
   const [employeesList, setEmployeesList] = useState<any[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const notifMenuRef = useRef<HTMLDivElement>(null);
+
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
+  const [userFullName, setUserFullName] = useState<string>('');
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('myProfile');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const img = parsed.emp_image || parsed.profile_picture || parsed.profile_image || parsed.avatar_url || parsed.photo_url || parsed.avatar || parsed.photo;
+        if (img) setProfilePhoto(img);
+        const fname = (parsed.first_name || parsed.name || '').trim();
+        const lname = (parsed.last_name || '').trim();
+        const fullName = `${fname} ${lname}`.trim();
+        if (fullName) setUserFullName(fullName);
+      }
+    } catch (e) {}
+
+    const fetchMe = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/v1/employees/me', { headers: getHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          const emp = data.employee || data;
+          const img = emp.emp_image || emp.profile_picture || emp.profile_image || emp.avatar_url || emp.photo_url || emp.avatar || emp.photo;
+          if (img) setProfilePhoto(img);
+          const fname = (emp.first_name || emp.name || '').trim();
+          const lname = (emp.last_name || '').trim();
+          const fullName = `${fname} ${lname}`.trim();
+          if (fullName) setUserFullName(fullName);
+        }
+      } catch (e) {}
+    };
+    fetchMe();
+  }, []);
+
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     { id: 1, text: 'New employee Arjun Kumar registered in Hitech City Branch', time: '2 mins ago', unread: true, category: 'employee' },
     { id: 2, text: 'Branch "Hitech City, Hyderabad" configuration saved', time: '1 hour ago', unread: true, category: 'system' },
@@ -96,8 +135,23 @@ export const Header: React.FC<HeaderProps> = ({
         setShowSearchDropdown(true);
       }
     };
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+      if (notifMenuRef.current && !notifMenuRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const fetchEmployeesForSearch = async () => {
@@ -196,7 +250,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative flex-1 max-w-xs sm:max-w-md mx-2">
           <div className="relative flex items-center">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none z-10 text-slate-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
             </span>
@@ -225,8 +279,8 @@ export const Header: React.FC<HeaderProps> = ({
                   setShowSearchDropdown(true);
                 }
               }}
-              placeholder="Global Search (Ctrl + K)..."
-              className="w-full pl-search pr-search py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-900/60 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-medium outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-500/20 transition-all shadow-2xs"
+              placeholder="Search modules, pages, employees..."
+              className="w-full py-2.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-md text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-medium outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-blue-500/15 transition-all duration-200 shadow-inner"
             />
             <div className="absolute right-2.5 flex items-center gap-1">
               {searchQuery ? (
@@ -235,12 +289,12 @@ export const Header: React.FC<HeaderProps> = ({
                     setSearchQuery('');
                     setShowSearchDropdown(false);
                   }}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs px-1 font-bold cursor-pointer"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-1 font-bold cursor-pointer transition-colors"
                 >
                   ✕
                 </button>
               ) : (
-                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono font-bold text-slate-400 bg-slate-200/60 dark:bg-slate-800 rounded border border-slate-300/50 dark:border-slate-700">
+                <kbd className="hidden sm:inline-block px-2 py-0.5 text-[9.5px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-200/80 dark:bg-slate-800 rounded-lg border border-slate-300/60 dark:border-slate-700 shadow-2xs">
                   Ctrl K
                 </kbd>
               )}
@@ -251,27 +305,36 @@ export const Header: React.FC<HeaderProps> = ({
           {showSearchDropdown && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-              <div className="absolute left-0 right-0 mt-2.5 max-h-96 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-3 shadow-2xl z-50 animate-toast no-scrollbar">
+              <div className="absolute left-0 sm:-left-12 right-0 sm:-right-12 mt-3 max-h-[440px] overflow-y-auto rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl p-4 shadow-2xl shadow-blue-900/20 z-50 animate-in fade-in slide-in-from-top-2 duration-200 no-scrollbar space-y-4">
                 
                 {/* Modules & Pages Section */}
                 {filteredNav.length > 0 && (
-                  <div className="mb-3">
-                    <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-2 block mb-1.5">
-                      📑 Modules & Pages ({filteredNav.length})
-                    </span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between px-2 pb-1 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5">
+                        <span>📑</span> Modules & Pages
+                      </span>
+                      <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
+                        {filteredNav.length} FOUND
+                      </span>
+                    </div>
                     <div className="space-y-1">
                       {filteredNav.slice(0, 8).map((nav) => (
                         <Link
                           key={nav.path}
                           href={nav.path}
                           onClick={() => setShowSearchDropdown(false)}
-                          className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-50/70 dark:hover:bg-blue-950/40 hover:text-blue-600 transition-colors"
+                          className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-indigo-50/50 dark:hover:from-blue-950/40 dark:hover:to-indigo-950/30 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-150 group shadow-2xs hover:shadow-xs border border-transparent hover:border-blue-100 dark:hover:border-blue-900/30"
                         >
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-base">{nav.icon}</span>
-                            <span>{nav.label}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-base p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
+                              {nav.icon}
+                            </span>
+                            <span className="font-extrabold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">{nav.label}</span>
                           </div>
-                          <span className="text-[10px] text-slate-400 font-mono font-normal hidden sm:inline">{nav.path}</span>
+                          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg group-hover:bg-white dark:group-hover:bg-slate-900 transition-colors hidden sm:inline-block">
+                            {nav.path}
+                          </span>
                         </Link>
                       ))}
                     </div>
@@ -280,28 +343,33 @@ export const Header: React.FC<HeaderProps> = ({
 
                 {/* Employees Section */}
                 {filteredEmployees.length > 0 && (
-                  <div>
-                    <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-2 block mb-1.5 border-t border-slate-100 dark:border-slate-800/80 pt-2">
-                      👥 Employees ({filteredEmployees.length})
-                    </span>
+                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between px-2 pb-1">
+                      <span className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5">
+                        <span>👥</span> Employees Directory
+                      </span>
+                      <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60">
+                        {filteredEmployees.length} MATCHES
+                      </span>
+                    </div>
                     <div className="space-y-1">
                       {filteredEmployees.map((emp) => (
                         <Link
                           key={emp.id}
                           href={`/dashboard/employees/${emp.id}`}
                           onClick={() => setShowSearchDropdown(false)}
-                          className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 hover:text-indigo-600 transition-colors"
+                          className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-indigo-50/80 hover:to-purple-50/50 dark:hover:from-indigo-950/40 dark:hover:to-purple-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-150 group shadow-2xs hover:shadow-xs border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/30"
                         >
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-6 h-6 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black text-[10px] flex items-center justify-center border border-indigo-500/20">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
                               {emp.first_name ? emp.first_name.charAt(0).toUpperCase() : 'E'}
                             </div>
-                            <div>
-                              <p className="leading-tight font-extrabold">{emp.first_name} {emp.last_name}</p>
-                              <p className="text-[10px] font-normal text-slate-400 dark:text-slate-500">{emp.email || emp.emp_id_code}</p>
+                            <div className="text-left">
+                              <p className="leading-tight font-black text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{emp.first_name} {emp.last_name}</p>
+                              <p className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500">{emp.email || emp.emp_id_code}</p>
                             </div>
                           </div>
-                          <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/40">
+                          <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800/60 shadow-2xs">
                             {emp.designation_name || 'Employee'}
                           </span>
                         </Link>
@@ -311,10 +379,31 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
 
                 {filteredNav.length === 0 && filteredEmployees.length === 0 && (
-                  <div className="p-4 text-center text-xs font-semibold text-slate-400">
-                    No matching modules or employees found for "{searchQuery}"
+                  <div className="py-8 text-center space-y-2">
+                    <span className="text-2xl">🔍</span>
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                      No matching modules or employees found
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Try searching for keyword like "Payroll", "Leave", or employee name
+                    </p>
                   </div>
                 )}
+
+                {/* Dropdown Footer Shortcuts */}
+                <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1">
+                      <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 font-mono">↵</kbd> Select
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 font-mono">ESC</kbd> Close
+                    </span>
+                  </div>
+                  <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-blue-500">
+                    Enterprise Search Console
+                  </span>
+                </div>
               </div>
             </>
           )}
@@ -352,7 +441,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* 🔔 Notification Bell & Popover Drawer */}
-        <div className="relative">
+        <div ref={notifMenuRef} className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
             className="relative p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
@@ -447,23 +536,34 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* 👤 Senior Executive User Profile Avatar & Dropdown */}
-        <div className="relative">
+        <div ref={profileMenuRef} className="relative">
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 bg-slate-100/70 dark:bg-slate-800/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 p-1 sm:px-3 sm:py-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 select-none transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-2.5 bg-slate-100/70 dark:bg-slate-800/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 p-1 sm:pl-3.5 sm:pr-2 sm:py-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 select-none transition-all cursor-pointer shadow-xs"
           >
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-extrabold text-xs uppercase shadow-sm flex-shrink-0">
-              {email ? email.charAt(0).toUpperCase() : 'U'}
-              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
-            </div>
-
-            <div className="hidden sm:flex flex-col text-left">
+            {/* 1. NAMES ON LEFT */}
+            <div className="hidden sm:flex flex-col text-right">
               <span className="text-xs font-black tracking-tight leading-none text-slate-800 dark:text-slate-100">
-                {email ? email.split('@')[0].toUpperCase() : 'ADMIN'}
+                {(userFullName || (email ? email.split('@')[0] : 'ADMIN')).toUpperCase()}
               </span>
               <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 tracking-wider uppercase mt-1 leading-none">
                 {(designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).toUpperCase()}
               </span>
+            </div>
+
+            {/* 2. IMAGE / CAPITAL INITIAL BADGE ON RIGHT */}
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-extrabold text-xs uppercase shadow-sm flex-shrink-0 overflow-hidden">
+              {profilePhoto && !imageError ? (
+                <img
+                  src={profilePhoto}
+                  alt="Profile"
+                  className="w-full h-full object-cover rounded-xl"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <span>{(userFullName || (email ? email.split('@')[0] : 'U')).charAt(0).toUpperCase()}</span>
+              )}
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 z-10" />
             </div>
 
             <svg
@@ -483,44 +583,62 @@ export const Header: React.FC<HeaderProps> = ({
           {showProfileMenu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
-              <div className="absolute right-0 mt-3 w-72 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-card/95 backdrop-blur-xl p-3.5 shadow-2xl z-50 animate-toast space-y-3 font-sans">
-                {/* Header User Card */}
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border border-blue-500/10 dark:border-blue-500/20">
-                  <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-black text-sm uppercase shadow-sm flex-shrink-0">
-                    {email ? email.charAt(0).toUpperCase() : 'U'}
-                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
-                  </div>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
-                      {email ? email.split('@')[0].toUpperCase() : 'ADMIN'}
-                    </span>
-                    <span className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400 truncate">
-                      {email}
-                    </span>
-                    <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                      {designation || (isSuperAdmin ? 'SUPER ADMINISTRATOR' : 'ORGANIZATION MEMBER')}
-                    </span>
+              <div 
+                className="absolute right-0 mt-3 w-80 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xl shadow-slate-900/20 z-50 animate-toast overflow-hidden font-sans"
+                style={{ backgroundColor: theme === 'nordic-light' ? '#ffffff' : '#111827' }}
+              >
+                {/* Header User Card Banner */}
+                <div className="p-4 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-start gap-3">
+                    <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-black text-sm uppercase shadow-md shadow-indigo-600/30 flex-shrink-0 border border-white/20 overflow-hidden">
+                      {profilePhoto && !imageError ? (
+                        <img
+                          src={profilePhoto}
+                          alt="Profile"
+                          className="w-full h-full object-cover rounded-2xl"
+                          onError={() => setImageError(true)}
+                        />
+                      ) : (
+                        <span>{(userFullName || (email ? email.split('@')[0] : 'U')).charAt(0).toUpperCase()}</span>
+                      )}
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 animate-pulse z-10" />
+                    </div>
+
+                    <div className="flex flex-col min-w-0 flex-1 text-left">
+                      <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 truncate leading-tight">
+                        {(userFullName || (email ? email.split('@')[0] : 'ADMIN')).toUpperCase()}
+                      </h4>
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {email}
+                      </p>
+                      
+                      <div className="mt-2 flex items-center">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 text-[9.5px] font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-wider max-w-full truncate">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0" />
+                          <span className="truncate">{designation || (isSuperAdmin ? 'SUPER ADMINISTRATOR' : 'ORGANIZATION MEMBER')}</span>
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {/* Quick Menu Links */}
-                <div className="space-y-1">
+                <div className="p-2 space-y-1">
                   <Link
                     href="/dashboard/profile"
                     onClick={() => setShowProfileMenu(false)}
-                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-150 group"
+                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-150 group cursor-pointer"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors flex-shrink-0">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors shrink-0">
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                       </svg>
                     </div>
-                    <div className="flex flex-col text-left">
+                    <div className="flex flex-col text-left min-w-0 flex-1">
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         My Profile Settings
                       </span>
-                      <span className="text-[10px] text-slate-400 font-medium">View & manage your account</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate">View & manage your account</span>
                     </div>
                   </Link>
 
@@ -531,16 +649,16 @@ export const Header: React.FC<HeaderProps> = ({
                     }}
                     className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-150 cursor-pointer group"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors flex-shrink-0">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072" />
                       </svg>
                     </div>
-                    <div className="flex flex-col text-left">
+                    <div className="flex flex-col text-left min-w-0 flex-1">
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                         UI Personalization
                       </span>
-                      <span className="text-[10px] text-slate-400 font-medium">Color themes & dark mode</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate">Color themes & dark mode</span>
                     </div>
                   </button>
 
@@ -551,30 +669,30 @@ export const Header: React.FC<HeaderProps> = ({
                     }}
                     className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-150 cursor-pointer group"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors flex-shrink-0">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25a2.25 2.25 0 002.25-2.25v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25v2.25A2.25 2.25 0 006 20.25zM15.75 6a2.25 2.25 0 012.25-2.25h2.25A2.25 2.25 0 0122.5 6v2.25a2.25 2.25 0 01-2.25 2.25h-2.25A2.25 2.25 0 0115.75 8.25V6z" />
                       </svg>
                     </div>
-                    <div className="flex flex-col text-left">
+                    <div className="flex flex-col text-left min-w-0 flex-1">
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                         Module Launcher
                       </span>
-                      <span className="text-[10px] text-slate-400 font-medium">Quick switch HR apps</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate">Quick switch HR apps</span>
                     </div>
                   </button>
                 </div>
 
                 {/* Footer Sign Out */}
-                <div className="border-t border-slate-100 dark:border-slate-800/80 pt-2">
+                <div className="p-3 bg-slate-50/70 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
                   <button
                     onClick={() => {
                       setShowProfileMenu(false);
                       handleLogout();
                     }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-600 text-rose-600 hover:text-white dark:text-rose-400 border border-rose-500/20 transition-all duration-200 text-xs font-bold cursor-pointer group"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-600 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white border border-rose-200 dark:border-rose-900/40 text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs group"
                   >
-                    <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
                     </svg>
                     <span>Sign Out</span>

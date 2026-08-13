@@ -315,10 +315,19 @@ export default function DedicatedPayslipStatementPage() {
   const cleanDoj = payslip.joining_date ? payslip.joining_date.split('T')[0] : '2025-01-09';
 
   return (
-    <div style={{ fontFamily: activeFontFamily }} className="font-sans space-y-6 animate-fadeIn w-full text-left pb-24 px-2 sm:px-4">
+    <div style={{ fontFamily: activeFontFamily }} className="payslip-detail-container font-sans space-y-6 animate-fadeIn w-full text-left pb-24 px-2 sm:px-4">
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
-        .font-sans, button, input, select, label, span, div, p, h1, h2, h3, h4, th, td {
+        .payslip-detail-container,
+        .payslip-detail-container button,
+        .payslip-detail-container input,
+        .payslip-detail-container select,
+        .payslip-detail-container label,
+        .payslip-detail-container span,
+        .payslip-detail-container div,
+        .payslip-detail-container p,
+        .payslip-detail-container th,
+        .payslip-detail-container td {
           font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }
         @media print {

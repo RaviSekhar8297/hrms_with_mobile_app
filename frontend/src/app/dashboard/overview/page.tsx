@@ -101,6 +101,7 @@ export default function OverviewPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [myProfile, setMyProfile] = useState<Employee | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -113,9 +114,13 @@ export default function OverviewPage() {
     const storedRoles = localStorage.getItem('roles');
     const storedEmail = localStorage.getItem('email');
     const storedCompanyId = localStorage.getItem('companyId');
+    const storedProfile = localStorage.getItem('myProfile');
     if (storedRoles) setRoles(JSON.parse(storedRoles));
     if (storedEmail) setEmail(storedEmail);
     if (storedCompanyId) setCompanyId(storedCompanyId);
+    if (storedProfile) {
+      try { setMyProfile(JSON.parse(storedProfile)); } catch(e) {}
+    }
   }, []);
 
   const fetchLogs = async () => {
@@ -124,8 +129,10 @@ export default function OverviewPage() {
     const startTime = Date.now();
     try {
       const res = await fetch(getUrl('/api/v1/auth/logs', companyId), { headers: getHeaders() });
-      const data = await res.json();
-      if (res.ok) setLogs(data.logs || []);
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setLogs(data.logs || []);
+      }
     } catch (e) { console.error(e); }
     
     const elapsedTime = Date.now() - startTime;
@@ -139,24 +146,51 @@ export default function OverviewPage() {
   const fetchCompanies = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
-      const data = await res.json();
-      if (res.ok) setCompanies(data.companies || []);
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setCompanies(data.companies || []);
+      }
     } catch (e) { console.error(e); }
   };
 
   const fetchBranches = async () => {
     try {
       const res = await fetch(getUrl('/api/v1/branches', companyId), { headers: getHeaders() });
-      const data = await res.json();
-      if (res.ok) setBranches(data.branches || []);
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setBranches(data.branches || []);
+      }
     } catch (e) { console.error(e); }
+  };
+
+  const fetchMyProfile = async () => {
+    try {
+      const url = getUrl('/api/v1/employees/me');
+      const res = await fetch(url, { headers: getHeaders() });
+      if (!res.ok) {
+        console.warn('📌 [Overview] /api/v1/employees/me non-200 status:', res.status);
+        return;
+      }
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (data.employee) {
+          setMyProfile(data.employee);
+          localStorage.setItem('myProfile', JSON.stringify(data.employee));
+        }
+      }
+    } catch (e) {
+      console.error('❌ [Overview] Error fetching my profile:', e);
+    }
   };
 
   const fetchEmployees = async () => {
     try {
       const res = await fetch(getUrl('/api/v1/employees', companyId), { headers: getHeaders() });
-      const data = await res.json();
-      if (res.ok) setEmployees(data.employees || []);
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setEmployees(data.employees || []);
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -167,6 +201,7 @@ export default function OverviewPage() {
     fetchLogs();
     fetchBranches();
     fetchEmployees();
+    fetchMyProfile();
   }, [companyId, isSuperAdmin]);
 
   const handleCompanyChange = (id: string) => {
@@ -183,6 +218,7 @@ export default function OverviewPage() {
     return (
       <EmployeeDashboard 
         employees={employees} 
+        myProfile={myProfile}
         email={email} 
         actionMessage={actionMessage}
         actionError={actionError}
@@ -642,6 +678,7 @@ export default function OverviewPage() {
 // -------------------------------------------------------------
 function EmployeeDashboard({
   employees,
+  myProfile,
   email,
   actionMessage: _actionMessage,
   actionError: _actionError,
@@ -650,6 +687,7 @@ function EmployeeDashboard({
   handleCompanyChange: _handleCompanyChange
 }: {
   employees: Employee[];
+  myProfile?: Employee | null;
   email: string;
   actionMessage: string;
   actionError: string;
@@ -735,7 +773,7 @@ function EmployeeDashboard({
     return 'Good Evening,';
   };
 
-  const me = employees.find(emp => emp.email.toLowerCase() === email.toLowerCase());
+  const me = myProfile || employees.find(emp => emp.email?.toLowerCase() === email.toLowerCase());
   const displayName = me ? `${me.first_name} ${me.last_name}` : email.split('@')[0];
 
   const getBirthdaysToday = () => {
@@ -836,95 +874,90 @@ function EmployeeDashboard({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
         
         {/* Left 2 Cols: Good Morning Banner */}
-        <div className="lg:col-span-2 rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-gradient-to-br from-indigo-50/75 via-blue-50/25 to-card dark:from-indigo-950/20 dark:to-card p-6 md:p-8 relative overflow-hidden flex flex-col justify-between shadow-xs text-slate-800 dark:text-slate-100">
+        <div className="lg:col-span-2 rounded-3xl border border-indigo-100/30 dark:border-slate-800/80 bg-gradient-to-br from-[#111036] via-[#1a174d] to-[#0f0c29] p-6 md:p-8 relative overflow-hidden flex flex-col justify-between shadow-xl shadow-indigo-950/20 text-white group transition-all duration-300">
+          
           {/* Glassmorphic background blur rings */}
-          <div className="absolute right-0 top-0 -mt-6 -mr-6 w-48 h-48 bg-indigo-500/[0.04] dark:bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute right-16 bottom-0 w-28 h-28 bg-blue-500/[0.04] dark:bg-blue-500/10 rounded-full blur-xl pointer-events-none" />
+          <div className="absolute right-0 top-0 -mt-8 -mr-8 w-64 h-64 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700" />
+          <div className="absolute left-1/3 bottom-0 w-48 h-48 bg-gradient-to-tr from-blue-500/15 to-cyan-500/15 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-pink-500 opacity-90" />
           
           <div className="flex justify-between items-start gap-4 z-10">
             <div className="space-y-2 text-left">
-              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-500/10 text-indigo-650 dark:bg-indigo-500/20 dark:text-indigo-400 text-xs font-black uppercase tracking-widest border border-indigo-500/20">
-                {getGreeting()} <span className="animate-float-emoji inline-block">👋</span>
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-amber-300 text-xs font-black uppercase tracking-widest border border-white/15 backdrop-blur-md shadow-sm">
+                {getGreeting()} <span className="animate-float-emoji inline-block text-sm">👋</span>
               </span>
-              <h1 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tight font-outfit mt-3">
+              <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-slate-200 uppercase tracking-tight font-outfit mt-3 drop-shadow-sm">
                 {displayName.toUpperCase()}
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-md pt-1">
+              <p className="text-xs text-indigo-200/90 font-medium leading-relaxed max-w-md pt-1">
                 Welcome back to your workspace. Have a highly productive and successful day ahead!
               </p>
             </div>
           </div>
 
-          {/* Bottom Department, Designation & Branch Chips */}
-          <div className="flex flex-wrap items-center gap-2.5 mt-6 pt-2 z-10">
-            {/* Department */}
-            <span className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border shadow-2xs ${
-              me?.department_name 
-                ? 'bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-900/40' 
-                : 'bg-amber-50/80 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-900/40'
-            }`}>
-              <span className="text-sm">🏢</span>
+          {/* Bottom Branch, Department & Designation Chips */}
+          <div className="flex flex-wrap items-center gap-3 mt-6 pt-2 z-10">
+            {/* Branch */}
+            <span className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur-md shadow-md hover:bg-emerald-500/25 transition-all text-xs font-bold">
+              <span className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center text-sm shadow-inner">📍</span>
               <span>
-                Department: <strong className="font-extrabold uppercase">{me?.department_name || 'Pending'}</strong>
+                Branch: <strong className="font-extrabold uppercase text-white tracking-wider">{me?.branch_name || 'Main Branch'}</strong>
+              </span>
+            </span>
+
+            {/* Department */}
+            <span className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-blue-500/15 text-blue-300 border border-blue-500/30 backdrop-blur-md shadow-md hover:bg-blue-500/25 transition-all text-xs font-bold">
+              <span className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center text-sm shadow-inner">🏢</span>
+              <span>
+                Department: <strong className="font-extrabold uppercase text-white tracking-wider">{me?.department_name || 'Pending'}</strong>
               </span>
             </span>
 
             {/* Designation */}
-            <span className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold border shadow-2xs ${
-              me?.designation_name 
-                ? 'bg-purple-50/80 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-900/40' 
-                : 'bg-amber-50/80 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-900/40'
-            }`}>
-              <span className="text-sm">💼</span>
+            <span className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-purple-500/15 text-purple-300 border border-purple-500/30 backdrop-blur-md shadow-md hover:bg-purple-500/25 transition-all text-xs font-bold">
+              <span className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center text-sm shadow-inner">💼</span>
               <span>
-                Designation: <strong className="font-extrabold uppercase">{me?.designation_name || 'Pending'}</strong>
+                Designation: <strong className="font-extrabold uppercase text-white tracking-wider">{me?.designation_name || 'Pending'}</strong>
               </span>
             </span>
-
-            {/* Branch */}
-            {me?.branch_name && (
-              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 text-xs font-bold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 shadow-2xs">
-                <span className="text-sm">📍</span>
-                <span className="uppercase">{me.branch_name}</span>
-              </span>
-            )}
           </div>
         </div>
 
         {/* Right 1 Col: Today's Attendance Punch Card */}
-        <div className="rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-card p-6 shadow-sm flex flex-col justify-between text-left transition-all duration-300 hover:shadow-md">
+        <div className="rounded-3xl border border-indigo-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-6 shadow-lg shadow-indigo-950/5 flex flex-col justify-between text-left transition-all duration-300 hover:shadow-xl hover:border-indigo-200 dark:hover:border-indigo-900/50 group">
           <div>
-            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800/60">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 TODAY'S ATTENDANCE
               </span>
-              <span className={`text-[10px] font-black px-3 py-1 rounded-full border uppercase tracking-wider ${
+              <span className={`text-[10px] font-black px-3 py-1 rounded-full border uppercase tracking-wider flex items-center gap-1.5 shadow-xs ${
                 checkedIn
-                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/25 dark:text-emerald-400'
-                  : 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/25 dark:text-amber-400'
+                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-600 border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-400'
               }`}>
+                <span className={`w-2 h-2 rounded-full ${checkedIn ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
                 {checkedIn ? 'CHECKED IN' : 'CHECKED OUT'}
               </span>
             </div>
 
             <div className="flex items-center justify-between my-6">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
                   WORKING HOURS TODAY
                 </p>
-                <div className="flex items-baseline gap-1 mt-1">
-                  <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight font-dmsans font-mono" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                <div className="flex items-baseline gap-1 mt-1.5">
+                  <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight font-mono" style={{ fontFamily: "'DM Sans', monospace" }}>
                     {checkedIn && checkInTime ? '03h 42m 10s' : '00h 00m 00s'}
                   </span>
                 </div>
-                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1.5">
-                  Shift: <span className="font-bold text-slate-700 dark:text-slate-300">09:00 AM - 06:00 PM</span>
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1">
+                  <span>Shift:</span> <strong className="font-extrabold text-slate-800 dark:text-slate-200">09:00 AM - 06:00 PM</strong>
                 </p>
               </div>
 
               {/* Fingerprint Graphic */}
-              <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-center shadow-2xs shrink-0">
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <div className="w-15 h-15 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-blue-500/10 dark:from-indigo-500/20 dark:to-blue-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shadow-md shrink-0 group-hover:scale-105 transition-transform duration-300">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11c0 1.341.17 2.643.49 3.882" />
                 </svg>
               </div>
@@ -932,24 +965,24 @@ function EmployeeDashboard({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-2">
+          <div className="flex items-center gap-3 pt-2">
             <button
               onClick={handleCheckIn}
-              className={`py-2.5 px-5 rounded-xl text-[10.5px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 border shadow-2xs w-36 ${
+              className={`flex-1 py-3 px-5 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-md ${
                 checkedIn
-                  ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border-rose-500/20 dark:bg-rose-500/25 dark:hover:bg-rose-500/35 dark:text-rose-400'
-                  : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-650 border-indigo-500/20 dark:bg-indigo-500/25 dark:hover:bg-indigo-500/35 dark:text-indigo-400'
+                  ? 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-rose-500/20'
+                  : 'bg-gradient-to-r from-indigo-600 via-indigo-650 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-indigo-500/25'
               }`}
             >
-              <span>{checkedIn ? 'CHECK-OUT' : 'CHECK-IN'}</span>
+              <span>{checkedIn ? 'CHECK-OUT NOW' : 'PUNCH CHECK-IN'}</span>
             </button>
 
             {canViewAttendance && (
               <Link
                 href="/dashboard/attendance"
-                className="py-2.5 px-5 rounded-xl text-[10.5px] font-black uppercase tracking-wider text-slate-650 hover:text-slate-800 dark:text-slate-350 dark:hover:text-slate-100 bg-slate-100/50 hover:bg-slate-100 dark:bg-slate-800/40 dark:hover:bg-slate-800/85 border border-slate-200/50 dark:border-slate-800 transition-all text-center flex items-center justify-center shadow-2xs w-36"
+                className="py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-center flex items-center justify-center shadow-xs"
               >
-                VIEW TIMELINE
+                TIMELINE
               </Link>
             )}
           </div>
@@ -961,95 +994,99 @@ function EmployeeDashboard({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Today's Shift */}
-        <div className="rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-card p-5 shadow-sm flex flex-col justify-between text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-emerald-500/35">
+        <div className="rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm flex flex-col justify-between text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-emerald-500/40 group">
           <div className="flex items-center justify-between">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-lg">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-xl shadow-2xs group-hover:scale-110 transition-transform">
               📅
             </div>
-            <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
+            <span className="text-[10px] font-black px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
               In Progress
             </span>
           </div>
 
           <div className="mt-4">
             <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Today's Shift</p>
-            <h4 className="text-base font-extrabold text-slate-900 dark:text-white mt-1 font-outfit">
+            <h4 className="text-lg font-extrabold text-slate-900 dark:text-white mt-1 font-outfit">
               09:00 AM - 06:00 PM
             </h4>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 text-[11px] font-semibold text-slate-405">
-            Shift Type: <span className="text-slate-700 dark:text-slate-300 font-bold">{me?.shift_name || 'General Shift'}</span>
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[11px] font-semibold text-slate-500 flex items-center justify-between">
+            <span>Shift Type:</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-extrabold bg-emerald-500/10 px-2.5 py-0.5 rounded-lg">{me?.shift_name || 'General Shift'}</span>
           </div>
         </div>
 
         {/* Card 2: Working Hours Today */}
-        <div className="rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-card p-5 shadow-sm flex flex-col justify-between text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-blue-500/35">
+        <div className="rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm flex flex-col justify-between text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-blue-500/40 group">
           <div className="flex items-center justify-between">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center text-lg">
+            <div className="w-11 h-11 rounded-2xl bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center text-xl shadow-2xs group-hover:scale-110 transition-transform">
               🕒
             </div>
-            <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border border-blue-500/20 uppercase tracking-wider">
+            <span className="text-[10px] font-black px-3 py-1 rounded-full bg-blue-500/15 text-blue-600 dark:bg-blue-500/25 dark:text-blue-400 border border-blue-500/30 uppercase tracking-wider">
               Live Tracker
             </span>
           </div>
 
           <div className="mt-4">
             <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Working Hours Today</p>
-            <h4 className="text-xl font-extrabold font-mono text-slate-900 dark:text-white mt-1 font-dmsans" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            <h4 className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white mt-1" style={{ fontFamily: "'DM Sans', monospace" }}>
               {checkedIn && checkInTime ? '03h 42m 10s' : '00h 00m 00s'}
             </h4>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 text-[11px] font-semibold text-slate-405">
-            Break Time <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">00h 00m</span>
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[11px] font-semibold text-slate-500 flex items-center justify-between">
+            <span>Break Time:</span>
+            <span className="font-mono text-blue-600 dark:text-blue-400 font-extrabold bg-blue-500/10 px-2.5 py-0.5 rounded-lg">00h 00m</span>
           </div>
         </div>
 
         {/* Card 3: Leave Balance */}
-        <div className="rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-card p-5 shadow-sm flex flex-col justify-between text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-purple-500/35">
+        <div className="rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm flex flex-col justify-between text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-purple-500/40 group">
           <div className="flex items-center justify-between">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center text-lg">
+            <div className="w-11 h-11 rounded-2xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center text-xl shadow-2xs group-hover:scale-110 transition-transform">
               ☂️
             </div>
-            <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border border-purple-500/20 uppercase tracking-wider">
+            <span className="text-[10px] font-black px-3 py-1 rounded-full bg-purple-500/15 text-purple-600 dark:bg-purple-500/25 dark:text-purple-400 border border-purple-500/30 uppercase tracking-wider">
               Quota
             </span>
           </div>
 
           <div className="mt-4">
             <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Leave Balance</p>
-            <h4 className="text-xl font-extrabold text-slate-900 dark:text-white mt-1 font-outfit">
-              12 <span className="text-xs font-bold text-slate-505 dark:text-slate-400">Days</span>
+            <h4 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1 font-outfit">
+              12 <span className="text-xs font-bold text-slate-500">Days</span>
             </h4>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 text-[10.5px] font-semibold text-slate-405 flex items-center justify-between">
-            <span>Casual: <strong className="text-slate-755 dark:text-slate-200">6</strong></span>
-            <span>Sick: <strong className="text-slate-755 dark:text-slate-200">4</strong></span>
-            <span>Annual: <strong className="text-slate-755 dark:text-slate-200">2</strong></span>
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[10.5px] font-bold text-slate-500 flex items-center justify-between gap-1">
+            <span className="bg-purple-500/10 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-md">Casual: <strong>6</strong></span>
+            <span className="bg-purple-500/10 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-md">Sick: <strong>4</strong></span>
+            <span className="bg-purple-500/10 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-md">Annual: <strong>2</strong></span>
           </div>
         </div>
 
         {/* Card 4: Attendance (This Month) */}
-        <div className="rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-card p-5 shadow-sm flex items-center justify-between text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-amber-500/35">
+        <div className="rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm flex items-center justify-between text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-amber-500/40 group">
           <div className="flex-1">
             <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Attendance (This Month)</p>
-            <h4 className="text-2xl font-black text-slate-900 dark:text-white mt-2 font-outfit">
+            <h4 className="text-3xl font-black text-slate-900 dark:text-white mt-1 font-outfit">
               96%
             </h4>
-            <p className="text-[11px] font-semibold text-slate-505 dark:text-slate-400 mt-2.5">
-              Present: <strong className="text-slate-800 dark:text-slate-200">21</strong> &nbsp; Absent: <strong className="text-slate-800 dark:text-slate-200">1</strong>
+            <p className="text-[11px] font-semibold text-slate-500 mt-2 flex items-center gap-2">
+              <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">Present: 21</span>
+              <span>•</span>
+              <span className="text-rose-600 dark:text-rose-400 font-extrabold">Absent: 1</span>
             </p>
           </div>
 
           {/* Progress Ring */}
-          <div className="relative w-14 h-14 shrink-0 flex items-center justify-center ml-2">
+          <div className="relative w-15 h-15 shrink-0 flex items-center justify-center ml-2 group-hover:scale-105 transition-transform">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-              <path className="text-slate-100 dark:text-slate-800" strokeWidth="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              <path className="text-amber-500" strokeDasharray="96, 100" strokeWidth="3.5" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              <path className="text-slate-100 dark:text-slate-800" strokeWidth="4" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              <path className="text-amber-500" strokeDasharray="96, 100" strokeWidth="4" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
             </svg>
-            <span className="absolute text-[10px] font-black text-slate-800 dark:text-slate-200">96%</span>
+            <span className="absolute text-[11px] font-black text-slate-900 dark:text-white">96%</span>
           </div>
         </div>
 
@@ -1066,26 +1103,26 @@ function EmployeeDashboard({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3.5">
           {[
-            { label: 'Leave', icon: '🌴', href: '/dashboard/leaves' },
-            { label: 'Payslip', icon: '📄', href: '/dashboard/payslip' },
-            { label: 'Attendance', icon: '⏱️', href: '/dashboard/attendance' },
-            { label: 'Reports', icon: '📊', href: '/dashboard/analytics' },
-            { label: 'Docs', icon: '📂', href: '/dashboard/profile' },
-            { label: 'Notice', icon: '📢', href: '/dashboard/overview' },
-            { label: 'Holidays', icon: '🏖️', href: '/dashboard/holidays' },
-            { label: 'Help', icon: '🎧', href: '/dashboard/overview' },
+            { label: 'Leave', icon: '🌴', href: '/dashboard/leaves', bg: 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border-emerald-500/20' },
+            { label: 'Payslip', icon: '📄', href: '/dashboard/payslip', bg: 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border-blue-500/20' },
+            { label: 'Attendance', icon: '⏱️', href: '/dashboard/attendance', bg: 'bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border-purple-500/20' },
+            { label: 'Reports', icon: '📊', href: '/dashboard/analytics', bg: 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border-amber-500/20' },
+            { label: 'Docs', icon: '📂', href: '/dashboard/profile', bg: 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border-indigo-500/20' },
+            { label: 'Notice', icon: '📢', href: '/dashboard/overview', bg: 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border-rose-500/20' },
+            { label: 'Holidays', icon: '🏖️', href: '/dashboard/holidays', bg: 'bg-teal-500/10 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400 border-teal-500/20' },
+            { label: 'Help', icon: '🎧', href: '/dashboard/overview', bg: 'bg-cyan-500/10 text-cyan-600 dark:bg-cyan-500/20 dark:text-cyan-400 border-cyan-500/20' },
           ].map((item, idx) => (
             <Link
               key={idx}
               href={item.href}
-              className="flex flex-col items-center justify-center p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 hover:border-blue-500/30 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 hover:shadow-xs transition-all duration-200 group cursor-pointer"
+              className="flex flex-col items-center justify-center p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:-translate-y-1 hover:shadow-md hover:border-indigo-500/30 transition-all duration-200 group cursor-pointer"
             >
-              <div className="w-12 h-12 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/60 flex items-center justify-center text-xl group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all duration-200 mb-2 shadow-2xs">
+              <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl group-hover:scale-110 transition-all duration-200 mb-2.5 shadow-2xs ${item.bg}`}>
                 {item.icon}
               </div>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 text-center truncate w-full tracking-wide">
+              <span className="text-[11.5px] font-black text-slate-700 dark:text-slate-200 group-hover:text-indigo-650 dark:group-hover:text-indigo-400 text-center truncate w-full tracking-wide">
                 {item.label}
               </span>
             </Link>
@@ -1097,19 +1134,19 @@ function EmployeeDashboard({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         
         {/* Left: My Attendance Calendar (7 cols) */}
-        <div className="lg:col-span-7 rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-card p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md">
+        <div className="lg:col-span-7 rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md">
           <div>
             {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-3 border-b border-slate-100 dark:border-slate-800/60">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center text-sm font-bold shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center text-lg font-bold shadow-2xs">
                   📅
                 </div>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 font-outfit">
                     MY ATTENDANCE CALENDAR
                   </h3>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Track daily status & leaves</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Track daily status & leave history</p>
                 </div>
               </div>
 
@@ -1138,15 +1175,15 @@ function EmployeeDashboard({
                     <button
                       onClick={() => setCurrentDate(new Date())}
                       title="Jump to Current Month"
-                      className="px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-900/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-all cursor-pointer shadow-2xs"
+                      className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase bg-indigo-500/10 text-indigo-650 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all cursor-pointer shadow-2xs"
                     >
                       Today
                     </button>
 
-                    <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/70 dark:border-slate-700/70 shadow-2xs">
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/90 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
                       <button
                         onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-                        className="w-7 h-7 flex items-center justify-center text-xs font-black text-slate-650 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs rounded-lg transition-all cursor-pointer bg-transparent border-0 outline-none"
+                        className="w-7 h-7 flex items-center justify-center text-xs font-black text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs rounded-lg transition-all cursor-pointer border-0 outline-none"
                         title="Previous Month"
                       >
                         ‹
@@ -1178,7 +1215,7 @@ function EmployeeDashboard({
                         className={`w-7 h-7 flex items-center justify-center text-xs font-black rounded-lg transition-all border-0 outline-none ${
                           isMaxMonth
                             ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-40'
-                            : 'text-slate-650 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs cursor-pointer bg-transparent'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs cursor-pointer'
                         }`}
                         title={isMaxMonth ? "Cannot view future months" : "Next Month"}
                       >
@@ -1191,9 +1228,9 @@ function EmployeeDashboard({
             </div>
 
             {/* Days of Week Header */}
-            <div className="grid grid-cols-7 gap-1.5 text-center mb-2 bg-slate-500/[0.02] dark:bg-slate-800/30 p-2 rounded-2xl border border-slate-100 dark:border-slate-800/40">
+            <div className="grid grid-cols-7 gap-1.5 text-center mb-2.5 bg-slate-100/60 dark:bg-slate-800/50 p-2 rounded-2xl border border-slate-200/50 dark:border-slate-800">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, idx) => (
-                <span key={idx} className={`text-[10.5px] font-black uppercase py-0.5 tracking-wider ${idx === 0 || idx === 6 ? 'text-slate-400 dark:text-slate-500' : 'text-slate-600 dark:text-slate-350'}`}>
+                <span key={idx} className={`text-[10.5px] font-black uppercase py-0.5 tracking-wider ${idx === 0 || idx === 6 ? 'text-rose-500 dark:text-rose-400 font-extrabold' : 'text-slate-700 dark:text-slate-300'}`}>
                   {d}
                 </span>
               ))}
@@ -1205,26 +1242,32 @@ function EmployeeDashboard({
                 const today = new Date();
                 const isToday = cell.isCurrentMonth && cell.day === today.getDate() && currentDate.getMonth() === today.getMonth() && currentDate.getFullYear() === today.getFullYear();
 
+                let cellBg = 'bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800';
                 let textStyle = 'text-slate-700 dark:text-slate-200 font-bold';
                 if (!cell.isCurrentMonth) {
                   textStyle = 'text-slate-300 dark:text-slate-700 font-normal';
                 } else if (cell.status === 'present') {
+                  cellBg = 'bg-emerald-500/10 border-emerald-500/30 dark:bg-emerald-500/20';
                   textStyle = 'text-emerald-600 dark:text-emerald-400 font-black text-sm';
                 } else if (cell.status === 'absent') {
+                  cellBg = 'bg-rose-500/10 border-rose-500/30 dark:bg-rose-500/20';
                   textStyle = 'text-rose-600 dark:text-rose-400 font-black text-sm';
                 } else if (cell.status === 'late') {
+                  cellBg = 'bg-amber-500/10 border-amber-500/30 dark:bg-amber-500/20';
                   textStyle = 'text-amber-600 dark:text-amber-400 font-black text-sm';
                 } else if (cell.status === 'leave') {
+                  cellBg = 'bg-purple-500/10 border-purple-500/30 dark:bg-purple-500/20';
                   textStyle = 'text-purple-600 dark:text-purple-400 font-black text-sm';
                 } else if (cell.status === 'weekend') {
+                  cellBg = 'bg-slate-100/60 dark:bg-slate-800/20 border-slate-200/50 dark:border-slate-800';
                   textStyle = 'text-slate-400 dark:text-slate-500 font-bold';
                 }
 
                 return (
                   <div
                     key={idx}
-                    className={`h-9 flex flex-col items-center justify-center rounded-xl transition-all relative bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100/80 dark:border-slate-800/40 ${
-                      isToday ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-slate-900 z-10' : ''
+                    className={`h-10 flex flex-col items-center justify-center rounded-2xl transition-all relative border hover:scale-105 shadow-2xs ${cellBg} ${
+                      isToday ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 z-10 shadow-md' : ''
                     }`}
                   >
                     <span className={`font-outfit ${textStyle}`}>{cell.day}</span>
@@ -1235,71 +1278,71 @@ function EmployeeDashboard({
           </div>
 
           {/* Calendar Legend Pill Badges */}
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-black border-t border-slate-100 dark:border-slate-800/60 pt-4">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-black border-t border-slate-100 dark:border-slate-800 pt-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/30 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Present
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20">
-              <span className="w-2 h-2 rounded-full bg-rose-550" /> Absent
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/30 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-rose-500" /> Absent
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/30 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-amber-500" /> Late
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border border-purple-500/20">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border border-purple-500/30 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-purple-500" /> On Leave
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-500" /> Weekend
             </span>
           </div>
         </div>
 
         {/* Right: My Leave Status (5 cols) */}
-        <div className="lg:col-span-5 rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-card p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md">
+        <div className="lg:col-span-5 rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md">
           <div>
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800/60">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-                <span>☂️</span> My Leave Status
+            <div className="flex items-center justify-between mb-4 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 font-outfit flex items-center gap-2">
+                <span className="text-base">☂️</span> My Leave Status
               </h3>
-              <Link href="/dashboard/leaves" className="text-[10px] font-black text-indigo-650 dark:text-indigo-400 hover:underline tracking-wider uppercase">
+              <Link href="/dashboard/leaves" className="text-[10px] font-black text-indigo-650 dark:text-indigo-400 hover:underline tracking-wider uppercase bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
                 View All
               </Link>
             </div>
 
             {/* 3 Metric Pills */}
-            <div className="grid grid-cols-3 gap-2.5 mb-5">
-              <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20 text-center">
-                <p className="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">APPROVED</p>
-                <p className="text-lg font-black text-emerald-700 dark:text-emerald-300 mt-0.5 font-outfit">4 <span className="text-xs font-semibold">Days</span></p>
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/30 text-center shadow-2xs">
+                <p className="text-[9.5px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">APPROVED</p>
+                <p className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5 font-outfit">4 <span className="text-xs font-bold">Days</span></p>
               </div>
-              <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/20 text-center">
-                <p className="text-[9px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">PENDING</p>
-                <p className="text-lg font-black text-amber-700 dark:text-amber-300 mt-0.5 font-outfit">1 <span className="text-xs font-semibold">Day</span></p>
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/30 text-center shadow-2xs">
+                <p className="text-[9.5px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">PENDING</p>
+                <p className="text-xl font-black text-amber-700 dark:text-amber-300 mt-0.5 font-outfit">1 <span className="text-xs font-bold">Day</span></p>
               </div>
-              <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20 text-center">
-                <p className="text-[9px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">REJECTED</p>
-                <p className="text-lg font-black text-rose-700 dark:text-rose-300 mt-0.5 font-outfit">0 <span className="text-xs font-semibold">Days</span></p>
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/30 text-center shadow-2xs">
+                <p className="text-[9.5px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">REJECTED</p>
+                <p className="text-xl font-black text-rose-700 dark:text-rose-300 mt-0.5 font-outfit">0 <span className="text-xs font-bold">Days</span></p>
               </div>
             </div>
 
             {/* Recent Leave Request Items */}
             <div className="space-y-3">
               {[
-                { type: 'Casual Leave', dates: 'Jul 24 - Jul 25 (2 Days)', status: 'Approved', icon: '🌴', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400' },
-                { type: 'Sick Leave', dates: 'Jul 28 (1 Day)', status: 'Pending', icon: '😷', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400' },
-                { type: 'Annual Leave', dates: 'Aug 10 - Aug 12 (3 Days)', status: 'Approved', icon: '✈️', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-400' },
+                { type: 'Casual Leave', dates: 'Jul 24 - Jul 25 (2 Days)', status: 'Approved', icon: '🌴', color: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/25 dark:text-emerald-400' },
+                { type: 'Sick Leave', dates: 'Jul 28 (1 Day)', status: 'Pending', icon: '😷', color: 'bg-amber-500/15 text-amber-600 border-amber-500/30 dark:bg-amber-500/25 dark:text-amber-400' },
+                { type: 'Annual Leave', dates: 'Aug 10 - Aug 12 (3 Days)', status: 'Approved', icon: '✈️', color: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/25 dark:text-emerald-400' },
               ].map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-500/[0.01] hover:bg-slate-500/[0.025] transition-all duration-200">
+                <div key={idx} className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-800/40 hover:border-indigo-500/30 transition-all duration-200 shadow-2xs">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200/40 dark:border-slate-800/60 flex items-center justify-center text-base">
+                    <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-lg shadow-2xs">
                       {item.icon}
                     </div>
                     <div>
-                      <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200">{item.type}</h5>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">{item.dates}</p>
+                      <h5 className="text-xs font-black text-slate-800 dark:text-slate-100">{item.type}</h5>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">{item.dates}</p>
                     </div>
                   </div>
-                  <span className={`text-[9px] font-black px-2.5 py-1 rounded-full border uppercase tracking-wider ${item.color}`}>
+                  <span className={`text-[9.5px] font-black px-3 py-1 rounded-full border uppercase tracking-wider ${item.color}`}>
                     {item.status}
                   </span>
                 </div>
@@ -1314,17 +1357,17 @@ function EmployeeDashboard({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
         
         {/* 1. Today's Birthdays */}
-        <div className="rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-card p-7 shadow-sm text-left flex flex-col justify-between overflow-hidden min-h-[220px] transition-all duration-300 hover:shadow-md">
+        <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm text-left flex flex-col justify-between overflow-hidden min-h-[220px] transition-all duration-300 hover:shadow-md">
           <div>
-            <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-100 dark:border-slate-800/60">
-              <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-lg font-bold shadow-2xs">
+            <div className="flex items-center gap-3.5 mb-5 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center text-xl font-bold shadow-2xs">
                 🎂
               </div>
               <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 font-outfit">
                   TODAY'S BIRTHDAYS
                 </h4>
-                <p className="text-[10.5px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">Celebrate team milestones</p>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Celebrate team milestones</p>
               </div>
             </div>
 
@@ -1333,25 +1376,25 @@ function EmployeeDashboard({
               <div className="overflow-hidden w-full py-2">
                 <div className="animate-marquee gap-3.5 flex">
                   {[...getBirthdaysToday(), ...getBirthdaysToday(), ...getBirthdaysToday()].map((item, idx) => (
-                    <div key={idx} className="w-[260px] shrink-0 flex items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 shadow-2xs hover:shadow-xs transition-all">
+                    <div key={idx} className="w-[270px] shrink-0 flex items-center justify-between gap-3 p-4 rounded-2xl bg-indigo-500/5 dark:bg-slate-800/60 border border-indigo-500/20 dark:border-slate-800 shadow-2xs hover:shadow-xs transition-all">
                       <div className="flex items-center gap-3.5 min-w-0">
                         {item.image ? (
-                          <img src={item.image} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-slate-200 dark:ring-slate-700 shadow-xs" alt="avatar" />
+                          <img src={item.image} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-indigo-500/30 shadow-xs" alt="avatar" />
                         ) : (
-                          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-slate-200 dark:ring-slate-700">
+                          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-indigo-500/30">
                             {item.name.charAt(0)}
                           </div>
                         )}
                         <div className="min-w-0">
                           <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{item.name}</p>
-                          <p className="text-[10px] font-semibold text-slate-400 truncate mt-0.5">{item.designation}</p>
-                          <span className="inline-block text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/40 mt-1">
+                          <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">{item.designation}</p>
+                          <span className="inline-block text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 mt-1">
                             🎂 Today
                           </span>
                         </div>
                       </div>
 
-                      <button className="text-[10px] font-extrabold px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-2xs transition-all cursor-pointer shrink-0 active:scale-95">
+                      <button className="text-[10px] font-black px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border-0 shadow-md transition-all cursor-pointer shrink-0 active:scale-95">
                         Wish 🎉
                       </button>
                     </div>
@@ -1360,26 +1403,26 @@ function EmployeeDashboard({
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <span className="text-3xl mb-2">🎂</span>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No birthdays today</p>
-                <p className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium mt-1">Celebrate team milestones when they arrive!</p>
+                <span className="text-4xl mb-2.5">🎂</span>
+                <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">No birthdays today</p>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Celebrate team milestones when they arrive!</p>
               </div>
             )}
           </div>
         </div>
 
         {/* 2. Today's Work Anniversaries */}
-        <div className="rounded-3xl border border-slate-200/60 dark:border-slate-800 bg-card p-7 shadow-sm text-left flex flex-col justify-between overflow-hidden min-h-[220px] transition-all duration-300 hover:shadow-md">
+        <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm text-left flex flex-col justify-between overflow-hidden min-h-[220px] transition-all duration-300 hover:shadow-md">
           <div>
-            <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-100 dark:border-slate-800/60">
-              <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-lg font-bold shadow-2xs">
+            <div className="flex items-center gap-3.5 mb-5 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-11 h-11 rounded-2xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center text-xl font-bold shadow-2xs">
                 🎖️
               </div>
               <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 font-outfit">
                   TODAY'S WORK ANNIVERSARIES
                 </h4>
-                <p className="text-[10.5px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">Recognize dedication & loyalty</p>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Recognize dedication & loyalty</p>
               </div>
             </div>
 
@@ -1388,25 +1431,25 @@ function EmployeeDashboard({
               <div className="overflow-hidden w-full py-2">
                 <div className="animate-marquee gap-3.5 flex">
                   {[...getAnniversariesToday(), ...getAnniversariesToday(), ...getAnniversariesToday()].map((item, idx) => (
-                    <div key={idx} className="w-[260px] shrink-0 flex items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 shadow-2xs hover:shadow-xs transition-all">
+                    <div key={idx} className="w-[270px] shrink-0 flex items-center justify-between gap-3 p-4 rounded-2xl bg-purple-500/5 dark:bg-slate-800/60 border border-purple-500/20 dark:border-slate-800 shadow-2xs hover:shadow-xs transition-all">
                       <div className="flex items-center gap-3.5 min-w-0">
                         {item.image ? (
-                          <img src={item.image} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-slate-200 dark:ring-slate-700 shadow-xs" alt="avatar" />
+                          <img src={item.image} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-purple-500/30 shadow-xs" alt="avatar" />
                         ) : (
-                          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-slate-200 dark:ring-slate-700">
+                          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-purple-500/30">
                             {item.name.charAt(0)}
                           </div>
                         )}
                         <div className="min-w-0">
                           <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{item.name}</p>
-                          <p className="text-[10px] font-semibold text-slate-400 truncate mt-0.5">{item.designation}</p>
-                          <span className="inline-block text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200/60 dark:border-purple-900/40 mt-1">
+                          <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">{item.designation}</p>
+                          <span className="inline-block text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 mt-1">
                             🎖️ {item.years} Yrs Today
                           </span>
                         </div>
                       </div>
 
-                      <button className="text-[10px] font-extrabold px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white border-0 shadow-2xs transition-all cursor-pointer shrink-0 active:scale-95">
+                      <button className="text-[10px] font-black px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border-0 shadow-md transition-all cursor-pointer shrink-0 active:scale-95">
                         Wish 👏
                       </button>
                     </div>
@@ -1415,9 +1458,9 @@ function EmployeeDashboard({
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <span className="text-3xl mb-2">🎖️</span>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No work anniversaries today</p>
-                <p className="text-[10.5px] text-slate-400 dark:text-slate-500 font-medium mt-1">Recognizing team dedication and loyalty!</p>
+                <span className="text-4xl mb-2.5">🎖️</span>
+                <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">No work anniversaries today</p>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Recognizing team dedication and loyalty!</p>
               </div>
             )}
           </div>
@@ -1429,13 +1472,13 @@ function EmployeeDashboard({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
         
         {/* 1. Upcoming Holidays */}
-        <div className="rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-card p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:border-teal-500/30">
+        <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:border-teal-500/40">
           <div>
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800/60">
-              <h4 className="text-xs font-black uppercase tracking-widest text-teal-650 dark:text-teal-400 flex items-center gap-1.5">
-                <span>🌴</span> UPCOMING HOLIDAYS
+            <div className="flex items-center justify-between mb-4 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <h4 className="text-xs font-black uppercase tracking-widest text-teal-600 dark:text-teal-400 flex items-center gap-2 font-outfit">
+                <span className="text-base">🌴</span> UPCOMING HOLIDAYS
               </h4>
-              <Link href="/dashboard/holidays" className="text-[10px] font-black text-indigo-650 dark:text-indigo-400 hover:underline uppercase tracking-wider">
+              <Link href="/dashboard/holidays" className="text-[10px] font-black text-indigo-650 dark:text-indigo-400 hover:underline uppercase tracking-wider bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
                 View Calendar
               </Link>
             </div>
@@ -1446,14 +1489,14 @@ function EmployeeDashboard({
                 { date: '15 AUG', name: 'Independence Day', day: 'Friday' },
                 { date: '26 JAN', name: 'Republic Day', day: 'Monday' },
               ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3.5 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-500/[0.01] hover:bg-slate-500/[0.025] transition-all">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/40 dark:border-slate-850/60 flex flex-col items-center justify-center shrink-0">
-                    <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase leading-none">{item.date.split(' ')[1]}</span>
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-200 leading-none mt-1 font-outfit">{item.date.split(' ')[0]}</span>
+                <div key={idx} className="flex items-center gap-3.5 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-teal-500/30 transition-all shadow-2xs">
+                  <div className="w-11 h-11 rounded-2xl bg-teal-500/10 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400 border border-teal-500/20 flex flex-col items-center justify-center shrink-0 shadow-2xs">
+                    <span className="text-[8.5px] font-black uppercase leading-none">{item.date.split(' ')[1]}</span>
+                    <span className="text-xs font-black leading-none mt-1 font-outfit">{item.date.split(' ')[0]}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{item.name}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">{item.day}</p>
+                    <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{item.name}</p>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">{item.day}</p>
                   </div>
                 </div>
               ))}
@@ -1462,13 +1505,13 @@ function EmployeeDashboard({
         </div>
 
         {/* 2. Announcements */}
-        <div className="rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-card p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:border-indigo-500/30">
+        <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:border-indigo-500/40">
           <div>
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800/60">
-              <h4 className="text-xs font-black uppercase tracking-widest text-indigo-650 dark:text-indigo-400 flex items-center gap-1.5">
-                <span>📢</span> ANNOUNCEMENTS
+            <div className="flex items-center justify-between mb-4 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <h4 className="text-xs font-black uppercase tracking-widest text-indigo-650 dark:text-indigo-400 flex items-center gap-2 font-outfit">
+                <span className="text-base">📢</span> ANNOUNCEMENTS
               </h4>
-              <button className="text-[10px] font-black text-indigo-650 dark:text-indigo-400 hover:underline uppercase tracking-wider cursor-pointer bg-transparent border-0 outline-none">
+              <button className="text-[10px] font-black text-indigo-650 dark:text-indigo-400 hover:underline uppercase tracking-wider cursor-pointer bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
                 View All
               </button>
             </div>
@@ -1479,12 +1522,12 @@ function EmployeeDashboard({
                 { title: 'Office Maintenance Scheduled', time: '3 days ago', icon: '📋' },
                 { title: 'Annual Team Outing Plan', time: '1 week ago', icon: '🎉' },
               ].map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between gap-3 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-500/[0.01] hover:bg-slate-500/[0.025] transition-all">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-sm shrink-0">{item.icon}</span>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{item.title}</p>
+                <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-indigo-500/30 transition-all shadow-2xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-base shrink-0">{item.icon}</span>
+                    <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{item.title}</p>
                   </div>
-                  <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 shrink-0">{item.time}</span>
+                  <span className="text-[9.5px] font-black text-slate-400 dark:text-slate-500 shrink-0 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">{item.time}</span>
                 </div>
               ))}
             </div>
@@ -1492,21 +1535,21 @@ function EmployeeDashboard({
         </div>
 
         {/* 3. Need Help? */}
-        <div className="rounded-3xl border border-slate-200/40 dark:border-slate-800/50 bg-gradient-to-br from-indigo-500/[0.02] to-card dark:from-indigo-500/[0.01] dark:to-card p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:border-indigo-500/30">
+        <div className="rounded-3xl border border-indigo-100 dark:border-slate-800 bg-gradient-to-br from-indigo-900/90 via-slate-900 to-indigo-950 p-6 shadow-lg text-left flex flex-col justify-between transition-all duration-300 hover:shadow-xl text-white group">
           <div>
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-650 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center text-lg mb-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 text-amber-300 border border-white/20 flex items-center justify-center text-xl mb-4 backdrop-blur-md shadow-md group-hover:scale-110 transition-transform">
               🎧
             </div>
-            <h4 className="text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 font-outfit">
+            <h4 className="text-base font-black uppercase tracking-wider text-white font-outfit">
               Need Help?
             </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed font-medium">
+            <p className="text-xs text-indigo-200/90 mt-1.5 leading-relaxed font-medium">
               Have questions or facing issues? Raise a ticket or connect directly with our support team.
             </p>
           </div>
 
-          <div className="mt-5">
-            <button className="w-full py-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-indigo-650 dark:text-indigo-400 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all text-center cursor-pointer active:scale-98">
+          <div className="mt-6">
+            <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-400 hover:to-blue-500 border-0 text-xs font-black text-white shadow-lg shadow-indigo-500/25 transition-all text-center cursor-pointer active:scale-98">
               Create Support Ticket
             </button>
           </div>

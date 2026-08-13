@@ -63,8 +63,10 @@ export default function PayslipPage() {
   const fetchCompanies = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
-      const data = await res.json();
-      if (res.ok) setCompanies(data.companies || []);
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setCompanies(data.companies || []);
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -74,8 +76,8 @@ export default function PayslipPage() {
       let url = 'http://localhost:5000/api/v1/payroll/employee-payslips';
       if (companyId) url += `?companyId=${companyId}`;
       const res = await fetch(url, { headers: getHeaders() });
-      const data = await res.json();
-      if (res.ok) {
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
         setPayslips(data.payslips || []);
       } else {
         // Fallback to employees if no generated payslips yet
@@ -93,34 +95,34 @@ export default function PayslipPage() {
     try {
       const url = getUrl('/api/v1/employees', companyId);
       const res = await fetch(url, { headers: getHeaders() });
-      const data = await res.json();
-      if (res.ok && data.employees) {
-        const mapped: PayslipRecord[] = data.employees.map((emp: any) => {
-          const basic = parseFloat(emp.basic_salary || 21000);
-          const gross = basic * 1.5;
-          const deductions = 2000;
-          return {
-            id: emp.id,
-            employee_id: emp.id,
-            emp_id_code: emp.emp_id_code || 'EMP101',
-            first_name: emp.first_name,
-            last_name: emp.last_name,
-            email: emp.email,
-            department_name: emp.department_name,
-            designation_name: emp.designation_name,
-            branch_name: emp.branch_name,
-            gross_salary: gross,
-            total_deductions: deductions,
-            net_salary: gross - deductions,
-            pay_period: `${selectedYear}-${selectedMonth}`,
-            status: 'GENERATED'
-          };
-        });
-        setPayslips(mapped);
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        if (data.employees) {
+          const mapped: PayslipRecord[] = data.employees.map((emp: any) => {
+            const basic = parseFloat(emp.basic_salary || 21000);
+            const gross = basic * 1.5;
+            const deductions = 2000;
+            return {
+              id: emp.id,
+              employee_id: emp.id,
+              emp_id_code: emp.emp_id_code || 'EMP101',
+              first_name: emp.first_name,
+              last_name: emp.last_name,
+              email: emp.email,
+              department_name: emp.department_name,
+              designation_name: emp.designation_name,
+              branch_name: emp.branch_name,
+              gross_salary: gross,
+              total_deductions: deductions,
+              net_salary: gross - deductions,
+              pay_period: `${selectedYear}-${selectedMonth}`,
+              status: 'GENERATED'
+            };
+          });
+          setPayslips(mapped);
+        }
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   };
 
   useEffect(() => {
@@ -149,9 +151,18 @@ export default function PayslipPage() {
   );
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-sans space-y-6 animate-fadeIn w-full text-left pb-24">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="payslip-page-container font-sans space-y-6 animate-fadeIn w-full text-left pb-24">
       <style dangerouslySetInnerHTML={{__html: `
-        .font-sans, button, input, select, label, span, div, p, h1, h2, h3, h4, th, td {
+        .payslip-page-container,
+        .payslip-page-container button,
+        .payslip-page-container input,
+        .payslip-page-container select,
+        .payslip-page-container label,
+        .payslip-page-container span,
+        .payslip-page-container div,
+        .payslip-page-container p,
+        .payslip-page-container th,
+        .payslip-page-container td {
           font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }
       `}} />

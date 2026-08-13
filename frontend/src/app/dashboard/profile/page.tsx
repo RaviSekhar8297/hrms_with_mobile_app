@@ -30,8 +30,10 @@ interface EmergencyContact {
 interface EducationEntry {
   degree: string;
   institution: string;
-  passing_year: string;
-  percentage_gpa: string;
+  passing_year?: string;
+  percentage_gpa?: string;
+  year?: string;
+  grade?: string;
 }
 
 interface ExperienceEntry {
@@ -92,9 +94,14 @@ export default function ProfilePage() {
   // Core Employee profile
   const [myProfile, setMyProfile] = useState<Employee | null>(null);
 
-  // Edit Mode state
+  // Edit Mode & Tab state
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'work' | 'education' | 'skills' | 'compliance' | 'security'>('overview');
+
+  // Skills List state
+  const [skillsList, setSkillsList] = useState<string[]>([]);
+  const [newSkillInput, setNewSkillInput] = useState('');
   
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -126,6 +133,9 @@ export default function ProfilePage() {
   const [familyContacts, setFamilyContacts] = useState<EmergencyContact[]>([]);
   const [educationList, setEducationList] = useState<EducationEntry[]>([]);
   const [experienceList, setExperienceList] = useState<ExperienceEntry[]>([]);
+
+  // Initial Form Snapshot for change detection
+  const [initialFormValues, setInitialFormValues] = useState<any>(null);
 
   // Compliance Mask Reveal States
   const [revealPAN, setRevealPAN] = useState(false);
@@ -238,39 +248,113 @@ export default function ProfilePage() {
 
   const parseJSONB = (val: any) => {
     if (!val) return [];
+    let parsed = val;
     if (typeof val === 'string') {
       try {
-        return JSON.parse(val);
+        parsed = JSON.parse(val);
       } catch {
         return [];
       }
     }
-    return val;
+    return Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? [parsed] : []);
   };
 
   const initializeFormFields = (emp: Employee) => {
-    setFirstName(emp.first_name || '');
-    setLastName(emp.last_name || '');
-    setPhone(emp.phone || '');
-    setPersonalEmail(emp.personal_email || '');
-    setDob(emp.dob ? emp.dob.split('T')[0] : '');
-    setGender(emp.gender || '');
-    setMaritalStatus(emp.marital_status || '');
-    setBloodGroup(emp.blood_group || '');
-    setPanNumber(emp.pan_number || '');
-    setAadharNumber(emp.aadhar_number || '');
-    setEsiNumber(emp.esi_number || '');
-    setUanNumber(emp.uan_number || '');
-    setCurrentAddress(emp.current_address || '');
-    setPermanentAddress(emp.permanent_address || '');
-    setEmploymentType(emp.employment_type || '');
-    setEmpImage(emp.emp_image || '');
+    const init = {
+      first_name: emp.first_name || '',
+      last_name: emp.last_name || '',
+      phone: emp.phone || '',
+      personal_email: emp.personal_email || '',
+      dob: emp.dob ? emp.dob.split('T')[0] : '',
+      gender: emp.gender || '',
+      marital_status: emp.marital_status || '',
+      blood_group: emp.blood_group || '',
+      pan_number: emp.pan_number || '',
+      aadhar_number: emp.aadhar_number || '',
+      esi_number: emp.esi_number || '',
+      uan_number: emp.uan_number || '',
+      current_address: emp.current_address || '',
+      permanent_address: emp.permanent_address || '',
+      employment_type: emp.employment_type || '',
+      emp_image: emp.emp_image || '',
+      bank_information: JSON.stringify(parseJSONB(emp.bank_information)),
+      emergency_contacts: JSON.stringify(parseJSONB(emp.emergency_contacts)),
+      education: JSON.stringify(parseJSONB(emp.education)),
+      experience: JSON.stringify(parseJSONB(emp.experience)),
+    };
 
-    setBankInfoList(parseJSONB(emp.bank_information));
-    setFamilyContacts(parseJSONB(emp.emergency_contacts));
-    setEducationList(parseJSONB(emp.education));
-    setExperienceList(parseJSONB(emp.experience));
+    setFirstName(init.first_name);
+    setLastName(init.last_name);
+    setPhone(init.phone);
+    setPersonalEmail(init.personal_email);
+    setDob(init.dob);
+    setGender(init.gender);
+    setMaritalStatus(init.marital_status);
+    setBloodGroup(init.blood_group);
+    setPanNumber(init.pan_number);
+    setAadharNumber(init.aadhar_number);
+    setEsiNumber(init.esi_number);
+    setUanNumber(init.uan_number);
+    setCurrentAddress(init.current_address);
+    setPermanentAddress(init.permanent_address);
+    setEmploymentType(init.employment_type);
+    setEmpImage(init.emp_image);
+
+    const bankList = parseJSONB(emp.bank_information);
+    const familyList = parseJSONB(emp.emergency_contacts);
+    const eduList = parseJSONB(emp.education);
+    const expList = parseJSONB(emp.experience);
+
+    let parsedSkills: string[] = [];
+    const rawSkills = (emp as any).skills;
+    if (rawSkills) {
+      if (Array.isArray(rawSkills)) {
+        parsedSkills = rawSkills;
+      } else if (typeof rawSkills === 'string') {
+        try {
+          const jsonP = JSON.parse(rawSkills);
+          parsedSkills = Array.isArray(jsonP) ? jsonP : rawSkills.split(',').map(s => s.trim());
+        } catch {
+          parsedSkills = rawSkills.split(',').map(s => s.trim());
+        }
+      }
+    }
+
+    setBankInfoList(bankList);
+    setFamilyContacts(familyList);
+    setEducationList(eduList);
+    setExperienceList(expList);
+    setSkillsList(parsedSkills.filter(Boolean));
+
+    setInitialFormValues(init);
   };
+
+  const currentFormValues = {
+    first_name: firstName,
+    last_name: lastName,
+    phone: phone,
+    personal_email: personalEmail,
+    dob: dob,
+    gender: gender,
+    marital_status: maritalStatus,
+    blood_group: bloodGroup,
+    pan_number: panNumber,
+    aadhar_number: aadharNumber,
+    esi_number: esiNumber,
+    uan_number: uanNumber,
+    current_address: currentAddress,
+    permanent_address: permanentAddress,
+    employment_type: employmentType,
+    emp_image: empImage,
+    bank_information: JSON.stringify(Array.isArray(bankInfoList) ? bankInfoList : []),
+    emergency_contacts: JSON.stringify(Array.isArray(familyContacts) ? familyContacts : []),
+    education: JSON.stringify(Array.isArray(educationList) ? educationList : []),
+    experience: JSON.stringify(Array.isArray(experienceList) ? experienceList : []),
+  };
+
+  const hasProfileChanges = initialFormValues ? Object.keys(currentFormValues).some(
+    key => (currentFormValues as any)[key] !== (initialFormValues as any)[key]
+  ) : false;
 
   useEffect(() => {
     if (email) {
@@ -304,6 +388,12 @@ export default function ProfilePage() {
   const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!myProfile) return;
+
+    if (!hasProfileChanges) {
+      triggerCustomToast('ℹ️ No changes detected to save.', 'info');
+      setIsEditing(false);
+      return;
+    }
 
     setSaving(true);
     try {
@@ -343,6 +433,7 @@ export default function ProfilePage() {
         const mockId = 'emp-' + Math.random().toString(36).substr(2, 9);
         const updated = { ...payload, id: mockId };
         setMyProfile(updated);
+        setInitialFormValues(currentFormValues);
         triggerCustomToast('💾 Profile saved successfully (Offline Sync Active)', 'success');
         setIsEditing(false);
       } else {
@@ -357,11 +448,13 @@ export default function ProfilePage() {
 
         if (res.ok) {
           triggerCustomToast('✨ Profile changes saved successfully to DB!', 'success');
+          setInitialFormValues(currentFormValues);
           fetchProfileData(email, companyId);
           setIsEditing(false);
         } else {
           const updated = { ...payload, id: myProfile.id };
           setMyProfile(updated);
+          setInitialFormValues(currentFormValues);
           triggerCustomToast('💾 Saved changes locally.', 'info');
           setIsEditing(false);
         }
@@ -484,47 +577,68 @@ export default function ProfilePage() {
     return <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100">{formattedMask}</span>;
   };
 
+  const getFieldTheme = (label: string) => {
+    const l = label.toLowerCase();
+    if (l.includes('name')) return 'bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-700 text-white shadow-md shadow-indigo-500/20';
+    if (l.includes('email') || l.includes('phone')) return 'bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-600 text-white shadow-md shadow-sky-500/20';
+    if (l.includes('birth') || l.includes('dob')) return 'bg-gradient-to-br from-pink-500 via-rose-600 to-red-600 text-white shadow-md shadow-pink-500/20';
+    if (l.includes('address') || l.includes('location') || l.includes('branch')) return 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-600 text-white shadow-md shadow-emerald-500/20';
+    if (l.includes('pan') || l.includes('aadhar') || l.includes('esi') || l.includes('uan')) return 'bg-gradient-to-br from-amber-500 via-orange-600 to-rose-600 text-white shadow-md shadow-amber-500/20';
+    if (l.includes('department') || l.includes('designation') || l.includes('role')) return 'bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700 text-white shadow-md shadow-violet-500/20';
+    return 'bg-gradient-to-br from-indigo-500 to-sky-600 text-white shadow-md shadow-indigo-500/20';
+  };
+
   const renderFieldBlock = (label: string, value: string | undefined | null) => {
     const icon = getFieldIcon(label);
-    const isEmpty = !value || value.trim() === '';
+    const themeClass = getFieldTheme(label);
     return (
-      <div className={`profile-field-block ${isEmpty ? 'profile-field-empty' : ''}`}>
-        <div className="profile-field-accent" />
-        <div className="flex-1 flex flex-col justify-center min-w-0">
-          <span className="profile-field-label">{label}</span>
-          <div className="profile-field-value mt-0.5">{renderValueBadge(value)}</div>
+      <div className="group flex items-center gap-3.5 p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-2xs hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-400/50 hover:-translate-y-0.5 transition-all duration-300">
+        <div className={`h-10 w-10 rounded-2xl ${themeClass} flex items-center justify-center text-sm font-semibold shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+          {icon}
         </div>
-        <span className="profile-field-icon">{icon}</span>
+        <div className="flex-1 min-w-0 text-left">
+          <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            {label}
+          </span>
+          <div className="mt-0.5 truncate text-xs font-extrabold text-slate-900 dark:text-slate-100">
+            {renderValueBadge(value)}
+          </div>
+        </div>
       </div>
     );
   };
 
   const renderSecureFieldBlock = (label: string, value: string | undefined | null, reveal: boolean, setReveal: (v: boolean) => void) => {
     const icon = getFieldIcon(label);
+    const themeClass = getFieldTheme(label);
     const hasVal = value && value.trim() !== '';
-    const isEmpty = !hasVal;
     return (
-      <div className={`profile-field-block ${isEmpty ? 'profile-field-empty' : 'profile-field-secure'}`}>
-        <div className="profile-field-accent" />
-        <div className="flex-1 flex flex-col justify-center min-w-0">
-          <span className="profile-field-label">{label}</span>
+      <div className="group flex items-center gap-3.5 p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-2xs hover:shadow-xl hover:shadow-amber-500/10 hover:border-amber-400/50 hover:-translate-y-0.5 transition-all duration-300">
+        <div className={`h-10 w-10 rounded-2xl ${themeClass} flex items-center justify-center text-sm font-semibold shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+          {icon}
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+            {label}
+          </span>
           <div className="flex items-center justify-between gap-2 mt-0.5">
             {maskValue(value, reveal)}
             {hasVal && (
               <button
                 type="button"
                 onClick={() => setReveal(!reveal)}
-                className="profile-reveal-btn"
+                className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/80 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-2xs"
               >
                 {reveal ? '🙈 Hide' : '👁 Show'}
               </button>
             )}
           </div>
         </div>
-        <span className="profile-field-icon">{icon}</span>
       </div>
     );
   };
+
+  const safeBankInfoList = Array.isArray(bankInfoList) ? bankInfoList : [];
 
   return (
     <div className="space-y-6 animate-fadeIn w-full relative font-sans text-slate-900 dark:text-slate-100">
@@ -553,18 +667,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <DashboardPageHeader
-        title="My Profile Dashboard"
-        actionMessage=""
-        actionError=""
-        companies={companies}
-        companyId={companyId}
-        handleCompanyChange={handleCompanyChange}
-        isSuperAdmin={isSuperAdmin}
-        email={email}
-        hideCompanySelect={true}
-        hideUserBadge={true}
-      />
+
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-4">
@@ -574,70 +677,56 @@ export default function ProfilePage() {
       ) : (
         <div className="w-full space-y-6">
           
-          {/* 🌄 INSPIRATIONAL HERO BANNER */}
-          <div className="relative w-full rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-blue-500/20 border border-white/10 transition-all duration-500 min-h-[160px] sm:min-h-[185px] flex flex-col justify-between p-5 sm:p-7 bg-gradient-to-r from-blue-700 via-sky-600 to-indigo-900 text-white group">
-            {/* Mountain / Landscape Background Image */}
+          {/* 🌄 EXECUTIVE ROYAL BLUE FULL COLOR COVER HEADER */}
+          <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 border border-blue-600/40 shadow-xl transition-all duration-300">
+            
+            {/* Cover Scenery Image Overlay */}
             <div 
-              className="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-overlay transition-all duration-700 group-hover:scale-105 group-hover:opacity-55"
+              className="absolute inset-0 bg-cover bg-center opacity-30 mix-blend-overlay transition-all duration-700 hover:scale-105"
               style={{
                 backgroundImage: `url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1600&q=80')`
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/35 to-slate-900/10 transition-opacity duration-500 group-hover:from-slate-950/75" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/20 to-transparent" />
 
-            {/* Top Badge Accent */}
-            <div className="relative z-10 flex items-center justify-between w-full">
-              <span className="px-3.5 py-0.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[9.5px] font-extrabold tracking-widest uppercase text-white flex items-center gap-1.5 shadow-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Workplace Inspiration
-              </span>
-            </div>
-
-            {/* Bottom Content */}
-            <div className="relative z-10 space-y-1.5 max-w-3xl transform transition-transform duration-500 group-hover:-translate-y-1">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white drop-shadow-md">
-                {getGreeting()}{firstName ? `, ${firstName}` : ''}
-              </h1>
-              <p className="text-xs sm:text-sm font-medium text-slate-100/95 leading-relaxed italic drop-shadow-xs">
-                "An employee's experience is the sum of all interactions they have with the organization."
-              </p>
-              <p className="text-[10px] font-extrabold tracking-widest uppercase text-sky-200/90 flex items-center gap-2">
-                <span className="w-4 h-0.5 bg-sky-400 rounded-full inline-block" />
-                MATT MULLENWEG
-              </p>
-            </div>
-          </div>
-
-          {/* PROFILE HEADER CARD */}
-          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 w-full relative overflow-hidden">
-            
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10 w-full lg:w-auto">
+            <div className="p-6 sm:p-8 relative z-10 space-y-6">
               
-              {/* Initials / Profile Picture Avatar */}
-              <div className="relative group shrink-0">
-                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-700 text-white font-extrabold text-2xl sm:text-3xl flex items-center justify-center shadow-lg select-none relative font-outfit overflow-hidden border-2 border-white dark:border-slate-800">
-                  {(empImage || myProfile?.emp_image) ? (
-                    <img 
-                      src={empImage || myProfile?.emp_image} 
-                      alt={firstName ? `${firstName} ${lastName}` : 'Profile'} 
-                      className="h-full w-full object-cover" 
-                      onError={(e) => {
-                        // Fallback to initials if image fails to load
-                        (e.currentTarget as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  ) : null}
-                  {!(empImage || myProfile?.emp_image) && (
-                    <span>
-                      {firstName ? `${firstName.charAt(0).toUpperCase()}${lastName ? lastName.charAt(0).toUpperCase() : ''}` : email.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                  <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-4 border-white dark:border-slate-900 z-10" title="Active" />
-                </div>
-                {isEditing && (
-                  <label className="absolute inset-0 bg-slate-950/70 rounded-3xl flex flex-col items-center justify-center text-white text-[10.5px] font-extrabold cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-md">
-                    <span className="text-base">📷</span>
-                    <span>Change</span>
+              {/* Cover Top Inspiration */}
+              <div className="flex items-center justify-end">
+                <span className="text-xs font-bold text-sky-100/90 italic drop-shadow-md hidden sm:inline-block">
+                  "An employee's experience is the sum of all interactions."
+                </span>
+              </div>
+
+              {/* Profile Info & Action Bar */}
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                
+                {/* Avatar + Main Info */}
+                <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+                  
+                  {/* Avatar - Clickable */}
+                  <label className="relative group shrink-0 transition-all duration-500 hover:scale-105 cursor-pointer" title="Click photo to change">
+                    <div className="absolute -inset-1.5 rounded-[2.2rem] bg-gradient-to-r from-sky-400 via-indigo-400 to-pink-500 opacity-80 blur-md group-hover:opacity-100 group-hover:blur-lg transition-all duration-500" />
+                    
+                    <div className="h-28 w-28 sm:h-32 sm:w-32 rounded-[2rem] bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-900 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-2xl relative font-outfit overflow-hidden border-4 border-white group-hover:border-sky-300 transition-all duration-500">
+                      {(empImage || myProfile?.emp_image) ? (
+                        <img 
+                          src={empImage || myProfile?.emp_image} 
+                          alt={firstName ? `${firstName} ${lastName}` : 'Profile'} 
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : null}
+                      {!(empImage || myProfile?.emp_image) && (
+                        <span>
+                          {firstName ? `${firstName.charAt(0).toUpperCase()}${lastName ? lastName.charAt(0).toUpperCase() : ''}` : email.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="absolute top-2 right-2 h-4 w-4 rounded-full bg-emerald-400 border-2 border-white z-10 animate-pulse shadow-md shadow-emerald-400/50" title="Active Status" />
+                    </div>
+
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -648,80 +737,186 @@ export default function ProfilePage() {
                           const reader = new FileReader();
                           reader.onloadend = () => {
                             setEmpImage(reader.result as string);
+                            setIsEditing(true);
+                            triggerCustomToast('📸 Profile photo updated! Click "Save Changes" to save.', 'info');
                           };
                           reader.readAsDataURL(file);
                         }
                       }} 
                     />
                   </label>
-                )}
-              </div>
 
-              {/* Profile Main Headings */}
-              <div className="flex-1 text-center sm:text-left space-y-1.5">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight font-outfit">
-                    {firstName ? `${firstName} ${lastName}` : email.split('@')[0]}
-                  </h2>
-                  <span className={`px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                    myProfile?.status === 'ACTIVE' || isSuperAdmin
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40'
-                      : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/40'
-                  }`}>
-                    {myProfile?.status || 'ACTIVE'}
-                  </span>
+                  {/* Name & Headline - PURE CRISP WHITE */}
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                      <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-outfit drop-shadow-md">
+                        {firstName ? `${firstName} ${lastName}` : email.split('@')[0]}
+                      </h1>
+                      <span className="text-sky-300 font-bold text-lg" title="Verified Employee">✓</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                        myProfile?.status === 'ACTIVE' || isSuperAdmin
+                          ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/50'
+                          : 'bg-amber-500/25 text-amber-200 border-amber-400/50'
+                      }`}>
+                        {myProfile?.status || 'ACTIVE'}
+                      </span>
+                    </div>
+
+                    <p className="text-xs font-extrabold text-sky-200 tracking-wider uppercase drop-shadow-xs">
+                      {myProfile?.designation_name || 'Organization Member'}
+                    </p>
+
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-medium text-white pt-1">
+                      <span className="bg-white/15 backdrop-blur-md px-3 py-1 rounded-xl border border-white/20 text-white shadow-xs">
+                        Emp ID: <strong className="font-mono text-white">{myProfile?.emp_id_code || 'PENDING'}</strong>
+                      </span>
+                      <span className="bg-white/15 backdrop-blur-md px-3 py-1 rounded-xl border border-white/20 text-white shadow-xs">
+                        Role: <strong className="text-white">{isSuperAdmin ? 'SuperAdmin' : (myProfile?.role_name || 'Employee')}</strong>
+                      </span>
+                      <span className="bg-white/15 backdrop-blur-md px-3 py-1 rounded-xl border border-white/20 text-white shadow-xs">
+                        Joined: <strong className="text-white">{myProfile?.joining_date ? new Date(myProfile.joining_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Pending'}</strong>
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 tracking-wide uppercase">
-                  {myProfile?.designation_name || 'Organization Member'}
-                </p>
-
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs font-medium text-slate-500 dark:text-slate-400 pt-1">
-                  <span>
-                    Emp ID: <strong className="font-mono text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">{myProfile?.emp_id_code || 'PENDING'}</strong>
-                  </span>
-                  <span>•</span>
-                  <span>
-                    Role: <strong className="text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">{isSuperAdmin ? 'SuperAdmin' : (myProfile?.role_name || 'Employee')}</strong>
-                  </span>
-                  <span>•</span>
-                  <span>
-                    Joined: <strong className="text-slate-800 dark:text-slate-200">{myProfile?.joining_date ? new Date(myProfile.joining_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Pending'}</strong>
-                  </span>
-                </div>
               </div>
+
+            </div>
+          </div>
+
+          {/* 📱 SEPARATE STANDALONE FLOATING NAVIGATION BAR WITH EDIT ICON AT END */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-2 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-md">
+            
+            {/* Left Side: Navigation Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setActiveTab('overview')}
+                className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'overview'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/20 scale-[1.02]'
+                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-sm">👤</span>
+                <span>Personal Overview</span>
+                {activeTab === 'overview' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('work')}
+                className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'work'
+                    ? 'bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-md shadow-sky-600/20 scale-[1.02]'
+                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-sm">🏢</span>
+                <span>Work & Organization</span>
+                {activeTab === 'work' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('education')}
+                className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'education'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-600/20 scale-[1.02]'
+                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-sm">🎓</span>
+                <span>Education</span>
+                {activeTab === 'education' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('skills')}
+                className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'skills'
+                    ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md shadow-cyan-600/20 scale-[1.02]'
+                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-sm">⚡</span>
+                <span>Skills & Expertise</span>
+                {activeTab === 'skills' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('compliance')}
+                className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'compliance'
+                    ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md shadow-amber-600/20 scale-[1.02]'
+                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-sm">🛡️</span>
+                <span>Compliance & Banking</span>
+                {activeTab === 'compliance' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('security')}
+                className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'security'
+                    ? 'bg-gradient-to-r from-rose-600 to-purple-600 text-white shadow-md shadow-rose-600/20 scale-[1.02]'
+                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span className="text-sm">🔒</span>
+                <span>Security & Account</span>
+                {activeTab === 'security' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
+              </button>
             </div>
 
-            {/* Top Edit Profile Button */}
-            <div className="relative z-10 w-full lg:w-auto flex justify-center lg:justify-end">
+            {/* Right Side: ICON-ONLY Edit Button at the end of the tabs bar */}
+            <div className="shrink-0 flex items-center gap-2 pr-1">
               {!isEditing ? (
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-indigo-600/20 flex items-center gap-2"
+                  className="h-10 w-10 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-all duration-300 shadow-md shadow-indigo-600/20 hover:scale-110 active:scale-95 cursor-pointer"
+                  title="Edit Profile Details"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                   </svg>
-                  Edit Profile
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-4 py-2 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer"
+                    className="px-3 py-2 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-2xl transition-all cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={handleSaveChanges}
-                    disabled={saving}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-emerald-600/20 disabled:opacity-50"
+                    disabled={saving || !hasProfileChanges}
+                    className={`px-4 py-2 text-xs font-extrabold rounded-2xl transition-all flex items-center gap-2 ${
+                      hasProfileChanges && !saving
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none opacity-60'
+                    }`}
+                    title={!hasProfileChanges ? 'No changes detected to save' : 'Click to save profile changes'}
                   >
-                    {saving ? 'Saving...' : 'Save Profile'}
+                    {saving ? (
+                      'Saving...'
+                    ) : (
+                      <>
+                        {hasProfileChanges && <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />}
+                        {hasProfileChanges ? 'Save Changes' : 'No Changes'}
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -729,392 +924,694 @@ export default function ProfilePage() {
 
           </div>
 
-          {/* MAIN GRID CARDS */}
+          {/* MAIN SOCIAL MEDIA FEED GRID */}
           <form onSubmit={handleSaveChanges} className="w-full space-y-6">
             
             <div className="grid gap-6 lg:grid-cols-3 items-start">
               
-              {/* LEFT COLUMN (1 col) */}
-              <div className="lg:col-span-1 space-y-6">
+              {/* LEFT SIDEBAR (1 col): SOCIAL MEDIA STATS & QUICK INFO CARD */}
+              <div className="lg:col-span-1 space-y-6 text-left">
                 
-                {/* Personal Information */}
-                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs relative overflow-hidden transition-all w-full text-left">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">👤</span>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Personal Information</h3>
-                    </div>
-                  </div>
+                <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full space-y-5">
+                  <div className="h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 absolute top-0 inset-x-0" />
                   
-                  {isEditing ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="profile-custom-form-label">Profile Photo (URL or Upload)</label>
-                        <div className="flex gap-2 items-center">
-                          <input 
-                            type="text" 
-                            placeholder="Image URL or upload file" 
-                            value={empImage} 
-                            onChange={(e) => setEmpImage(e.target.value)} 
-                            className="premium-input flex-1" 
-                          />
-                          <label className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer shrink-0 shadow-xs transition-all flex items-center gap-1">
-                            <span>📷</span>
-                            <span>Upload</span>
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              className="hidden" 
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onloadend = () => {
-                                    setEmpImage(reader.result as string);
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
-                              }} 
-                            />
-                          </label>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">First Name</label>
-                        <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="premium-input" />
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">Last Name</label>
-                        <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} className="premium-input" />
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">Phone Number</label>
-                        <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className="premium-input" />
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">Personal Email</label>
-                        <input type="email" value={personalEmail} onChange={(e) => setPersonalEmail(e.target.value)} className="premium-input" />
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">Date of Birth</label>
-                        <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="premium-input" />
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">Gender</label>
-                        <select value={gender} onChange={(e) => setGender(e.target.value)} className="premium-input">
-                          <option value="">Select Gender</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">Marital Status</label>
-                        <select value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} className="premium-input">
-                          <option value="">Select Status</option>
-                          <option value="Single">Single</option>
-                          <option value="Married">Married</option>
-                          <option value="Divorced">Divorced</option>
-                          <option value="Widowed">Widowed</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">Blood Group</label>
-                        <input type="text" value={bloodGroup} placeholder="e.g. O+" onChange={(e) => setBloodGroup(e.target.value)} className="premium-input" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {renderFieldBlock("First Name", firstName)}
-                      {renderFieldBlock("Last Name", lastName)}
-                      <div className="profile-field-block">
-                        <div className="profile-field-accent" />
-                        <div className="flex-1 flex flex-col justify-center min-w-0">
-                          <span className="profile-field-label">Official Work Email</span>
-                          <div className="profile-field-value mt-0.5">
-                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-tight truncate">{email}</span>
-                          </div>
-                        </div>
-                        <span className="profile-field-icon">📧</span>
-                      </div>
-                      {renderFieldBlock("Phone Number", phone)}
-                      {renderFieldBlock("Personal Email", personalEmail)}
-                      {renderFieldBlock("Date of Birth", dob)}
-                      {renderFieldBlock("Gender", gender)}
-                      {renderFieldBlock("Marital Status", maritalStatus)}
-                      {renderFieldBlock("Blood Group", bloodGroup)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Organization Details */}
-                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs relative overflow-hidden transition-all w-full text-left">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-base">🏢</span>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Organization Info</h3>
+                      <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">📌</span>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Quick Summary</h3>
                     </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-[10px] font-extrabold uppercase tracking-wider">
+                      Verified
+                    </span>
                   </div>
-                  <div className="space-y-3">
-                    {renderFieldBlock("Assigned Office Branch", myProfile?.branch_name)}
-                    {renderFieldBlock("Primary Department", myProfile?.department_name)}
-                    {renderFieldBlock("Job Designation", myProfile?.designation_name)}
-                    {renderFieldBlock("Employment Type", employmentType)}
-                    {renderFieldBlock("Date of Joining", myProfile?.joining_date ? new Date(myProfile.joining_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Pending')}
+
+                  <div className="space-y-3 text-xs font-medium">
+                    <div className="group/item flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 hover:border-indigo-400/50 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300">
+                      <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm font-semibold shrink-0 shadow-md shadow-indigo-500/20 group-hover/item:scale-110 transition-transform">
+                        📧
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Work Email</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-100 truncate block select-all">{email}</span>
+                      </div>
+                    </div>
+
+                    <div className="group/item flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 hover:border-sky-400/50 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300">
+                      <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white flex items-center justify-center text-sm font-semibold shrink-0 shadow-md shadow-sky-500/20 group-hover/item:scale-110 transition-transform">
+                        📱
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Primary Phone</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-100 block">{phone || 'Not Provided'}</span>
+                      </div>
+                    </div>
+
+                    <div className="group/item flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 hover:border-emerald-400/50 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300">
+                      <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-sm font-semibold shrink-0 shadow-md shadow-emerald-500/20 group-hover/item:scale-110 transition-transform">
+                        🏢
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Office Location</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-100 block">{myProfile?.branch_name || 'Not Specified'}</span>
+                      </div>
+                    </div>
+
+                    <div className="group/item flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 hover:border-purple-400/50 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300">
+                      <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center text-sm font-semibold shrink-0 shadow-md shadow-purple-500/20 group-hover/item:scale-110 transition-transform">
+                        💼
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Department & Designation</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-100 block">
+                          {myProfile?.department_name ? `${myProfile.department_name} • ${myProfile?.designation_name || 'Member'}` : (myProfile?.designation_name || 'Not Specified')}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
               </div>
 
-              {/* RIGHT COLUMN (2 cols) */}
+              {/* RIGHT MAIN SOCIAL FEED (2 cols): TAB CONTENT CARDS */}
               <div className="lg:col-span-2 space-y-6 text-left">
                 
-                {/* Compliance & Identifiers */}
-                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs relative overflow-hidden transition-all w-full">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🛡️</span>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Compliance & Identifiers</h3>
-                    </div>
-                  </div>
-                  {isEditing ? (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="profile-custom-form-label">PAN Card Number</label>
-                        <input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value)} className="premium-input" />
+                {/* 1️⃣ TAB 1: OVERVIEW & PERSONAL INFO */}
+                {activeTab === 'overview' && (
+                  <div className="space-y-6">
+                    
+                    {/* Personal Information Card */}
+                    <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                      <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 absolute top-0 inset-x-0" />
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">👤</span>
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Personal Information</h3>
+                        </div>
                       </div>
-                      <div>
-                        <label className="profile-custom-form-label">Aadhar Card Number</label>
-                        <input type="text" value={aadharNumber} onChange={(e) => setAadharNumber(e.target.value)} className="premium-input" />
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">ESI Account Number</label>
-                        <input type="text" value={esiNumber} onChange={(e) => setEsiNumber(e.target.value)} className="premium-input" />
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">UAN (Universal Account Number)</label>
-                        <input type="text" value={uanNumber} onChange={(e) => setUanNumber(e.target.value)} className="premium-input" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {renderSecureFieldBlock("PAN Card Number", panNumber, revealPAN, setRevealPAN)}
-                      {renderSecureFieldBlock("Aadhar Card Number", aadharNumber, revealAadhar, setRevealAadhar)}
-                      {renderSecureFieldBlock("ESI Account Number", esiNumber, revealESI, setRevealESI)}
-                      {renderSecureFieldBlock("UAN (Universal Account Number)", uanNumber, revealUAN, setRevealUAN)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Bank Details */}
-                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs relative overflow-hidden transition-all w-full">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🏦</span>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Bank Accounts</h3>
-                    </div>
-                  </div>
-                  {isEditing ? (
-                    <div className="space-y-4">
-                      {bankInfoList.map((bank, index) => (
-                        <div key={index} className="grid gap-4 sm:grid-cols-2 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 relative">
-                          <button
-                            type="button"
-                            onClick={() => setBankInfoList(bankInfoList.filter((_, i) => i !== index))}
-                            className="absolute top-3 right-3 text-rose-600 hover:text-rose-700 text-xs font-bold cursor-pointer"
-                          >
-                            Remove
-                          </button>
+                      
+                      {isEditing ? (
+                        <div className="grid gap-4 sm:grid-cols-2">
                           <div>
-                            <label className="profile-custom-form-label">Bank Name</label>
-                            <input type="text" required value={bank.bank_name} onChange={(e) => { const list = [...bankInfoList]; list[index].bank_name = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                            <label className="profile-custom-form-label">First Name</label>
+                            <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="premium-input" />
                           </div>
                           <div>
-                            <label className="profile-custom-form-label">Account Number</label>
-                            <input type="text" required value={bank.account_number} onChange={(e) => { const list = [...bankInfoList]; list[index].account_number = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                            <label className="profile-custom-form-label">Last Name</label>
+                            <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} className="premium-input" />
                           </div>
                           <div>
-                            <label className="profile-custom-form-label">IFSC Code</label>
-                            <input type="text" required value={bank.ifsc_code} onChange={(e) => { const list = [...bankInfoList]; list[index].ifsc_code = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                            <label className="profile-custom-form-label">Phone Number</label>
+                            <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className="premium-input" />
                           </div>
                           <div>
-                            <label className="profile-custom-form-label">Branch Name</label>
-                            <input type="text" required value={bank.branch_name} onChange={(e) => { const list = [...bankInfoList]; list[index].branch_name = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                            <label className="profile-custom-form-label">Personal Email</label>
+                            <input type="email" value={personalEmail} onChange={(e) => setPersonalEmail(e.target.value)} className="premium-input" />
+                          </div>
+                          <div>
+                            <label className="profile-custom-form-label">Date of Birth</label>
+                            <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="premium-input" />
+                          </div>
+                          <div>
+                            <label className="profile-custom-form-label">Gender</label>
+                            <select value={gender} onChange={(e) => setGender(e.target.value)} className="premium-input">
+                              <option value="">Select Gender</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="profile-custom-form-label">Marital Status</label>
+                            <select value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} className="premium-input">
+                              <option value="">Select Status</option>
+                              <option value="Single">Single</option>
+                              <option value="Married">Married</option>
+                              <option value="Divorced">Divorced</option>
+                              <option value="Widowed">Widowed</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="profile-custom-form-label">Blood Group</label>
+                            <input type="text" value={bloodGroup} placeholder="e.g. O+" onChange={(e) => setBloodGroup(e.target.value)} className="premium-input" />
                           </div>
                         </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => setBankInfoList([...bankInfoList, { bank_name: '', account_number: '', ifsc_code: '', branch_name: '' }])}
-                        className="py-3 px-4 border border-dashed border-indigo-300 dark:border-indigo-700 text-xs font-bold rounded-xl w-full text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer"
-                      >
-                        + Add Bank Account
-                      </button>
+                      ) : (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {renderFieldBlock("First Name", firstName)}
+                          {renderFieldBlock("Last Name", lastName)}
+                          <div className="col-span-full">
+                            {renderFieldBlock("Official Work Email", email)}
+                          </div>
+                          {renderFieldBlock("Phone Number", phone)}
+                          {renderFieldBlock("Personal Email", personalEmail)}
+                          {renderFieldBlock("Date of Birth", dob)}
+                          {renderFieldBlock("Gender", gender)}
+                          {renderFieldBlock("Marital Status", maritalStatus)}
+                          {renderFieldBlock("Blood Group", bloodGroup)}
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <>
-                      {bankInfoList.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center p-6 border border-dashed border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 rounded-2xl text-center">
-                          <span className="text-lg mb-1">⚠️</span>
-                          <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Pending Bank Account Records</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click Edit Profile to add bank details for payroll processing.</p>
+
+                    {/* Residential Address Card */}
+                    <div className="rounded-3xl border border-emerald-100 dark:border-emerald-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                      <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 absolute top-0 inset-x-0" />
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-sm font-semibold">📍</span>
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Residential Address</h3>
+                        </div>
+                      </div>
+                      {isEditing ? (
+                        <div className="grid gap-5 sm:grid-cols-2">
+                          <div>
+                            <label className="profile-custom-form-label">Current Residential Address</label>
+                            <textarea rows={3} value={currentAddress} onChange={(e) => setCurrentAddress(e.target.value)} className="premium-input resize-none" />
+                          </div>
+                          <div>
+                            <label className="profile-custom-form-label">Permanent Address</label>
+                            <textarea rows={3} value={permanentAddress} onChange={(e) => setPermanentAddress(e.target.value)} className="premium-input resize-none" />
+                          </div>
                         </div>
                       ) : (
                         <div className="grid gap-4 sm:grid-cols-2">
-                          {bankInfoList.map((bank, index) => (
-                            <div key={index} className="w-full bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 border border-white/10 shadow-md relative overflow-hidden flex flex-col justify-between">
-                              <div className="flex justify-between items-center relative z-10">
-                                <span className="text-xs font-black tracking-widest uppercase text-indigo-200">
-                                  {bank.bank_name || 'BANK ACCOUNT'}
+                          {renderFieldBlock("Current Residential Address", currentAddress)}
+                          {renderFieldBlock("Permanent Address", permanentAddress)}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+
+                {/* 2️⃣ TAB 2: WORK & ORGANIZATION */}
+                {activeTab === 'work' && (
+                  <div className="space-y-6">
+                    <div className="rounded-3xl border border-sky-100 dark:border-sky-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                      <div className="h-1 bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 absolute top-0 inset-x-0" />
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 text-sm font-semibold">🏢</span>
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Organization & Employment Info</h3>
+                        </div>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {renderFieldBlock("Assigned Office Branch", myProfile?.branch_name)}
+                        {renderFieldBlock("Primary Department", myProfile?.department_name)}
+                        {renderFieldBlock("Job Designation", myProfile?.designation_name)}
+                        {renderFieldBlock("Employment Type", employmentType || 'Full-Time Regular')}
+                        {renderFieldBlock("Date of Joining", myProfile?.joining_date ? new Date(myProfile.joining_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Pending')}
+                        {renderFieldBlock("System Access Role", isSuperAdmin ? 'SuperAdmin' : (myProfile?.role_name || 'Employee'))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 🎓 TAB 3: EDUCATION & QUALIFICATIONS */}
+                {activeTab === 'education' && (
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="rounded-3xl border border-purple-100 dark:border-purple-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                      <div className="h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500 absolute top-0 inset-x-0" />
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 text-sm font-semibold">🎓</span>
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Education & Academic Qualifications</h3>
+                        </div>
+                      </div>
+
+                      {isEditing ? (
+                        <div className="space-y-4">
+                          {educationList.map((edu, index) => (
+                            <div key={index} className="grid gap-4 sm:grid-cols-2 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 relative">
+                              <button
+                                type="button"
+                                onClick={() => setEducationList(educationList.filter((_, i) => i !== index))}
+                                className="absolute top-3 right-3 text-rose-600 hover:text-rose-700 text-xs font-bold cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                              <div>
+                                <label className="profile-custom-form-label">Degree / Qualification</label>
+                                <input type="text" required value={edu.degree} onChange={(e) => { const list = [...educationList]; list[index].degree = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. B.Tech Computer Science" />
+                              </div>
+                              <div>
+                                <label className="profile-custom-form-label">University / Institution</label>
+                                <input type="text" required value={edu.institution} onChange={(e) => { const list = [...educationList]; list[index].institution = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. JNTU / Andhra University" />
+                              </div>
+                              <div>
+                                <label className="profile-custom-form-label">Year of Passing</label>
+                                <input type="text" value={edu.year || edu.passing_year || ''} onChange={(e) => { const list = [...educationList]; list[index].year = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. 2020" />
+                              </div>
+                              <div>
+                                <label className="profile-custom-form-label">Grade / CGPA / Percentage</label>
+                                <input type="text" value={edu.grade || edu.percentage_gpa || ''} onChange={(e) => { const list = [...educationList]; list[index].grade = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. 8.5 CGPA / 85%" />
+                              </div>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setEducationList([...educationList, { degree: '', institution: '', year: '', grade: '' }])}
+                            className="py-3 px-4 border border-dashed border-purple-300 dark:border-purple-700 text-xs font-bold rounded-xl w-full text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors cursor-pointer"
+                          >
+                            + Add Educational Qualification
+                          </button>
+                        </div>
+                      ) : educationList.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-6 border border-dashed border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 rounded-2xl text-center">
+                          <span className="text-xl mb-1">🎓</span>
+                          <p className="text-xs font-bold text-purple-700 dark:text-purple-300">No Education Records Added</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click edit to add your degrees & academic qualifications.</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {educationList.map((edu, idx) => (
+                            <div key={idx} className="p-4.5 rounded-2xl border border-purple-100 dark:border-purple-900/30 bg-purple-50/30 dark:bg-purple-950/20 hover:border-purple-300 hover:shadow-md transition-all space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-[10px] font-black uppercase tracking-wider">
+                                  {edu.year || edu.passing_year || 'Graduated'}
                                 </span>
+                                {(edu.grade || edu.percentage_gpa) && (
+                                  <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400">
+                                    ★ {edu.grade || edu.percentage_gpa}
+                                  </span>
+                                )}
                               </div>
-
-                              <div className="my-3 relative z-10">
-                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Account Number</p>
-                                <p className="text-sm font-mono font-extrabold tracking-wider text-white select-all">
-                                  {bank.account_number ? bank.account_number.replace(/(.{4})/g, '$1 ').trim() : '•••• •••• ••••'}
-                                </p>
-                              </div>
-
-                              <div className="flex justify-between items-end relative z-10 pt-2 border-t border-white/10 text-xs">
-                                <div>
-                                  <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Holder</p>
-                                  <p className="font-bold text-white uppercase">{firstName ? `${firstName} ${lastName}` : 'EMPLOYEE'}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">IFSC Code</p>
-                                  <p className="font-mono font-bold text-indigo-200 select-all">{bank.ifsc_code}</p>
-                                </div>
-                              </div>
+                              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white leading-snug">
+                                {edu.degree}
+                              </h4>
+                              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                <span>🏛️</span>
+                                <span>{edu.institution}</span>
+                              </p>
                             </div>
                           ))}
                         </div>
                       )}
-                    </>
-                  )}
-                </div>
-
-                {/* Residential Address */}
-                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs relative overflow-hidden transition-all w-full">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">📍</span>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Residential Address</h3>
                     </div>
                   </div>
-                  {isEditing ? (
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      <div>
-                        <label className="profile-custom-form-label">Current Residential Address</label>
-                        <textarea rows={3} value={currentAddress} onChange={(e) => setCurrentAddress(e.target.value)} className="premium-input resize-none" />
-                      </div>
-                      <div>
-                        <label className="profile-custom-form-label">Permanent Address</label>
-                        <textarea rows={3} value={permanentAddress} onChange={(e) => setPermanentAddress(e.target.value)} className="premium-input resize-none" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {renderFieldBlock("Current Residential Address", currentAddress)}
-                      {renderFieldBlock("Permanent Address", permanentAddress)}
-                    </div>
-                  )}
-                </div>
+                )}
 
-                {/* Credentials & Password Change */}
-                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xs relative overflow-hidden transition-all w-full">
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🔒</span>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Update Credentials</h3>
+                {/* ⚡ TAB 4: SKILLS & EXPERTISE */}
+                {activeTab === 'skills' && (
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="rounded-3xl border border-cyan-100 dark:border-cyan-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                      <div className="h-1 bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-500 absolute top-0 inset-x-0" />
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 text-sm font-semibold">⚡</span>
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Technical Skills & Professional Expertise</h3>
+                        </div>
+                      </div>
+
+                      {skillsList.length === 0 && !isEditing ? (
+                        <div className="flex flex-col items-center justify-center p-6 border border-dashed border-cyan-200 dark:border-cyan-900/40 bg-cyan-50/40 dark:bg-cyan-950/20 rounded-2xl text-center">
+                          <span className="text-xl mb-1">⚡</span>
+                          <p className="text-xs font-bold text-cyan-700 dark:text-cyan-300">No Technical Skills Recorded</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click edit button above to add your technical skills.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {/* Skills Badges Pill Grid */}
+                          <div className="flex flex-wrap gap-2.5">
+                            {skillsList.map((skill, idx) => (
+                              <div
+                                key={idx}
+                                className="px-4 py-2 rounded-2xl bg-gradient-to-r from-indigo-50 to-sky-50 dark:from-indigo-950/40 dark:to-sky-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-slate-800 dark:text-slate-100 text-xs font-extrabold flex items-center gap-2 shadow-2xs hover:scale-105 transition-transform"
+                              >
+                                <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                                <span>{skill}</span>
+                                {isEditing && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSkillsList(skillsList.filter((_, i) => i !== idx))}
+                                    className="text-rose-500 hover:text-rose-700 ml-1 text-xs font-bold cursor-pointer"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Add Skill Input in Edit Mode */}
+                          {isEditing && (
+                            <div className="flex items-center gap-3 pt-2">
+                              <input
+                                type="text"
+                                placeholder="Type a skill (e.g. Next.js, Keycloak) and click Add..."
+                                value={newSkillInput}
+                                onChange={(e) => setNewSkillInput(e.target.value)}
+                                className="premium-input flex-1"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    if (newSkillInput.trim()) {
+                                      setSkillsList([...skillsList, newSkillInput.trim()]);
+                                      setNewSkillInput('');
+                                    }
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (newSkillInput.trim()) {
+                                    setSkillsList([...skillsList, newSkillInput.trim()]);
+                                    setNewSkillInput('');
+                                  }
+                                }}
+                                className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-xl uppercase tracking-wider cursor-pointer shadow-md shadow-cyan-600/20"
+                              >
+                                + Add Skill
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  
-                  <div className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="profile-custom-form-label">New Password</label>
-                        <div className="relative flex items-center">
-                          <input
-                            type={showNewPassword ? "text" : "password"}
-                            placeholder="••••••••"
-                            value={newPasswordInput}
-                            onChange={(e) => setNewPasswordInput(e.target.value)}
-                            className="premium-input pr-10"
-                          />
+                )}
+
+                {/* 3️⃣ TAB 3: COMPLIANCE & BANKING */}
+                {activeTab === 'compliance' && (
+                  <div className="space-y-6">
+                    
+                    {/* Compliance & Identifiers Card */}
+                    <div className="rounded-3xl border border-amber-100 dark:border-amber-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                      <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 absolute top-0 inset-x-0" />
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-sm font-semibold">🛡️</span>
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Compliance & Identifiers</h3>
+                        </div>
+                      </div>
+                      {isEditing ? (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div>
+                            <label className="profile-custom-form-label">PAN Card Number</label>
+                            <input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value)} className="premium-input" />
+                          </div>
+                          <div>
+                            <label className="profile-custom-form-label">Aadhar Card Number</label>
+                            <input type="text" value={aadharNumber} onChange={(e) => setAadharNumber(e.target.value)} className="premium-input" />
+                          </div>
+                          <div>
+                            <label className="profile-custom-form-label">ESI Account Number</label>
+                            <input type="text" value={esiNumber} onChange={(e) => setEsiNumber(e.target.value)} className="premium-input" />
+                          </div>
+                          <div>
+                            <label className="profile-custom-form-label">UAN (Universal Account Number)</label>
+                            <input type="text" value={uanNumber} onChange={(e) => setUanNumber(e.target.value)} className="premium-input" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {renderSecureFieldBlock("PAN Card Number", panNumber, revealPAN, setRevealPAN)}
+                          {renderSecureFieldBlock("Aadhar Card Number", aadharNumber, revealAadhar, setRevealAadhar)}
+                          {renderSecureFieldBlock("ESI Account Number", esiNumber, revealESI, setRevealESI)}
+                          {renderSecureFieldBlock("UAN (Universal Account Number)", uanNumber, revealUAN, setRevealUAN)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bank Accounts Card */}
+                    <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                      <div className="h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 absolute top-0 inset-x-0" />
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">🏦</span>
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit font-bold">Bank Accounts</h3>
+                        </div>
+                      </div>
+                      {isEditing ? (
+                        <div className="space-y-4">
+                          {safeBankInfoList.map((bank, index) => (
+                            <div key={index} className="grid gap-4 sm:grid-cols-2 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 relative">
+                              <button
+                                type="button"
+                                onClick={() => setBankInfoList(safeBankInfoList.filter((_, i) => i !== index))}
+                                className="absolute top-3 right-3 text-rose-600 hover:text-rose-700 text-xs font-bold cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                              <div>
+                                <label className="profile-custom-form-label">Bank Name</label>
+                                <input type="text" required value={bank.bank_name} onChange={(e) => { const list = [...safeBankInfoList]; list[index].bank_name = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                              </div>
+                              <div>
+                                <label className="profile-custom-form-label">Account Number</label>
+                                <input type="text" required value={bank.account_number} onChange={(e) => { const list = [...safeBankInfoList]; list[index].account_number = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                              </div>
+                              <div>
+                                <label className="profile-custom-form-label">IFSC Code</label>
+                                <input type="text" required value={bank.ifsc_code} onChange={(e) => { const list = [...safeBankInfoList]; list[index].ifsc_code = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                              </div>
+                              <div>
+                                <label className="profile-custom-form-label">Branch Name</label>
+                                <input type="text" required value={bank.branch_name} onChange={(e) => { const list = [...safeBankInfoList]; list[index].branch_name = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                              </div>
+                            </div>
+                          ))}
                           <button
                             type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                            onClick={() => setBankInfoList([...safeBankInfoList, { bank_name: '', account_number: '', ifsc_code: '', branch_name: '' }])}
+                            className="py-3 px-4 border border-dashed border-indigo-300 dark:border-indigo-700 text-xs font-bold rounded-xl w-full text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer"
                           >
-                            {showNewPassword ? '🙈' : '👁'}
+                            + Add Bank Account
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          {safeBankInfoList.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-6 border border-dashed border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 rounded-2xl text-center">
+                              <span className="text-lg mb-1">⚠️</span>
+                              <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Pending Bank Account Records</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click Edit Profile to add bank details for payroll processing.</p>
+                            </div>
+                          ) : (
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              {safeBankInfoList.map((bank, index) => (
+                                <div key={index} className="w-full bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 text-white rounded-2xl p-5 border border-indigo-500/30 shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+                                  <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-indigo-500/10 blur-2xl group-hover:bg-indigo-500/20 transition-all" />
+                                  <div className="flex justify-between items-center relative z-10">
+                                    <span className="text-xs font-black tracking-widest uppercase text-indigo-200 flex items-center gap-2">
+                                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                      {bank.bank_name || 'BANK ACCOUNT'}
+                                    </span>
+                                  </div>
+
+                                  <div className="my-3 relative z-10">
+                                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Account Number</p>
+                                    <p className="text-sm font-mono font-extrabold tracking-wider text-white select-all">
+                                      {bank.account_number ? bank.account_number.replace(/(.{4})/g, '$1 ').trim() : '•••• •••• ••••'}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex justify-between items-end relative z-10 pt-2 border-t border-white/10 text-xs">
+                                    <div>
+                                      <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Holder</p>
+                                      <p className="font-bold text-white uppercase">{firstName ? `${firstName} ${lastName}` : 'EMPLOYEE'}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">IFSC Code</p>
+                                      <p className="font-mono font-bold text-indigo-200 select-all">{bank.ifsc_code}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+
+                {/* 4️⃣ TAB 4: SECURITY & CREDENTIALS */}
+                {activeTab === 'security' && (
+                  <div className="space-y-6">
+                    <div className="rounded-3xl border border-rose-200/90 dark:border-rose-900/50 bg-gradient-to-br from-white via-rose-50/20 to-indigo-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 p-6 sm:p-7 shadow-lg hover:shadow-2xl hover:shadow-rose-500/10 transition-all duration-500 relative overflow-hidden group w-full">
+                      <div className="h-1.5 bg-gradient-to-r from-rose-500 via-purple-500 to-indigo-500 absolute top-0 inset-x-0 animate-pulse" />
+                      
+                      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-4 mb-6">
+                        <div className="flex items-center gap-3">
+                          <span className="p-2 rounded-2xl bg-gradient-to-br from-rose-500 to-indigo-600 text-white text-base font-bold shadow-md shadow-rose-500/20">🔒</span>
+                          <div>
+                            <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-white font-outfit">Update Keycloak Password</h3>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Sync your password directly with Keycloak Identity Server</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-5">
+                        <div className="grid gap-5 sm:grid-cols-2">
+                          <div>
+                            <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">New Password</label>
+                            <div className="relative flex items-center group/input">
+                              <input
+                                type={showNewPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                value={newPasswordInput}
+                                onChange={(e) => setNewPasswordInput(e.target.value)}
+                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/90 text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500 transition-all pr-12 shadow-2xs"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                className="absolute right-3.5 text-base text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                                title={showNewPassword ? 'Hide password' : 'Show password'}
+                              >
+                                {showNewPassword ? '🙈' : '👁'}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Confirm Password</label>
+                            <div className="relative flex items-center group/input">
+                              <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                value={confirmPasswordInput}
+                                onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/90 text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500 transition-all pr-12 shadow-2xs"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="absolute right-3.5 text-base text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                                title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                              >
+                                {showConfirmPassword ? '🙈' : '👁'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Real-time Password Strength Meter & Requirement Chips */}
+                        {(newPasswordInput || confirmPasswordInput) && (
+                          <div className="p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-rose-100 dark:border-rose-900/40 space-y-3 shadow-sm animate-fadeIn">
+                            {/* Strength Gauge Bar */}
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between items-center text-[10.5px] font-extrabold uppercase tracking-wider">
+                                <span className="text-slate-500 dark:text-slate-400">Password Security Rating</span>
+                                <span className={
+                                  (() => {
+                                    const count = [isLengthValid, hasCapital, hasSmall, hasNumber, hasSpecial, (newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput)].filter(Boolean).length;
+                                    if (count <= 2) return 'text-rose-600 dark:text-rose-400';
+                                    if (count <= 5) return 'text-amber-600 dark:text-amber-400';
+                                    return 'text-emerald-600 dark:text-emerald-400';
+                                  })()
+                                }>
+                                  {(() => {
+                                    const count = [isLengthValid, hasCapital, hasSmall, hasNumber, hasSpecial, (newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput)].filter(Boolean).length;
+                                    if (count <= 2) return '🔴 Weak Password';
+                                    if (count <= 5) return '🟡 Good Password';
+                                    return '🟢 Excellent Strong Password!';
+                                  })()}
+                                </span>
+                              </div>
+                              
+                              <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-200/60 dark:border-slate-700/60">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    (() => {
+                                      const count = [isLengthValid, hasCapital, hasSmall, hasNumber, hasSpecial, (newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput)].filter(Boolean).length;
+                                      if (count <= 2) return 'w-1/3 bg-gradient-to-r from-rose-500 to-red-600 shadow-md shadow-rose-500/50';
+                                      if (count <= 5) return 'w-2/3 bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/50';
+                                      return 'w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 shadow-md shadow-emerald-500/50';
+                                    })()
+                                  }`}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Requirements Checklist Chips */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1">
+                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
+                                isLengthValid 
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
+                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
+                              }`}>
+                                <span className={`text-xs ${isLengthValid ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{isLengthValid ? '✓' : '○'}</span>
+                                <span>6 to 14 characters</span>
+                              </div>
+
+                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
+                                hasCapital 
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
+                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
+                              }`}>
+                                <span className={`text-xs ${hasCapital ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{hasCapital ? '✓' : '○'}</span>
+                                <span>Capital letter (A-Z)</span>
+                              </div>
+
+                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
+                                hasSmall 
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
+                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
+                              }`}>
+                                <span className={`text-xs ${hasSmall ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{hasSmall ? '✓' : '○'}</span>
+                                <span>Small letter (a-z)</span>
+                              </div>
+
+                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
+                                hasNumber 
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
+                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
+                              }`}>
+                                <span className={`text-xs ${hasNumber ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{hasNumber ? '✓' : '○'}</span>
+                                <span>Number (0-9)</span>
+                              </div>
+
+                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
+                                hasSpecial 
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
+                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
+                              }`}>
+                                <span className={`text-xs ${hasSpecial ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{hasSpecial ? '✓' : '○'}</span>
+                                <span>Special char (!@#$)</span>
+                              </div>
+
+                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
+                                newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput 
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
+                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
+                              }`}>
+                                <span className={`text-xs ${newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput ? '✓' : '○'}</span>
+                                <span>Passwords match</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex justify-end pt-3">
+                          <button
+                            type="button"
+                            onClick={handleUpdatePassword}
+                            disabled={!isSaveEnabled || updatingPassword}
+                            className={`px-6 py-3 text-xs font-black rounded-2xl uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 ${
+                              isSaveEnabled && !updatingPassword
+                                ? 'bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white shadow-lg shadow-rose-600/30 hover:scale-105 active:scale-95 cursor-pointer animate-pulse'
+                                : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none opacity-60'
+                            }`}
+                          >
+                            {updatingPassword ? (
+                              <>
+                                <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                Updating Password...
+                              </>
+                            ) : (
+                              <>
+                                <span>🔑 Update Keycloak Password</span>
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>
-
-                      <div>
-                        <label className="profile-custom-form-label">Confirm Password</label>
-                        <div className="relative flex items-center">
-                          <input
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder="••••••••"
-                            value={confirmPasswordInput}
-                            onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                            className="premium-input pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                          >
-                            {showConfirmPassword ? '🙈' : '👁'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {(newPasswordInput || confirmPasswordInput) && (
-                      <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs space-y-2">
-                        <p className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">Password Validation Requirements</p>
-                        <div className="grid grid-cols-2 gap-2 text-[11px]">
-                          <div className={`flex items-center gap-1.5 font-semibold ${isLengthValid ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                            <span>{isLengthValid ? '✓' : '○'}</span> Length: 6 to 14 characters
-                          </div>
-                          <div className={`flex items-center gap-1.5 font-semibold ${hasCapital ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                            <span>{hasCapital ? '✓' : '○'}</span> 1 Capital letter (A-Z)
-                          </div>
-                          <div className={`flex items-center gap-1.5 font-semibold ${hasSmall ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                            <span>{hasSmall ? '✓' : '○'}</span> 1 Small letter (a-z)
-                          </div>
-                          <div className={`flex items-center gap-1.5 font-semibold ${hasNumber ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                            <span>{hasNumber ? '✓' : '○'}</span> 1 Number (0-9)
-                          </div>
-                          <div className={`flex items-center gap-1.5 font-semibold ${hasSpecial ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                            <span>{hasSpecial ? '✓' : '○'}</span> 1 Special char (!@#$)
-                          </div>
-                          <div className={`flex items-center gap-1.5 font-semibold ${newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                            <span>{newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput ? '✓' : '○'}</span> Passwords match
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-end pt-2">
-                      <button
-                        type="button"
-                        onClick={handleUpdatePassword}
-                        disabled={!isSaveEnabled || updatingPassword}
-                        className={`px-5 py-2.5 text-xs font-bold rounded-xl uppercase tracking-wider transition-all shadow-xs cursor-pointer ${
-                          isSaveEnabled
-                            ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
-                        }`}
-                      >
-                        {updatingPassword ? 'Updating Password...' : 'Save Password'}
-                      </button>
                     </div>
                   </div>
-                </div>
+                )}
 
               </div>
 

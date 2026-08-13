@@ -38,19 +38,19 @@ export default function SlideDrawer({ isOpen, onClose, title, children }: SlideD
         <div className="absolute left-0 top-0 bottom-0 w-[3.5px] bg-gradient-to-b from-blue-500 to-indigo-700" />
 
         {/* Header */}
-        <div className="flex h-20 items-center justify-between border-b border-slate-100 dark:border-slate-850 px-6 flex-shrink-0">
-          <div className="flex flex-col text-left pl-1.5">
-            <h3 className="text-xs font-black tracking-wider text-slate-850 dark:text-slate-100 uppercase">
+        <div className="flex h-16 items-center justify-between border-b border-slate-200/80 dark:border-slate-800 px-6 flex-shrink-0 bg-white/50 dark:bg-slate-900/50">
+          <div className="flex flex-col text-left pl-1">
+            <h3 className="text-xs font-extrabold tracking-wider text-slate-800 dark:text-slate-100 uppercase">
               {title}
             </h3>
-            <span className="text-[8.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mt-1">
-              Organization Console
+            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
+              Leave & Absences Console
             </span>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full border border-slate-200/60 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-350 transition-all cursor-pointer hover:scale-105 duration-200 shadow-sm"
+            className="p-1.5 rounded-full border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200 transition-all cursor-pointer hover:scale-105 duration-200 shadow-2xs"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -59,7 +59,7 @@ export default function SlideDrawer({ isOpen, onClose, title, children }: SlideD
         </div>
 
         {/* Scrollable Form Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 no-scrollbar bg-white/40 dark:bg-slate-900/40">
           {children}
         </div>
       </aside>

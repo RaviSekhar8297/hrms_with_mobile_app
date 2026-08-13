@@ -276,9 +276,18 @@ export default function PayrollPage() {
   const enabledCountTotal = Object.values(selectedEmployeesState).filter(Boolean).length;
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-sans space-y-6 animate-fadeIn w-full pb-20 relative text-left">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="payroll-hub-container font-sans space-y-6 animate-fadeIn w-full pb-20 relative text-left">
       <style dangerouslySetInnerHTML={{__html: `
-        .font-sans, button, input, select, label, span, div, p, h1, h2, h3, h4, th, td {
+        .payroll-hub-container,
+        .payroll-hub-container button,
+        .payroll-hub-container input,
+        .payroll-hub-container select,
+        .payroll-hub-container label,
+        .payroll-hub-container span,
+        .payroll-hub-container div,
+        .payroll-hub-container p,
+        .payroll-hub-container th,
+        .payroll-hub-container td {
           font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
           letter-spacing: normal !important;
         }

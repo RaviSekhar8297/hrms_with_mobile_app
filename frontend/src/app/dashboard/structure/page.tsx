@@ -97,6 +97,7 @@ export default function PayrollStructurePage() {
   const { showToast } = useDashboard();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
 
@@ -273,9 +274,11 @@ export default function PayrollStructurePage() {
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
+    const storedPermissions = localStorage.getItem('permissions');
     const storedEmail = localStorage.getItem('email');
     const storedCompanyId = localStorage.getItem('companyId');
     if (storedRoles) setRoles(JSON.parse(storedRoles));
+    if (storedPermissions) setUserPermissions(JSON.parse(storedPermissions));
     if (storedEmail) setEmail(storedEmail);
     if (storedCompanyId) setCompanyId(storedCompanyId);
 
@@ -864,17 +867,41 @@ export default function PayrollStructurePage() {
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedStructures = filteredStructures.slice(startIndex, endIndex);
 
-  // Reset to page 1 on search or year change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedYear, pageSize]);
+  const canView = isSuperAdmin || userPermissions.includes('view_salary_structures');
+  const canCreate = isSuperAdmin || userPermissions.includes('create_salary_structures');
+  const canEdit = isSuperAdmin || userPermissions.includes('edit_salary_structures');
+  const canDelete = isSuperAdmin || userPermissions.includes('delete_salary_structures');
+  const canPerformActions = canEdit || canDelete;
+
+  if (roles.length > 0 && !canView) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn">
+        <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-3xl">
+          🔒
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Access Denied</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs mt-1.5 max-w-sm">
+          You do not have the required permissions to access the Salary Structure module. Please contact your HR administrator.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full text-left">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="structure-page-container font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full text-left">
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet" />
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
-        .font-sans, .font-mono, td, th, button, input, select, label, span, div, p, h3, h4, h5, h6 {
+        .structure-page-container,
+        .structure-page-container td,
+        .structure-page-container th,
+        .structure-page-container button,
+        .structure-page-container input,
+        .structure-page-container select,
+        .structure-page-container label,
+        .structure-page-container span,
+        .structure-page-container div,
+        .structure-page-container p {
           font-family: 'DM Sans', sans-serif !important;
         }
       `}} />
@@ -952,15 +979,17 @@ export default function PayrollStructurePage() {
           </button>
 
           {/* ➕ ICON-ONLY ADD NEW BUTTON */}
-          <button
-            onClick={handleOpenCreate}
-            title="Add New Salary Structure"
-            className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-all cursor-pointer flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0"
-          >
-            <svg className="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleOpenCreate}
+              title="Add New Salary Structure"
+              className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-all cursor-pointer flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0"
+            >
+              <svg className="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1002,9 +1031,11 @@ export default function PayrollStructurePage() {
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider text-[9.5px] bg-slate-50 dark:bg-slate-900 sticky top-0 z-20 backdrop-blur-md">
                   {/* STICKY ACTIONS COLUMN */}
-                  <th className="py-3.5 px-3.5 sticky left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs w-[95px] min-w-[95px]">Actions</th>
+                  {canPerformActions && (
+                    <th className="py-3.5 px-3.5 sticky left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs w-[95px] min-w-[95px]">Actions</th>
+                  )}
                   {/* STICKY EMPLOYEE COLUMN (Name on top, Emp ID underneath) */}
-                  <th className="py-3.5 px-3.5 sticky left-[95px] z-30 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs min-w-[180px]">Employee</th>
+                  <th className={`py-3.5 px-3.5 sticky z-30 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs min-w-[180px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>Employee</th>
                   <th className="py-3.5 px-3.5">DOJ</th>
                   <th className="py-3.5 px-3.5 text-right">Annual Salary (₹)</th>
                   <th className="py-3.5 px-3.5 text-right">Monthly Salary (₹)</th>
@@ -1064,44 +1095,50 @@ export default function PayrollStructurePage() {
                   return (
                   <tr key={s.id || s.empId} className={`transition-colors ${isInactive ? 'bg-slate-50/60 dark:bg-slate-900/40 opacity-75' : 'hover:bg-indigo-50/30 dark:hover:bg-slate-800/50'}`}>
                     {/* STICKY ACTIONS COLUMN */}
-                    <td className="py-2.5 px-3.5 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs w-[95px] min-w-[95px]">
-                      <div className="flex items-center gap-2">
-                        {/* Edit button — Disabled if employee is inactive */}
-                        <button
-                          onClick={() => !isInactive && handleOpenEdit(s)}
-                          disabled={isInactive}
-                          className={`p-2 rounded-xl border transition-all duration-200 flex items-center justify-center group ${
-                            isInactive
-                              ? 'bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-400 dark:text-indigo-500 border-indigo-200/60 dark:border-indigo-900/40 cursor-not-allowed'
-                              : 'bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white border-indigo-200/80 dark:border-indigo-900/50 cursor-pointer shadow-2xs'
-                          }`}
-                          title={isInactive ? "Inactive Employee — Editing Disabled" : `Edit structure for ${s.name}`}
-                        >
-                          <svg className={`w-4 h-4 transform ${!isInactive ? 'group-hover:scale-110' : ''} transition-transform`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                          </svg>
-                        </button>
+                    {canPerformActions && (
+                      <td className="py-2.5 px-3.5 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs w-[95px] min-w-[95px]">
+                        <div className="flex items-center gap-2">
+                          {/* Edit button — Disabled if employee is inactive */}
+                          {canEdit && (
+                            <button
+                              onClick={() => !isInactive && handleOpenEdit(s)}
+                              disabled={isInactive}
+                              className={`p-2 rounded-xl border transition-all duration-200 flex items-center justify-center group ${
+                                isInactive
+                                  ? 'bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-400 dark:text-indigo-500 border-indigo-200/60 dark:border-indigo-900/40 cursor-not-allowed'
+                                  : 'bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white border-indigo-200/80 dark:border-indigo-900/50 cursor-pointer shadow-2xs'
+                              }`}
+                              title={isInactive ? "Inactive Employee — Editing Disabled" : `Edit structure for ${s.name}`}
+                            >
+                              <svg className={`w-4 h-4 transform ${!isInactive ? 'group-hover:scale-110' : ''} transition-transform`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                              </svg>
+                            </button>
+                          )}
 
-                        {/* Delete button — Disabled if employee is inactive */}
-                        <button
-                          onClick={() => !isInactive && setDeleteTarget(s)}
-                          disabled={isInactive}
-                          className={`p-2 rounded-xl border transition-all duration-200 flex items-center justify-center group ${
-                            isInactive
-                              ? 'bg-rose-50/70 dark:bg-rose-950/40 text-rose-400 dark:text-rose-500 border-rose-200/60 dark:border-rose-900/40 cursor-not-allowed'
-                              : 'bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white border-rose-200/80 dark:border-rose-900/50 cursor-pointer shadow-2xs'
-                          }`}
-                          title={isInactive ? "Inactive Employee — Deletion Disabled" : `Delete structure for ${s.name}`}
-                        >
-                          <svg className={`w-4 h-4 transform ${!isInactive ? 'group-hover:scale-110' : ''} transition-transform`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
+                          {/* Delete button — Disabled if employee is inactive */}
+                          {canDelete && (
+                            <button
+                              onClick={() => !isInactive && setDeleteTarget(s)}
+                              disabled={isInactive}
+                              className={`p-2 rounded-xl border transition-all duration-200 flex items-center justify-center group ${
+                                isInactive
+                                  ? 'bg-rose-50/70 dark:bg-rose-950/40 text-rose-400 dark:text-rose-500 border-rose-200/60 dark:border-rose-900/40 cursor-not-allowed'
+                                  : 'bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white border-rose-200/80 dark:border-rose-900/50 cursor-pointer shadow-2xs'
+                              }`}
+                              title={isInactive ? "Inactive Employee — Deletion Disabled" : `Delete structure for ${s.name}`}
+                            >
+                              <svg className={`w-4 h-4 transform ${!isInactive ? 'group-hover:scale-110' : ''} transition-transform`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
 
                     {/* STICKY EMPLOYEE COLUMN (Name on Top, Emp ID Underneath) */}
-                    <td className="py-2.5 px-3.5 sticky left-[95px] z-10 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs min-w-[180px]">
+                    <td className={`py-2.5 px-3.5 sticky z-10 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs min-w-[180px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>
                       <div className="flex flex-col text-left">
                         <span className={`font-bold uppercase tracking-tight text-xs ${isInactive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
                           {s.name}

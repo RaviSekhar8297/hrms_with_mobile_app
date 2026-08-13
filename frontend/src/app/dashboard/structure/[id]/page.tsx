@@ -425,11 +425,20 @@ export default function EditSalaryStructurePage() {
   };
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full text-left pb-16">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="structure-detail-container font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full text-left pb-16">
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet" />
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
-        .font-sans, .font-mono, td, th, button, input, select, label, span, div, p, h3, h4, h5, h6 {
+        .structure-detail-container,
+        .structure-detail-container td,
+        .structure-detail-container th,
+        .structure-detail-container button,
+        .structure-detail-container input,
+        .structure-detail-container select,
+        .structure-detail-container label,
+        .structure-detail-container span,
+        .structure-detail-container div,
+        .structure-detail-container p {
           font-family: 'DM Sans', sans-serif !important;
         }
       `}} />

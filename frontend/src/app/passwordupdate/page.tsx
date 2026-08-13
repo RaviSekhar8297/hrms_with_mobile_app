@@ -103,7 +103,7 @@ function PasswordUpdateForm() {
     return () => clearInterval(timer);
   }, [mounted, stage, profile]);
 
-  // Particles Canvas Effect
+  // High-Definition Twinkling Star & Glowing Particle Background Canvas Effect
   useEffect(() => {
     if (!mounted || stage !== 'WELCOME') return;
     const canvas = particlesCanvasRef.current;
@@ -122,32 +122,102 @@ function PasswordUpdateForm() {
     };
     window.addEventListener('resize', handleResize);
 
-    const dots: { x: number; y: number; r: number; s: number; o: number }[] = [];
-    for (let i = 0; i < 55; i++) {
-      dots.push({
+    // 140 Crisp Glowing Pure White Particles & Stars
+    const particles: {
+      x: number;
+      y: number;
+      r: number;
+      s: number;
+      o: number;
+      maxO: number;
+      minO: number;
+      pulseSpeed: number;
+      pulseDir: number;
+      swayOffset: number;
+      isStar: boolean;
+      color: string;
+    }[] = [];
+
+    const starColors = ['#ffffff', '#ffffff', '#ffffff', '#f0f4ff', '#fff9c4', '#c7d2fe'];
+
+    for (let i = 0; i < 140; i++) {
+      const isStar = Math.random() > 0.7;
+      const baseAlpha = Math.random() * 0.45 + 0.45;
+      particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        r: Math.random() * 2 + 0.5,
-        s: Math.random() * 0.6 + 0.2,
-        o: Math.random() * 0.45 + 0.1,
+        r: isStar ? Math.random() * 2.2 + 1.2 : Math.random() * 2.5 + 0.9,
+        s: Math.random() * 0.45 + 0.15,
+        o: baseAlpha,
+        maxO: Math.min(1, baseAlpha + 0.35),
+        minO: Math.max(0.2, baseAlpha - 0.35),
+        pulseSpeed: Math.random() * 0.015 + 0.006,
+        pulseDir: Math.random() > 0.5 ? 1 : -1,
+        swayOffset: Math.random() * Math.PI * 2,
+        isStar,
+        color: starColors[(Math.random() * starColors.length) | 0],
       });
     }
 
+    const drawStarShape = (cx: number, cy: number, r: number) => {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - r * 2.2);
+      ctx.lineTo(cx + r * 0.5, cy - r * 0.5);
+      ctx.lineTo(cx + r * 2.2, cy);
+      ctx.lineTo(cx + r * 0.5, cy + r * 0.5);
+      ctx.lineTo(cx, cy + r * 2.2);
+      ctx.lineTo(cx - r * 0.5, cy + r * 0.5);
+      ctx.lineTo(cx - r * 2.2, cy);
+      ctx.lineTo(cx - r * 0.5, cy - r * 0.5);
+      ctx.closePath();
+      ctx.fill();
+    };
+
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-      for (const d of dots) {
-        d.y -= d.s;
-        if (d.y < -5) {
-          d.y = height + 5;
-          d.x = Math.random() * width;
+
+      for (const p of particles) {
+        // Upward movement & gentle sway
+        p.y -= p.s;
+        p.x += Math.sin(p.swayOffset + p.y * 0.012) * 0.35;
+
+        // Twinkle opacity pulse
+        p.o += p.pulseSpeed * p.pulseDir;
+        if (p.o >= p.maxO) {
+          p.o = p.maxO;
+          p.pulseDir = -1;
+        } else if (p.o <= p.minO) {
+          p.o = p.minO;
+          p.pulseDir = 1;
         }
-        ctx.globalAlpha = d.o;
-        ctx.fillStyle = '#8ab4ff';
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-        ctx.fill();
+
+        // Loop around screen boundary
+        if (p.y < -10) {
+          p.y = height + 10;
+          p.x = Math.random() * width;
+        }
+        if (p.x < -10) p.x = width + 10;
+        if (p.x > width + 10) p.x = -10;
+
+        ctx.save();
+        ctx.globalAlpha = p.o;
+        ctx.fillStyle = p.color;
+
+        // Glowing outer shadow for crisp bright stars
+        ctx.shadowBlur = p.r > 1.8 ? 14 : 7;
+        ctx.shadowColor = p.color;
+
+        if (p.isStar) {
+          drawStarShape(p.x, p.y, p.r);
+        } else {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
       }
-      ctx.globalAlpha = 1;
+
       animationFrameId = requestAnimationFrame(render);
     };
     render();
@@ -214,11 +284,21 @@ function PasswordUpdateForm() {
     tick();
   };
 
-  // Initial load confetti
+  // Confetti trigger every 5 seconds on Welcome page
   useEffect(() => {
     if (mounted && stage === 'WELCOME') {
-      const timer = setTimeout(() => triggerConfetti(4500), 500);
-      return () => clearTimeout(timer);
+      // Immediate burst on page load
+      const initialTimer = setTimeout(() => triggerConfetti(3500), 300);
+      
+      // Recurring confetti burst every 10 seconds
+      const interval = setInterval(() => {
+        triggerConfetti(4500);
+      }, 10000);
+
+      return () => {
+        clearTimeout(initialTimer);
+        clearInterval(interval);
+      };
     }
   }, [mounted, stage]);
 
@@ -510,7 +590,8 @@ function PasswordUpdateForm() {
                     placeholder="Minimum 8 characters..."
                     value={newPassword}
                     onChange={e => handlePasswordChange(e.target.value)}
-                    className="w-full py-3.5 px-4 pr-12 rounded-xl border-2 border-indigo-500/50 bg-slate-900 text-white font-mono text-base tracking-[0.2em] outline-none focus:border-indigo-400 focus:bg-slate-950 focus:ring-4 focus:ring-indigo-500/30 placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal transition-all shadow-md"
+                    style={{ color: '#ffffff', backgroundColor: '#0f172a' }}
+                    className="w-full py-3.5 px-4 pr-12 rounded-xl border-2 border-indigo-500/50 text-white font-mono text-base tracking-[0.2em] outline-none focus:border-indigo-400 focus:bg-[#050515] focus:ring-4 focus:ring-indigo-500/30 placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal transition-all shadow-md"
                   />
                   <button
                     type="button"
@@ -548,7 +629,8 @@ function PasswordUpdateForm() {
                     placeholder="Re-enter new password..."
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
-                    className="w-full py-3.5 px-4 pr-12 rounded-xl border-2 border-indigo-500/50 bg-slate-900 text-white font-mono text-base tracking-[0.2em] outline-none focus:border-indigo-400 focus:bg-slate-950 focus:ring-4 focus:ring-indigo-500/30 placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal transition-all shadow-md"
+                    style={{ color: '#ffffff', backgroundColor: '#0f172a' }}
+                    className="w-full py-3.5 px-4 pr-12 rounded-xl border-2 border-indigo-500/50 text-white font-mono text-base tracking-[0.2em] outline-none focus:border-indigo-400 focus:bg-[#050515] focus:ring-4 focus:ring-indigo-500/30 placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal transition-all shadow-md"
                   />
                   <button
                     type="button"
@@ -618,6 +700,32 @@ function PasswordUpdateForm() {
           background: linear-gradient(135deg, #0f0c29, #302b63, #24243e, #141432);
           background-size: 300% 300%;
           animation: gradientShift 14s ease infinite;
+        }
+
+        .welcome-root-scope input[type="text"],
+        .welcome-root-scope input[type="password"] {
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+          background-color: #0f172a !important;
+          border-color: rgba(99, 102, 241, 0.5) !important;
+        }
+
+        .welcome-root-scope input[type="text"]:focus,
+        .welcome-root-scope input[type="password"]:focus {
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+          background-color: #050515 !important;
+          border-color: #818cf8 !important;
+          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.35) !important;
+        }
+
+        .welcome-root-scope input:-webkit-autofill,
+        .welcome-root-scope input:-webkit-autofill:hover, 
+        .welcome-root-scope input:-webkit-autofill:focus,
+        .welcome-root-scope input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 1000px #0f172a inset !important;
+          -webkit-text-fill-color: #ffffff !important;
+          caret-color: #ffffff !important;
         }
 
         @keyframes gradientShift {
@@ -713,7 +821,7 @@ function PasswordUpdateForm() {
         .photo-card::before {
           content: ''; position: absolute; inset: -4px; border-radius: 32px; z-index: -1;
           background: conic-gradient(from var(--angle), #ff0080, #ffd700, #00ff88, #40e0d0, #7b68ee, #ff0080);
-          animation: rotateAngle 5s linear infinite;
+          animation: rotateAngle 10s linear infinite;
         }
         @keyframes rotateAngle { to { --angle: 360deg; } }
         .photo-card::after {

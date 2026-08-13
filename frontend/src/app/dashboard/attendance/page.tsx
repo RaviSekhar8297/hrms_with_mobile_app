@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, API_BASE } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
@@ -8,6 +8,7 @@ import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
 import { usePermissions } from '../hooks/usePermissions';
+import AttendanceSubHeader from '../components/AttendanceSubHeader';
 
 interface Company {
   id: string;
@@ -45,14 +46,172 @@ export default function AttendancePage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
 
-  // Tab state — default to first visible tab
-  const [activeTab, setActiveTab] = useState<AttendanceTabId>('policies');
+  // Tab state — default to logs
+  const [activeTab, setActiveTab] = useState<AttendanceTabId>('logs');
 
   // Shifts (for selection in forms)
   const [shifts, setShifts] = useState<any[]>([]);
 
   const [isExporting, setIsExporting] = useState(false);
   const todayStr = new Date().toLocaleDateString('en-CA');
+
+  // 📅 Calendar View State for Non-SuperAdmin & Employee Roles
+  const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
+  const [calYear, setCalYear] = useState<number>(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState<number>(new Date().getMonth());
+  const [selectedDayLog, setSelectedDayLog] = useState<any | null>(null);
+  const [dayDetailModalOpen, setDayDetailModalOpen] = useState(false);
+  const [holidaysList, setHolidaysList] = useState<any[]>([]);
+  const [leaveRequestsList, setLeaveRequestsList] = useState<any[]>([]);
+
+  // 📸 Web Punch / Mark Attendance Modal State
+  const [punchModalOpen, setPunchModalOpen] = useState(false);
+  const [punchDirection, setPunchDirection] = useState<'IN' | 'OUT'>('IN');
+  const [punchLat, setPunchLat] = useState<number | null>(null);
+  const [punchLng, setPunchLng] = useState<number | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+
+  const [cameraActive, setCameraActive] = useState(false);
+  const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isSubmittingPunch, setIsSubmittingPunch] = useState(false);
+  const [punchMessage, setPunchMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchAddressName = async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.display_name) {
+          const parts = data.display_name.split(',');
+          const shortAddr = parts.slice(0, 3).join(',').trim();
+          setLocationName(shortAddr);
+        }
+      }
+    } catch (e) {
+      console.warn('Reverse geocode error:', e);
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      setCameraActive(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Camera access error:', err);
+      setGpsError('Could not access webcam for selfie verification.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  };
+
+  const captureSelfie = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setCapturedSelfie(dataUrl);
+        stopCamera();
+      }
+    }
+  };
+
+  const getGPSLocation = () => {
+    setGpsLoading(true);
+    setGpsError(null);
+    if (!navigator.geolocation) {
+      setGpsError('Geolocation is not supported by your browser.');
+      setGpsLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setPunchLat(pos.coords.latitude);
+        setPunchLng(pos.coords.longitude);
+        fetchAddressName(pos.coords.latitude, pos.coords.longitude);
+        setGpsLoading(false);
+      },
+      (err) => {
+        console.warn('GPS Error:', err);
+        setGpsError('Unable to retrieve GPS coordinates. Check browser permissions.');
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  const submitWebPunch = async () => {
+    setIsSubmittingPunch(true);
+    setPunchMessage(null);
+    try {
+      const storedEmpId = localStorage.getItem('employeeId');
+      const targetEmpId = storedEmpId || (employees.length > 0 ? employees[0].id : '');
+      const cid = localStorage.getItem('companyId') || companyId;
+
+      if (!targetEmpId) {
+        setPunchMessage({ type: 'error', text: 'Employee ID could not be identified for punch.' });
+        setIsSubmittingPunch(false);
+        return;
+      }
+
+      const body = {
+        companyId: cid,
+        employee_id: targetEmpId,
+        punch_time: new Date().toISOString(),
+        direction: punchDirection,
+        source: 'WEB',
+        latitude: punchLat,
+        longitude: punchLng,
+        image_url: capturedSelfie,
+        location_name: locationName
+      };
+
+      const res = await fetch('http://localhost:5000/api/v1/attendance/punches', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setPunchMessage({ type: 'success', text: `Punch ${punchDirection} recorded successfully!` });
+        stopCamera();
+        setTimeout(() => {
+          setPunchModalOpen(false);
+          fetchLogs();
+        }, 1200);
+      } else {
+        setPunchMessage({ type: 'error', text: data.error || 'Failed to submit punch.' });
+      }
+    } catch (e: any) {
+      setPunchMessage({ type: 'error', text: e.message || 'Error submitting punch.' });
+    } finally {
+      setIsSubmittingPunch(false);
+    }
+  };
 
   // Logs state
   const [logs, setLogs] = useState<any[]>([]);
@@ -150,13 +309,85 @@ export default function AttendancePage() {
   }, [visibleTabs.map(t => t.id).join(',')]);
 
   useEffect(() => {
-    const storedRoles = localStorage.getItem('roles');
+    const storedRoles = JSON.parse(localStorage.getItem('roles') || '[]');
     const storedEmail = localStorage.getItem('email');
     const storedCompanyId = localStorage.getItem('companyId');
-    if (storedRoles) setRoles(JSON.parse(storedRoles));
+    if (storedRoles) setRoles(storedRoles);
     if (storedEmail) setEmail(storedEmail);
     if (storedCompanyId) setCompanyId(storedCompanyId);
+    
+    // Set default viewMode based on role
+    const adminCheck = storedRoles.includes('SuperAdmin') || storedRoles.includes('superadmin');
+    if (!adminCheck) {
+      setViewMode('calendar');
+    }
   }, []);
+
+  // 🗓️ Sync Calendar Month with API Date Range
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      const lastDay = new Date(calYear, calMonth + 1, 0).getDate();
+      const startStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-01`;
+      const endStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      setFilterDateStart(startStr);
+      setFilterDateEnd(endStr);
+    }
+  }, [calYear, calMonth, viewMode]);
+
+  useEffect(() => {
+    if (viewMode === 'calendar' && filterDateStart && filterDateEnd) {
+      fetchLogs();
+    }
+  }, [filterDateStart, filterDateEnd, viewMode]);
+
+  const handlePrevMonth = () => {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear(prev => prev - 1);
+    } else {
+      setCalMonth(prev => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear(prev => prev + 1);
+    } else {
+      setCalMonth(prev => prev + 1);
+    }
+  };
+
+  const handleTodayMonth = () => {
+    setCalYear(new Date().getFullYear());
+    setCalMonth(new Date().getMonth());
+  };
+
+  const fetchHolidaysAndLeaves = async () => {
+    try {
+      const isSuper = roles.includes('SuperAdmin') || roles.includes('superadmin');
+      const cid = isSuper ? companyId : localStorage.getItem('companyId');
+      const queryParam = cid && cid !== 'all' ? `?companyId=${cid}` : '';
+      
+      const holRes = await fetch(`http://localhost:5000/api/v1/holidays${queryParam}`, { headers: getHeaders() });
+      if (holRes.ok) {
+        const holData = await holRes.json();
+        setHolidaysList(holData.holidays || []);
+      }
+
+      const leaveRes = await fetch(`http://localhost:5000/api/v1/leave-requests${queryParam}`, { headers: getHeaders() });
+      if (leaveRes.ok) {
+        const leaveData = await leaveRes.json();
+        setLeaveRequestsList(leaveData.leaveRequests || []);
+      }
+    } catch (e) {
+      console.error('Error fetching holidays/leaves for calendar:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchHolidaysAndLeaves();
+  }, [companyId, calYear, calMonth]);
 
   const downloadSamplePunchCsv = () => {
     const csvContent = "empid,punchdate\nEMP001,2023-10-25T09:00:00\nEMP002,2023-10-25T09:05:00";
@@ -251,13 +482,19 @@ export default function AttendancePage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `http://localhost:5000/api/v1/employees?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/employees';
+        ? `http://localhost:5000/api/v1/employees?companyId=${companyId}&module=attendance`
+        : 'http://localhost:5000/api/v1/employees?module=attendance';
       const res = await fetch(url, {
         headers: getHeaders()
       });
       const data = await res.json();
-      if (res.ok) setEmployees(data.employees || []);
+      if (res.ok) {
+        const emps = data.employees || [];
+        setEmployees(emps);
+        if (emps.length === 1) {
+          setFilterEmployee(emps[0].id);
+        }
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -557,7 +794,7 @@ export default function AttendancePage() {
           employee_id: punchForm.employee_id,
           direction: punchForm.direction,
           source: punchForm.source,
-          punch_time: new Date(`${punchForm.simDate}T${punchForm.simTime}`).toISOString(),
+          punch_time: `${punchForm.simDate} ${punchForm.simTime}:00`,
           latitude,
           longitude
         })
@@ -776,7 +1013,7 @@ export default function AttendancePage() {
       }
     }
     if (punchFilterDate) {
-      const punchDateStr = new Date(p.punch_time).toLocaleDateString('en-CA');
+      const punchDateStr = String(p.punch_time || '').split(' ')[0].split('T')[0];
       if (punchDateStr !== punchFilterDate) {
         return false;
       }
@@ -793,8 +1030,27 @@ export default function AttendancePage() {
 
   const formatPunchTime = (timeStr: string) => {
     if (!timeStr) return '-';
-    const cleanStr = String(timeStr).replace(/Z$|\+00:?00$/, '');
-    const d = new Date(cleanStr);
+    const str = String(timeStr).replace('T', ' ').replace(/\.000Z$/, '').replace(/Z$/, '');
+    const parts = str.split(' ');
+    if (parts.length >= 2) {
+      const [datePart, timePart] = parts;
+      const datePieces = datePart.split('-');
+      if (datePieces.length === 3) {
+        const [year, month, day] = datePieces;
+        const timePieces = timePart.split(':');
+        if (timePieces.length >= 2) {
+          const hStr = timePieces[0];
+          const mStr = timePieces[1];
+          const sStr = timePieces[2] ? timePieces[2].substring(0, 2) : '00';
+          let hour = parseInt(hStr, 10);
+          const ampm = hour >= 12 ? 'pm' : 'am';
+          hour = hour % 12 || 12;
+          const formattedHour = String(hour).padStart(2, '0');
+          return `${day}/${month}/${year}, ${formattedHour}:${mStr}:${sStr} ${ampm}`;
+        }
+      }
+    }
+    const d = new Date(timeStr);
     if (isNaN(d.getTime())) return timeStr;
     return d.toLocaleString('en-IN', {
       day: '2-digit',
@@ -807,10 +1063,332 @@ export default function AttendancePage() {
     });
   };
 
+  const formatTimeOnly = (timeStr: string) => {
+    if (!timeStr) return '-';
+    const str = String(timeStr).replace('T', ' ').replace(/\.000Z$/, '').replace(/Z$/, '');
+    const parts = str.split(' ');
+    if (parts.length >= 2) {
+      const timePieces = parts[1].split(':');
+      if (timePieces.length >= 2) {
+        let hour = parseInt(timePieces[0], 10);
+        const minute = timePieces[1];
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        hour = hour % 12 || 12;
+        return `${String(hour).padStart(2, '0')}:${minute} ${ampm}`;
+      }
+    }
+    const d = new Date(timeStr);
+    if (isNaN(d.getTime())) return timeStr;
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+
+  const formatDisplayDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const str = String(dateStr).split(' ')[0].split('T')[0];
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = String(parseInt(parts[2], 10)).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${day}-${months[monthIdx] || 'Jan'}-${year}`;
+    }
+    return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+  };
+
+  const formatLateMinutes = (mins: number) => {
+    if (!mins || mins <= 0) return null;
+    const hours = Math.floor(mins / 60);
+    const remainingMins = mins % 60;
+    if (hours > 0) {
+      return `+${hours}h ${remainingMins}m Late`;
+    }
+    return `+${remainingMins}m Late`;
+  };
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const renderCalendarView = () => {
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const firstDayIndex = new Date(calYear, calMonth, 1).getDay(); // 0 = Sun, 1 = Mon...
+    
+    // Count stats for the month
+    let presentCount = 0;
+    let absentCount = 0;
+    let halfDayCount = 0;
+    let holidayCount = 0;
+    let leaveCount = 0;
+
+    logs.forEach(l => {
+      const st = String(l.status || '').toUpperCase();
+      if (st === 'PRESENT') presentCount++;
+      else if (st === 'ABSENT') absentCount++;
+      else if (st === 'HALF_DAY') halfDayCount++;
+      else if (st === 'HOLIDAY') holidayCount++;
+      else if (st === 'ON_LEAVE') leaveCount++;
+    });
+
+    const daysArray = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      daysArray.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      daysArray.push(d);
+    }
+
+    return (
+      <div className="space-y-6 animate-fadeIn">
+        {/* Month Navigation & Stats Header */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-gradient-to-br from-white via-slate-50/50 to-slate-100/80 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm backdrop-blur-xl">
+          {/* Month Navigator */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handlePrevMonth}
+              className="p-2.5 rounded-2xl bg-white dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 transition-all duration-200 cursor-pointer shadow-2xs hover:scale-105"
+              title="Previous Month"
+            >
+              <svg className="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight w-48 text-center font-outfit">
+              {monthNames[calMonth]} {calYear}
+            </h2>
+            <button
+              onClick={handleNextMonth}
+              className="p-2.5 rounded-2xl bg-white dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 transition-all duration-200 cursor-pointer shadow-2xs hover:scale-105"
+              title="Next Month"
+            >
+              <svg className="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+            <button
+              onClick={handleTodayMonth}
+              className="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-500/25 transition-all duration-200 cursor-pointer hover:scale-105"
+            >
+              Today
+            </button>
+          </div>
+
+          {/* Monthly KPI Stats Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20">
+              <span className="h-3.5 w-3.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/50 flex-shrink-0 animate-pulse" />
+              <div>
+                <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Present</p>
+                <p className="text-base font-black text-emerald-900 dark:text-emerald-100 leading-none">{presentCount} Days</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-rose-500/10 dark:bg-rose-950/40 border border-rose-500/20">
+              <span className="h-3.5 w-3.5 rounded-full bg-rose-500 shadow-xs shadow-rose-500/50 flex-shrink-0" />
+              <div>
+                <p className="text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">Absent</p>
+                <p className="text-base font-black text-rose-900 dark:text-rose-100 leading-none">{absentCount} Days</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/20">
+              <span className="h-3.5 w-3.5 rounded-full bg-amber-500 shadow-xs shadow-amber-500/50 flex-shrink-0" />
+              <div>
+                <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Half Day / Late</p>
+                <p className="text-base font-black text-amber-900 dark:text-amber-100 leading-none">{halfDayCount} Days</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-sky-500/10 dark:bg-sky-950/40 border border-sky-500/20">
+              <span className="h-3.5 w-3.5 rounded-full bg-sky-500 shadow-xs shadow-sky-500/50 flex-shrink-0" />
+              <div>
+                <p className="text-[9px] font-black text-sky-600 dark:text-sky-400 uppercase tracking-widest">Holiday / Off</p>
+                <p className="text-base font-black text-sky-900 dark:text-sky-100 leading-none">{holidayCount + leaveCount} Days</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 7-Column Days Grid Container */}
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-3">
+          {/* Day Names Header */}
+          <div className="grid grid-cols-7 gap-2.5 text-center">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName, idx) => (
+              <div key={dayName} className={`py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-2xs ${idx === 0 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20' : 'bg-slate-100/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50'}`}>
+                {dayName}
+              </div>
+            ))}
+          </div>
+
+          {/* Days Cell Grid */}
+          <div className="grid grid-cols-7 gap-2.5">
+            {daysArray.map((dayNum, idx) => {
+              if (dayNum === null) {
+                return <div key={`empty-${idx}`} className="h-32 rounded-2xl bg-slate-50/20 dark:bg-slate-950/20 border border-dashed border-slate-200/40 dark:border-slate-800/40 opacity-40" />;
+              }
+
+              const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+              
+              const dayLog = logs.find(l => {
+                const lDate = String(l.attendance_date || '').split(' ')[0].split('T')[0];
+                return lDate === dateStr;
+              });
+
+              const matchedHoliday = holidaysList.find(h => {
+                const hDate = String(h.holiday_date || h.date || h.from_date || '').split(' ')[0].split('T')[0];
+                return hDate === dateStr;
+              });
+
+              const matchedLeave = leaveRequestsList.find(lr => {
+                const statusUpper = String(lr.status || '').toUpperCase();
+                if (statusUpper !== 'APPROVED' && statusUpper !== 'PENDING') return false;
+                const fDate = String(lr.start_date || lr.from_date || '').split(' ')[0].split('T')[0];
+                const tDate = String(lr.end_date || lr.to_date || fDate).split(' ')[0].split('T')[0];
+                return dateStr >= fDate && dateStr <= tDate;
+              });
+
+              const isToday = dateStr === todayStr;
+              const isFuture = dateStr > todayStr;
+              const isSunday = (idx % 7) === 0;
+
+              let statusText = 'NO RECORD';
+              let displayLabel = '';
+
+              if (isFuture) {
+                statusText = 'UPCOMING';
+                displayLabel = 'Future Date';
+              } else if (dayLog && (dayLog.first_in || dayLog.status === 'PRESENT' || dayLog.status === 'HALF_DAY')) {
+                statusText = String(dayLog.status).toUpperCase();
+              } else if (matchedLeave) {
+                statusText = 'ON_LEAVE';
+                displayLabel = matchedLeave.leave_type_name || matchedLeave.leave_type || 'Approved Leave';
+              } else if (matchedHoliday) {
+                statusText = 'HOLIDAY';
+                displayLabel = matchedHoliday.title || matchedHoliday.holiday_name || 'Holiday';
+              } else if (isSunday) {
+                statusText = 'WEEKEND';
+                displayLabel = 'Weekly Off';
+              } else if (dayLog) {
+                statusText = String(dayLog.status).toUpperCase();
+              }
+
+              let badgeStyle = 'bg-slate-50 dark:bg-slate-900/60 text-slate-400 border-slate-200/80 dark:border-slate-800';
+
+              if (isFuture) {
+                badgeStyle = 'bg-slate-100/40 dark:bg-slate-900/30 text-slate-400/60 dark:text-slate-600 border-slate-200/30 dark:border-slate-800/30 opacity-40 cursor-not-allowed pointer-events-none select-none';
+              } else if (statusText === 'PRESENT') {
+                badgeStyle = 'bg-emerald-500/10 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20';
+              } else if (statusText === 'ABSENT') {
+                badgeStyle = 'bg-rose-500/10 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border-rose-500/30 hover:bg-rose-500/20';
+              } else if (statusText === 'HALF_DAY') {
+                badgeStyle = 'bg-amber-500/10 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20';
+              } else if (statusText === 'HOLIDAY') {
+                badgeStyle = 'bg-sky-500/10 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 border-sky-500/30 hover:bg-sky-500/20';
+              } else if (statusText === 'ON_LEAVE') {
+                badgeStyle = 'bg-purple-500/10 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 border-purple-500/30 hover:bg-purple-500/20';
+              } else if (statusText === 'WEEKEND') {
+                badgeStyle = 'bg-slate-100/80 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800';
+              }
+
+              const cellPayload = dayLog || {
+                attendance_date: dateStr,
+                status: statusText,
+                customLabel: displayLabel,
+                holiday: matchedHoliday,
+                leave: matchedLeave
+              };
+
+              return (
+                <div
+                  key={`day-${dayNum}`}
+                  onClick={() => {
+                    setSelectedDayLog(cellPayload);
+                    setDayDetailModalOpen(true);
+                  }}
+                  className={`h-32 rounded-2xl p-3 border transition-all duration-300 flex flex-col justify-between relative group cursor-pointer ${badgeStyle} ${isToday ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 shadow-lg scale-[1.03] z-10' : 'hover:scale-[1.03] hover:shadow-lg'}`}
+                >
+                  {/* Top Bar: Day Number & Status Badge */}
+                  <div className="flex items-center justify-between">
+                    <span className={`h-6.5 w-6.5 rounded-full flex items-center justify-center text-xs font-black font-mono ${isToday ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-900 dark:text-slate-100'}`}>
+                      {dayNum}
+                    </span>
+
+                    <span className="px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase tracking-wider border border-current opacity-90 truncate max-w-[90px] shadow-2xs">
+                      {statusText.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  {/* Middle Content: Punch Times or Holiday/Leave/Weekend Label */}
+                  {dayLog && (dayLog.first_in || dayLog.last_out) ? (
+                    <div className="space-y-0.5 text-[9.5px] font-mono font-bold tracking-tight bg-white/60 dark:bg-slate-900/60 p-1.5 rounded-xl border border-black/5 dark:border-white/5 backdrop-blur-xs">
+                      <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
+                        <span className="text-[8px] uppercase font-black text-slate-400">IN:</span>
+                        <span>{dayLog.first_in ? formatTimeOnly(dayLog.first_in) : '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
+                        <span className="text-[8px] uppercase font-black text-slate-400">OUT:</span>
+                        <span>{dayLog.last_out ? formatTimeOnly(dayLog.last_out) : '-'}</span>
+                      </div>
+                    </div>
+                  ) : matchedHoliday ? (
+                    <div className="text-center py-1 bg-sky-500/10 p-1.5 rounded-xl border border-sky-500/20">
+                      <span className="text-[9.5px] font-black text-sky-700 dark:text-sky-300 block truncate">
+                        🎉 {displayLabel}
+                      </span>
+                    </div>
+                  ) : matchedLeave ? (
+                    <div className="text-center py-1 bg-purple-500/10 p-1.5 rounded-xl border border-purple-500/20">
+                      <span className="text-[9.5px] font-black text-purple-700 dark:text-purple-300 block truncate">
+                        🌴 {displayLabel}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-center py-1">
+                      <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 italic">
+                        {isSunday ? '☕ Weekly Off' : 'No Punch'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Bottom Bar: Worked Minutes or Formatted Late Tag (+5h 28m Late) */}
+                  <div className="flex items-center justify-between text-[8.5px] font-bold">
+                    {dayLog && dayLog.worked_minutes ? (
+                      <span className="text-slate-700 dark:text-slate-300 font-mono">
+                        ⏱️ {Math.floor(dayLog.worked_minutes / 60)}h {dayLog.worked_minutes % 60}m
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+
+                    {dayLog && dayLog.late_minutes > 0 && (
+                      <span className="text-rose-600 dark:text-rose-400 font-extrabold bg-rose-100 dark:bg-rose-950/90 border border-rose-300/60 dark:border-rose-900/60 px-1.5 py-0.5 rounded-md shadow-2xs">
+                        {formatLateMinutes(dayLog.late_minutes)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="attendance-page-container font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full">
       <style dangerouslySetInnerHTML={{__html: `
-        .font-sans, .font-mono, td, th, button, input, select, label, span, div, p, h3, h4, h5, h6 {
+        .attendance-page-container,
+        .attendance-page-container td,
+        .attendance-page-container th,
+        .attendance-page-container button,
+        .attendance-page-container input,
+        .attendance-page-container select,
+        .attendance-page-container label,
+        .attendance-page-container span,
+        .attendance-page-container div,
+        .attendance-page-container p {
           font-family: 'DM Sans', sans-serif !important;
         }
       `}} />
@@ -826,29 +1404,6 @@ export default function AttendancePage() {
         hideCompanySelect={false}
         hideUserBadge={true}
       />
-
-      {/* Tab Navigation */}
-      {visibleTabs.length === 0 ? (
-        <div className="flex items-center gap-3 p-4 rounded-2xl border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 text-xs font-bold">
-          <span>⚠️</span> You don't have permission to access any Attendance modules. Contact your administrator.
-        </div>
-      ) : (
-        <div className="flex gap-2 p-1.5 bg-slate-100/70 dark:bg-slate-900/40 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 max-w-fit flex-wrap">
-          {visibleTabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4.5 py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/40 dark:hover:bg-slate-800/40'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Tab Contents */}
       {activeTab === 'logs' && (
@@ -905,7 +1460,20 @@ export default function AttendancePage() {
               </button>
             </div>
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setPunchModalOpen(true);
+                  getGPSLocation();
+                  startCamera();
+                }}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[10px] font-black uppercase tracking-wider shadow-md shadow-blue-500/20 transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0 border-0 hover:scale-105"
+                title="Mark Web Attendance with GPS & Selfie verification"
+              >
+                <span>📸</span> Mark Attendance
+              </button>
+
               <button
                 onClick={handleExportExcel}
                 disabled={isExporting}
@@ -952,170 +1520,7 @@ export default function AttendancePage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-card p-6 shadow-sm text-left">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-400 font-black uppercase tracking-widest text-[9.5px]">
-                    {!companyId && <th className="py-3.5 px-3">Company</th>}
-                    <th className="py-3.5 px-3">Date</th>
-                    <th className="py-3.5 px-3">Emp Code</th>
-                    <th className="py-3.5 px-3">Name</th>
-                    <th className="py-3.5 px-3">Shift</th>
-                    <th className="py-3.5 px-3">In Punch</th>
-                    <th className="py-3.5 px-3">Out Punch</th>
-                    <th className="py-3.5 px-3">Worked Time</th>
-                    <th className="py-3.5 px-3">Late Min</th>
-                    <th className="py-3.5 px-3">Status</th>
-                    <th className="py-3.5 px-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.length === 0 ? (
-                    <tr>
-                      <td colSpan={!companyId ? 11 : 10} className="py-8 text-center text-slate-450 dark:text-slate-550 font-bold">
-                        No attendance summaries found for this period.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedLogs.map(log => (
-                      <tr key={log.id} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-550/5 transition-all">
-                        {!companyId && <td className="py-4 px-3 text-slate-550 dark:text-slate-400 font-bold">{log.company_name || 'Global'}</td>}
-                        <td className="py-4 px-3 font-semibold text-slate-600 dark:text-slate-400 font-mono">{new Date(log.attendance_date).toLocaleDateString()}</td>
-                        <td className="py-4 px-3 font-semibold text-slate-600 dark:text-slate-450 font-mono">{log.emp_id_code}</td>
-                        <td className="py-4 px-3 font-black text-slate-800 dark:text-slate-200">{log.first_name} {log.last_name}</td>
-                        <td className="py-4 px-3 text-slate-500 dark:text-slate-400">{log.shift_name || 'N/A'}</td>
-                        <td className="py-4 px-3 font-mono text-slate-600 dark:text-slate-350">{log.first_in ? new Date(log.first_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                        <td className="py-4 px-3 font-mono text-slate-600 dark:text-slate-350">{log.last_out ? new Date(log.last_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                        <td className="py-4 px-3 font-semibold font-mono text-slate-700 dark:text-slate-300">
-                          {log.worked_minutes ? `${Math.floor(log.worked_minutes / 60)}h ${log.worked_minutes % 60}m` : '-'}
-                        </td>
-                        <td className="py-4 px-3 text-red-500 font-mono font-bold">{log.late_minutes || 0}m</td>
-                        <td className="py-4 px-3">
-                          <span className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider ${getStatusColor(log.status)}`}>
-                            {log.status}
-                          </span>
-                          {log.is_regularized && (
-                            <span className="ml-1.5 text-[8.5px] font-bold text-blue-500 border border-blue-500/20 px-1 py-0.2 rounded bg-blue-500/5">REGULARIZED</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-3 text-right space-x-2">
-                          <button
-                            onClick={() => {
-                              setLogForm({
-                                id: String(log.id),
-                                employee_id: log.employee_id,
-                                attendance_date: new Date(log.attendance_date).toISOString().split('T')[0],
-                                shift_id: log.shift_id || '',
-                                first_in: log.first_in ? new Date(log.first_in).toISOString().substring(0, 16) : '',
-                                last_out: log.last_out ? new Date(log.last_out).toISOString().substring(0, 16) : '',
-                                status: log.status,
-                                worked_minutes: String(log.worked_minutes || 0),
-                                late_minutes: String(log.late_minutes || 0)
-                              });
-                              setLogEditDrawerOpen(true);
-                            }}
-                            className="px-2.5 py-1 rounded bg-blue-500/10 hover:bg-blue-500 text-blue-600 hover:text-white text-[9.5px] font-black uppercase tracking-wider transition-colors cursor-pointer"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteLog(log.id)}
-                            className="px-2.5 py-1 rounded bg-red-500/10 hover:bg-red-600 text-red-600 hover:text-white text-[9.5px] font-black uppercase tracking-wider transition-colors cursor-pointer"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Controls */}
-            {logs.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/60 text-xs">
-                <div className="text-slate-500 dark:text-slate-400 font-medium">
-                  Showing <span className="font-semibold text-slate-850 dark:text-slate-200">{startIndex + 1}</span> to{' '}
-                  <span className="font-semibold text-slate-850 dark:text-slate-200">{endIndex}</span> of{' '}
-                  <span className="font-semibold text-slate-850 dark:text-slate-200">{totalLogs}</span> entries
-                </div>
-
-                <div className="flex items-center gap-6">
-                  {/* Page Size Select */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500 dark:text-slate-400 text-[11px] font-bold">Show:</span>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      className="rounded-lg border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 transition-all cursor-pointer"
-                    >
-                      {[100, 200, 500, 1000].map(sz => (
-                        <option key={sz} value={sz} className="bg-card text-slate-800 dark:text-slate-200">
-                          {sz}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Navigation Buttons */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setCurrentPage(1)}
-                      disabled={currentPage === 1}
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                      title="First Page"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
-                      </svg>
-                    </button>
-
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                      title="Previous Page"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                      </svg>
-                    </button>
-
-                    <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-350 px-2 select-none">
-                      Page {currentPage} of {totalPages}
-                    </span>
-
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                      title="Next Page"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                      </svg>
-                    </button>
-
-                    <button
-                      onClick={() => setCurrentPage(totalPages)}
-                      disabled={currentPage === totalPages}
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                      title="Last Page"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.25l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          {renderCalendarView()}
         </div>
       )}
 
@@ -3035,6 +3440,300 @@ export default function AttendancePage() {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📅 Interactive Day Detail Modal for Calendar Cell Click */}
+      {dayDetailModalOpen && selectedDayLog && (
+        <SlideDrawer
+          isOpen={dayDetailModalOpen}
+          onClose={() => setDayDetailModalOpen(false)}
+          title={`Attendance Audit — ${formatDisplayDate(selectedDayLog.attendance_date)}`}
+        >
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header Gradient Card */}
+            <div className="p-5 rounded-3xl bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 text-white shadow-xl relative overflow-hidden">
+              <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-center justify-between relative z-10">
+                <div>
+                  <span className="text-[9.5px] font-black text-indigo-300 uppercase tracking-widest">Attendance Audit Details</span>
+                  <h4 className="text-base font-black text-white uppercase tracking-tight mt-0.5 font-outfit">
+                    {selectedDayLog.first_name ? `${selectedDayLog.first_name} ${selectedDayLog.last_name}` : (selectedDayLog.customLabel || 'Employee Record')}
+                  </h4>
+                  {selectedDayLog.emp_id_code && (
+                    <p className="text-xs font-mono font-bold text-indigo-300 mt-0.5">
+                      EMP ID: {selectedDayLog.emp_id_code}
+                    </p>
+                  )}
+                </div>
+                <span className={`px-3 py-1.5 rounded-2xl text-xs font-black uppercase tracking-wider border shadow-md ${getStatusColor(selectedDayLog.status)}`}>
+                  {String(selectedDayLog.status || '').replace('_', ' ')}
+                </span>
+              </div>
+            </div>
+
+            {/* Time Details Cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-1 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                  <svg className="w-4 h-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25V9m11.25 0v11.25A2.25 2.25 0 0118 22.5H6a2.25 2.25 0 01-2.25-2.25V9m16.5 0h-16.5" />
+                  </svg>
+                  <span className="text-[10px] font-black uppercase tracking-wider">Punch In Time</span>
+                </div>
+                <p className="text-base font-mono font-black text-slate-900 dark:text-slate-100">
+                  {selectedDayLog.first_in ? formatPunchTime(selectedDayLog.first_in) : 'Not Punched In'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-rose-200/80 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/20 space-y-1 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                  <svg className="w-4 h-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25V9m11.25 0v11.25A2.25 2.25 0 0118 22.5H6a2.25 2.25 0 01-2.25-2.25V9m16.5 0h-16.5" />
+                  </svg>
+                  <span className="text-[10px] font-black uppercase tracking-wider">Punch Out Time</span>
+                </div>
+                <p className="text-base font-mono font-black text-slate-900 dark:text-slate-100">
+                  {selectedDayLog.last_out ? formatPunchTime(selectedDayLog.last_out) : 'Not Punched Out'}
+                </p>
+              </div>
+            </div>
+
+            {/* Shift & Metrics Cards */}
+            <div className="space-y-3 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-500 dark:text-slate-400">Assigned Shift:</span>
+                <span className="font-black text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-xl">
+                  {selectedDayLog.shift_name || 'General Shift'}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-500 dark:text-slate-400">Total Worked Duration:</span>
+                <span className="font-mono font-black text-slate-900 dark:text-slate-100">
+                  ⏱️ {selectedDayLog.worked_minutes ? `${Math.floor(selectedDayLog.worked_minutes / 60)} Hours ${selectedDayLog.worked_minutes % 60} Mins` : '0 Hours 0 Mins'}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-500 dark:text-slate-400">Late Arrival:</span>
+                <span className={`font-mono font-black ${selectedDayLog.late_minutes > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {selectedDayLog.late_minutes > 0 ? formatLateMinutes(selectedDayLog.late_minutes) : 'On Time (0 mins)'}
+                </span>
+              </div>
+
+              {selectedDayLog.customLabel && (
+                <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <span className="font-bold text-slate-500 dark:text-slate-400">Calendar Event:</span>
+                  <span className="font-black text-indigo-600 dark:text-indigo-400">
+                    {selectedDayLog.customLabel}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="font-bold text-slate-500 dark:text-slate-400">Regularization Status:</span>
+                <span className={`font-black text-[10.5px] uppercase tracking-wider px-2.5 py-1 rounded-xl ${selectedDayLog.is_regularized ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-500'}`}>
+                  {selectedDayLog.is_regularized ? 'Regularized' : 'Normal'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </SlideDrawer>
+      )}
+
+      {/* 📸 Mark Attendance / Web Punch Center Dialog Modal */}
+      {punchModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-md z-50 p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden space-y-0 relative animate-scaleUp">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-950/60">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">📸</span>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight font-outfit">
+                    Mark Attendance (Web Punch)
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                    GPS Location & Selfie Verification
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  stopCamera();
+                  setPunchModalOpen(false);
+                }}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors border-0 cursor-pointer text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              {/* Alert / Notification banner */}
+              {punchMessage && (
+                <div className={`p-3.5 rounded-2xl text-xs font-bold ${punchMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                  {punchMessage.text}
+                </div>
+              )}
+
+              {/* Direction Selector (CHECK IN / CHECK OUT) */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 font-sans">
+                  Select Punch Action
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPunchDirection('IN')}
+                    className={`p-3.5 rounded-2xl border text-center font-black text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
+                      punchDirection === 'IN'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/20 scale-[1.02]'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                    }`}
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-300 animate-pulse" />
+                    CHECK IN
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPunchDirection('OUT')}
+                    className={`p-3.5 rounded-2xl border text-center font-black text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
+                      punchDirection === 'OUT'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-500/20 scale-[1.02]'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                    }`}
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full bg-rose-300 animate-pulse" />
+                    CHECK OUT
+                  </button>
+                </div>
+              </div>
+
+              {/* GPS Verification Card */}
+              <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    🌐 GPS Location Verification
+                  </span>
+                  <button
+                    type="button"
+                    onClick={getGPSLocation}
+                    disabled={gpsLoading}
+                    className="text-[9.5px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-0"
+                  >
+                    {gpsLoading ? 'Fetching...' : 'Re-detect GPS'}
+                  </button>
+                </div>
+
+                {punchLat && punchLng ? (
+                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300 space-y-1">
+                    <div className="flex items-center justify-between text-xs font-mono font-bold">
+                      <span>Lat: {punchLat.toFixed(5)}, Lng: {punchLng.toFixed(5)}</span>
+                      <span className="text-[9px] bg-emerald-600 text-white px-2 py-0.5 rounded font-sans uppercase">GPS Verified</span>
+                    </div>
+                    {locationName && (
+                      <p className="text-[10.5px] text-emerald-700 dark:text-emerald-400 font-sans font-semibold leading-tight pt-0.5">
+                        📍 {locationName}
+                      </p>
+                    )}
+                  </div>
+                ) : gpsError ? (
+                  <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold">
+                    ⚠️ {gpsError}
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                    📍 Click "Re-detect GPS" to verify location permissions.
+                  </div>
+                )}
+              </div>
+
+              {/* Camera / Selfie Capture Card */}
+              <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                  📸 Selfie Photo Verification (Required)
+                </span>
+
+                {capturedSelfie ? (
+                  <div className="space-y-2 text-center">
+                    <img
+                      src={capturedSelfie}
+                      alt="Captured Selfie Verification"
+                      className="w-48 h-36 object-cover rounded-2xl mx-auto border-2 border-emerald-500 shadow-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCapturedSelfie(null);
+                        startCamera();
+                      }}
+                      className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-0"
+                    >
+                      Retake Selfie Photo
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-center">
+                    <div className="w-full h-48 rounded-2xl bg-black overflow-hidden relative flex items-center justify-center border border-slate-700 shadow-inner">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{ transform: 'scaleX(-1)' }}
+                        className="w-full h-full object-cover"
+                      />
+                      <canvas ref={canvasRef} className="hidden" />
+                      {!cameraActive && (
+                        <button
+                          type="button"
+                          onClick={startCamera}
+                          className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors shadow-md"
+                        >
+                          📷 Enable Webcam Camera
+                        </button>
+                      )}
+                    </div>
+
+                    {cameraActive && (
+                      <button
+                        type="button"
+                        onClick={captureSelfie}
+                        className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-500/25 transition-all cursor-pointer hover:scale-105"
+                      >
+                        📸 Take Selfie Snapshot
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={submitWebPunch}
+                  disabled={!capturedSelfie || isSubmittingPunch}
+                  className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg transition-all duration-200 cursor-pointer ${
+                    !capturedSelfie || isSubmittingPunch
+                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-300/40 dark:border-slate-700/40 cursor-not-allowed shadow-none'
+                      : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-blue-500/25 hover:scale-[1.01]'
+                  }`}
+                >
+                  {!capturedSelfie
+                    ? '📸 Please Take Selfie Snapshot First'
+                    : isSubmittingPunch
+                      ? 'Submitting Attendance Punch...'
+                      : `Confirm CHECK ${punchDirection}`}
+                </button>
+              </div>
             </div>
           </div>
         </div>

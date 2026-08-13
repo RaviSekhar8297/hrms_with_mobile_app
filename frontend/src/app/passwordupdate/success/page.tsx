@@ -7,8 +7,32 @@ export default function PasswordUpdateSuccessPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
+  const handleProceedToLogin = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('email');
+      localStorage.removeItem('roles');
+      localStorage.removeItem('permissions');
+      localStorage.removeItem('companyId');
+      localStorage.removeItem('designation');
+      localStorage.removeItem('myProfile');
+      sessionStorage.clear();
+    }
+    router.replace('/login?logout=true&clear=true');
+  };
+
   useEffect(() => {
     setMounted(true);
+    // Clear any active tokens when password update success page opens
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('email');
+      localStorage.removeItem('roles');
+      localStorage.removeItem('permissions');
+      localStorage.removeItem('companyId');
+      localStorage.removeItem('myProfile');
+      sessionStorage.clear();
+    }
     // Switch to light theme on mount
     document.documentElement.classList.remove('dark');
     document.documentElement.classList.add('theme-nordic-light');
@@ -42,7 +66,7 @@ export default function PasswordUpdateSuccessPage() {
 
         {/* Proceed Button */}
         <button 
-          onClick={() => router.push('/login')}
+          onClick={handleProceedToLogin}
           className="w-full py-3.5 bg-[#0f62fe] hover:bg-[#0b54d4] text-white text-[14.5px] font-bold rounded-xl shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/15 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <span>Proceed to Sign In</span>

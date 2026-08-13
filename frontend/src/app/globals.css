@@ -23,19 +23,22 @@ html.theme-nordic-light {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --font-sans: "DM Sans", sans-serif;
-  --font-outfit: "Outfit", "Plus Jakarta Sans", sans-serif;
-  --font-dmsans: "DM Sans", sans-serif;
+  --font-sans: "Poppins", "Inter", sans-serif;
+  --font-outfit: "Poppins", "Inter", sans-serif;
+  --font-dmsans: "Poppins", "Inter", sans-serif;
 }
 
-.font-sidebar {
-  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif !important;
+.font-sidebar,
+.font-sidebar *,
+aside.font-sidebar,
+aside.font-sidebar * {
+  font-family: 'Poppins', 'Inter', sans-serif !important;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans) !important;
+  font-family: 'Poppins', 'Inter', sans-serif !important;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
@@ -205,11 +208,11 @@ html:not(.dark) label {
   color: #64748b !important;
 }
 
-input[type="text"],
-input[type="email"],
-input[type="number"],
-input[type="password"],
-input[type="date"],
+input[type="text"]:not(.login-input),
+input[type="email"]:not(.login-input),
+input[type="number"]:not(.login-input),
+input[type="password"]:not(.login-input),
+input[type="date"]:not(.login-input),
 select,
 textarea {
   background-color: rgba(148, 163, 184, 0.05) !important;
@@ -217,7 +220,7 @@ textarea {
   color: var(--foreground) !important;
   font-family: var(--font-sans) !important;
   border-radius: 12px !important;
-  padding: 9px 12px !important;
+  padding: 9px 12px;
   font-size: 11.5px !important;
   font-weight: 600 !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -232,73 +235,38 @@ input.pl-search-lg,
 input.form-input-with-icon,
 input[type="text"].form-input-with-icon,
 input[type="email"].form-input-with-icon,
-input[type="password"].form-input-with-icon {
-  padding-left: 2.75rem !important;
-}
-input[type="text"].pr-search,
-input.pr-search,
-input.pr-search-lg {
-  padding-right: 4rem !important;
+input[type="password"].form-input-with-icon,
+input[type="text"].pl-8,
+input[type="text"].pl-9,
+input[type="text"].pl-10 {
+  padding-left: 2.6rem !important;
 }
 
-/* 🔐 Login Page Specific Overrides for Light Gradient Theme */
-.login-card label,
-.dark .login-card label,
-html body .login-card label {
-  font-size: 13px !important;
-  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.02em !important;
-  text-transform: none !important;
-  margin-bottom: 6px !important;
-  color: #0f172a !important;
-}
-
+/* 🔐 Login Input Explicit Pure White Background & Dark Text Rules */
+.login-input,
 .login-card input[type="text"],
 .login-card input[type="password"],
-.login-card input[type="email"],
-.dark .login-card input[type="text"],
-.dark .login-card input[type="password"],
-.dark .login-card input[type="email"],
-html body .login-card input[type="text"],
-html body .login-card input[type="password"],
-html body .login-card input[type="email"] {
-  padding: 0 !important;
-  font-size: 14px !important;
-  font-weight: 700 !important;
-  height: auto !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+.login-card input[type="email"] {
+  background-color: #ffffff !important;
   color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
 }
 
 /* Fix Browser Autofill for Light Theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
 .login-card input:-webkit-autofill,
 .login-card input:-webkit-autofill:hover, 
 .login-card input:-webkit-autofill:focus,
-.login-card input:-webkit-autofill:active,
-.dark .login-card input:-webkit-autofill,
-.dark .login-card input:-webkit-autofill:hover, 
-.dark .login-card input:-webkit-autofill:focus,
-.dark .login-card input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #f8fafc inset !important;
+.login-card input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
   -webkit-text-fill-color: #0f172a !important;
   caret-color: #0f172a !important;
-  transition: background-color 5000s ease-in-out 0s !important;
-}
-
-.login-card input[type="text"]:focus,
-.login-card input[type="password"]:focus,
-.login-card input[type="email"]:focus,
-.dark .login-card input[type="text"]:focus,
-.dark .login-card input[type="password"]:focus,
-.dark .login-card input[type="email"]:focus {
-  background-color: #0f172a !important;
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25) !important;
+  transition: background-color 5000000s ease-in-out 0s !important;
 }
 .dark input[type="text"],
 .dark input[type="email"],

@@ -120,42 +120,44 @@ export default function AnalyticsPage() {
 
       // 4. Fetch Dynamic Analytics Summary Endpoint
       const resAnalytics = await fetch(getUrl('/api/v1/analytics/summary', companyId), { headers: getHeaders() });
-      const dataAnalytics = await resAnalytics.json();
+      if (resAnalytics.ok && resAnalytics.headers.get('content-type')?.includes('application/json')) {
+        const dataAnalytics = await resAnalytics.json();
 
-      if (resAnalytics.ok && dataAnalytics) {
-        if (dataAnalytics.attendancePercentage !== undefined) setAttendancePercentage(dataAnalytics.attendancePercentage);
-        if (dataAnalytics.activeLeavesToday !== undefined) setActiveLeavesToday(dataAnalytics.activeLeavesToday);
-        if (dataAnalytics.totalPayrollSpend !== undefined) setTotalPayrollSpend(dataAnalytics.totalPayrollSpend);
-        if (dataAnalytics.openPositionsCount !== undefined) setOpenPositionsCount(dataAnalytics.openPositionsCount);
+        if (dataAnalytics) {
+          if (dataAnalytics.attendancePercentage !== undefined) setAttendancePercentage(dataAnalytics.attendancePercentage);
+          if (dataAnalytics.activeLeavesToday !== undefined) setActiveLeavesToday(dataAnalytics.activeLeavesToday);
+          if (dataAnalytics.totalPayrollSpend !== undefined) setTotalPayrollSpend(dataAnalytics.totalPayrollSpend);
+          if (dataAnalytics.openPositionsCount !== undefined) setOpenPositionsCount(dataAnalytics.openPositionsCount);
 
-        if (dataAnalytics.todayPunches && dataAnalytics.todayPunches.length > 0) {
-          setTodayPunches(dataAnalytics.todayPunches);
-        } else {
-          setTodayPunches(
-            empList.slice(0, 8).map((emp) => ({
-              name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.email.split('@')[0],
-              time: '09:00 AM',
-              department: emp.department_name || 'General',
-              status: 'In-Time',
-              avatar: `${emp.first_name ? emp.first_name.charAt(0).toUpperCase() : 'E'}${emp.last_name ? emp.last_name.charAt(0).toUpperCase() : ''}`,
-            }))
-          );
-        }
+          if (dataAnalytics.todayPunches && dataAnalytics.todayPunches.length > 0) {
+            setTodayPunches(dataAnalytics.todayPunches);
+          } else {
+            setTodayPunches(
+              empList.slice(0, 8).map((emp) => ({
+                name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.email.split('@')[0],
+                time: '09:00 AM',
+                department: emp.department_name || 'General',
+                status: 'In-Time',
+                avatar: `${emp.first_name ? emp.first_name.charAt(0).toUpperCase() : 'E'}${emp.last_name ? emp.last_name.charAt(0).toUpperCase() : ''}`,
+              }))
+            );
+          }
 
-        if (dataAnalytics.departmentSalaryAverages && dataAnalytics.departmentSalaryAverages.length > 0) {
-          setDepartmentSalaryAverages(dataAnalytics.departmentSalaryAverages);
-        }
+          if (dataAnalytics.departmentSalaryAverages && dataAnalytics.departmentSalaryAverages.length > 0) {
+            setDepartmentSalaryAverages(dataAnalytics.departmentSalaryAverages);
+          }
 
-        if (dataAnalytics.designationStats && dataAnalytics.designationStats.length > 0) {
-          setDesignationStats(dataAnalytics.designationStats);
-        } else {
-          // Dynamic fallback from designation counts
-          const desigCounts: { [key: string]: number } = {};
-          empList.forEach((emp) => {
-            const desig = emp.designation_name || 'General Staff';
-            desigCounts[desig] = (desigCounts[desig] || 0) + 1;
-          });
-          setDesignationStats(Object.entries(desigCounts).map(([label, count]) => ({ label, count })));
+          if (dataAnalytics.designationStats && dataAnalytics.designationStats.length > 0) {
+            setDesignationStats(dataAnalytics.designationStats);
+          } else {
+            // Dynamic fallback from designation counts
+            const desigCounts: { [key: string]: number } = {};
+            empList.forEach((emp) => {
+              const desig = emp.designation_name || 'General Staff';
+              desigCounts[desig] = (desigCounts[desig] || 0) + 1;
+            });
+            setDesignationStats(Object.entries(desigCounts).map(([label, count]) => ({ label, count })));
+          }
         }
       }
     } catch (e) {

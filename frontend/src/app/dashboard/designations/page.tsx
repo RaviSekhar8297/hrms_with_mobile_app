@@ -42,6 +42,7 @@ interface Designation {
   name: string;
   description: string;
   status: string;
+  created_at?: string;
 }
 
 export default function DesignationsPage() {
@@ -60,6 +61,10 @@ export default function DesignationsPage() {
   const [drawerDepartments, setDrawerDepartments] = useState<Department[]>([]);
 
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 16;
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedDesignationId, setSelectedDesignationId] = useState<string | null>(null);
@@ -70,6 +75,22 @@ export default function DesignationsPage() {
   const [desigForm, setDesigForm] = useState({ name: '', description: '', branch_id: '', department_id: '', companyId: '', status: 'ACTIVE' });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+
+  const filteredDesignations = designations.filter(ds =>
+    ds.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    ds.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (ds.department_name && ds.department_name.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const totalItems = filteredDesignations.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedDesignations = filteredDesignations.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCompanyId, searchTerm]);
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -288,17 +309,7 @@ export default function DesignationsPage() {
           email={email}
           hideCompanySelect={true}
           hideUserBadge={true}
-        >
-          <button
-            onClick={openAddDrawer}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-xs font-black text-white shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Add Designation
-          </button>
-        </DashboardPageHeader>
+        />
       </div>
 
       {/* Slide Drawer for creation/editing */}
@@ -395,94 +406,209 @@ export default function DesignationsPage() {
       {/* Grid List View */}
       <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-card p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 border-b border-slate-100 dark:border-slate-800 pb-3.5">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-250">
-            Designations list
-          </h3>
-          {isSuperAdmin && (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Filter Company:</span>
-              <div className="w-48 text-left">
-                <SearchableSelect
-                  placeholder="All Companies"
-                  options={[
-                    { value: 'ALL', label: 'All Companies' },
-                    ...companies.map(c => ({ value: c.id, label: c.name }))
-                  ]}
-                  value={filterCompanyId || 'ALL'}
-                  onChange={val => {
-                    setFilterCompanyId(val === 'ALL' ? null : val);
-                  }}
-                />
-              </div>
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-250">
+              Designations list
+            </h3>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
+              {filteredDesignations.length} Total
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-64">
+              <i className="fa-solid fa-magnifying-glass text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 text-xs pointer-events-none"></i>
+              <input
+                type="text"
+                placeholder="Search designation..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-search pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 transition-all"
+              />
             </div>
-          )}
+
+            {isSuperAdmin && (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Company:</span>
+                <div className="w-44 text-left">
+                  <SearchableSelect
+                    placeholder="All Companies"
+                    options={[
+                      { value: 'ALL', label: 'All Companies' },
+                      ...companies.map(c => ({ value: c.id, label: c.name }))
+                    ]}
+                    value={filterCompanyId || 'ALL'}
+                    onChange={val => {
+                      setFilterCompanyId(val === 'ALL' ? null : val);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ADD DESIGNATION BUTTON IN CONTROLS ROW */}
+            <button
+              onClick={openAddDrawer}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <i className="fa-solid fa-plus text-xs"></i>
+              <span>Add Designation</span>
+            </button>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-850 text-slate-550 dark:text-slate-455 font-bold uppercase tracking-wider">
-                <th className="py-3 px-3">Designation Title</th>
-                <th className="py-3 px-3">Description</th>
-                <th className="py-3 px-3">Department</th>
-                <th className="py-3 px-3">Status</th>
-                <th className="py-3 px-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-slate-400 dark:text-slate-500 font-medium">
-                    Loading designations...
-                  </td>
-                </tr>
-              ) : designations.map(ds => (
-                <tr key={ds.id} className="border-b border-slate-100 dark:border-slate-850 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all">
-                  <td className="py-3 px-3 font-bold text-slate-750 dark:text-slate-200">{ds.name}</td>
-                  <td className="py-3 px-3 text-slate-600 dark:text-slate-400 font-medium">{ds.description}</td>
-                  <td className="py-3 px-3 text-slate-550 dark:text-slate-400 font-semibold">{ds.department_name || 'N/A'}</td>
-                  <td className="py-3 px-3">
-                    <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold border ${
-                      ds.status === 'ACTIVE' || !ds.status
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 border-emerald-500/20'
-                        : 'bg-slate-500/10 text-slate-600 dark:text-slate-455 border-slate-500/20'
-                    }`}>
-                      {ds.status || 'ACTIVE'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
+
+        {/* CARD FORMAT GRID VIEW */}
+        {loading ? (
+          <div className="py-16 text-center text-slate-400 dark:text-slate-500 font-bold flex flex-col items-center justify-center gap-3">
+            <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
+            <span>Loading designations...</span>
+          </div>
+        ) : paginatedDesignations.length === 0 ? (
+          <div className="py-16 text-center text-slate-400 dark:text-slate-500">
+            <i className="fa-solid fa-folder-open text-4xl mb-3 block text-slate-300 dark:text-slate-600"></i>
+            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">
+              {searchTerm ? 'No matching designations found.' : 'No designations registered yet.'}
+            </h4>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            {paginatedDesignations.map(ds => {
+              const status = ds.status || 'ACTIVE';
+              return (
+                <div
+                  key={ds.id}
+                  style={{ boxShadow: 'rgba(14, 30, 37, 0.12) 0px 2px 4px 0px, rgba(14, 30, 37, 0.32) 0px 2px 16px 0px' }}
+                  className="group relative rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-card p-5 hover:border-purple-300 dark:hover:border-purple-800/60 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden space-y-4"
+                >
+                  <div>
+                    {/* Header: Light Color Icon + Status Pill */}
+                    <div className="flex items-center justify-between gap-2 mb-3.5">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 dark:from-purple-950/60 dark:via-indigo-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-lg shrink-0 border border-purple-100 dark:border-purple-900/40 shadow-xs group-hover:scale-110 transition-transform duration-300">
+                        <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                      </div>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex-shrink-0 ${
+                        status === 'ACTIVE'
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-200/80 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
+                          : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800'
+                      }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${status === 'ACTIVE' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                        <span>{status}</span>
+                      </span>
+                    </div>
+
+                    {/* Designation Title */}
+                    <h4 className="text-base font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors tracking-tight line-clamp-1" title={ds.name}>
+                      {ds.name}
+                    </h4>
+
+                    {/* Department Badge */}
+                    <div className="flex items-center gap-1.5 mt-1.5 mb-2">
+                      <svg className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.72m12 0a5.971 5.971 0 00-.941-3.197M6 18.72a5.971 5.971 0 01.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 005.058 2.772m-10.116 0A9.094 9.094 0 012.25 15.52a3 3 0 014.682-2.72m0 0c.148.274.321.533.516.776M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                      </svg>
+                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate">
+                        {ds.department_name || 'Department N/A'}
+                      </span>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                      {ds.description || 'No designation description provided.'}
+                    </p>
+                  </div>
+
+                  {/* Actions Footer */}
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 mt-auto">
+                    <div className="flex flex-col text-[10px] font-bold font-mono">
+                      <span className="text-[8.5px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest">Created At</span>
+                      <span className="text-slate-600 dark:text-slate-300 font-bold">
+                        {ds.created_at ? (
+                          <>
+                            {new Date(ds.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            {' • '}
+                            {new Date(ds.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEditClick(ds)}
                         title="Edit designation"
-                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-900/35 transition-colors cursor-pointer"
+                        className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-blue-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/edit"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 transition-transform group-hover/edit:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                         </svg>
                       </button>
                       <button
                         onClick={() => setDeletingDesignation(ds)}
                         title="Delete designation"
-                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-400 hover:text-rose-600 dark:hover:text-rose-455 hover:border-rose-200 dark:hover:border-rose-900/35 transition-colors cursor-pointer"
+                        className="h-8 w-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 hover:bg-gradient-to-r hover:from-rose-600 hover:to-red-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-rose-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/del"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 transition-transform group-hover/del:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                         </svg>
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {!loading && designations.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-slate-400 dark:text-slate-500 font-medium">
-                    No designations registered yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pagination Bar */}
+        {!loading && totalItems > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Showing <span className="font-bold text-slate-700 dark:text-slate-200">{totalItems > 0 ? startIndex + 1 : 0}</span> to{' '}
+              <span className="font-bold text-slate-700 dark:text-slate-200">{endIndex}</span> of{' '}
+              <span className="font-bold text-slate-700 dark:text-slate-200">{totalItems}</span> designations
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage(1)}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="First Page"
+              >
+                « First
+              </button>
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                ‹ Prev
+              </button>
+              <span className="px-3 py-1.5 text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg border border-indigo-200/60 dark:border-indigo-800/60">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Next ›
+              </button>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Last Page"
+              >
+                Last »
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 🗑️ DELETION CONFIRMATION INTERACTIVE TOAST OVERLAY */}

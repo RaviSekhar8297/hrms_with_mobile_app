@@ -48,12 +48,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   pathname,
 }) => {
-  const getLinkClass = (tabName: string) => {
+  const allSidebarTabs = React.useMemo(() => {
+    return sidebarGroups.flatMap((g) => g.items.map((i) => i.tab));
+  }, [sidebarGroups]);
+
+  const checkIsActive = (tabName: string) => {
     const cleanPath = (pathname || '').replace('/dashboard/', '');
-    const isActive =
-      cleanPath === tabName ||
-      (tabName !== 'payroll' && cleanPath.startsWith(tabName + '/')) ||
-      (tabName === 'payroll' && cleanPath === 'payroll');
+    if (cleanPath === tabName) return true;
+    if (cleanPath.startsWith(tabName + '/') && !allSidebarTabs.includes(cleanPath)) {
+      return true;
+    }
+    return false;
+  };
+
+  const getLinkClass = (tabName: string) => {
+    const isActive = checkIsActive(tabName);
 
     return `group relative flex items-center gap-3.5 px-4 py-3 rounded-2xl text-[13.5px] select-none transition-all duration-200 font-sidebar ${
       isActive
@@ -94,11 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
           <div className="space-y-1">
             {visibleItems.map((item) => {
-              const cleanPath = (pathname || '').replace('/dashboard/', '');
-              const isActive =
-                cleanPath === item.tab ||
-                (item.tab !== 'payroll' && cleanPath.startsWith(item.tab + '/')) ||
-                (item.tab === 'payroll' && cleanPath === 'payroll');
+              const isActive = checkIsActive(item.tab);
 
               return (
                 <Link
@@ -200,24 +205,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* 🔍 Sidebar Search Bar */}
       {!sidebarCollapsed && (
-        <div className="px-4 py-3 flex-shrink-0 border-b border-slate-200/50 dark:border-slate-800/80">
-          <div className="group relative flex items-center w-full h-[38px] rounded-xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:border-blue-500/50 focus-within:ring-4 focus-within:ring-blue-500/10 overflow-hidden">
-            <div className="flex items-center justify-center pl-3.5 pr-2.5 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors pointer-events-none">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
+        <div className="px-3.5 py-3 flex-shrink-0 border-b border-slate-100 dark:border-slate-800/80">
+          <div className="relative flex items-center w-full">
             <input
               type="text"
-              placeholder="Filter console navigation..."
+              placeholder="Search menu items..."
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
-              className="w-full h-full bg-transparent border-0 focus:ring-0 focus:border-transparent focus:outline-none text-xs placeholder-slate-400 text-slate-800 dark:text-slate-100 font-medium pr-8 shadow-none"
+              className="w-full px-3.5 py-2 bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 rounded-xl text-xs font-semibold placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-800 dark:text-slate-100 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-2xs"
             />
             {sidebarSearch && (
               <button
                 onClick={() => setSidebarSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-xs p-1 cursor-pointer transition-colors"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-0.5 cursor-pointer transition-colors"
+                title="Clear Search"
               >
                 ✕
               </button>
@@ -231,23 +232,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {renderNavLinks()}
       </nav>
 
-      {/* 📊 Sidebar Footer / Quick Status Card */}
-      {!sidebarCollapsed && (
-        <div className="mx-3 my-2 p-3 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/60 dark:from-slate-850 dark:to-slate-800/80 border border-blue-200/50 dark:border-slate-700/60 shadow-xs">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-black uppercase text-blue-700 dark:text-blue-400 tracking-wider">
-              System Health
-            </span>
-            <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20">
-              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
-              Optimal
-            </span>
-          </div>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-tight">
-            All services operational & synced
-          </p>
-        </div>
-      )}
 
       {/* 🔘 Sidebar Collapse Toggle Footer */}
       <div className="p-3 border-t border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex-shrink-0">

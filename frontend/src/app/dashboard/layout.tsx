@@ -469,7 +469,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'structure',
           label: 'Salary Structure',
-          permission: 'view_salary_slabs',
+          permission: 'view_salary_structures',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -491,6 +491,62 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       title: 'Attendance Engine',
       items: [
         {
+          tab: 'attendance',
+          label: 'Attendance Logs',
+          permission: 'view_attendance_summary',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'attendance/rules',
+          label: 'Attendance Rules',
+          permission: 'view_attendance_rules',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'attendance/regularization',
+          label: 'Regularization Requests',
+          permission: 'view_regularization_requests',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'attendance/permissions',
+          label: 'Permission Requests',
+          permission: 'view_permission_requests',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'attendance/raw-punches',
+          label: 'Raw Punch Logs',
+          permission: 'view_raw_punches',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          ),
+        },
+      ],
+    },
+    {
+      title: 'Enjoyable Days',
+      items: [
+        {
           tab: 'shifts',
           label: 'Shifts',
           permission: 'view_shift_masters',
@@ -501,18 +557,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ),
         },
         {
-          tab: 'attendance',
-          label: 'Attendance',
-          permission: 'view_attendance_summary',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-          ),
-        },
-        {
           tab: 'holidays',
-          label: 'Holidays Calendar',
+          label: 'Holidays',
           permission: 'view_holiday_masters',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -522,7 +568,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'weekoffs',
-          label: 'Week-off Policies',
+          label: 'Week-offs',
           permission: 'view_weekoff_policies',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -530,13 +576,49 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </svg>
           ),
         },
+      ],
+    },
+    {
+      title: 'Leave Track',
+      items: [
         {
-          tab: 'leaves',
-          label: 'Leave Control',
+          tab: 'leaves/requests',
+          label: 'Leave Requests',
           permission: 'view_leave_requests',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'leaves/compoff',
+          label: 'Comp-Off Claims',
+          permission: 'view_leave_requests',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'leaves/balances',
+          label: 'Leave Balances',
+          permission: 'view_leave_balances',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'leaves',
+          label: 'Leave Types & Logs',
+          permission: 'view_leave_types',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           ),
         },
@@ -551,16 +633,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-          ),
-        },
-        {
-          tab: 'configuration',
-          label: 'Configuration',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           ),
         },
@@ -624,6 +696,31 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          ),
+        },
+      ],
+    },
+    {
+      title: 'Settings',
+      items: [
+        {
+          tab: 'configuration',
+          label: 'Configuration',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'smart-hr',
+          label: 'SMART HR',
+          badge: 'NEW',
+          icon: (
+            <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
             </svg>
           ),
         },
@@ -1074,7 +1171,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       </label>
                     </div>
                     <div className="space-y-1.5">
-                      {(['Inter', 'Outfit', 'Space Grotesk', 'Playfair Display', 'DM Sans'] as const).map((f) => (
+                      {(['Poppins', 'Inter', 'Outfit', 'Space Grotesk', 'Playfair Display', 'DM Sans'] as const).map((f) => (
                         <button
                           key={f}
                           onClick={() => setFont(f)}
@@ -1103,7 +1200,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 onClick={() => {
                   setLayout('sidebar');
                   setTheme('slate-dark');
-                  setFont('DM Sans');
+                  setFont('Poppins');
                   setSettingsOpen(false);
                 }}
                 className="w-full py-2.5 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs font-extrabold hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 transition-colors cursor-pointer flex items-center justify-center gap-2"
@@ -1115,8 +1212,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* 🥞 ANIMATED TOASTS STACK PANEL */}
-      <div className="fixed right-6 bottom-6 z-[99] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-sans">
+      {/* 🥞 ANIMATED TOASTS STACK PANEL (RIGHT SIDE CENTER) */}
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[99] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-sans">
         {toasts.map((toast) => (
           <div key={toast.id} className="pointer-events-auto animate-toast">
             <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 text-slate-100 border border-slate-700/70 shadow-2xl backdrop-blur-2xl">

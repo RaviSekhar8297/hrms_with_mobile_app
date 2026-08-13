@@ -114,7 +114,7 @@ export default function RolesPage() {
       if (res.ok) {
         const fetchedRoles = data.roles || [];
         setTenantRoles(fetchedRoles);
-        
+
         // Initialize checked state and scope dictionaries
         const initialState: Record<string, string[]> = {};
         const initialScopes: Record<string, Record<string, string>> = {};
@@ -210,7 +210,7 @@ export default function RolesPage() {
     if (savingRoleId !== null) return;
     const currentList = rolePermissionsState[roleId] || [];
     let newList;
-    
+
     const targetPerm = permissions.find(p => p.id === permId);
     const isViewAction = targetPerm?.name.startsWith('view_');
 
@@ -224,7 +224,7 @@ export default function RolesPage() {
     } else {
       newList = [...currentList, permId];
     }
-    
+
     // Optimistic UI Update
     setRolePermissionsState(prev => ({
       ...prev,
@@ -265,7 +265,7 @@ export default function RolesPage() {
     const currentScopes = roleScopesState[roleId] || {};
     const idsToUpdate = Array.isArray(targetPermIds) ? targetPermIds : [targetPermIds];
     if (idsToUpdate.length === 0) return;
-    
+
     const newScopes = { ...currentScopes };
     idsToUpdate.forEach(id => {
       newScopes[id] = scope;
@@ -318,7 +318,7 @@ export default function RolesPage() {
     const modulePermissions = permissions.filter(p => p.module === moduleName);
     const modulePermIds = modulePermissions.map(p => p.id);
     const newList = Array.from(new Set([...(rolePermissionsState[selectedRoleId] || []), ...modulePermIds]));
-    
+
     setRolePermissionsState(prev => ({ ...prev, [selectedRoleId]: newList }));
     await savePermissionsBulk(selectedRoleId, newList);
   };
@@ -328,7 +328,7 @@ export default function RolesPage() {
     const modulePermissions = permissions.filter(p => p.module === moduleName);
     const modulePermIds = modulePermissions.map(p => p.id);
     const newList = (rolePermissionsState[selectedRoleId] || []).filter(id => !modulePermIds.includes(id));
-    
+
     setRolePermissionsState(prev => ({ ...prev, [selectedRoleId]: newList }));
     await savePermissionsBulk(selectedRoleId, newList);
   };
@@ -395,7 +395,7 @@ export default function RolesPage() {
 
   return (
     <div className="space-y-8 animate-fadeIn w-full pb-32 font-['DM_Sans',sans-serif]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      
+
       {/* Header Panel */}
       <div className="w-full">
         <DashboardPageHeader
@@ -411,38 +411,6 @@ export default function RolesPage() {
           hideUserBadge={true}
         >
           <div className="flex items-center gap-3 flex-wrap justify-end">
-            {/* View Switcher: Supabase Matrix vs Detailed Cards */}
-            <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-inner">
-              <button
-                type="button"
-                onClick={() => setViewMode('matrix')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  viewMode === 'matrix'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-                </svg>
-                <span>SUPABASE MATRIX</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setViewMode('card')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  viewMode === 'card'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M3.75 4.5h16.5" />
-                </svg>
-                <span>ACCORDION CARDS</span>
-              </button>
-            </div>
 
             <button
               onClick={() => setDrawerOpen(true)}
@@ -473,7 +441,7 @@ export default function RolesPage() {
               </span>
               <div>
                 <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
-                  Supabase System Permission Matrix
+                  System Permission Matrix
                 </h4>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">
                   Click any <span className="text-emerald-500 font-black">V C E</span> or <span className="text-rose-500 font-black">D</span> badge to toggle policy permissions in realtime
@@ -483,15 +451,30 @@ export default function RolesPage() {
 
             {/* Legend & Filter Controls */}
             <div className="flex items-center gap-3 flex-wrap">
+              {/* Module Filter Search */}
+              <div className="relative min-w-[210px]">
+                <svg className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search 54+ tables/modules..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{ paddingLeft: '2.5rem' }}
+                  className="w-full pl-search pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 transition-all placeholder-slate-400 font-sans"
+                />
+              </div>
+
               <div className="flex items-center gap-1.5 text-[9.5px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
-                <span className="text-slate-400">Actions:</span>
+                <span className="text-slate-400"></span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">V = View</span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">C = Create</span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">E = Edit</span>
                 <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold">D = Delete</span>
               </div>
               <div className="flex items-center gap-1.5 text-[9.5px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
-                <span className="text-slate-400">Data Scopes:</span>
+                <span className="text-slate-400"></span>
                 <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">S = Self</span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">T = Team</span>
                 <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-400 font-bold">D = Dept</span>
@@ -584,11 +567,10 @@ export default function RolesPage() {
                                       type="button"
                                       onClick={() => togglePermissionAutoSave(role.id, viewPerm.id)}
                                       title={`View ${moduleName}`}
-                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${
-                                        rolePermIds.includes(viewPerm.id)
-                                          ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
-                                          : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                                      }`}
+                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(viewPerm.id)
+                                        ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
+                                        : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
+                                        }`}
                                     >
                                       V
                                     </button>
@@ -602,11 +584,10 @@ export default function RolesPage() {
                                       type="button"
                                       onClick={() => togglePermissionAutoSave(role.id, createPerm.id)}
                                       title={`Create ${moduleName}`}
-                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${
-                                        rolePermIds.includes(createPerm.id)
-                                          ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
-                                          : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                                      }`}
+                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(createPerm.id)
+                                        ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
+                                        : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
+                                        }`}
                                     >
                                       C
                                     </button>
@@ -620,11 +601,10 @@ export default function RolesPage() {
                                       type="button"
                                       onClick={() => togglePermissionAutoSave(role.id, editPerm.id)}
                                       title={`Edit ${moduleName}`}
-                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${
-                                        rolePermIds.includes(editPerm.id)
-                                          ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
-                                          : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                                      }`}
+                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(editPerm.id)
+                                        ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
+                                        : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
+                                        }`}
                                     >
                                       E
                                     </button>
@@ -638,11 +618,10 @@ export default function RolesPage() {
                                       type="button"
                                       onClick={() => togglePermissionAutoSave(role.id, deletePerm.id)}
                                       title={`Delete ${moduleName}`}
-                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${
-                                        rolePermIds.includes(deletePerm.id)
-                                          ? 'bg-rose-500 text-white dark:bg-rose-950/60 dark:text-rose-400 border border-rose-500 dark:border-rose-700 shadow-xs'
-                                          : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                                      }`}
+                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(deletePerm.id)
+                                        ? 'bg-rose-500 text-white dark:bg-rose-950/60 dark:text-rose-400 border border-rose-500 dark:border-rose-700 shadow-xs'
+                                        : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
+                                        }`}
                                     >
                                       D
                                     </button>
@@ -655,7 +634,7 @@ export default function RolesPage() {
                                 {primaryPerm && rolePermIds.some(id => modulePerms.map(p => p.id).includes(id)) && (
                                   (() => {
                                     const isAdminRole = ['admin', 'superadmin'].includes(role.name.toLowerCase().trim());
-                                    
+
                                     if (isAdminRole) {
                                       return (
                                         <div className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[8.5px] font-black uppercase tracking-wider mt-0.5">
@@ -682,11 +661,10 @@ export default function RolesPage() {
                                                 handleScopeChange(role.id, activeIds, sc.key);
                                               }}
                                               title={sc.title}
-                                              className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${
-                                                isSelected
-                                                  ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white border border-indigo-600 shadow-xs scale-105'
-                                                  : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-700 dark:hover:text-slate-300'
-                                              }`}
+                                              className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${isSelected
+                                                ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white border border-indigo-600 shadow-xs scale-105'
+                                                : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-700 dark:hover:text-slate-300'
+                                                }`}
                                             >
                                               {sc.letter}
                                             </button>
@@ -767,7 +745,7 @@ export default function RolesPage() {
               </div>
 
               {/* Horizontal Scrollable Row list */}
-              <div 
+              <div
                 className="flex gap-4 overflow-x-auto pb-3 pt-1 scroll-smooth"
                 style={{
                   scrollbarWidth: 'thin',
@@ -786,11 +764,10 @@ export default function RolesPage() {
                       <div
                         key={role.id}
                         onClick={() => setSelectedRoleId(role.id)}
-                        className={`relative group rounded-2xl border p-4 cursor-pointer transition-all duration-300 flex items-center justify-between hover:scale-[1.02] flex-shrink-0 min-w-[200px] ${
-                          isActive
-                            ? 'bg-indigo-50/70 dark:bg-indigo-950/20 border-indigo-500 dark:border-indigo-500/80 shadow-md shadow-indigo-550/10 text-indigo-600 dark:text-indigo-400 font-black scale-[1.02]'
-                            : 'bg-white dark:bg-slate-900/15 border-slate-200 dark:border-slate-850 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-slate-200'
-                        }`}
+                        className={`relative group rounded-2xl border p-4 cursor-pointer transition-all duration-300 flex items-center justify-between hover:scale-[1.02] flex-shrink-0 min-w-[200px] ${isActive
+                          ? 'bg-indigo-50/70 dark:bg-indigo-950/20 border-indigo-500 dark:border-indigo-500/80 shadow-md shadow-indigo-550/10 text-indigo-600 dark:text-indigo-400 font-black scale-[1.02]'
+                          : 'bg-white dark:bg-slate-900/15 border-slate-200 dark:border-slate-850 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-slate-200'
+                          }`}
                       >
                         {isActive && (
                           <span className="absolute left-0 top-3 bottom-3 w-1 bg-indigo-500 rounded-r-full animate-pulse" />
@@ -810,9 +787,8 @@ export default function RolesPage() {
                             KEY: {role.name.toLowerCase().replace(/\s+/g, '_')}
                           </span>
                         </div>
-                        <span className={`text-[10px] h-6 px-2.5 rounded-full font-black flex items-center justify-center border ${
-                          isActive ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' : 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200/50 dark:border-slate-800'
-                        }`}>
+                        <span className={`text-[10px] h-6 px-2.5 rounded-full font-black flex items-center justify-center border ${isActive ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' : 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200/50 dark:border-slate-800'
+                          }`}>
                           {keyCount}
                         </span>
                       </div>
@@ -827,7 +803,7 @@ export default function RolesPage() {
           <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-card p-6 shadow-sm relative overflow-hidden group hover:border-slate-350 dark:hover:border-slate-700/80 hover:shadow-md transition-all duration-300 w-full text-left">
             <div className="absolute top-0 left-0 right-0 h-[3px] bg-purple-500" />
             <div className="space-y-6">
-              
+
               {/* Header: Title on Left, Searches on Right */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/60 pb-4">
                 <div className="flex items-center gap-3">
@@ -883,11 +859,10 @@ export default function RolesPage() {
                   return (
                     <div
                       key={moduleName}
-                      className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
-                        isExpanded
-                          ? 'border-purple-500/40 dark:border-purple-500/30 bg-white dark:bg-slate-900/20 shadow-md shadow-purple-500/5 ring-1 ring-purple-500/10'
-                          : 'border-slate-200/70 dark:border-slate-850/80 bg-white dark:bg-slate-900/10 hover:border-slate-350 dark:hover:border-slate-750 hover:shadow-xs'
-                      }`}
+                      className={`rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded
+                        ? 'border-purple-500/40 dark:border-purple-500/30 bg-white dark:bg-slate-900/20 shadow-md shadow-purple-500/5 ring-1 ring-purple-500/10'
+                        : 'border-slate-200/70 dark:border-slate-850/80 bg-white dark:bg-slate-900/10 hover:border-slate-350 dark:hover:border-slate-750 hover:shadow-xs'
+                        }`}
                     >
                       {/* Accordion Trigger Header */}
                       <div
@@ -895,11 +870,10 @@ export default function RolesPage() {
                         className="px-6 py-4 flex items-center justify-between cursor-pointer select-none"
                       >
                         <div className="flex items-center gap-3.5">
-                          <span className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
-                            isExpanded
-                              ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                          }`}>
+                          <span className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isExpanded
+                            ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                            }`}>
                             <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
@@ -910,18 +884,16 @@ export default function RolesPage() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <span className={`text-[10px] h-6 px-2.5 rounded-full font-black flex items-center justify-center border ${
-                            isExpanded
-                              ? 'bg-purple-600 text-white border-purple-600'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-400 border-slate-200/50 dark:border-slate-800'
-                          }`}>
+                          <span className={`text-[10px] h-6 px-2.5 rounded-full font-black flex items-center justify-center border ${isExpanded
+                            ? 'bg-purple-600 text-white border-purple-600'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-400 border-slate-200/50 dark:border-slate-800'
+                            }`}>
                             {modulePermissions.length}
                           </span>
 
                           <svg
-                            className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                              isExpanded ? 'transform rotate-180 text-purple-500' : ''
-                            }`}
+                            className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'transform rotate-180 text-purple-500' : ''
+                              }`}
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2.5"
@@ -979,9 +951,8 @@ export default function RolesPage() {
                                 return (
                                   <div
                                     key={p.id}
-                                    className={`rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10 p-4 relative flex flex-col justify-between min-h-[135px] hover:border-slate-350 dark:hover:border-slate-700/80 transition-all duration-200 ${
-                                      !isViewAction && !isViewChecked ? 'opacity-40 select-none' : ''
-                                    }`}
+                                    className={`rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10 p-4 relative flex flex-col justify-between min-h-[135px] hover:border-slate-350 dark:hover:border-slate-700/80 transition-all duration-200 ${!isViewAction && !isViewChecked ? 'opacity-40 select-none' : ''
+                                      }`}
                                   >
                                     <div className="flex items-center justify-between w-full">
                                       <span className={`text-[8.5px] px-2 py-0.5 rounded font-black tracking-widest uppercase ${actionBadgeColor}`}>
@@ -992,17 +963,15 @@ export default function RolesPage() {
                                         type="button"
                                         disabled={isToggleDisabled}
                                         onClick={() => !isToggleDisabled && selectedRoleId && togglePermissionAutoSave(selectedRoleId, p.id)}
-                                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-250 ease-in-out outline-none focus:outline-none ${
-                                          isChecked
-                                            ? 'bg-indigo-600 shadow shadow-indigo-600/30'
-                                            : 'bg-slate-200 dark:bg-slate-850'
-                                        } ${isToggleDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-250 ease-in-out outline-none focus:outline-none ${isChecked
+                                          ? 'bg-indigo-600 shadow shadow-indigo-600/30'
+                                          : 'bg-slate-200 dark:bg-slate-850'
+                                          } ${isToggleDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                                       >
                                         <span
                                           aria-hidden="true"
-                                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-250 ease-in-out ${
-                                            isChecked ? 'translate-x-4' : 'translate-x-0'
-                                          }`}
+                                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-250 ease-in-out ${isChecked ? 'translate-x-4' : 'translate-x-0'
+                                            }`}
                                         />
                                       </button>
                                     </div>
@@ -1077,8 +1046,8 @@ export default function RolesPage() {
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-indigo-600/35 transition-all duration-200 cursor-pointer mt-4 active:scale-[0.98]"
           >
             Create Access Role
