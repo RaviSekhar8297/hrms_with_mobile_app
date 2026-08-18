@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
@@ -44,6 +44,9 @@ export default function ShiftsPage() {
   // Tab state: 'policies' | 'assignments' | 'rotation'
   const [activeTab, setActiveTab] = useState<ShiftTabId>('policies');
 
+  // Search state for filtering shifts and employee assignments
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Shifts state
   const [shifts, setShifts] = useState<any[]>([]);
   const [addShiftDrawerOpen, setAddShiftDrawerOpen] = useState(false);
@@ -83,6 +86,53 @@ export default function ShiftsPage() {
   const [empSearch, setEmpSearch] = useState('');
   const [selectedShiftForSeq, setSelectedShiftForSeq] = useState('');
 
+  // Filtered lists for Search functionality
+  const filteredShifts = useMemo(() => {
+    if (!searchQuery.trim()) return shifts;
+    const q = searchQuery.toLowerCase().trim();
+    return shifts.filter(s =>
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.company_name && s.company_name.toLowerCase().includes(q)) ||
+      (s.start_time && s.start_time.toLowerCase().includes(q)) ||
+      (s.end_time && s.end_time.toLowerCase().includes(q))
+    );
+  }, [shifts, searchQuery]);
+
+  const filteredEmployeeShifts = useMemo(() => {
+    if (!searchQuery.trim()) return employeeShifts;
+    const q = searchQuery.toLowerCase().trim();
+    return employeeShifts.filter(es =>
+      (es.first_name && es.first_name.toLowerCase().includes(q)) ||
+      (es.last_name && es.last_name.toLowerCase().includes(q)) ||
+      (`${es.first_name || ''} ${es.last_name || ''}`.toLowerCase().includes(q)) ||
+      (es.emp_id_code && es.emp_id_code.toLowerCase().includes(q)) ||
+      (es.shift_name && es.shift_name.toLowerCase().includes(q)) ||
+      (es.company_name && es.company_name.toLowerCase().includes(q))
+    );
+  }, [employeeShifts, searchQuery]);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Reset pagination on search query or tab change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab]);
+
+  // Paginated Shift Policies
+  const totalPolicyPages = Math.max(1, Math.ceil(filteredShifts.length / pageSize));
+  const paginatedShifts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredShifts.slice(start, start + pageSize);
+  }, [filteredShifts, currentPage, pageSize]);
+
+  // Paginated Employee Shift Assignments
+  const totalAssignmentPages = Math.max(1, Math.ceil(filteredEmployeeShifts.length / pageSize));
+  const paginatedEmployeeShifts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredEmployeeShifts.slice(start, start + pageSize);
+  }, [filteredEmployeeShifts, currentPage, pageSize]);
+
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
 
   const visibleTabs = SHIFT_TABS.filter(t => hasPermission(t.permission));
@@ -106,8 +156,8 @@ export default function ShiftsPage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `http://localhost:5000/api/v1/shifts?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/shifts';
+        ? `/api/v1/shifts?companyId=${companyId}`
+        : '/api/v1/shifts';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -125,8 +175,8 @@ export default function ShiftsPage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `http://localhost:5000/api/v1/employee-shifts?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/employee-shifts';
+        ? `/api/v1/employee-shifts?companyId=${companyId}`
+        : '/api/v1/employee-shifts';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -144,8 +194,8 @@ export default function ShiftsPage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `http://localhost:5000/api/v1/employees?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/employees';
+        ? `/api/v1/employees?companyId=${companyId}`
+        : '/api/v1/employees';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -160,7 +210,7 @@ export default function ShiftsPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
@@ -204,8 +254,8 @@ export default function ShiftsPage() {
     try {
       const method = newShiftForm.id ? 'PUT' : 'POST';
       const url = newShiftForm.id 
-        ? `http://localhost:5000/api/v1/shifts/${newShiftForm.id}`
-        : 'http://localhost:5000/api/v1/shifts';
+        ? `/api/v1/shifts/${newShiftForm.id}`
+        : '/api/v1/shifts';
 
       const res = await fetch(url, {
         method,
@@ -235,7 +285,7 @@ export default function ShiftsPage() {
     try {
       const selectedShiftObj = shifts.find(s => String(s.id) === String(id));
       const targetCompanyId = companyId || (selectedShiftObj ? selectedShiftObj.company_id : null);
-      const res = await fetch(`http://localhost:5000/api/v1/shifts/${id}`, {
+      const res = await fetch(`/api/v1/shifts/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
         body: JSON.stringify({ companyId: targetCompanyId })
@@ -264,8 +314,8 @@ export default function ShiftsPage() {
       const targetCompanyId = companyId || (selectedEmployeeObj ? selectedEmployeeObj.company_id : null);
       const method = assignmentForm.id ? 'PUT' : 'POST';
       const url = assignmentForm.id 
-        ? `http://localhost:5000/api/v1/employee-shifts/${assignmentForm.id}`
-        : 'http://localhost:5000/api/v1/employee-shifts';
+        ? `/api/v1/employee-shifts/${assignmentForm.id}`
+        : '/api/v1/employee-shifts';
 
       const res = await fetch(url, {
         method,
@@ -311,7 +361,7 @@ export default function ShiftsPage() {
 
     try {
       const targetCompanyId = companyId;
-      const res = await fetch('http://localhost:5000/api/v1/employee-shifts/rotate', {
+      const res = await fetch('/api/v1/employee-shifts/rotate', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -387,7 +437,7 @@ export default function ShiftsPage() {
     try {
       const selectedAss = employeeShifts.find(es => String(es.id) === String(id));
       const targetCompanyId = companyId || (selectedAss ? selectedAss.company_id : null);
-      const res = await fetch(`http://localhost:5000/api/v1/employee-shifts/${id}`, {
+      const res = await fetch(`/api/v1/employee-shifts/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
         body: JSON.stringify({ companyId: targetCompanyId })
@@ -474,7 +524,7 @@ export default function ShiftsPage() {
           {visibleTabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => { setActiveTab(tab.id); setSearchQuery(''); }}
               className={`px-4.5 py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                 activeTab === tab.id
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -494,31 +544,50 @@ export default function ShiftsPage() {
               <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-left font-sans">Shift Master Configuration</h3>
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5 text-left font-sans">Define working hours, grace windows, and overnight shifts</p>
             </div>
-            {hasPermission('create_shift_masters') && (
-              <button
-                onClick={() => {
-                  setNewShiftForm({
-                    id: '',
-                    name: '',
-                    start_time: '09:00',
-                    end_time: '18:00',
-                    grace_in_minutes: '15',
-                    grace_out_minutes: '15',
-                    halfday_minutes: '240',
-                    fullday_minutes: '480',
-                    is_overnight: false,
-                    company_id: ''
-                  });
-                  setAddShiftDrawerOpen(true);
-                }}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            <div className="flex items-center gap-3">
+              <div className="relative sm:w-64">
+                <svg className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
-                Create Shift
-              </button>
-            )}
+                <input
+                  type="text"
+                  placeholder="Search shifts, company..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-7 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 font-medium shadow-xs"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold">
+                    ✕
+                  </button>
+                )}
+              </div>
+              {hasPermission('create_shift_masters') && (
+                <button
+                  onClick={() => {
+                    setNewShiftForm({
+                      id: '',
+                      name: '',
+                      start_time: '09:00',
+                      end_time: '18:00',
+                      grace_in_minutes: '15',
+                      grace_out_minutes: '15',
+                      halfday_minutes: '240',
+                      fullday_minutes: '480',
+                      is_overnight: false,
+                      company_id: ''
+                    });
+                    setAddShiftDrawerOpen(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Create Shift
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-card p-6 shadow-sm text-left">
@@ -536,14 +605,14 @@ export default function ShiftsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {shifts.length === 0 ? (
+                  {paginatedShifts.length === 0 ? (
                     <tr>
                       <td colSpan={!companyId ? 7 : 6} className="py-8 text-center text-slate-450 dark:text-slate-550 font-bold">
-                        No shift policies configured yet.
+                        {searchQuery ? `No shift policies found matching "${searchQuery}"` : 'No shift policies configured yet.'}
                       </td>
                     </tr>
                   ) : (
-                    shifts.map(s => (
+                    paginatedShifts.map(s => (
                       <tr key={s.id} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-550/5 transition-all">
                         {!companyId && <td className="py-4 px-3 text-slate-550 dark:text-slate-400 font-bold">{s.company_name || 'Global'}</td>}
                         <td className="py-4 px-3 font-black text-slate-800 dark:text-slate-200">{s.name}</td>
@@ -593,6 +662,59 @@ export default function ShiftsPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-4 border-t border-slate-200/60 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5 font-medium">
+                <span>Showing</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                  {filteredShifts.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+                </span>
+                <span>to</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                  {Math.min(currentPage * pageSize, filteredShifts.length)}
+                </span>
+                <span>of</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">{filteredShifts.length}</span>
+                <span>entries</span>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400">Per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                    className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-2 font-bold font-mono text-slate-800 dark:text-slate-200">
+                    {currentPage} / {totalPolicyPages}
+                  </span>
+                  <button
+                    disabled={currentPage >= totalPolicyPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPolicyPages, p + 1))}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -604,27 +726,46 @@ export default function ShiftsPage() {
               <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-left font-sans">Employee Shift Assignments</h3>
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5 text-left font-sans">Assign work shifts to individual employees with effective dates</p>
             </div>
-            {hasPermission('create_shift_assignments') && (
-              <button
-                onClick={() => {
-                  setAssignmentForm({
-                    id: '',
-                    employee_id: '',
-                    shift_id: shifts.length > 0 ? shifts[0].id : '',
-                    effective_from: new Date().toISOString().split('T')[0],
-                    effective_to: '',
-                    is_default: false
-                  });
-                  setAssignmentDrawerOpen(true);
-                }}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            <div className="flex items-center gap-3">
+              <div className="relative sm:w-64">
+                <svg className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
-                Assign Shift
-              </button>
-            )}
+                <input
+                  type="text"
+                  placeholder="Search staff, code, shift..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-7 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 font-medium shadow-xs"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold">
+                    ✕
+                  </button>
+                )}
+              </div>
+              {hasPermission('create_shift_assignments') && (
+                <button
+                  onClick={() => {
+                    setAssignmentForm({
+                      id: '',
+                      employee_id: '',
+                      shift_id: shifts.length > 0 ? shifts[0].id : '',
+                      effective_from: new Date().toISOString().split('T')[0],
+                      effective_to: '',
+                      is_default: false
+                    });
+                    setAssignmentDrawerOpen(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Assign Shift
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-card p-6 shadow-sm text-left">
@@ -643,14 +784,14 @@ export default function ShiftsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {employeeShifts.length === 0 ? (
+                  {paginatedEmployeeShifts.length === 0 ? (
                     <tr>
                       <td colSpan={!companyId ? 8 : 7} className="py-8 text-center text-slate-450 dark:text-slate-550 font-bold">
-                        No shift assignments defined yet.
+                        {searchQuery ? `No shift assignments found matching "${searchQuery}"` : 'No shift assignments defined yet.'}
                       </td>
                     </tr>
                   ) : (
-                    employeeShifts.map(es => (
+                    paginatedEmployeeShifts.map(es => (
                       <tr key={es.id} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-550/5 transition-all">
                         {!companyId && <td className="py-4 px-3 text-slate-550 dark:text-slate-400 font-bold">{es.company_name || 'Global'}</td>}
                         <td className="py-4 px-3 font-semibold text-slate-600 dark:text-slate-400 font-mono">{es.emp_id_code}</td>
@@ -696,6 +837,59 @@ export default function ShiftsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Pagination Controls Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-4 border-t border-slate-200/60 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5 font-medium">
+                <span>Showing</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                  {filteredEmployeeShifts.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+                </span>
+                <span>to</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                  {Math.min(currentPage * pageSize, filteredEmployeeShifts.length)}
+                </span>
+                <span>of</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">{filteredEmployeeShifts.length}</span>
+                <span>entries</span>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400">Per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                    className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-2 font-bold font-mono text-slate-800 dark:text-slate-200">
+                    {currentPage} / {totalAssignmentPages}
+                  </span>
+                  <button
+                    disabled={currentPage >= totalAssignmentPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalAssignmentPages, p + 1))}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

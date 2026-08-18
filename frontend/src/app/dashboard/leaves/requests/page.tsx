@@ -83,7 +83,7 @@ export default function LeaveRequestsPage() {
   const fetchEmployees = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/employees?companyId=${cid}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/employees?companyId=${cid}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setEmployees(data.employees || []);
     } catch (e) {
@@ -94,7 +94,7 @@ export default function LeaveRequestsPage() {
   const fetchLeaveTypes = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/leave-types?companyId=${cid}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/leave-types?companyId=${cid}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setLeaveTypes(data.leaveTypes || []);
     } catch (e) {
@@ -105,7 +105,7 @@ export default function LeaveRequestsPage() {
   const fetchHolidays = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/holidays?companyId=${cid}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/holidays?companyId=${cid}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setHolidays(data.holidays || []);
     } catch (e) {}
@@ -114,7 +114,7 @@ export default function LeaveRequestsPage() {
   const fetchWeekoffs = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/weekoffs?companyId=${cid}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/weekoffs?companyId=${cid}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setWeekoffPolicy(data.policy || null);
     } catch (e) {}
@@ -124,7 +124,7 @@ export default function LeaveRequestsPage() {
     setIsLoading(true);
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/leave-requests?companyId=${cid}&scope=${scope}`, {
+      const res = await fetch(`/api/v1/leave-requests?companyId=${cid}&scope=${scope}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -175,7 +175,7 @@ export default function LeaveRequestsPage() {
     }
     setIsSaving(true);
     try {
-      const res = await fetch('http://localhost:5000/api/v1/leave-requests', {
+      const res = await fetch('/api/v1/leave-requests', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(applyForm)
@@ -199,7 +199,7 @@ export default function LeaveRequestsPage() {
     if (!actionModal.req) return;
     setIsSaving(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/leave-requests/${actionModal.req.id}/action`, {
+      const res = await fetch(`/api/v1/leave-requests/${actionModal.req.id}/action`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -266,42 +266,42 @@ export default function LeaveRequestsPage() {
 
       {/* 📊 SUMMARY CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+        <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-indigo-50/95 via-sky-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Applications</span>
-            <span className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1 block">{requests.length}</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Total Applications</span>
+            <span className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono mt-1 block">{requests.length}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 flex items-center justify-center font-bold text-xl">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-bold text-xl border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs group-hover:scale-105 transition-transform">
             📝
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+        <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-amber-50/95 via-orange-50/30 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900 border border-amber-200/70 dark:border-amber-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-amber-500 uppercase tracking-wider block">Pending Queue</span>
-            <span className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-1 block">{pendingCount}</span>
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">Pending Queue</span>
+            <span className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 font-mono mt-1 block">{pendingCount}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 flex items-center justify-center font-bold text-xl">
+          <div className="w-12 h-12 rounded-2xl bg-amber-100/80 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 flex items-center justify-center font-bold text-xl border border-amber-200/60 dark:border-amber-800/60 shadow-xs group-hover:scale-105 transition-transform">
             ⏳
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+        <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-emerald-50/95 via-teal-50/30 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider block">Approved</span>
-            <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1 block">{approvedCount}</span>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Approved</span>
+            <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-1 block">{approvedCount}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center font-bold text-xl">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-100/80 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center font-bold text-xl border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs group-hover:scale-105 transition-transform">
             ✅
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+        <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-rose-50/95 via-pink-50/30 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900 border border-rose-200/70 dark:border-rose-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-rose-500 uppercase tracking-wider block">Rejected</span>
-            <span className="text-2xl font-extrabold text-rose-600 dark:text-rose-400 mt-1 block">{rejectedCount}</span>
+            <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">Rejected</span>
+            <span className="text-2xl font-extrabold text-rose-600 dark:text-rose-400 font-mono mt-1 block">{rejectedCount}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 flex items-center justify-center font-bold text-xl">
+          <div className="w-12 h-12 rounded-2xl bg-rose-100/80 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center font-bold text-xl border border-rose-200/60 dark:border-rose-800/60 shadow-xs group-hover:scale-105 transition-transform">
             ❌
           </div>
         </div>

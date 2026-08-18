@@ -80,7 +80,7 @@ export default function SmartHRPage() {
   const fetchAttendancePolicy = async () => {
     try {
       const cid = companyId ? `?company_id=${companyId}` : '';
-      const res = await fetch(`http://localhost:5000/api/v1/attendance/policies${cid}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/attendance/policies${cid}`, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {
@@ -97,8 +97,8 @@ export default function SmartHRPage() {
     try {
       const cid = companyId ? `?company_id=${companyId}` : '';
       const [emailRes, whatsappRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/email${cid}`, { headers: getHeaders() }),
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/whatsapp${cid}`, { headers: getHeaders() })
+        fetch(`/api/v1/recruitment/settings/email${cid}`, { headers: getHeaders() }),
+        fetch(`/api/v1/recruitment/settings/whatsapp${cid}`, { headers: getHeaders() })
       ]);
       if (emailRes.ok) {
         const data = await emailRes.json();
@@ -114,7 +114,7 @@ export default function SmartHRPage() {
   const fetchEmployees = async () => {
     try {
       const cid = companyId || 'all';
-      const res = await fetch(`http://localhost:5000/api/v1/employees?companyId=${cid}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/employees?companyId=${cid}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setEmployees(data.employees || []);
     } catch (e) {}
@@ -123,7 +123,7 @@ export default function SmartHRPage() {
   const fetchSchedules = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/v1/smart-hr/schedules', { headers: getHeaders() });
+      const res = await fetch('/api/v1/smart-hr/schedules', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setSchedules(data.schedules || []);
     } catch (e) {
@@ -135,7 +135,7 @@ export default function SmartHRPage() {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/smart-hr/templates', { headers: getHeaders() });
+      const res = await fetch('/api/v1/smart-hr/templates', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setTemplates(data.templates || []);
     } catch (e) {}
@@ -143,7 +143,7 @@ export default function SmartHRPage() {
 
   const fetchLogs = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/smart-hr/logs', { headers: getHeaders() });
+      const res = await fetch('/api/v1/smart-hr/logs', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setLogs(data.logs || []);
     } catch (e) {}
@@ -174,8 +174,8 @@ export default function SmartHRPage() {
     try {
       const method = editingSchedule ? 'PUT' : 'POST';
       const url = editingSchedule
-        ? `http://localhost:5000/api/v1/smart-hr/schedules/${editingSchedule.id}`
-        : 'http://localhost:5000/api/v1/smart-hr/schedules';
+        ? `/api/v1/smart-hr/schedules/${editingSchedule.id}`
+        : '/api/v1/smart-hr/schedules';
 
       const res = await fetch(url, {
         method,
@@ -201,7 +201,7 @@ export default function SmartHRPage() {
   const handleToggleScheduleStatus = async (s: any) => {
     const newStatus = s.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/smart-hr/schedules/${s.id}`, {
+      const res = await fetch(`/api/v1/smart-hr/schedules/${s.id}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -225,7 +225,7 @@ export default function SmartHRPage() {
   const handleExecuteNow = async (id: string) => {
     setRunningScheduleId(id);
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/smart-hr/schedules/${id}/execute`, {
+      const res = await fetch(`/api/v1/smart-hr/schedules/${id}/execute`, {
         method: 'POST',
         headers: getHeaders()
       });
@@ -246,7 +246,7 @@ export default function SmartHRPage() {
   const handleDeleteSchedule = async (id: string) => {
     if (!confirm('Are you sure you want to delete this schedule?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/smart-hr/schedules/${id}`, {
+      const res = await fetch(`/api/v1/smart-hr/schedules/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
@@ -333,8 +333,8 @@ export default function SmartHRPage() {
     try {
       const method = editingTemplate ? 'PUT' : 'POST';
       const url = editingTemplate
-        ? `http://localhost:5000/api/v1/smart-hr/templates/${editingTemplate.id}`
-        : 'http://localhost:5000/api/v1/smart-hr/templates';
+        ? `/api/v1/smart-hr/templates/${editingTemplate.id}`
+        : '/api/v1/smart-hr/templates';
 
       const res = await fetch(url, {
         method,
@@ -360,7 +360,7 @@ export default function SmartHRPage() {
   const handleDeleteTemplate = async (id: string) => {
     if (!confirm('Are you sure you want to delete this template?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/smart-hr/templates/${id}`, {
+      const res = await fetch(`/api/v1/smart-hr/templates/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
@@ -400,7 +400,7 @@ export default function SmartHRPage() {
   // LOG HANDLERS
   const handleDeleteLog = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/smart-hr/logs/${id}`, {
+      const res = await fetch(`/api/v1/smart-hr/logs/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
       });

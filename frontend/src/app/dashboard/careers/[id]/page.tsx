@@ -30,7 +30,7 @@ export default function JobDetailsPage() {
   const fetchJobDetails = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/jobs/${id}`, {
+      const res = await fetch(`/api/v1/recruitment/jobs/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -61,7 +61,7 @@ export default function JobDetailsPage() {
         submitData.append('resume', resumeFile);
       }
 
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/jobs/${id}/apply`, {
+      const res = await fetch(`/api/v1/recruitment/jobs/${id}/apply`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`

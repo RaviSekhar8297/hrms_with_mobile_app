@@ -108,7 +108,7 @@ export default function HolidaysPage() {
       } else if (!isSuper && companyId && companyId !== 'all') {
         queryParam = `?companyId=${companyId}`;
       }
-      const res = await fetch(`http://localhost:5000/api/v1/holidays${queryParam}`, {
+      const res = await fetch(`/api/v1/holidays${queryParam}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -126,7 +126,7 @@ export default function HolidaysPage() {
       const isSuper = roles.includes('SuperAdmin') || roles.includes('superadmin');
       const targetCo = (isSuper && companyId && companyId !== 'all') ? companyId : (!isSuper ? (companyId || '') : '');
       if (!targetCo) return;
-      const res = await fetch(`http://localhost:5000/api/v1/branches?companyId=${targetCo}`, {
+      const res = await fetch(`/api/v1/branches?companyId=${targetCo}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -140,7 +140,7 @@ export default function HolidaysPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) {
@@ -180,8 +180,8 @@ export default function HolidaysPage() {
     try {
       const method = newHolidayForm.id ? 'PUT' : 'POST';
       const url = newHolidayForm.id
-        ? `http://localhost:5000/api/v1/holidays/${newHolidayForm.id}`
-        : 'http://localhost:5000/api/v1/holidays';
+        ? `/api/v1/holidays/${newHolidayForm.id}`
+        : '/api/v1/holidays';
 
       const res = await fetch(url, {
         method,
@@ -222,7 +222,7 @@ export default function HolidaysPage() {
 
   const confirmDeleteHoliday = async (id: string, holidayCompanyId: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/holidays/${id}`, {
+      const res = await fetch(`/api/v1/holidays/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
         body: JSON.stringify({ companyId: holidayCompanyId })
@@ -274,7 +274,7 @@ export default function HolidaysPage() {
     setHolidays(updatedHolidays);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/holidays/${holidayId}/restrict-branches`, {
+      const res = await fetch(`/api/v1/holidays/${holidayId}/restrict-branches`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -408,43 +408,43 @@ export default function HolidaysPage() {
 
       {/* 📊 KPI STATS OVERVIEW CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg shrink-0 border border-blue-500/20">
+        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-indigo-50/95 via-sky-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center text-lg shrink-0 border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs group-hover:scale-105 transition-transform">
             📅
           </div>
           <div>
-            <p className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Total Holidays</p>
-            <p className="text-xl font-black text-slate-900 dark:text-white">{holidays.length}</p>
+            <p className="text-[10.5px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">Total Holidays</p>
+            <p className="text-xl font-black text-indigo-600 dark:text-indigo-400 font-mono">{holidays.length}</p>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg shrink-0 border border-indigo-500/20">
+        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-emerald-50/95 via-teal-50/30 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100/80 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center text-lg shrink-0 border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs group-hover:scale-105 transition-transform">
             🏢
           </div>
           <div>
-            <p className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Active Branches</p>
-            <p className="text-xl font-black text-slate-900 dark:text-white">{branches.length}</p>
+            <p className="text-[10.5px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">Active Branches</p>
+            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{branches.length}</p>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg shrink-0 border border-emerald-500/20">
+        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-amber-50/95 via-orange-50/30 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900 border border-amber-200/70 dark:border-amber-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-amber-100/80 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 flex items-center justify-center text-lg shrink-0 border border-amber-200/60 dark:border-amber-800/60 shadow-xs group-hover:scale-105 transition-transform">
             ✨
           </div>
           <div>
-            <p className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">General Holidays</p>
-            <p className="text-xl font-black text-slate-900 dark:text-white">{holidays.filter(h => !h.is_restricted).length}</p>
+            <p className="text-[10.5px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider">General Holidays</p>
+            <p className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono">{holidays.filter(h => !h.is_restricted).length}</p>
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg shrink-0 border border-amber-500/20">
+        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-rose-50/95 via-pink-50/30 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900 border border-rose-200/70 dark:border-rose-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-rose-100/80 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center text-lg shrink-0 border border-rose-200/60 dark:border-rose-800/60 shadow-xs group-hover:scale-105 transition-transform">
             📜
           </div>
           <div>
-            <p className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Restricted (RH)</p>
-            <p className="text-xl font-black text-slate-900 dark:text-white">{holidays.filter(h => h.is_restricted).length}</p>
+            <p className="text-[10.5px] font-black uppercase text-rose-600 dark:text-rose-400 tracking-wider">Restricted (RH)</p>
+            <p className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono">{holidays.filter(h => h.is_restricted).length}</p>
           </div>
         </div>
       </div>

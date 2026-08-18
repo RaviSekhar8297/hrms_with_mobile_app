@@ -114,7 +114,7 @@ export default function AttendancePermissionsPage() {
   const fetchRequests = async (scope: 'my' | 'team') => {
     if (!companyId) return;
     try {
-      const url = `http://localhost:5000/api/v1/attendance/permissions?companyId=${companyId}&scope=${scope}`;
+      const url = `/api/v1/attendance/permissions?companyId=${companyId}&scope=${scope}`;
       const res = await fetch(url, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
@@ -161,7 +161,7 @@ export default function AttendancePermissionsPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:5000/api/v1/attendance/permissions', {
+      const res = await fetch('/api/v1/attendance/permissions', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -205,7 +205,7 @@ export default function AttendancePermissionsPage() {
 
     setActionModal(prev => ({ ...prev, isProcessing: true }));
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/attendance/permissions/${actionModal.requestId}/action`, {
+      const res = await fetch(`/api/v1/attendance/permissions/${actionModal.requestId}/action`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({

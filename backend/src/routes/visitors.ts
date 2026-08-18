@@ -14,9 +14,13 @@ router.use(authenticateToken as any);
  *     summary: Get Visitor Pass & Check-in Logs
  *     tags:
  *       - Visitor Management
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Array of visitor log objects
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/logs', requirePermission('visitors:read') as any, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -37,8 +41,44 @@ router.get('/logs', requirePermission('visitors:read') as any, async (req: Authe
 });
 
 /**
- * @route   POST /api/visitors/checkin
- * @desc    Create a new visitor check-in
+ * @openapi
+ * /api/v1/visitors/checkin:
+ *   post:
+ *     summary: Create New Visitor Check-in
+ *     tags:
+ *       - Visitor Management
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - phone_number
+ *               - visitor_type
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Ramesh Kumar
+ *               phone_number:
+ *                 type: string
+ *                 example: "9876543210"
+ *               visitor_type:
+ *                 type: string
+ *                 example: Client / Vendor
+ *               host_id:
+ *                 type: string
+ *               purpose:
+ *                 type: string
+ *                 example: Project discussion meeting
+ *     responses:
+ *       201:
+ *         description: Visitor checked in successfully
+ *       400:
+ *         description: Invalid input parameters
  */
 router.post('/checkin', requirePermission('visitors:write') as any, async (req: AuthenticatedRequest, res: Response) => {
   try {

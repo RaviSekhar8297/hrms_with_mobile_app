@@ -3,9 +3,9 @@ const token = 'eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJ2Si04N0RkRlo5e
 async function test() {
   try {
     const urls = [
-      'http://localhost:5000/api/v1/companies',
-      'http://localhost:5000/api/v1/permissions',
-      'http://localhost:5000/api/v1/roles'
+      'http://localhost:5005/api/v1/companies',
+      'http://localhost:5005/api/v1/permissions',
+      'http://localhost:5005/api/v1/roles'
     ];
     for (const url of urls) {
       console.log(`\nTesting GET ${url}...`);

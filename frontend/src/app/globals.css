@@ -7,20 +7,20 @@
 
 
 :root {
-  --background: #0a0f1d;
-  --foreground: #f8fafc;
-  --card: #13192b;
+  --background: #d1e3da;
+  --foreground: #0f172a;
+  --card: #ffffff;
 }
 
 /* Nordic Light theme overrides (no dark class) */
 html.theme-nordic-light {
-  --background: #f8fafc;
+  --background: #d1e3da;
   --foreground: #0f172a;
   --card: #ffffff;
 }
 
 @theme inline {
-  --color-background: var(--background);
+  --color-background: #d1e3da;
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --font-sans: "Poppins", "Inter", sans-serif;
@@ -35,9 +35,9 @@ aside.font-sidebar * {
   font-family: 'Poppins', 'Inter', sans-serif !important;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+html, body, main, .bg-background {
+  background-color: #d1e3da !important;
+  color: #0f172a !important;
   font-family: 'Poppins', 'Inter', sans-serif !important;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
@@ -244,9 +244,12 @@ input[type="text"].pl-10 {
 
 /* 🔐 Login Input Explicit Pure White Background & Dark Text Rules */
 .login-input,
+#username,
+#password,
 .login-card input[type="text"],
 .login-card input[type="password"],
-.login-card input[type="email"] {
+.login-card input[type="email"],
+div[data-login-container] input {
   background-color: #ffffff !important;
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
@@ -257,11 +260,7 @@ input[type="text"].pl-10 {
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus,
-input:-webkit-autofill:active,
-.login-card input:-webkit-autofill,
-.login-card input:-webkit-autofill:hover, 
-.login-card input:-webkit-autofill:focus,
-.login-card input:-webkit-autofill:active {
+input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
   box-shadow: 0 0 0 1000px #ffffff inset !important;
   -webkit-text-fill-color: #0f172a !important;

@@ -145,7 +145,7 @@ export default function OverviewPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
         const data = await res.json();
         setCompanies(data.companies || []);

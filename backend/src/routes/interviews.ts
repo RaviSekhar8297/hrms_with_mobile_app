@@ -13,10 +13,14 @@ router.use(authenticateToken as any);
  *   get:
  *     summary: Get Interview Schedules & Evaluator Assignments
  *     tags:
- *       - Interview Panel & Scorecards
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Array of interview schedule objects
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/schedules', requirePermission('recruitment:read') as any, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -56,8 +60,19 @@ router.get('/schedules', requirePermission('recruitment:read') as any, async (re
 });
 
 /**
- * @route   GET /api/v1/interviews/feedback/history
- * @desc    Get past interview feedback history joined with candidate and schedule details
+ * @openapi
+ * /api/v1/interviews/feedback/history:
+ *   get:
+ *     summary: Get Interview Feedback History
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of submitted interview scorecards and feedback entries
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/feedback/history', requirePermission('recruitment:read') as any, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -96,8 +111,45 @@ router.get('/feedback/history', requirePermission('recruitment:read') as any, as
 });
 
 /**
- * @route   POST /api/v1/interviews/feedback
- * @desc    Submit interview feedback
+ * @openapi
+ * /api/v1/interviews/feedback:
+ *   post:
+ *     summary: Submit Interview Evaluation Feedback
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - schedule_id
+ *               - technical_rating
+ *               - communication_rating
+ *               - recommendation
+ *             properties:
+ *               schedule_id:
+ *                 type: string
+ *               technical_rating:
+ *                 type: integer
+ *                 example: 4
+ *               communication_rating:
+ *                 type: integer
+ *                 example: 5
+ *               detailed_feedback:
+ *                 type: string
+ *                 example: Strong candidate with great problem solving skills.
+ *               recommendation:
+ *                 type: string
+ *                 example: HIRE
+ *     responses:
+ *       201:
+ *         description: Feedback saved successfully
+ *       400:
+ *         description: Invalid parameters
  */
 router.post('/feedback', requirePermission('recruitment:write') as any, async (req: AuthenticatedRequest, res: Response) => {
   try {

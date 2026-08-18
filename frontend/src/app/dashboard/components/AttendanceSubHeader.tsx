@@ -4,15 +4,16 @@ import React from 'react';
 import Link from 'next/link';
 
 export interface AttendanceSubHeaderProps {
-  activeTab: 'logs' | 'rules' | 'regularization' | 'permissions' | 'raw';
+  activeTab: 'logs' | 'rules' | 'regularization' | 'permissions' | 'raw' | 'summary';
 }
 
 export const ATTENDANCE_NAV_ITEMS = [
-  { id: 'logs', label: 'Attendance Logs', href: '/dashboard/attendance', icon: '📅' },
+  { id: 'logs', label: 'Attendance', href: '/dashboard/attendance', icon: '📅' },
   { id: 'rules', label: 'Attendance Rules', href: '/dashboard/attendance/rules', icon: '⏰' },
-  { id: 'regularization', label: 'Regularization Requests', href: '/dashboard/attendance/regularization', icon: '📝' },
-  { id: 'permissions', label: 'Permission Requests', href: '/dashboard/attendance/permissions', icon: '🎫' },
-  { id: 'raw', label: 'Raw Punch Logs', href: '/dashboard/attendance/raw-punches', icon: '🔌' },
+  { id: 'regularization', label: 'Regularization', href: '/dashboard/attendance/regularization', icon: '📝' },
+  { id: 'permissions', label: 'Permission', href: '/dashboard/attendance/permissions', icon: '🎫' },
+  { id: 'raw', label: 'Attendance Logs', href: '/dashboard/attendance/raw-punches', icon: '🔌' },
+  { id: 'summary', label: 'Attendance Summary', href: '/dashboard/attendance_summary', icon: '📊' },
 ] as const;
 
 export const AttendanceSubHeader: React.FC<AttendanceSubHeaderProps> = ({ activeTab }) => {

@@ -9,6 +9,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
 import { usePermissions } from '../hooks/usePermissions';
 import AttendanceSubHeader from '../components/AttendanceSubHeader';
+import { Download, FileSpreadsheet } from 'lucide-react';
 
 interface Company {
   id: string;
@@ -29,10 +30,10 @@ interface Employee {
 // Tab definitions with permission keys
 const ATTENDANCE_TABS = [
   { id: 'policies',        label: 'Attendance Rules',         permission: 'view_attendance_policies' },
-  { id: 'punches',         label: 'Raw Punch Logs',            permission: 'view_punch_records' },
-  { id: 'logs',            label: 'Attendance Logs',           permission: 'view_attendance_summary' },
-  { id: 'regularizations', label: 'Regularization Requests',  permission: 'view_attendance_regularizations' },
-  { id: 'permissions',     label: 'Permission Requests',       permission: 'view_permission_requests' },
+  { id: 'punches',         label: 'Attendance Logs',           permission: 'view_punch_records' },
+  { id: 'logs',            label: 'Attendance',                permission: 'view_attendance_summary' },
+  { id: 'regularizations', label: 'Regularization',           permission: 'view_attendance_regularizations' },
+  { id: 'permissions',     label: 'Permission',               permission: 'view_permission_requests' },
 ] as const;
 
 type AttendanceTabId = typeof ATTENDANCE_TABS[number]['id'];
@@ -82,6 +83,7 @@ export default function AttendancePage() {
 
   const fetchAddressName = async (lat: number, lng: number) => {
     try {
+      setLocationName('Locating address...');
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`);
       if (res.ok) {
         const data = await res.json();
@@ -89,11 +91,13 @@ export default function AttendancePage() {
           const parts = data.display_name.split(',');
           const shortAddr = parts.slice(0, 3).join(',').trim();
           setLocationName(shortAddr);
+          return;
         }
       }
     } catch (e) {
       console.warn('Reverse geocode error:', e);
     }
+    setLocationName(`Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`);
   };
 
   const startCamera = async () => {
@@ -138,29 +142,57 @@ export default function AttendancePage() {
     }
   };
 
+  const fetchIPLocationFallback = async () => {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.latitude && data.longitude) {
+          setPunchLat(data.latitude);
+          setPunchLng(data.longitude);
+          const cityState = [data.city, data.region, data.country_name].filter(Boolean).join(', ');
+          setLocationName(cityState || 'Location Detected (Network)');
+          setGpsError(null);
+          return true;
+        }
+      }
+    } catch (e) {
+      // Ignore network errors silently
+    }
+    return false;
+  };
+
   const getGPSLocation = () => {
     setGpsLoading(true);
     setGpsError(null);
-    if (!navigator.geolocation) {
-      setGpsError('Geolocation is not supported by your browser.');
-      setGpsLoading(false);
-      return;
-    }
+    setLocationName('Detecting live location...');
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setPunchLat(pos.coords.latitude);
-        setPunchLng(pos.coords.longitude);
-        fetchAddressName(pos.coords.latitude, pos.coords.longitude);
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setPunchLat(pos.coords.latitude);
+          setPunchLng(pos.coords.longitude);
+          fetchAddressName(pos.coords.latitude, pos.coords.longitude);
+          setGpsLoading(false);
+        },
+        async () => {
+          // Silently fallback to IP location on permission denied or error
+          const success = await fetchIPLocationFallback();
+          if (!success) {
+            setGpsError('Unable to retrieve location. Check browser permissions.');
+          }
+          setGpsLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
+      fetchIPLocationFallback().then((success) => {
+        if (!success) {
+          setGpsError('Geolocation is not supported by your browser.');
+        }
         setGpsLoading(false);
-      },
-      (err) => {
-        console.warn('GPS Error:', err);
-        setGpsError('Unable to retrieve GPS coordinates. Check browser permissions.');
-        setGpsLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+      });
+    }
   };
 
   const submitWebPunch = async () => {
@@ -189,7 +221,7 @@ export default function AttendancePage() {
         location_name: locationName
       };
 
-      const res = await fetch('http://localhost:5000/api/v1/attendance/punches', {
+      const res = await fetch('/api/v1/attendance/punches', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(body)
@@ -369,13 +401,13 @@ export default function AttendancePage() {
       const cid = isSuper ? companyId : localStorage.getItem('companyId');
       const queryParam = cid && cid !== 'all' ? `?companyId=${cid}` : '';
       
-      const holRes = await fetch(`http://localhost:5000/api/v1/holidays${queryParam}`, { headers: getHeaders() });
+      const holRes = await fetch(`/api/v1/holidays${queryParam}`, { headers: getHeaders() });
       if (holRes.ok) {
         const holData = await holRes.json();
         setHolidaysList(holData.holidays || []);
       }
 
-      const leaveRes = await fetch(`http://localhost:5000/api/v1/leave-requests${queryParam}`, { headers: getHeaders() });
+      const leaveRes = await fetch(`/api/v1/leave-requests${queryParam}`, { headers: getHeaders() });
       if (leaveRes.ok) {
         const leaveData = await leaveRes.json();
         setLeaveRequestsList(leaveData.leaveRequests || []);
@@ -468,8 +500,8 @@ export default function AttendancePage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `http://localhost:5000/api/v1/shifts?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/shifts';
+        ? `/api/v1/shifts?companyId=${companyId}`
+        : '/api/v1/shifts';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -482,8 +514,8 @@ export default function AttendancePage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `http://localhost:5000/api/v1/employees?companyId=${companyId}&module=attendance`
-        : 'http://localhost:5000/api/v1/employees?module=attendance';
+        ? `/api/v1/employees?companyId=${companyId}&module=attendance`
+        : '/api/v1/employees?module=attendance';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -502,8 +534,8 @@ export default function AttendancePage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       let url = companyId
-        ? `http://localhost:5000/api/v1/attendance/summary?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/attendance/summary';
+        ? `/api/v1/attendance/summary?companyId=${companyId}`
+        : '/api/v1/attendance/summary';
       const separator = url.includes('?') ? '&' : '?';
       let queryParams = '';
       if (filterDateStart) queryParams += `${queryParams ? '&' : ''}startDate=${filterDateStart}`;
@@ -528,8 +560,8 @@ export default function AttendancePage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `http://localhost:5000/api/v1/attendance/punches?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/attendance/punches';
+        ? `/api/v1/attendance/punches?companyId=${companyId}`
+        : '/api/v1/attendance/punches';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -549,7 +581,7 @@ export default function AttendancePage() {
       setPolicy(null);
       if (isSuperAdmin) {
         try {
-          const res = await fetch('http://localhost:5000/api/v1/attendance/policies', {
+          const res = await fetch('/api/v1/attendance/policies', {
             headers: getHeaders()
           });
           const data = await res.json();
@@ -563,7 +595,7 @@ export default function AttendancePage() {
       return;
     }
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/attendance/policies?companyId=${companyId}`, {
+      const res = await fetch(`/api/v1/attendance/policies?companyId=${companyId}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -619,8 +651,8 @@ export default function AttendancePage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `http://localhost:5000/api/v1/attendance/regularizations?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/attendance/regularizations';
+        ? `/api/v1/attendance/regularizations?companyId=${companyId}`
+        : '/api/v1/attendance/regularizations';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -636,8 +668,8 @@ export default function AttendancePage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `http://localhost:5000/api/v1/attendance/permissions?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/attendance/permissions';
+        ? `/api/v1/attendance/permissions?companyId=${companyId}`
+        : '/api/v1/attendance/permissions';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -651,7 +683,7 @@ export default function AttendancePage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
@@ -698,8 +730,8 @@ export default function AttendancePage() {
       }
       const method = logForm.id ? 'PUT' : 'POST';
       const url = logForm.id 
-        ? `http://localhost:5000/api/v1/attendance/summary/${logForm.id}`
-        : 'http://localhost:5000/api/v1/attendance/summary';
+        ? `/api/v1/attendance/summary/${logForm.id}`
+        : '/api/v1/attendance/summary';
 
       const res = await fetch(url, {
         method,
@@ -729,7 +761,7 @@ export default function AttendancePage() {
     try {
       const selectedLog = logs.find(l => String(l.id) === String(id));
       const targetCompanyId = companyId || (selectedLog ? selectedLog.company_id : null);
-      const res = await fetch(`http://localhost:5000/api/v1/attendance/summary/${id}`, {
+      const res = await fetch(`/api/v1/attendance/summary/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
         body: JSON.stringify({ companyId: targetCompanyId })
@@ -786,7 +818,7 @@ export default function AttendancePage() {
         }
       }
 
-      const res = await fetch('http://localhost:5000/api/v1/attendance/punches', {
+      const res = await fetch('/api/v1/attendance/punches', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -849,7 +881,7 @@ export default function AttendancePage() {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/v1/attendance/policies', {
+      const res = await fetch('/api/v1/attendance/policies', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -877,7 +909,7 @@ export default function AttendancePage() {
     if (!selectedReq) return;
     try {
       const targetCompanyId = companyId || selectedReq.company_id;
-      const res = await fetch(`http://localhost:5000/api/v1/attendance/regularizations/${selectedReq.id}/action`, {
+      const res = await fetch(`/api/v1/attendance/regularizations/${selectedReq.id}/action`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -906,7 +938,7 @@ export default function AttendancePage() {
     if (!selectedPerm) return;
     try {
       const targetCompanyId = companyId || selectedPerm.company_id;
-      const res = await fetch(`http://localhost:5000/api/v1/attendance/permissions/${selectedPerm.id}/action`, {
+      const res = await fetch(`/api/v1/attendance/permissions/${selectedPerm.id}/action`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -1141,71 +1173,99 @@ export default function AttendancePage() {
 
     return (
       <div className="space-y-6 animate-fadeIn">
-        {/* Month Navigation & Stats Header */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-gradient-to-br from-white via-slate-50/50 to-slate-100/80 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm backdrop-blur-xl">
-          {/* Month Navigator */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handlePrevMonth}
-              className="p-2.5 rounded-2xl bg-white dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 transition-all duration-200 cursor-pointer shadow-2xs hover:scale-105"
-              title="Previous Month"
-            >
-              <svg className="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
-            </button>
-            <h2 className="text-base font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight w-48 text-center font-outfit">
-              {monthNames[calMonth]} {calYear}
-            </h2>
-            <button
-              onClick={handleNextMonth}
-              className="p-2.5 rounded-2xl bg-white dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 transition-all duration-200 cursor-pointer shadow-2xs hover:scale-105"
-              title="Next Month"
-            >
-              <svg className="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </button>
-            <button
-              onClick={handleTodayMonth}
-              className="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-500/25 transition-all duration-200 cursor-pointer hover:scale-105"
-            >
-              Today
-            </button>
-          </div>
-
-          {/* Monthly KPI Stats Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/20">
-              <span className="h-3.5 w-3.5 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/50 flex-shrink-0 animate-pulse" />
-              <div>
-                <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Present</p>
-                <p className="text-base font-black text-emerald-900 dark:text-emerald-100 leading-none">{presentCount} Days</p>
-              </div>
+        {/* Unified Month Controls, Employee Filter & Action Buttons Header Card */}
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-4">
+          {/* Row 1: Month Navigator & Action Buttons */}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            {/* Month Navigation */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrevMonth}
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer shadow-2xs hover:scale-105"
+                title="Previous Month"
+              >
+                <svg className="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+              <h2 className="text-base font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight text-center font-outfit min-w-[150px]">
+                {monthNames[calMonth]} {calYear}
+              </h2>
+              <button
+                onClick={handleNextMonth}
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer shadow-2xs hover:scale-105"
+                title="Next Month"
+              >
+                <svg className="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+              <button
+                onClick={handleTodayMonth}
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-sm transition-all cursor-pointer hover:scale-105 ml-1"
+              >
+                Today
+              </button>
             </div>
 
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-rose-500/10 dark:bg-rose-950/40 border border-rose-500/20">
-              <span className="h-3.5 w-3.5 rounded-full bg-rose-500 shadow-xs shadow-rose-500/50 flex-shrink-0" />
-              <div>
-                <p className="text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">Absent</p>
-                <p className="text-base font-black text-rose-900 dark:text-rose-100 leading-none">{absentCount} Days</p>
+            {/* Employee Filter & Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+              <div className="w-56">
+                <SearchableSelect
+                  options={employees.map(emp => ({
+                    value: emp.id,
+                    label: `${emp.emp_id_code} - ${emp.first_name} ${emp.last_name}`
+                  }))}
+                  value={filterEmployee}
+                  onChange={val => setFilterEmployee(val)}
+                  placeholder="-- All Employees --"
+                />
               </div>
-            </div>
 
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/20">
-              <span className="h-3.5 w-3.5 rounded-full bg-amber-500 shadow-xs shadow-amber-500/50 flex-shrink-0" />
-              <div>
-                <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Half Day / Late</p>
-                <p className="text-base font-black text-amber-900 dark:text-amber-100 leading-none">{halfDayCount} Days</p>
-              </div>
-            </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPunchModalOpen(true);
+                  getGPSLocation();
+                  startCamera();
+                }}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105"
+              >
+                <span>📸</span> Mark Attendance
+              </button>
 
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-sky-500/10 dark:bg-sky-950/40 border border-sky-500/20">
-              <span className="h-3.5 w-3.5 rounded-full bg-sky-500 shadow-xs shadow-sky-500/50 flex-shrink-0" />
-              <div>
-                <p className="text-[9px] font-black text-sky-600 dark:text-sky-400 uppercase tracking-widest">Holiday / Off</p>
-                <p className="text-base font-black text-sky-900 dark:text-sky-100 leading-none">{holidayCount + leaveCount} Days</p>
-              </div>
+              <button
+                onClick={handleExportExcel}
+                disabled={isExporting}
+                title="Export Excel Logs"
+                className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all cursor-pointer flex items-center justify-center disabled:opacity-50 hover:scale-105"
+              >
+                {isExporting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download size={16} />
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  setLogForm({
+                    id: '',
+                    employee_id: employees.length > 0 ? employees[0].id : '',
+                    attendance_date: new Date().toISOString().split('T')[0],
+                    shift_id: shifts.length > 0 ? shifts[0].id : '',
+                    first_in: '',
+                    last_out: '',
+                    status: 'PRESENT',
+                    worked_minutes: '480',
+                    late_minutes: '0'
+                  });
+                  setLogEditDrawerOpen(true);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+              >
+                Manual Entry
+              </button>
             </div>
           </div>
         </div>
@@ -1408,118 +1468,6 @@ export default function AttendancePage() {
       {/* Tab Contents */}
       {activeTab === 'logs' && (
         <div className="space-y-6">
-          {/* Filters Area */}
-          <div className="flex flex-wrap gap-4 items-end bg-card/60 p-4 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
-            <div className="w-48">
-              <label className="block text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5 font-sans">Start Date</label>
-              <CustomDatePicker
-                value={filterDateStart}
-                onChange={setFilterDateStart}
-                placeholder="Select start date..."
-                maxDate={todayStr}
-              />
-            </div>
-            <div className="w-48">
-              <label className="block text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5 font-sans">End Date</label>
-              <CustomDatePicker
-                value={filterDateEnd}
-                onChange={setFilterDateEnd}
-                placeholder="Select end date..."
-                maxDate={todayStr}
-              />
-            </div>
-            <div className="w-64">
-              <label className="block text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5 font-sans">Filter Employee</label>
-              <SearchableSelect
-                options={employees.map(emp => ({
-                  value: emp.id,
-                  label: `${emp.emp_id_code} - ${emp.first_name} ${emp.last_name}`
-                }))}
-                value={filterEmployee}
-                onChange={val => setFilterEmployee(val)}
-                placeholder="-- All Employees --"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={fetchLogs}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors cursor-pointer"
-              >
-                Search
-              </button>
-              <button
-                onClick={() => {
-                  setFilterDateStart(today);
-                  setFilterDateEnd(today);
-                  setFilterEmployee('');
-                  setTimeout(fetchLogs, 100);
-                }}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-550 dark:text-slate-400 text-xs font-semibold hover:bg-slate-50/10 cursor-pointer bg-transparent"
-              >
-                Reset
-              </button>
-            </div>
-
-            <div className="ml-auto flex items-center gap-3 flex-wrap">
-              <button
-                type="button"
-                onClick={() => {
-                  setPunchModalOpen(true);
-                  getGPSLocation();
-                  startCamera();
-                }}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[10px] font-black uppercase tracking-wider shadow-md shadow-blue-500/20 transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0 border-0 hover:scale-105"
-                title="Mark Web Attendance with GPS & Selfie verification"
-              >
-                <span>📸</span> Mark Attendance
-              </button>
-
-              <button
-                onClick={handleExportExcel}
-                disabled={isExporting}
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0 border-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Export logs"
-              >
-                {isExporting ? (
-                  <>
-                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Exporting...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                    Export
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  setLogForm({
-                    id: '',
-                    employee_id: employees.length > 0 ? employees[0].id : '',
-                    attendance_date: new Date().toISOString().split('T')[0],
-                    shift_id: shifts.length > 0 ? shifts[0].id : '',
-                    first_in: '',
-                    last_out: '',
-                    status: 'PRESENT',
-                    worked_minutes: '480',
-                    late_minutes: '0'
-                  });
-                  setLogEditDrawerOpen(true);
-                }}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-colors cursor-pointer flex items-center gap-1 flex-shrink-0 border-0"
-              >
-                Manual Entry
-              </button>
-            </div>
-          </div>
-
           {renderCalendarView()}
         </div>
       )}

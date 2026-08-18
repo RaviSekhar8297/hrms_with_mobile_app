@@ -3,6 +3,8 @@
 import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
+import { API_BASE } from '../dashboard/utils/api';
+
 interface WelcomeProfile {
   found: boolean;
   name: string;
@@ -60,13 +62,21 @@ function PasswordUpdateForm() {
   // Fetch Welcome Profile data
   useEffect(() => {
     setMounted(true);
+    // Ensure active token is cleared so user cannot bypass password reset to dashboard
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('email');
+      localStorage.removeItem('roles');
+      localStorage.removeItem('permissions');
+      localStorage.removeItem('companyId');
+    }
+
     if (emailParam) setUsername(emailParam);
     if (tempParam) setOldPassword(tempParam);
 
     const activeUser = emailParam || 'employee';
-    const hostIp = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
-    fetch(`http://${hostIp}:5000/api/v1/auth/welcome-profile?username=${encodeURIComponent(activeUser)}`)
+    fetch(`${API_BASE}/api/v1/auth/welcome-profile?username=${encodeURIComponent(activeUser)}`)
       .then(res => res.json())
       .then(data => setProfile(data))
       .catch(err => {
@@ -102,6 +112,22 @@ function PasswordUpdateForm() {
 
     return () => clearInterval(timer);
   }, [mounted, stage, profile]);
+
+  // Handle browser back button navigation: Stage 2 -> Stage 1 -> Login Page
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ page: 'passwordupdate' }, '');
+    }
+    const handlePopState = () => {
+      if (stage === 'PASSWORD_RESET') {
+        setStage('WELCOME');
+      } else {
+        router.replace('/login');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [stage, router]);
 
   // High-Definition Twinkling Star & Glowing Particle Background Canvas Effect
   useEffect(() => {
@@ -356,8 +382,7 @@ function PasswordUpdateForm() {
     setError('');
 
     const effectiveOldPassword = oldPassword || tempParam || '123456';
-    const hostIp = window.location.hostname;
-    const apiUrl = `http://${hostIp}:5000/api/v1/auth/reset-temporary-password`;
+    const apiUrl = `${API_BASE}/api/v1/auth/reset-temporary-password`;
 
     try {
       const res = await fetch(apiUrl, {
@@ -427,7 +452,21 @@ function PasswordUpdateForm() {
             <p>Innovate • Transform • Grow</p>
           </div>
         </div>
-        <span className="top-chip">🗓️ {joiningDate}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (stage === 'PASSWORD_RESET') {
+                setStage('WELCOME');
+              } else {
+                router.replace('/login');
+              }
+            }}
+            className="top-chip hover:bg-white/20 transition-all cursor-pointer flex items-center gap-1 font-bold text-xs"
+          >
+            ← Back to Login
+          </button>
+          <span className="top-chip">🗓️ {joiningDate}</span>
+        </div>
       </header>
 
       {/* 🌟 MAIN STAGE CONTAINER */}
@@ -532,6 +571,9 @@ function PasswordUpdateForm() {
                 className="btn btn-p"
                 onClick={() => {
                   triggerConfetti(3500);
+                  if (typeof window !== 'undefined') {
+                    window.history.pushState({ stage: 'PASSWORD_RESET' }, '');
+                  }
                   setStage('PASSWORD_RESET');
                 }}
               >
@@ -561,6 +603,13 @@ function PasswordUpdateForm() {
                   </p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setStage('WELCOME')}
+                className="px-3 py-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-xs font-bold text-indigo-200 hover:text-white transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                ← Back
+              </button>
             </div>
 
             {error && (

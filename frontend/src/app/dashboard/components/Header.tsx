@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { User, LogOut } from 'lucide-react';
 import { getHeaders, getUrl } from '../utils/api';
 
 interface NotificationItem {
@@ -104,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
 
     const fetchMe = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/v1/employees/me', { headers: getHeaders() });
+        const res = await fetch('/api/v1/employees/me', { headers: getHeaders() });
         if (res.ok) {
           const data = await res.json();
           const emp = data.employee || data;
@@ -584,120 +585,28 @@ export const Header: React.FC<HeaderProps> = ({
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
               <div 
-                className="absolute right-0 mt-3 w-80 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-2xl shadow-slate-900/20 z-50 animate-toast overflow-hidden font-sans"
+                className="absolute right-0 mt-3 w-48 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-xl shadow-slate-900/10 z-50 animate-toast overflow-hidden p-1.5 space-y-1 font-sans"
                 style={{ backgroundColor: theme === 'nordic-light' ? '#ffffff' : '#111827' }}
               >
-                {/* Header User Card Banner */}
-                <div className="p-4 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border-b border-slate-100 dark:border-slate-800">
-                  <div className="flex items-start gap-3">
-                    <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-black text-sm uppercase shadow-md shadow-indigo-600/30 flex-shrink-0 border border-white/20 overflow-hidden">
-                      {profilePhoto && !imageError ? (
-                        <img
-                          src={profilePhoto}
-                          alt="Profile"
-                          className="w-full h-full object-cover rounded-2xl"
-                          onError={() => setImageError(true)}
-                        />
-                      ) : (
-                        <span>{(userFullName || (email ? email.split('@')[0] : 'U')).charAt(0).toUpperCase()}</span>
-                      )}
-                      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 animate-pulse z-10" />
-                    </div>
+                <Link
+                  href="/dashboard/profile"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 font-bold text-xs transition-all duration-150 group cursor-pointer"
+                >
+                  <User className="w-4 h-4 text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors shrink-0" />
+                  <span>Profile</span>
+                </Link>
 
-                    <div className="flex flex-col min-w-0 flex-1 text-left">
-                      <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 truncate leading-tight">
-                        {(userFullName || (email ? email.split('@')[0] : 'ADMIN')).toUpperCase()}
-                      </h4>
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                        {email}
-                      </p>
-                      
-                      <div className="mt-2 flex items-center">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 text-[9.5px] font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-wider max-w-full truncate">
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0" />
-                          <span className="truncate">{designation || (isSuperAdmin ? 'SUPER ADMINISTRATOR' : 'ORGANIZATION MEMBER')}</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Menu Links */}
-                <div className="p-2 space-y-1">
-                  <Link
-                    href="/dashboard/profile"
-                    onClick={() => setShowProfileMenu(false)}
-                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-150 group cursor-pointer"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors shrink-0">
-                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                      </svg>
-                    </div>
-                    <div className="flex flex-col text-left min-w-0 flex-1">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        My Profile Settings
-                      </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate">View & manage your account</span>
-                    </div>
-                  </Link>
-
-                  <button
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      setSettingsOpen(true);
-                    }}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-150 cursor-pointer group"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
-                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072" />
-                      </svg>
-                    </div>
-                    <div className="flex flex-col text-left min-w-0 flex-1">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                        UI Personalization
-                      </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate">Color themes & dark mode</span>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      setMoreAppsOpen(true);
-                    }}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-150 cursor-pointer group"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
-                      <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25a2.25 2.25 0 002.25-2.25v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25v2.25A2.25 2.25 0 006 20.25zM15.75 6a2.25 2.25 0 012.25-2.25h2.25A2.25 2.25 0 0122.5 6v2.25a2.25 2.25 0 01-2.25 2.25h-2.25A2.25 2.25 0 0115.75 8.25V6z" />
-                      </svg>
-                    </div>
-                    <div className="flex flex-col text-left min-w-0 flex-1">
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                        Module Launcher
-                      </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate">Quick switch HR apps</span>
-                    </div>
-                  </button>
-                </div>
-
-                {/* Footer Sign Out */}
-                <div className="p-3 bg-slate-50/70 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      handleLogout();
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-600 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white border border-rose-200 dark:border-rose-900/40 text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs group"
-                  >
-                    <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-                    </svg>
-                    <span>Sign Out</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    handleLogout();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold text-xs transition-all duration-150 group cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 text-rose-500 transition-transform group-hover:translate-x-0.5 shrink-0" />
+                  <span>Sign Out</span>
+                </button>
               </div>
             </>
           )}

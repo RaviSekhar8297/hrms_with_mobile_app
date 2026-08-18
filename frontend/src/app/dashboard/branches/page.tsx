@@ -67,7 +67,7 @@ export default function BranchesPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
@@ -116,8 +116,8 @@ export default function BranchesPage() {
 
     try {
       const url = editMode 
-        ? `http://localhost:5000/api/v1/branches/${selectedBranchId}`
-        : 'http://localhost:5000/api/v1/branches';
+        ? `/api/v1/branches/${selectedBranchId}`
+        : '/api/v1/branches';
       const method = editMode ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -160,7 +160,7 @@ export default function BranchesPage() {
 
   const executeDeleteBranch = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/branches/${id}`, {
+      const res = await fetch(`/api/v1/branches/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
       });

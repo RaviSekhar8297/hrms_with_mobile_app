@@ -99,7 +99,7 @@ export default function RolesPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
@@ -187,7 +187,7 @@ export default function RolesPage() {
       return;
     }
     try {
-      const res = await fetch('http://localhost:5000/api/v1/roles', {
+      const res = await fetch('/api/v1/roles', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ ...roleForm, companyId })
@@ -234,7 +234,7 @@ export default function RolesPage() {
     try {
       setSavingRoleId(roleId);
       const currentScopes = roleScopesState[roleId] || {};
-      const res = await fetch(`http://localhost:5000/api/v1/roles/${roleId}/permissions`, {
+      const res = await fetch(`/api/v1/roles/${roleId}/permissions`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ permissionIds: newList, permissionScopes: currentScopes, companyId })
@@ -280,7 +280,7 @@ export default function RolesPage() {
 
     try {
       setSavingRoleId(roleId);
-      const res = await fetch(`http://localhost:5000/api/v1/roles/${roleId}/permissions`, {
+      const res = await fetch(`/api/v1/roles/${roleId}/permissions`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ permissionIds: currentPermIds, permissionScopes: newScopes, companyId })
@@ -336,7 +336,7 @@ export default function RolesPage() {
   const savePermissionsBulk = async (roleId: string, newList: string[]) => {
     try {
       setSavingRoleId(roleId);
-      const res = await fetch(`http://localhost:5000/api/v1/roles/${roleId}/permissions`, {
+      const res = await fetch(`/api/v1/roles/${roleId}/permissions`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ permissionIds: newList, companyId })

@@ -24,6 +24,8 @@ router.use(auth_1.authenticateToken);
  *     summary: Get Active Job Postings
  *     tags:
  *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: company_id
@@ -33,6 +35,8 @@ router.use(auth_1.authenticateToken);
  *     responses:
  *       200:
  *         description: Array of job posting objects
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/jobs', (0, auth_1.requirePermission)('recruitment:read'), async (req, res) => {
     try {
@@ -60,9 +64,25 @@ router.get('/jobs', (0, auth_1.requirePermission)('recruitment:read'), async (re
     }
 });
 /**
- * @route   GET /api/v1/recruitment/jobs/:id
- * @desc    Get a single job posting by ID
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/jobs/{id}:
+ *   get:
+ *     summary: Get Job Posting Details by ID
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Job details object
+ *       404:
+ *         description: Job not found
  */
 router.get('/jobs/:id', (0, auth_1.requirePermission)('recruitment:read'), async (req, res) => {
     try {
@@ -81,9 +101,23 @@ router.get('/jobs/:id', (0, auth_1.requirePermission)('recruitment:read'), async
     }
 });
 /**
- * @route   GET /api/v1/recruitment/jobs/:id/analytics
- * @desc    Get analytics/statistics for a job (HR view)
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/jobs/{id}/analytics:
+ *   get:
+ *     summary: Get Analytics & Candidate Breakdown for a Job
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Application status counts and candidate summary
  */
 router.get('/jobs/:id/analytics', (0, auth_1.requirePermission)('recruitment:read'), async (req, res) => {
     try {
@@ -114,9 +148,17 @@ router.get('/jobs/:id/analytics', (0, auth_1.requirePermission)('recruitment:rea
     }
 });
 /**
- * @route   GET /api/v1/recruitment/rounds
- * @desc    Get all global master rounds
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/rounds:
+ *   get:
+ *     summary: List Master Interview Rounds
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of interview rounds
  */
 router.get('/rounds', (0, auth_1.requirePermission)('recruitment:read'), async (req, res) => {
     try {
@@ -133,9 +175,32 @@ router.get('/rounds', (0, auth_1.requirePermission)('recruitment:read'), async (
     }
 });
 /**
- * @route   POST /api/v1/recruitment/rounds
- * @desc    Create a global master round
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/rounds:
+ *   post:
+ *     summary: Create Master Interview Round
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - round_name
+ *             properties:
+ *               round_name:
+ *                 type: string
+ *                 example: Technical Coding Round
+ *               round_type:
+ *                 type: string
+ *                 example: Technical
+ *     responses:
+ *       201:
+ *         description: Interview round created
  */
 router.post('/rounds', (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -154,9 +219,36 @@ router.post('/rounds', (0, auth_1.requirePermission)('recruitment:write'), async
     }
 });
 /**
- * @route   PUT /api/v1/recruitment/rounds/:id
- * @desc    Update a global master round
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/rounds/{id}:
+ *   put:
+ *     summary: Update Master Interview Round
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               round_name:
+ *                 type: string
+ *               round_type:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Round updated
+ *       404:
+ *         description: Round not found
  */
 router.put('/rounds/:id', (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -185,9 +277,25 @@ router.put('/rounds/:id', (0, auth_1.requirePermission)('recruitment:write'), as
     }
 });
 /**
- * @route   DELETE /api/v1/recruitment/rounds/:id
- * @desc    Delete a global master round
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/rounds/{id}:
+ *   delete:
+ *     summary: Delete Master Interview Round
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Round deleted successfully
+ *       404:
+ *         description: Round not found
  */
 router.delete('/rounds/:id', (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -253,9 +361,46 @@ router.post('/jobs/:id/apply', upload.single('resume'), async (req, res) => {
     }
 });
 /**
- * @route   POST /api/recruitment/jobs
- * @desc    Create a new job posting
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/jobs:
+ *   post:
+ *     summary: Create New Job Posting
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: Senior Full Stack Developer
+ *               location:
+ *                 type: string
+ *                 example: Hyderabad / Remote
+ *               employment_type:
+ *                 type: string
+ *                 example: Full-Time
+ *               headcount:
+ *                 type: integer
+ *                 example: 3
+ *               salary_range:
+ *                 type: string
+ *                 example: 80k-120k
+ *               description:
+ *                 type: string
+ *                 example: Looking for an experienced Node.js & React engineer.
+ *     responses:
+ *       201:
+ *         description: Job posting created successfully
+ *       500:
+ *         description: Failed to create job posting
  */
 router.post('/jobs', (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -312,9 +457,42 @@ router.post('/jobs', (0, auth_1.requirePermission)('recruitment:write'), async (
     }
 });
 /**
- * @route   PUT /api/recruitment/jobs/:id
- * @desc    Update an existing job posting
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/jobs/{id}:
+ *   put:
+ *     summary: Update Job Posting Details
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *               employment_type:
+ *                 type: string
+ *               headcount:
+ *                 type: integer
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Job updated successfully
+ *       404:
+ *         description: Job not found
  */
 router.put('/jobs/:id', (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -353,9 +531,37 @@ router.put('/jobs/:id', (0, auth_1.requirePermission)('recruitment:write'), asyn
     }
 });
 /**
- * @route   PUT /api/recruitment/jobs/:id/status
- * @desc    Update job status (e.g. CLOSED)
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/jobs/{id}/status:
+ *   put:
+ *     summary: Update Job Status (e.g. PUBLISHED / CLOSED)
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: CLOSED
+ *     responses:
+ *       200:
+ *         description: Status updated
+ *       404:
+ *         description: Job not found
  */
 router.put('/jobs/:id/status', (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -382,9 +588,17 @@ router.put('/jobs/:id/status', (0, auth_1.requirePermission)('recruitment:write'
     }
 });
 /**
- * @route   GET /api/recruitment/candidates
- * @desc    Get all candidates
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/candidates:
+ *   get:
+ *     summary: List Candidates
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Array of candidate records
  */
 router.get('/candidates', (0, auth_1.requirePermission)('recruitment:read'), async (req, res) => {
     try {
@@ -402,9 +616,23 @@ router.get('/candidates', (0, auth_1.requirePermission)('recruitment:read'), asy
     }
 });
 /**
- * @route   GET /api/recruitment/applications
- * @desc    Get job applications for a specific job
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/applications:
+ *   get:
+ *     summary: Get Job Applications
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: job_id
+ *         schema:
+ *           type: string
+ *         description: Filter applications by specific Job ID
+ *     responses:
+ *       200:
+ *         description: Array of job application records
  */
 router.get('/applications', (0, auth_1.requirePermission)('recruitment:read'), async (req, res) => {
     try {
@@ -436,9 +664,45 @@ router.get('/applications', (0, auth_1.requirePermission)('recruitment:read'), a
     }
 });
 /**
- * @route   POST /api/recruitment/applications
- * @desc    Add a new candidate and application
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/applications:
+ *   post:
+ *     summary: Submit Application & Candidate Profile
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - job_id
+ *               - first_name
+ *               - last_name
+ *               - email
+ *             properties:
+ *               job_id:
+ *                 type: string
+ *               first_name:
+ *                 type: string
+ *                 example: Ananya
+ *               last_name:
+ *                 type: string
+ *                 example: Reddy
+ *               email:
+ *                 type: string
+ *                 example: ananya.reddy@example.com
+ *               phone:
+ *                 type: string
+ *                 example: "9848012345"
+ *     responses:
+ *       201:
+ *         description: Application submitted successfully
+ *       500:
+ *         description: Failed to submit application
  */
 router.post('/applications', (0, auth_1.requirePermission)('recruitment:write'), upload.single('resume'), async (req, res) => {
     try {
@@ -479,9 +743,37 @@ router.post('/applications', (0, auth_1.requirePermission)('recruitment:write'),
     }
 });
 /**
- * @route   PUT /api/recruitment/applications/:id/stage
- * @desc    Update candidate application stage
- * @access  Private
+ * @openapi
+ * /api/v1/recruitment/applications/{id}/stage:
+ *   put:
+ *     summary: Move Application to New Pipeline Stage
+ *     tags:
+ *       - Recruitment & ATS
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: INTERVIEWING
+ *     responses:
+ *       200:
+ *         description: Application stage updated
+ *       404:
+ *         description: Application not found
  */
 router.put('/applications/:id/stage', (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {

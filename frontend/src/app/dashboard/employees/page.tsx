@@ -171,7 +171,7 @@ export default function EmployeesPage() {
 
   const handleUpdateStatus = async (emp: Employee, newStatus: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/employees/${emp.id}`, {
+      const res = await fetch(getUrl(`/api/v1/employees/${emp.id}`), {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -194,7 +194,7 @@ export default function EmployeesPage() {
 
   const handleUpdateReportingTo = async (emp: Employee, newReportingToId: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/employees/${emp.id}`, {
+      const res = await fetch(getUrl(`/api/v1/employees/${emp.id}`), {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -223,7 +223,7 @@ export default function EmployeesPage() {
         status: newStatus,
         companyId: targetCompanyId
       };
-      const res = await fetch(`http://localhost:5000/api/v1/employees/${emp.id}`, {
+      const res = await fetch(getUrl(`/api/v1/employees/${emp.id}`), {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify(payload)
@@ -307,7 +307,7 @@ export default function EmployeesPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/companies'), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
@@ -535,8 +535,8 @@ export default function EmployeesPage() {
     }
 
     const endpoint = editMode
-      ? `http://localhost:5000/api/v1/employees/${selectedEmployeeId}`
-      : 'http://localhost:5000/api/v1/employees';
+      ? getUrl(`/api/v1/employees/${selectedEmployeeId}`)
+      : getUrl('/api/v1/employees');
     const method = editMode ? 'PUT' : 'POST';
 
     try {
@@ -563,7 +563,7 @@ export default function EmployeesPage() {
           const empId = editMode ? selectedEmployeeId : data.employee.id;
           const endD = rotationEndDate || new Date(new Date(empForm.joining_date).getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           try {
-            const rotRes = await fetch('http://localhost:5000/api/v1/employee-shifts/rotate', {
+            const rotRes = await fetch(getUrl('/api/v1/employee-shifts/rotate'), {
               method: 'POST',
               headers: getHeaders(),
               body: JSON.stringify({
@@ -600,7 +600,7 @@ export default function EmployeesPage() {
 
   const executeDeleteEmployee = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/employees/${id}`, {
+      const res = await fetch(getUrl(`/api/v1/employees/${id}`), {
         method: 'DELETE',
         headers: getHeaders()
       });
@@ -674,7 +674,11 @@ export default function EmployeesPage() {
       emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (emp.designation_name && emp.designation_name.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const matchesStatus = statusFilter === 'ALL' || emp.status === statusFilter;
+    const matchesStatus = statusFilter === 'ALL' 
+      ? true 
+      : (statusFilter === 'INACTIVE' 
+          ? (emp.status === 'INACTIVE' || emp.status === 'TERMINATED' || emp.status === 'EXITED' || emp.status === 'RESIGNED')
+          : emp.status === statusFilter);
     const matchesBranch = branchFilter === 'ALL' || emp.branch_id === branchFilter;
     return matchesSearch && matchesStatus && matchesBranch;
   });
@@ -794,22 +798,22 @@ export default function EmployeesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
         
         {/* Card 1: Total Employees */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
+        <div className="group relative rounded-2xl bg-gradient-to-br from-indigo-50/95 via-sky-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-800/60 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <p className="text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">
                 Total Employees
               </p>
               <div className="flex items-baseline gap-2 mt-1.5">
-                <h2 className="text-3xl font-black text-blue-600 dark:text-blue-400 tracking-tight font-mono">
+                <h2 className="text-3xl font-black text-indigo-600 dark:text-indigo-400 tracking-tight font-mono">
                   {filteredEmployees.length}
                 </h2>
-                <span className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-800/60">
+                <span className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 bg-indigo-100/80 dark:bg-indigo-950/50 px-2 py-0.5 rounded-full border border-indigo-200/60 dark:border-indigo-800/60">
                   Staff
                 </span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/15 to-indigo-500/15 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
               </svg>
@@ -818,22 +822,22 @@ export default function EmployeesPage() {
         </div>
 
         {/* Card 2: Total Branches */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
+        <div className="group relative rounded-2xl bg-gradient-to-br from-emerald-50/95 via-teal-50/30 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-800/60 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <p className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                 Total Branches
               </p>
               <div className="flex items-baseline gap-2 mt-1.5">
                 <h2 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight font-mono">
                   {branches.length || new Set(filteredEmployees.map(e => e.branch_name).filter(Boolean)).size || 1}
                 </h2>
-                <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/60">
+                <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/60">
                   Offices
                 </span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/15 to-teal-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/50 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100/80 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m-6-13.5h3m-3 3h3m-3 3h3m3-6h3m-3 3h3m-3 3h3M6.75 21v-3a1.5 1.5 0 011.5-1.5h3a1.5 1.5 0 011.5 1.5v3" />
               </svg>
@@ -842,22 +846,22 @@ export default function EmployeesPage() {
         </div>
 
         {/* Card 3: Total Departments */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
+        <div className="group relative rounded-2xl bg-gradient-to-br from-amber-50/95 via-orange-50/30 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900 border border-amber-200/70 dark:border-amber-800/60 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <p className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
                 Total Departments
               </p>
               <div className="flex items-baseline gap-2 mt-1.5">
                 <h2 className="text-3xl font-black text-amber-600 dark:text-amber-400 tracking-tight font-mono">
                   {departments.length || new Set(filteredEmployees.map(e => e.department_name).filter(Boolean)).size || 1}
                 </h2>
-                <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/60">
+                <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/60">
                   Depts
                 </span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/15 to-orange-500/15 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/50 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100/80 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6h1.5m-1.5 3h1.5m-1.5 3h1.5" />
               </svg>
@@ -866,22 +870,22 @@ export default function EmployeesPage() {
         </div>
 
         {/* Card 4: Total Designations */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
+        <div className="group relative rounded-2xl bg-gradient-to-br from-rose-50/95 via-pink-50/30 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900 border border-rose-200/70 dark:border-rose-800/60 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <p className="text-[11px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
                 Total Designations
               </p>
               <div className="flex items-baseline gap-2 mt-1.5">
-                <h2 className="text-3xl font-black text-purple-600 dark:text-purple-400 tracking-tight font-mono">
+                <h2 className="text-3xl font-black text-rose-600 dark:text-rose-400 tracking-tight font-mono">
                   {designations.length || new Set(filteredEmployees.map(e => e.designation_name).filter(Boolean)).size || 1}
                 </h2>
-                <span className="text-[10px] font-extrabold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-full border border-purple-200/60 dark:border-purple-800/60">
+                <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400 bg-rose-100/80 dark:bg-rose-950/50 px-2 py-0.5 rounded-full border border-rose-200/60 dark:border-rose-800/60">
                   Roles
                 </span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500/15 to-pink-500/15 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/50 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100/80 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.504-1.125-1.125-1.125h-6.75a1.125 1.125 0 00-1.125 1.125v3.375m9 0h3m-15 0h-3m15 0a3 3 0 003-3V6.75A3 3 0 0018 3.75H6A3 3 0 003 6.75v9a3 3 0 003 3h12z" />
               </svg>
@@ -951,8 +955,9 @@ export default function EmployeesPage() {
             >
               <option value="ALL">All Status</option>
               <option value="ACTIVE">ACTIVE</option>
+              <option value="PENDING">PENDING ONBOARDING</option>
               <option value="SUSPENDED">SUSPENDED</option>
-              <option value="INACTIVE">INACTIVE</option>
+              <option value="INACTIVE">INACTIVE / TERMINATED</option>
             </select>
           </div>
         </div>
@@ -1777,7 +1782,7 @@ export default function EmployeesPage() {
                   return;
                 }
 
-                const res = await fetch('http://localhost:5000/api/v1/employees/bulk', {
+                const res = await fetch(getUrl('/api/v1/employees/bulk'), {
                   method: 'POST',
                   headers: getHeaders(),
                   body: JSON.stringify({ employees, companyId: targetCompanyId }),

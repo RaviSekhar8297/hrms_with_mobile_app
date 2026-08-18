@@ -2,23 +2,63 @@
 
 import { useEffect } from 'react';
 
+const BACKEND_PORTS = new Set(['5005', '5000']);
+
+function resolveBaseTarget(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  return window.location.origin;
+}
+
+function shouldRewriteHost(hostname: string): boolean {
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  if (hostname === window.location.hostname) return true;
+  return [
+    '173.249.6.61',
+    'newhrms.brihaspathi.in',
+    '172.21.2.137',
+    '172.21.4.18',
+    '183.82.117.36',
+  ].includes(hostname);
+}
+
+function replaceUrl(urlStr: string, baseTarget: string): string {
+  if (!urlStr) return urlStr;
+  try {
+    const absolute = new URL(urlStr, window.location.origin);
+    if (!BACKEND_PORTS.has(absolute.port)) return urlStr;
+    if (!shouldRewriteHost(absolute.hostname)) return urlStr;
+    return `${baseTarget}${absolute.pathname}${absolute.search}${absolute.hash}`;
+  } catch {
+    return urlStr;
+  }
+}
+
 export default function FetchPatcher() {
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const originalFetch = window.fetch;
-      window.fetch = async function (input, init) {
-        let targetInput = input;
-        if (typeof input === 'string' && input.includes('http://localhost:5000')) {
-          targetInput = input.replace('http://localhost:5000', `http://${window.location.hostname}:5000`);
-        } else if (input instanceof URL && input.href.includes('http://localhost:5000')) {
-          targetInput = new URL(input.href.replace('http://localhost:5000', `http://${window.location.hostname}:5000`));
-        } else if (input && typeof input === 'object' && 'url' in input && typeof (input as any).url === 'string' && (input as any).url.includes('http://localhost:5000')) {
-          const newUrl = (input as any).url.replace('http://localhost:5000', `http://${window.location.hostname}:5000`);
-          targetInput = new Request(newUrl, input as RequestInit);
+    const originalFetch = window.fetch;
+    const baseTarget = resolveBaseTarget();
+
+    window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+      if (typeof input === 'string') {
+        return originalFetch.call(this, replaceUrl(input, baseTarget), init);
+      }
+      if (input instanceof URL) {
+        return originalFetch.call(this, replaceUrl(input.href, baseTarget), init);
+      }
+      if (input && typeof input === 'object' && 'url' in input && typeof (input as Request).url === 'string') {
+        const patchedUrl = replaceUrl((input as Request).url, baseTarget);
+        if (patchedUrl !== (input as Request).url) {
+          return originalFetch.call(this, patchedUrl, init || (input as RequestInit));
         }
-        return originalFetch(targetInput, init);
-      };
-    }
+      }
+
+      return originalFetch.call(this, input, init);
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
   }, []);
 
   return null;

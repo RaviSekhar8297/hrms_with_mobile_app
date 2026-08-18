@@ -22,7 +22,7 @@ export default function VisitorManagement() {
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/visitors/logs', {
+      const res = await fetch('/api/v1/visitors/logs', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -45,7 +45,7 @@ export default function VisitorManagement() {
   const handleCheckIn = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/visitors/checkin', {
+      const res = await fetch('/api/v1/visitors/checkin', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,

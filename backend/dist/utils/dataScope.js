@@ -54,14 +54,14 @@ async function getEmployeeDataScope(req, moduleName, permissionName) {
       `;
             const permParams = [emp.role_id];
             if (permissionName) {
-                permSql += ` AND p.name = $2`;
+                permSql += ` AND (LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_summary'))`;
                 permParams.push(permissionName);
             }
             else if (moduleName) {
-                permSql += ` AND (LOWER(p.module) = LOWER($2) OR LOWER(p.name) LIKE LOWER($3))`;
+                permSql += ` AND (LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_summary') OR LOWER(p.module) = LOWER($2) OR LOWER(p.name) LIKE LOWER($3))`;
                 permParams.push(moduleName, `%${moduleName}%`);
             }
-            permSql += ` LIMIT 1`;
+            permSql += ` ORDER BY CASE WHEN UPPER(p.name) LIKE '%SUMMARY' THEN 1 ELSE 2 END ASC LIMIT 1`;
             const permRes = await (0, db_1.query)(permSql, permParams);
             if (permRes.rows.length > 0 && permRes.rows[0].data_scope) {
                 const scopeVal = String(permRes.rows[0].data_scope).toUpperCase().trim();

@@ -94,7 +94,7 @@ export default function RecruitmentDashboard() {
   const fetchJobAnalytics = async (jobId: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/jobs/${jobId}/analytics`, {
+      const res = await fetch(`/api/v1/recruitment/jobs/${jobId}/analytics`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -110,7 +110,7 @@ export default function RecruitmentDashboard() {
   const fetchApplications = async (jobId: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      let url = `http://localhost:5000/api/v1/recruitment/applications?job_id=${jobId || 'all'}`;
+      let url = `/api/v1/recruitment/applications?job_id=${jobId || 'all'}`;
       if (selectedCompanyId) url += `&company_id=${selectedCompanyId}`;
       const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
@@ -124,7 +124,7 @@ export default function RecruitmentDashboard() {
   const fetchEmployees = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      let url = `http://localhost:5000/api/v1/recruitment/employees`;
+      let url = `/api/v1/recruitment/employees`;
       if (selectedCompanyId) url += `?company_id=${selectedCompanyId}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -166,7 +166,7 @@ export default function RecruitmentDashboard() {
       if (selectedCompanyId) submitData.append('company_id', selectedCompanyId);
       if (newCandidateResume) submitData.append('resume', newCandidateResume);
 
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/applications`, {
+      const res = await fetch(`/api/v1/recruitment/applications`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: submitData
@@ -198,7 +198,7 @@ export default function RecruitmentDashboard() {
   const fetchRounds = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      let url = `http://localhost:5000/api/v1/recruitment/rounds`;
+      let url = `/api/v1/recruitment/rounds`;
       if (selectedCompanyId) url += `?company_id=${selectedCompanyId}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -217,12 +217,12 @@ export default function RecruitmentDashboard() {
     // Fetch interviews for this application
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/applications/${candidate.application_id}/interviews`, {
+      const res = await fetch(`/api/v1/recruitment/applications/${candidate.application_id}/interviews`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) setCandidateInterviews(await res.json());
 
-      const resDocs = await fetch(`http://localhost:5000/api/v1/recruitment/applications/${candidate.application_id}/documents`, {
+      const resDocs = await fetch(`/api/v1/recruitment/applications/${candidate.application_id}/documents`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (resDocs.ok) setCandidateDocuments(await resDocs.json());
@@ -248,8 +248,8 @@ export default function RecruitmentDashboard() {
     try {
       const token = localStorage.getItem('access_token');
       const url = editingRoundId 
-        ? `http://localhost:5000/api/v1/recruitment/rounds/${editingRoundId}`
-        : `http://localhost:5000/api/v1/recruitment/rounds`;
+        ? `/api/v1/recruitment/rounds/${editingRoundId}`
+        : `/api/v1/recruitment/rounds`;
 
       const res = await fetch(url, {
         method: editingRoundId ? 'PUT' : 'POST',
@@ -284,7 +284,7 @@ export default function RecruitmentDashboard() {
            showToast('Please enter a name for the new round', 'error');
            return;
         }
-        const resRound = await fetch(`http://localhost:5000/api/v1/recruitment/rounds`, {
+        const resRound = await fetch(`/api/v1/recruitment/rounds`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ round_name: quickRoundName, round_type: 'General', company_id: selectedCompanyId })
@@ -299,7 +299,7 @@ export default function RecruitmentDashboard() {
       }
 
       // 2. Schedule Interview
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/applications/${selectedCandidate.application_id}/interviews`, {
+      const res = await fetch(`/api/v1/recruitment/applications/${selectedCandidate.application_id}/interviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ ...scheduleData, round_id: roundId, company_id: selectedCompanyId })
@@ -321,7 +321,7 @@ export default function RecruitmentDashboard() {
     if (!confirm('Are you sure you want to delete this master round?')) return;
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/rounds/${id}`, {
+      const res = await fetch(`/api/v1/recruitment/rounds/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -356,7 +356,7 @@ export default function RecruitmentDashboard() {
 
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/applications/${selectedCandidate.application_id}/interviews`, {
+      const res = await fetch(`/api/v1/recruitment/applications/${selectedCandidate.application_id}/interviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ ...scheduleData, company_id: selectedCompanyId })
@@ -385,7 +385,7 @@ export default function RecruitmentDashboard() {
     const overallRating = feedbackData.overall || Math.round((tech + comm) / 2);
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/interviews/${feedbackData.interview_id}/feedback`, {
+      const res = await fetch(`/api/v1/recruitment/interviews/${feedbackData.interview_id}/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ ...feedbackData, technical: tech, communication: comm, overall: overallRating })
@@ -415,7 +415,7 @@ export default function RecruitmentDashboard() {
   const handleMoveCandidateToStage = async (appId: string, newStatus: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/applications/${appId}/stage`, {
+      const res = await fetch(`/api/v1/recruitment/applications/${appId}/stage`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus, company_id: selectedCompanyId })
@@ -466,7 +466,7 @@ export default function RecruitmentDashboard() {
     
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/applications/${appId}/stage`, {
+      const res = await fetch(`/api/v1/recruitment/applications/${appId}/stage`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus, company_id: selectedCompanyId })
@@ -485,7 +485,7 @@ export default function RecruitmentDashboard() {
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
-      let url = 'http://localhost:5000/api/v1/recruitment/jobs';
+      let url = '/api/v1/recruitment/jobs';
       if (selectedCompanyId) url += `?company_id=${selectedCompanyId}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -504,7 +504,7 @@ export default function RecruitmentDashboard() {
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      let url = 'http://localhost:5000/api/v1/departments';
+      let url = '/api/v1/departments';
       if (selectedCompanyId) url += `?company_id=${selectedCompanyId}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -525,10 +525,10 @@ export default function RecruitmentDashboard() {
       let q = selectedCompanyId ? `?company_id=${selectedCompanyId}` : '';
       
       const [emailRes, whatsappRes, campRes, rulesRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/email${q}`, { headers }),
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/whatsapp${q}`, { headers }),
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/whatsapp-campaigns${q}`, { headers }),
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/notification-rules${q}`, { headers })
+        fetch(`/api/v1/recruitment/settings/email${q}`, { headers }),
+        fetch(`/api/v1/recruitment/settings/whatsapp${q}`, { headers }),
+        fetch(`/api/v1/recruitment/settings/whatsapp-campaigns${q}`, { headers }),
+        fetch(`/api/v1/recruitment/settings/notification-rules${q}`, { headers })
       ]);
       
       let tempIntegrations: any[] = [];
@@ -571,7 +571,7 @@ export default function RecruitmentDashboard() {
       setIsSuperAdmin(!!isSuper);
 
       if (isSuper) {
-        const res = await fetch('http://localhost:5000/api/v1/companies', {
+        const res = await fetch('/api/v1/companies', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -609,7 +609,7 @@ export default function RecruitmentDashboard() {
     try {
       const token = localStorage.getItem('access_token');
       const method = editingJobId ? 'PUT' : 'POST';
-      const url = editingJobId ? `http://localhost:5000/api/v1/recruitment/jobs/${editingJobId}` : 'http://localhost:5000/api/v1/recruitment/jobs';
+      const url = editingJobId ? `/api/v1/recruitment/jobs/${editingJobId}` : '/api/v1/recruitment/jobs';
       
       const payload: any = { ...newJob };
       if (selectedCompanyId) payload.company_id = selectedCompanyId;
@@ -640,7 +640,7 @@ export default function RecruitmentDashboard() {
   const executeDeleteJob = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/recruitment/jobs/${id}/status`, {
+      const res = await fetch(`/api/v1/recruitment/jobs/${id}/status`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -667,7 +667,7 @@ export default function RecruitmentDashboard() {
       let payload = {};
       
       if (provider === 'SMTP') {
-        url = 'http://localhost:5000/api/v1/recruitment/settings/email';
+        url = '/api/v1/recruitment/settings/email';
         payload = {
           company_id: selectedCompanyId,
           smtp_host: credentials.smtpServer,
@@ -680,7 +680,7 @@ export default function RecruitmentDashboard() {
           is_active: isActive
         };
       } else if (provider === 'WHATSAPP') {
-        url = 'http://localhost:5000/api/v1/recruitment/settings/whatsapp';
+        url = '/api/v1/recruitment/settings/whatsapp';
         payload = {
           company_id: selectedCompanyId,
           provider: 'WHATSAPP',
@@ -715,7 +715,7 @@ export default function RecruitmentDashboard() {
   const executeDeleteIntegration = async (provider: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      let url = provider === 'email' ? 'http://localhost:5000/api/v1/recruitment/settings/email' : 'http://localhost:5000/api/v1/recruitment/settings/whatsapp';
+      let url = provider === 'email' ? '/api/v1/recruitment/settings/email' : '/api/v1/recruitment/settings/whatsapp';
       if (selectedCompanyId) url += `?company_id=${selectedCompanyId}`;
       await fetch(url, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       fetchIntegrations();
@@ -732,8 +732,8 @@ export default function RecruitmentDashboard() {
       const token = localStorage.getItem('access_token');
       const isUpdate = !!currentCampaign.id;
       const url = isUpdate 
-        ? `http://localhost:5000/api/v1/recruitment/settings/whatsapp-campaigns/${currentCampaign.id}`
-        : 'http://localhost:5000/api/v1/recruitment/settings/whatsapp-campaigns';
+        ? `/api/v1/recruitment/settings/whatsapp-campaigns/${currentCampaign.id}`
+        : '/api/v1/recruitment/settings/whatsapp-campaigns';
       
       const res = await fetch(url, {
         method: isUpdate ? 'PUT' : 'POST',
@@ -756,7 +756,7 @@ export default function RecruitmentDashboard() {
   const executeDeleteCampaign = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      await fetch(`http://localhost:5000/api/v1/recruitment/settings/whatsapp-campaigns/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      await fetch(`/api/v1/recruitment/settings/whatsapp-campaigns/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       fetchIntegrations();
       showToast('Campaign deleted successfully', 'success');
     } catch (err) {
@@ -771,8 +771,8 @@ export default function RecruitmentDashboard() {
       const token = localStorage.getItem('access_token');
       const isUpdate = !!currentRule.id;
       const url = isUpdate 
-        ? `http://localhost:5000/api/v1/recruitment/settings/notification-rules/${currentRule.id}`
-        : 'http://localhost:5000/api/v1/recruitment/settings/notification-rules';
+        ? `/api/v1/recruitment/settings/notification-rules/${currentRule.id}`
+        : '/api/v1/recruitment/settings/notification-rules';
       
       const res = await fetch(url, {
         method: isUpdate ? 'PUT' : 'POST',
@@ -794,7 +794,7 @@ export default function RecruitmentDashboard() {
   const executeDeleteRule = async (id: string) => {
     try {
       const token = localStorage.getItem('access_token');
-      await fetch(`http://localhost:5000/api/v1/recruitment/settings/notification-rules/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      await fetch(`/api/v1/recruitment/settings/notification-rules/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
       fetchIntegrations();
       showToast('Rule deleted successfully', 'success');
     } catch (err) {
@@ -1474,7 +1474,7 @@ export default function RecruitmentDashboard() {
                                       window.open(doc.file_url, '_blank');
                                     }
                                   } else {
-                                    const url = doc.file_url.startsWith('http') ? doc.file_url : `http://localhost:5000${doc.file_url}`;
+                                    const url = doc.file_url.startsWith('http') ? doc.file_url : `${doc.file_url}`;
                                     window.open(url, '_blank');
                                   }
                                 }} 

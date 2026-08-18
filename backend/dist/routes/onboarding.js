@@ -16,9 +16,13 @@ const router = (0, express_1.Router)();
  *     summary: Get Employee Onboarding Cases
  *     tags:
  *       - Employee Onboarding
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Array of onboarding workflow objects
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/', auth_1.authenticateToken, (0, auth_1.requirePermission)('recruitment:read'), async (req, res) => {
     try {
@@ -57,8 +61,26 @@ router.get('/', auth_1.authenticateToken, (0, auth_1.requirePermission)('recruit
     }
 });
 /**
- * @route   POST /api/v1/onboarding/:id/send-offer
- * @desc    Mark offer letter as sent to candidate (transitions INITIATED -> OFFER_SENT)
+ * @openapi
+ * /api/v1/onboarding/{id}/send-offer:
+ *   post:
+ *     summary: Dispatch Offer Letter to Candidate
+ *     tags:
+ *       - Employee Onboarding
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Onboarding Record ID
+ *     responses:
+ *       200:
+ *         description: Offer letter dispatched successfully
+ *       404:
+ *         description: Onboarding record not found
  */
 router.post('/:id/send-offer', auth_1.authenticateToken, (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -80,8 +102,30 @@ router.post('/:id/send-offer', auth_1.authenticateToken, (0, auth_1.requirePermi
     }
 });
 /**
- * @route   POST /api/v1/onboarding/send-link
- * @desc    Send onboarding portal link to candidate (requires OFFER_SENT or INITIATED)
+ * @openapi
+ * /api/v1/onboarding/send-link:
+ *   post:
+ *     summary: Send Onboarding Portal Magic Link to Candidate
+ *     tags:
+ *       - Employee Onboarding
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - onboarding_id
+ *             properties:
+ *               onboarding_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Portal link sent successfully
+ *       404:
+ *         description: Onboarding record not found
  */
 router.post('/send-link', auth_1.authenticateToken, (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -105,8 +149,25 @@ router.post('/send-link', auth_1.authenticateToken, (0, auth_1.requirePermission
     }
 });
 /**
- * @route   POST /api/v1/onboarding/:id/accept-offer
- * @desc    HR Manual Accept: Mark offer as accepted and move candidate to DOCS_SUBMITTED so HR can review/approve
+ * @openapi
+ * /api/v1/onboarding/{id}/accept-offer:
+ *   post:
+ *     summary: HR Manual Accept Offer
+ *     tags:
+ *       - Employee Onboarding
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Offer accepted manually by HR
+ *       404:
+ *         description: Onboarding record not found
  */
 router.post('/:id/accept-offer', auth_1.authenticateToken, (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -137,8 +198,25 @@ router.post('/:id/accept-offer', auth_1.authenticateToken, (0, auth_1.requirePer
     }
 });
 /**
- * @route   POST /api/v1/onboarding/:id/reject-offer
- * @desc    HR Manual Reject: Mark offer as rejected/cancelled
+ * @openapi
+ * /api/v1/onboarding/{id}/reject-offer:
+ *   post:
+ *     summary: HR Manual Reject/Cancel Offer
+ *     tags:
+ *       - Employee Onboarding
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Offer marked as rejected/cancelled
+ *       404:
+ *         description: Onboarding record not found
  */
 router.post('/:id/reject-offer', auth_1.authenticateToken, (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {
@@ -160,8 +238,27 @@ router.post('/:id/reject-offer', auth_1.authenticateToken, (0, auth_1.requirePer
     }
 });
 /**
- * @route   POST /api/v1/onboarding/:id/approve
- * @desc    HR 1-Click Approval: Converts candidate into permanent hrms.employees record
+ * @openapi
+ * /api/v1/onboarding/{id}/approve:
+ *   post:
+ *     summary: Convert Onboarding Candidate to Active Employee (1-Click Approval)
+ *     tags:
+ *       - Employee Onboarding
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Candidate successfully converted into active employee record
+ *       400:
+ *         description: Candidate already converted
+ *       404:
+ *         description: Onboarding record not found
  */
 router.post('/:id/approve', auth_1.authenticateToken, (0, auth_1.requirePermission)('recruitment:write'), async (req, res) => {
     try {

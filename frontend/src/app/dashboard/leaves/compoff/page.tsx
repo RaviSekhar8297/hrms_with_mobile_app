@@ -72,7 +72,7 @@ export default function CompOffClaimsPage() {
     setIsLoading(true);
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/comp-off-requests?companyId=${cid}&scope=${scope}`, {
+      const res = await fetch(`/api/v1/comp-off-requests?companyId=${cid}&scope=${scope}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -87,7 +87,7 @@ export default function CompOffClaimsPage() {
   const fetchEligibleDates = async () => {
     setIsFetchingEligible(true);
     try {
-      const res = await fetch('http://localhost:5000/api/v1/comp-off-requests/eligible-dates', {
+      const res = await fetch('/api/v1/comp-off-requests/eligible-dates', {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -112,7 +112,7 @@ export default function CompOffClaimsPage() {
     }
     setIsSaving(true);
     try {
-      const res = await fetch('http://localhost:5000/api/v1/comp-off-requests', {
+      const res = await fetch('/api/v1/comp-off-requests', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(compOffForm)
@@ -137,7 +137,7 @@ export default function CompOffClaimsPage() {
     if (!actionModal.req) return;
     setIsSaving(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/comp-off-requests/${actionModal.req.id}/action`, {
+      const res = await fetch(`/api/v1/comp-off-requests/${actionModal.req.id}/action`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({

@@ -254,7 +254,7 @@ export default function WeekOffsPage() {
       } else if (!isSuper && companyId && companyId !== 'all') {
         queryParam = `?companyId=${companyId}`;
       }
-      const res = await fetch(`http://localhost:5000/api/v1/weekoffs${queryParam}`, {
+      const res = await fetch(`/api/v1/weekoffs${queryParam}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -326,7 +326,7 @@ export default function WeekOffsPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
@@ -366,7 +366,7 @@ export default function WeekOffsPage() {
         ? { type: 'seasonal', periods: seasonalPeriods }
         : alternateRules;
 
-      const res = await fetch('http://localhost:5000/api/v1/weekoffs', {
+      const res = await fetch('/api/v1/weekoffs', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -400,7 +400,7 @@ export default function WeekOffsPage() {
     const targetCompanyId = policyToDelete ? policyToDelete.company_id : companyId;
     if (!targetCompanyId) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/weekoffs?companyId=${targetCompanyId}`, {
+      const res = await fetch(`/api/v1/weekoffs?companyId=${targetCompanyId}`, {
         method: 'DELETE',
         headers: getHeaders()
       });

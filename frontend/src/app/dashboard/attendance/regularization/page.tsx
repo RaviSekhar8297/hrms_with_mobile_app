@@ -245,21 +245,21 @@ export default function RegularizationRequestsPage() {
 
       {/* SUMMARY STATS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-          <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Total Applications</p>
-          <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{requests.length}</h3>
+        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-indigo-50/95 via-sky-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
+          <p className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Applications</p>
+          <h3 className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono mt-1">{requests.length}</h3>
         </div>
-        <div className="p-4 rounded-2xl border border-amber-200/80 dark:border-amber-900/30 bg-amber-50/40 dark:bg-amber-950/20 shadow-xs">
+        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-amber-50/95 via-orange-50/30 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900 border border-amber-200/70 dark:border-amber-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
           <p className="text-[10.5px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pending Approval</p>
-          <h3 className="text-2xl font-extrabold text-amber-700 dark:text-amber-300 mt-1">{pendingCount}</h3>
+          <h3 className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 font-mono mt-1">{pendingCount}</h3>
         </div>
-        <div className="p-4 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/30 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-xs">
+        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-emerald-50/95 via-teal-50/30 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
           <p className="text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Approved</p>
-          <h3 className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-1">{approvedCount}</h3>
+          <h3 className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-1">{approvedCount}</h3>
         </div>
-        <div className="p-4 rounded-2xl border border-rose-200/80 dark:border-rose-900/30 bg-rose-50/40 dark:bg-rose-950/20 shadow-xs">
+        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-rose-50/95 via-pink-50/30 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900 border border-rose-200/70 dark:border-rose-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
           <p className="text-[10.5px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Rejected</p>
-          <h3 className="text-2xl font-extrabold text-rose-700 dark:text-rose-300 mt-1">{rejectedCount}</h3>
+          <h3 className="text-2xl font-extrabold text-rose-600 dark:text-rose-400 font-mono mt-1">{rejectedCount}</h3>
         </div>
       </div>
 

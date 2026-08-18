@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import DashboardPageHeader from '../components/DashboardPageHeader';
-import { getHeaders } from '../utils/api';
+import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 
@@ -62,7 +62,7 @@ export default function CompaniesPage() {
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/companies'), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
         setCompanies(data.companies || []);
@@ -134,8 +134,8 @@ export default function CompaniesPage() {
     }
 
     const endpoint = editMode 
-      ? `http://localhost:5000/api/v1/companies/${selectedCompanyId}` 
-      : 'http://localhost:5000/api/v1/companies';
+      ? getUrl(`/api/v1/companies/${selectedCompanyId}`) 
+      : getUrl('/api/v1/companies');
     const method = editMode ? 'PUT' : 'POST';
 
     try {
@@ -159,7 +159,7 @@ export default function CompaniesPage() {
 
   const executeDeleteCompany = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/companies/${id}`, {
+      const res = await fetch(getUrl(`/api/v1/companies/${id}`), {
         method: 'DELETE',
         headers: getHeaders()
       });
@@ -298,20 +298,18 @@ export default function CompaniesPage() {
                 return (
                   <tr key={c.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/20 transition-colors duration-150">
                     
-                    {/* Extra Large Logo/Identity Avatar with theme-adaptive background */}
                     <td className="py-3.5 px-3">
                       <div className="flex justify-center">
                         {c.branding_logo ? (
-                          <div className="h-14 w-32 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center p-1 border border-slate-200 dark:border-slate-700 shadow-sm relative group overflow-hidden">
+                          <div className="h-12 w-28 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center p-1 border border-slate-200 dark:border-slate-700 shadow-sm relative group overflow-hidden">
                             <img 
                               src={c.branding_logo} 
                               alt={c.name} 
-                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               className="h-full w-full object-contain rounded-md transition-transform duration-200 group-hover:scale-105"
                             />
                           </div>
                         ) : (
-                          <div className="h-14 w-14 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-sm font-black shadow-xs tracking-wider">
+                          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm font-black shadow-xs tracking-wider">
                             {initials}
                           </div>
                         )}

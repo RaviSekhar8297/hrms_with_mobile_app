@@ -617,7 +617,7 @@ export default function DedicatedEmployeeEditPage() {
     const fetchOptions = async () => {
       try {
         if (isSuperAdmin) {
-          const cRes = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+          const cRes = await fetch('/api/v1/companies', { headers: getHeaders() });
           const cData = await cRes.json();
           if (cRes.ok) setCompanies(cData.companies || []);
         }

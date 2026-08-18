@@ -135,7 +135,7 @@ export default function AttendanceRequestsPage() {
   const fetchRequests = async (scope: 'my' | 'team') => {
     if (!companyId) return;
     try {
-      const url = `http://localhost:5000/api/v1/attendance/regularizations?companyId=${companyId}&scope=${scope}`;
+      const url = `/api/v1/attendance/regularizations?companyId=${companyId}&scope=${scope}`;
       const res = await fetch(url, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
@@ -150,8 +150,8 @@ export default function AttendanceRequestsPage() {
   const fetchCompOffRequests = async () => {
     try {
       const url = isSuperAdmin
-        ? `http://localhost:5000/api/v1/comp-off-requests?companyId=${companyId}`
-        : 'http://localhost:5000/api/v1/comp-off-requests';
+        ? `/api/v1/comp-off-requests?companyId=${companyId}`
+        : '/api/v1/comp-off-requests';
       const res = await fetch(url, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
@@ -167,7 +167,7 @@ export default function AttendanceRequestsPage() {
     try {
       const empId = targetEmpId || currentEmployee?.id || '';
       const empIdParam = empId ? `?employeeId=${empId}` : '';
-      const res = await fetch(`http://localhost:5000/api/v1/comp-off-requests/eligible-dates${empIdParam}`, {
+      const res = await fetch(`/api/v1/comp-off-requests/eligible-dates${empIdParam}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -213,7 +213,7 @@ export default function AttendanceRequestsPage() {
     }
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:5000/api/v1/attendance/regularizations', {
+      const res = await fetch('/api/v1/attendance/regularizations', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -254,7 +254,7 @@ export default function AttendanceRequestsPage() {
 
     setActionModal(prev => ({ ...prev, isProcessing: true }));
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/attendance/regularizations/${actionModal.requestId}/action`, {
+      const res = await fetch(`/api/v1/attendance/regularizations/${actionModal.requestId}/action`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -284,7 +284,7 @@ export default function AttendanceRequestsPage() {
   const handleDirectClaimCompOff = async (item: any) => {
     setClaimingDate(item.worked_date);
     try {
-      const res = await fetch('http://localhost:5000/api/v1/comp-off-requests', {
+      const res = await fetch('/api/v1/comp-off-requests', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -310,7 +310,7 @@ export default function AttendanceRequestsPage() {
 
   const handleActionCompOff = async (id: string, action: 'APPROVED' | 'REJECTED') => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/comp-off-requests/${id}/action`, {
+      const res = await fetch(`/api/v1/comp-off-requests/${id}/action`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ action })

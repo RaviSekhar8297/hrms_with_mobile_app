@@ -92,7 +92,7 @@ export default function DepartmentsPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
@@ -100,7 +100,7 @@ export default function DepartmentsPage() {
 
   const fetchBranchesForCompany = async (targetCompanyId: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/branches?companyId=${targetCompanyId}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/branches?companyId=${targetCompanyId}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
         return data.branches || [];
@@ -177,8 +177,8 @@ export default function DepartmentsPage() {
 
     try {
       const url = editMode 
-        ? `http://localhost:5000/api/v1/departments/${selectedDepartmentId}`
-        : 'http://localhost:5000/api/v1/departments';
+        ? `/api/v1/departments/${selectedDepartmentId}`
+        : '/api/v1/departments';
       const method = editMode ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -231,7 +231,7 @@ export default function DepartmentsPage() {
 
   const executeDeleteDepartment = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/departments/${id}`, {
+      const res = await fetch(`/api/v1/departments/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
@@ -257,6 +257,30 @@ export default function DepartmentsPage() {
       setDrawerBranches([]);
     }
     setDrawerOpen(true);
+  };
+
+  const formatDateTime = (rawStr?: string | null) => {
+    if (!rawStr) return '—';
+    try {
+      const dt = new Date(rawStr);
+      if (isNaN(dt.getTime())) return '—';
+      
+      const day = String(dt.getDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[dt.getMonth()];
+      const year = dt.getFullYear();
+      
+      let hours = dt.getHours();
+      const minutes = String(dt.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'pm' : 'am';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const strHours = String(hours).padStart(2, '0');
+      
+      return `${day} ${month} ${year} • ${strHours}:${minutes} ${ampm}`;
+    } catch {
+      return '—';
+    }
   };
 
   return (
@@ -479,15 +503,7 @@ export default function DepartmentsPage() {
                     <div className="flex flex-col text-[10px] font-bold font-mono">
                       <span className="text-[8.5px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest">Created At</span>
                       <span className="text-slate-600 dark:text-slate-300 font-bold">
-                        {d.created_at ? (
-                          <>
-                            {new Date(d.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            {' • '}
-                            {new Date(d.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                          </>
-                        ) : (
-                          '—'
-                        )}
+                        {formatDateTime(d.created_at || (d as any).createdAt)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">

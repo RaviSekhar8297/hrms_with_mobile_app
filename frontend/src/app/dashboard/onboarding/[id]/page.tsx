@@ -49,7 +49,7 @@ export default function CandidateOnboardingDetailPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/onboarding', {
+      const res = await fetch('/api/v1/onboarding', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -82,7 +82,7 @@ export default function CandidateOnboardingDetailPage() {
     setProcessingAction('offer');
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/onboarding/${record.id}/send-offer`, {
+      const res = await fetch(`/api/v1/onboarding/${record.id}/send-offer`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -104,7 +104,7 @@ export default function CandidateOnboardingDetailPage() {
     setProcessingAction('link');
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/onboarding/send-link', {
+      const res = await fetch('/api/v1/onboarding/send-link', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -131,7 +131,7 @@ export default function CandidateOnboardingDetailPage() {
     setProcessingAction('accept_manual');
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/onboarding/${record.id}/accept-offer`, {
+      const res = await fetch(`/api/v1/onboarding/${record.id}/accept-offer`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -154,7 +154,7 @@ export default function CandidateOnboardingDetailPage() {
     setProcessingAction('reject_manual');
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/onboarding/${record.id}/reject-offer`, {
+      const res = await fetch(`/api/v1/onboarding/${record.id}/reject-offer`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -177,7 +177,7 @@ export default function CandidateOnboardingDetailPage() {
     setProcessingAction('approve');
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/onboarding/${record.id}/approve`, {
+      const res = await fetch(`/api/v1/onboarding/${record.id}/approve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });

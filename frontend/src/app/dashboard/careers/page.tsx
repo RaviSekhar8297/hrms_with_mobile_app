@@ -17,7 +17,7 @@ export default function DashboardCareersPortal() {
   const fetchJobs = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/recruitment/jobs', {
+      const res = await fetch('/api/v1/recruitment/jobs', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

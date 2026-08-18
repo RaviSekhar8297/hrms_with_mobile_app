@@ -48,10 +48,10 @@ export default function GlobalConfigurationPage() {
       let q = selectedCompanyId ? `?company_id=${selectedCompanyId}` : '';
       
       const [emailRes, whatsappRes, campRes, rulesRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/email${q}`, { headers }),
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/whatsapp${q}`, { headers }),
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/whatsapp-campaigns${q}`, { headers }),
-        fetch(`http://localhost:5000/api/v1/recruitment/settings/notification-rules${q}`, { headers })
+        fetch(`/api/v1/recruitment/settings/email${q}`, { headers }),
+        fetch(`/api/v1/recruitment/settings/whatsapp${q}`, { headers }),
+        fetch(`/api/v1/recruitment/settings/whatsapp-campaigns${q}`, { headers }),
+        fetch(`/api/v1/recruitment/settings/notification-rules${q}`, { headers })
       ]);
       
       let tempIntegrations: any[] = [];
@@ -104,7 +104,7 @@ export default function GlobalConfigurationPage() {
       setIsSuperAdmin(!!isSuper);
 
       if (isSuper) {
-        const res = await fetch('http://localhost:5000/api/v1/companies', {
+        const res = await fetch('/api/v1/companies', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -183,7 +183,7 @@ export default function GlobalConfigurationPage() {
       let payload = {};
       
       if (provider === 'SMTP') {
-        url = 'http://localhost:5000/api/v1/recruitment/settings/email';
+        url = '/api/v1/recruitment/settings/email';
         payload = {
           company_id: selectedCompanyId,
           smtp_host: credentials.smtpServer,
@@ -196,7 +196,7 @@ export default function GlobalConfigurationPage() {
           is_active: isActive
         };
       } else if (provider === 'WHATSAPP') {
-        url = 'http://localhost:5000/api/v1/recruitment/settings/whatsapp';
+        url = '/api/v1/recruitment/settings/whatsapp';
         payload = {
           company_id: selectedCompanyId,
           provider: 'WHATSAPP',
@@ -238,8 +238,8 @@ export default function GlobalConfigurationPage() {
       const token = localStorage.getItem('access_token');
       const method = currentCampaign.id ? 'PUT' : 'POST';
       const url = currentCampaign.id 
-        ? `http://localhost:5000/api/v1/recruitment/settings/whatsapp-campaigns/${currentCampaign.id}`
-        : 'http://localhost:5000/api/v1/recruitment/settings/whatsapp-campaigns';
+        ? `/api/v1/recruitment/settings/whatsapp-campaigns/${currentCampaign.id}`
+        : '/api/v1/recruitment/settings/whatsapp-campaigns';
       
       // Reconstruct parameters object from paramList
       const builtParams: Record<string, string> = {};
@@ -278,8 +278,8 @@ export default function GlobalConfigurationPage() {
       const token = localStorage.getItem('access_token');
       const method = currentRule.id ? 'PUT' : 'POST';
       const url = currentRule.id 
-        ? `http://localhost:5000/api/v1/recruitment/settings/notification-rules/${currentRule.id}`
-        : 'http://localhost:5000/api/v1/recruitment/settings/notification-rules';
+        ? `/api/v1/recruitment/settings/notification-rules/${currentRule.id}`
+        : '/api/v1/recruitment/settings/notification-rules';
       
       const payload = {
         ...currentRule,
@@ -314,17 +314,17 @@ export default function GlobalConfigurationPage() {
       
       if (type === 'email' || type === 'whatsapp') {
         const url = type === 'email' 
-          ? 'http://localhost:5000/api/v1/recruitment/settings/email' 
-          : 'http://localhost:5000/api/v1/recruitment/settings/whatsapp';
+          ? '/api/v1/recruitment/settings/email' 
+          : '/api/v1/recruitment/settings/whatsapp';
         await fetch(url, { method: 'DELETE', headers });
         fetchIntegrations();
         showToast(`${provider} gateway integration deleted`, 'success');
       } else if (type === 'campaign') {
-        await fetch(`http://localhost:5000/api/v1/recruitment/settings/whatsapp-campaigns/${id}`, { method: 'DELETE', headers });
+        await fetch(`/api/v1/recruitment/settings/whatsapp-campaigns/${id}`, { method: 'DELETE', headers });
         fetchIntegrations();
         showToast('Campaign deleted successfully', 'success');
       } else if (type === 'rule') {
-        await fetch(`http://localhost:5000/api/v1/recruitment/settings/notification-rules/${id}`, { method: 'DELETE', headers });
+        await fetch(`/api/v1/recruitment/settings/notification-rules/${id}`, { method: 'DELETE', headers });
         fetchIntegrations();
         showToast('Rule deleted successfully', 'success');
       }

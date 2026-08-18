@@ -12,14 +12,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [isUsernameFocused, setIsUsernameFocused] = useState(false);
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
     
-    // Force light mode on document.documentElement for login page so dark classes don't mess up text
+    // Force light mode theme reset for clean rendering
     if (typeof document !== 'undefined') {
       document.documentElement.classList.remove('dark');
       document.documentElement.classList.remove('theme-nordic-light');
@@ -69,7 +67,7 @@ export default function LoginPage() {
     setError('');
     setSuccessMessage('');
     try {
-      const res = await fetch('http://localhost:5000/api/v1/auth/login', {
+      const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -122,37 +120,23 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row select-none overflow-hidden font-sans relative bg-gradient-to-br from-amber-50/70 via-slate-50 to-indigo-50/60 text-slate-900">
+    <div data-login-container="true" className="min-h-screen h-screen w-full flex flex-col lg:flex-row font-sans bg-slate-50 text-slate-900 select-none overflow-hidden relative">
       
-      {/* 🌌 ELEGANT SOFT AMBIENT LIGHT ORBS */}
-      <div className="absolute top-[-10%] left-[-10%] w-[650px] h-[650px] bg-indigo-200/40 rounded-full blur-[140px] pointer-events-none animate-pulse-slow" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] bg-purple-200/35 rounded-full blur-[150px] pointer-events-none animate-pulse-slow" />
-      <div className="absolute top-[40%] left-[25%] w-[450px] h-[450px] bg-amber-200/30 rounded-full blur-[130px] pointer-events-none" />
+      {/* 🌌 SOFT LIGHT GRADIENT ORBS */}
+      <div className="absolute top-[-10%] left-[-5%] w-[650px] h-[650px] bg-indigo-200/35 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-5%] w-[650px] h-[650px] bg-purple-200/35 rounded-full blur-[140px] pointer-events-none" />
 
-      {/* 🔔 FLOATING TOAST NOTIFICATION */}
+      {/* 🔔 ELEGANT TOAST NOTIFICATION */}
       {(error || successMessage) && (
         <div 
-          className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-[440px] rounded-2xl p-4 flex items-center gap-3.5 shadow-2xl backdrop-blur-xl transition-all duration-300 animate-toast-slide-down"
+          className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-[440px] rounded-2xl p-4 flex items-center gap-3.5 shadow-2xl backdrop-blur-2xl border transition-all duration-300 animate-slide-down bg-white"
           style={{
-            backgroundColor: '#ffffff',
-            border: error ? '1px solid #fecdd3' : '1px solid #a7f3d0',
-            boxShadow: error ? '0 20px 40px -10px rgba(225, 29, 72, 0.2)' : '0 20px 40px -10px rgba(16, 185, 129, 0.2)',
+            borderColor: error ? '#fecdd3' : '#a7f3d0',
+            boxShadow: error ? '0 20px 50px -10px rgba(225, 29, 72, 0.2)' : '0 20px 50px -10px rgba(16, 185, 129, 0.2)',
             color: '#0f172a'
           }}
         >
-          <div 
-            style={{
-              backgroundColor: error ? '#e11d48' : '#059669',
-              color: '#ffffff',
-              padding: '10px',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: error ? '0 4px 12px rgba(225, 29, 72, 0.3)' : '0 4px 12px rgba(5, 150, 105, 0.3)',
-              flexShrink: 0
-            }}
-          >
+          <div className={`p-2.5 rounded-xl text-white shrink-0 ${error ? 'bg-rose-600' : 'bg-emerald-600'}`}>
             {error ? (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <circle cx="12" cy="12" r="10" />
@@ -161,56 +145,25 @@ export default function LoginPage() {
               </svg>
             ) : (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             )}
           </div>
 
           <div className="flex-1 min-w-0 text-left">
-            <h4 
-              style={{
-                color: error ? '#e11d48' : '#059669',
-                fontSize: '11px',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                margin: 0
-              }}
-            >
-              {error ? 'LOGIN NOTICE' : 'SUCCESS'}
+            <h4 className={`text-[10px] font-black uppercase tracking-widest ${error ? 'text-rose-600' : 'text-emerald-700'}`}>
+              {error ? 'Notice' : 'Success'}
             </h4>
-            <p 
-              style={{
-                color: '#0f172a',
-                fontSize: '13px',
-                fontWeight: 700,
-                lineHeight: 1.4,
-                marginTop: '2px',
-                margin: 0,
-                wordBreak: 'break-word'
-              }}
-            >
+            <p className="text-xs font-bold text-slate-800 mt-0.5 leading-snug break-words">
               {error || successMessage}
             </p>
           </div>
 
           <button
-            onClick={() => {
-              setError('');
-              setSuccessMessage('');
-            }}
-            style={{
-              backgroundColor: 'transparent',
-              border: 'none',
-              color: '#64748b',
-              padding: '6px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}
+            type="button"
+            onClick={() => { setError(''); setSuccessMessage(''); }}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer shrink-0"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -220,256 +173,191 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* 🌌 LEFT PANEL: ELEGANT WHITE & CREAM HERO SHOWCASE */}
-      <div className="hidden lg:flex lg:w-1/2 relative p-12 xl:p-16 flex-col justify-between overflow-hidden z-10">
+      {/* 🏢 LEFT PANEL: FULL-HEIGHT ENTERPRISE SHOWCASE */}
+      <div className="hidden lg:flex lg:w-7/12 h-screen relative p-12 xl:p-16 flex-col justify-between overflow-hidden bg-gradient-to-br from-indigo-50/80 via-slate-50 to-purple-50/60 border-r border-slate-200/80">
         
-        {/* Top Header Logo */}
-        <div className="relative z-10 flex items-center justify-between animate-fade-in-down">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-purple-700 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        {/* Top Branding Header */}
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-purple-700 text-white flex items-center justify-center shadow-xl shadow-indigo-600/25">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
               </svg>
             </div>
-            <div>
-              <span className="text-xl font-black tracking-widest uppercase block leading-none font-outfit text-slate-900">HRMASTER</span>
-              <span className="text-xs font-bold tracking-widest uppercase block mt-1 text-indigo-700">Brihaspathi Technologies</span>
+            <div className="text-left">
+              <span className="text-xl font-black tracking-wider uppercase block font-outfit text-slate-900 leading-none">
+                BRIHASPATHI
+              </span>
+              <span className="text-xs font-bold text-indigo-700 tracking-widest uppercase block mt-1">
+                Enterprise Operating Platform
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-extrabold shadow-sm">
+          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold shadow-xs">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-            <span>v4.8 Enterprise • Operational</span>
+            <span>v4.8 • Online System</span>
           </div>
         </div>
 
-        {/* Center Hero Section */}
-        <div className="relative z-10 my-auto py-8 space-y-8 animate-fade-in-up">
+        {/* Center Main Presentation Hero */}
+        <div className="relative z-10 my-auto py-6 space-y-8 text-left max-w-xl">
           
-          {/* Main Headline Badge */}
-          <div className="space-y-4 text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-800 text-xs font-black uppercase tracking-wider shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
-              <span>Enterprise Workforce OS</span>
-            </div>
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-indigo-200 bg-white/90 text-indigo-800 text-xs font-bold uppercase tracking-wider shadow-xs backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+            <span>Unified Enterprise Workflow Management</span>
+          </div>
 
-            <h1 className="text-4xl xl:text-5xl font-black tracking-tight leading-[1.15] font-outfit text-slate-900">
-              Next-Gen Workforce <br />
+          <div className="space-y-4">
+            <h1 className="text-4xl xl:text-5xl font-black tracking-tight text-slate-900 leading-[1.12] font-outfit">
+              One Platform. <br />
               <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 bg-clip-text text-transparent">
-                Intelligence & Payroll
+                Total Enterprise Workflow.
               </span>
             </h1>
-
-            <p className="text-sm xl:text-base font-semibold text-slate-600 max-w-lg leading-relaxed">
-              Empowering enterprise organizations with automated statutory compliance, real-time biometric attendance tracking, and instant multi-tenant payroll processing.
+            <p className="text-sm font-semibold text-slate-600 leading-relaxed max-w-lg">
+              Streamline organizational governance, operational workflows, entity hierarchies, and automated business processes across all your locations in one unified platform.
             </p>
           </div>
 
-          {/* Feature Cards */}
-          <div className="space-y-4">
+          {/* Feature Showcase Grid */}
+          <div className="grid grid-cols-2 gap-4">
             
-            {/* Feature Card 1 */}
-            <div className="p-4 rounded-2xl border border-slate-200/90 bg-white/90 backdrop-blur-xl flex items-center justify-between hover:border-indigo-400 hover:shadow-lg transition-all duration-300 hover:scale-[1.01] shadow-xs group">
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0 shadow-xs group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-900 font-outfit">Automated Payroll Engine</h4>
-                  <p className="text-xs font-semibold text-slate-500 mt-0.5">100% Tax, PF, ESI & LOP precision compliance</p>
-                </div>
+            <div className="p-4.5 rounded-2xl border border-slate-200/90 bg-white/90 backdrop-blur-xl shadow-xs hover:border-indigo-300 transition-all text-left">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-black uppercase text-indigo-700 tracking-wider font-outfit font-bold">Enterprise Operations</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
               </div>
-              <span className="text-xs font-black px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">Auto</span>
+              <div className="text-2xl font-black text-slate-900 font-outfit">Total Control</div>
+              <p className="text-xs text-slate-500 mt-1 font-medium">End-to-end organizational governance</p>
             </div>
 
-            {/* Feature Card 2 */}
-            <div className="p-4 rounded-2xl border border-slate-200/90 bg-white/90 backdrop-blur-xl flex items-center justify-between hover:border-purple-400 hover:shadow-lg transition-all duration-300 hover:scale-[1.01] shadow-xs group">
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center shrink-0 shadow-xs group-hover:bg-purple-600 group-hover:text-white transition-all">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-900 font-outfit">Biometric & Geo Sync</h4>
-                  <p className="text-xs font-semibold text-slate-500 mt-0.5">Real-time attendance stream & shift logs</p>
-                </div>
+            <div className="p-4.5 rounded-2xl border border-slate-200/90 bg-white/90 backdrop-blur-xl shadow-xs hover:border-purple-300 transition-all text-left">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-black uppercase text-purple-700 tracking-wider font-outfit font-bold">Multi-Entity OS</span>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">Global</span>
               </div>
-              <span className="text-xs font-black px-3 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200">Live</span>
-            </div>
-
-            {/* Feature Card 3 */}
-            <div className="p-4 rounded-2xl border border-slate-200/90 bg-white/90 backdrop-blur-xl flex items-center justify-between hover:border-emerald-400 hover:shadow-lg transition-all duration-300 hover:scale-[1.01] shadow-xs group">
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0 shadow-xs group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-900 font-outfit">Multi-Tenant RBAC Security</h4>
-                  <p className="text-xs font-semibold text-slate-500 mt-0.5">Granular governance & encrypted data access</p>
-                </div>
-              </div>
-              <span className="text-xs font-black px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">Secure</span>
+              <div className="text-2xl font-black text-slate-900 font-outfit">Scalable</div>
+              <p className="text-xs text-slate-500 mt-1 font-medium">Multi-branch management & sync</p>
             </div>
 
           </div>
 
-          {/* Quick Metrics Cards */}
-          <div className="grid grid-cols-3 gap-3.5 pt-2">
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white/90 backdrop-blur-xl text-center shadow-xs">
-              <span className="text-xl xl:text-2xl font-black text-indigo-700 font-outfit block">99.99%</span>
-              <span className="text-xs font-bold text-slate-500 mt-1 block">System Uptime</span>
-            </div>
-
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white/90 backdrop-blur-xl text-center shadow-xs">
-              <span className="text-xl xl:text-2xl font-black text-purple-700 font-outfit block">100%</span>
-              <span className="text-xs font-bold text-slate-500 mt-1 block">Statutory Tax</span>
-            </div>
-
-            <div className="p-4 rounded-2xl border border-slate-200 bg-white/90 backdrop-blur-xl text-center shadow-xs">
-              <span className="text-xl xl:text-2xl font-black text-emerald-700 font-outfit block">Realtime</span>
-              <span className="text-xs font-bold text-slate-500 mt-1 block">Punch Sync</span>
-            </div>
+          {/* Security Assurance Badge Pill */}
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200/90 bg-white/90 shadow-xs backdrop-blur-md">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600 shrink-0">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span className="text-xs font-bold text-slate-700">ISO 27001 Certified Security • 256-bit AES Encrypted Vaults</span>
           </div>
 
         </div>
 
-        {/* Footer Security Info */}
+        {/* Footer info */}
         <div className="relative z-10 flex items-center justify-between text-xs text-slate-500 pt-4 border-t border-slate-200/80">
-          <div className="flex items-center gap-2">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            <span className="font-bold text-slate-700">ISO 27001 Certified • 256-bit AES Encryption</span>
-          </div>
-          <span className="font-mono text-xs font-black text-indigo-700">Brihaspathi Tech</span>
+          <span>© {new Date().getFullYear()} <strong className="text-slate-800 font-bold">Brihaspathi Technologies</strong></span>
+          <span className="font-mono text-xs text-indigo-700 font-bold">Brihaspathi Enterprise</span>
         </div>
 
       </div>
 
-      {/* 🔐 RIGHT PANEL: SIGN IN FORM CONTAINER */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-6 sm:p-12 xl:p-16 relative z-10 my-auto min-h-screen">
+      {/* 🔐 RIGHT PANEL: FULL HEIGHT CLEAN WHITE SIGN IN CONSOLE PANEL */}
+      <div className="w-full lg:w-5/12 h-screen flex flex-col justify-between p-8 sm:p-12 xl:p-16 relative z-10 bg-white">
         
         {/* Mobile Header Logo */}
-        <div className="lg:hidden flex items-center justify-between w-full max-w-md pb-6 mb-6 border-b border-slate-200">
+        <div className="lg:hidden flex items-center justify-between w-full pb-4 border-b border-slate-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
               </svg>
             </div>
-            <div>
-              <span className="text-base font-black tracking-widest uppercase font-outfit text-slate-900">HRMASTER</span>
-              <span className="text-[10px] font-bold text-indigo-600 block">Brihaspathi Tech</span>
+            <div className="text-left">
+              <span className="text-base font-black tracking-widest uppercase block font-outfit text-slate-900 leading-none">
+                BRIHASPATHI
+              </span>
+              <span className="text-[10px] font-bold text-indigo-600 block mt-0.5">Enterprise Portal</span>
             </div>
           </div>
-
-          <span className="text-[10px] font-extrabold uppercase px-3 py-1 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-800">
+          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-800">
             System Online
           </span>
         </div>
 
-        {/* Elevated Sign In Card Container (Clean Single-Border Design) */}
-        <div className="login-card w-full max-w-md p-8 sm:p-10 rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(15,23,42,0.08)] transition-all duration-300 animate-fade-in-up">
+        {/* Form Container */}
+        <div className="my-auto w-full max-w-md mx-auto py-4">
           
-          {/* Card Header */}
           <div className="text-left mb-8 space-y-2">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-800 text-xs font-black tracking-wide">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-              <span>Secure Portal Access</span>
-            </div>
-
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight font-outfit text-slate-900 pt-1">
-              Welcome back
+            <h2 className="text-3xl font-black tracking-tight text-slate-900 font-outfit">
+              Welcome Back
             </h2>
-            <p className="text-sm font-semibold text-slate-500">
-              Enter your corporate credentials to access your console.
+            <p className="text-xs font-semibold text-slate-500">
+              Sign in to access your enterprise workspace.
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleLogin} className="space-y-5">
             
-            {/* Username Input with Floating Notch Label */}
-            <div className="relative w-full pt-1.5">
-              <input
-                id="username"
-                type="text"
-                placeholder=""
-                value={username}
-                onFocus={() => setIsUsernameFocused(true)}
-                onBlur={() => setIsUsernameFocused(false)}
-                onChange={(e) => setUsername(e.target.value)}
-                className="login-input peer w-full px-4 py-3.5 rounded-xl border-2 border-slate-400 bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-900 outline-none transition-all duration-200 shadow-sm"
-              />
-              <label
-                htmlFor="username"
-                style={{ marginBottom: 0, marginTop: 0 }}
-                className={`absolute left-3.5 transition-all duration-200 pointer-events-none px-1.5 bg-white font-bold rounded-md z-10 ${
-                  isUsernameFocused || username
-                    ? '-top-2 text-xs text-indigo-600 font-black'
-                    : 'top-5 -translate-y-1/2 text-sm text-slate-500 font-semibold'
-                }`}
-              >
-                Username
+            {/* Username Field */}
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="username" className="text-xs font-extrabold uppercase text-slate-700 tracking-wider block font-outfit">
+                Username or Email <span className="text-indigo-600">*</span>
               </label>
+              <div className="relative">
+                <input
+                  id="username"
+                  type="text"
+                  required
+                  placeholder="e.g. employee@brihaspathi.com"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
+                  className="login-input w-full py-3.5 px-4 rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-bold text-sm outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/15 transition-all placeholder:text-slate-400 placeholder:font-medium shadow-xs"
+                />
+              </div>
             </div>
 
-            {/* Password Input with Floating Notch Label */}
-            <div className="flex flex-col text-left space-y-1">
-              <div className="flex justify-end items-center pr-1">
+            {/* Password Field (EXPLICIT PURE BLACK COLOR FIX FOR TYPING & BULLETS) */}
+            <div className="space-y-1.5 text-left">
+              <div className="flex justify-between items-center">
+                <label htmlFor="password" className="text-xs font-extrabold uppercase text-slate-700 tracking-wider block font-outfit">
+                  Password <span className="text-indigo-600">*</span>
+                </label>
                 <a 
                   href="#" 
                   onClick={(e) => { e.preventDefault(); alert('Please contact your HR Administrator to reset your credentials.'); }}
                   className="text-xs font-bold text-indigo-700 hover:underline transition-all"
                 >
-                  Forgot password?
+                  Forgot Password?
                 </a>
               </div>
-              <div className="relative w-full pt-1">
+              <div className="relative flex items-center">
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder=""
+                  required
+                  placeholder="Enter your password..."
                   value={password}
-                  onFocus={() => setIsPasswordFocused(true)}
-                  onBlur={() => setIsPasswordFocused(false)}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="login-input peer w-full pl-4 pr-11 py-3.5 rounded-xl border-2 border-slate-400 bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-900 outline-none transition-all duration-200 shadow-sm"
+                  style={{ color: '#0f172a', backgroundColor: '#ffffff', WebkitTextFillColor: '#0f172a' }}
+                  className="login-input w-full py-3.5 px-4 pr-12 rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-bold text-sm outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/15 transition-all placeholder:text-slate-400 placeholder:font-medium shadow-xs"
                 />
-                <label
-                  htmlFor="password"
-                  style={{ marginBottom: 0, marginTop: 0 }}
-                  className={`absolute left-3.5 transition-all duration-200 pointer-events-none px-1.5 bg-white font-bold rounded-md z-10 ${
-                    isPasswordFocused || password
-                      ? '-top-2 text-xs text-indigo-600 font-black'
-                      : 'top-5 -translate-y-1/2 text-sm text-slate-500 font-semibold'
-                  }`}
-                >
-                  Password
-                </label>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-[52%] -translate-y-1/2 text-slate-400 hover:text-slate-900 shrink-0 flex items-center justify-center transition-colors cursor-pointer z-20"
+                  className="absolute right-3.5 text-slate-400 hover:text-slate-900 transition-colors cursor-pointer p-1 z-10"
                   title={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
                       <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
                       <line x1="1" y1="1" x2="23" y2="23" />
                     </svg>
                   ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                       <circle cx="12" cy="12" r="3" />
                     </svg>
@@ -495,16 +383,16 @@ export default function LoginPage() {
             <button 
               type="submit" 
               disabled={loading} 
-              className="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-black text-sm rounded-xl shadow-lg shadow-indigo-600/25 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed font-outfit tracking-wide mt-2"
+              className="w-full py-4 px-6 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/25 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed font-outfit tracking-wide mt-2"
             >
               {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  <span>Authenticating...</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Signing In...</span>
                 </div>
               ) : (
                 <span className="flex items-center gap-2">
-                  Sign In to Console
+                  Sign In
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <line x1="5" y1="12" x2="19" y2="12" />
                     <polyline points="12 5 19 12 12 19" />
@@ -512,18 +400,18 @@ export default function LoginPage() {
                 </span>
               )}
             </button>
+
           </form>
 
-          {/* SSO Divider */}
-          <div className="relative my-7 text-center">
+          {/* Social SSO Options */}
+          <div className="relative my-6 text-center">
             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-slate-200" />
-            <span className="relative px-3 font-bold text-xs font-outfit bg-white text-slate-400">
-              Or sign in with SSO
+            <span className="relative px-3 font-bold text-[10px] font-outfit bg-white text-slate-400 uppercase tracking-widest">
+              Or Sign In With
             </span>
           </div>
 
-          {/* SSO Buttons */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2.5">
             {[
               { 
                 name: 'Google', 
@@ -566,7 +454,7 @@ export default function LoginPage() {
                 className="flex items-center justify-center gap-2 py-2.5 px-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all font-bold text-xs cursor-pointer shadow-xs text-slate-800 font-outfit"
               >
                 {sso.icon}
-                <span className="hidden sm:inline font-outfit">{sso.name}</span>
+                <span className="hidden sm:inline">{sso.name}</span>
               </button>
             ))}
           </div>
@@ -574,9 +462,9 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <footer className="pt-8 text-xs font-bold flex flex-col sm:flex-row items-center justify-between gap-2 text-center text-slate-500 w-full max-w-md">
-          <span>© {new Date().getFullYear()} <strong className="text-slate-900">Brihaspathi Technologies</strong></span>
-          <div className="flex gap-4 font-bold text-slate-500">
+        <footer className="text-[11px] font-semibold flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 w-full max-w-md mx-auto pt-4 border-t border-slate-100">
+          <span>© {new Date().getFullYear()} <strong className="text-slate-800">Brihaspathi Tech</strong></span>
+          <div className="flex gap-3 font-medium text-slate-500">
             <a href="#" className="hover:text-indigo-700 transition-colors">Privacy Policy</a>
             <span>•</span>
             <a href="#" className="hover:text-indigo-700 transition-colors">Terms of Service</a>
@@ -585,35 +473,21 @@ export default function LoginPage() {
 
       </div>
 
-      {/* Scoped CSS animations & Autofill Fix */}
+      {/* Scoped CSS animations & Explicit Input Autofill Fix */}
       <style>{`
-        @keyframes toast-slide-down {
+        @keyframes slide-down {
           0% { transform: translateY(-120%) translateX(-50%); opacity: 0; }
           100% { transform: translateY(0) translateX(-50%); opacity: 1; }
         }
-        @keyframes fade-in-up {
-          0% { transform: translateY(16px); opacity: 0; }
-          100% { transform: translateY(0); opacity: 1; }
+        .animate-slide-down {
+          animation: slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        @keyframes fade-in-down {
-          0% { transform: translateY(-16px); opacity: 0; }
-          100% { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes pulse-slow {
-          0%, 100% { transform: scale(1); opacity: 0.3; }
-          50% { transform: scale(1.08); opacity: 0.5; }
-        }
-        .animate-toast-slide-down {
-          animation: toast-slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        .animate-fade-in-down {
-          animation: fade-in-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        .animate-pulse-slow {
-          animation: pulse-slow 8s infinite ease-in-out;
+        div[data-login-container] input,
+        div[data-login-container] input:focus,
+        div[data-login-container] input:active {
+          color: #0f172a !important;
+          -webkit-text-fill-color: #0f172a !important;
+          caret-color: #0f172a !important;
         }
         input:-webkit-autofill,
         input:-webkit-autofill:hover, 

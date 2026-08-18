@@ -6,6 +6,21 @@ import DashboardPageHeader from '../../components/DashboardPageHeader';
 import SearchableSelect from '../../components/SearchableSelect';
 import { useDashboard } from '../../components/DashboardContext';
 import { getHeaders } from '../../utils/api';
+import { 
+  Calendar, 
+  Settings, 
+  RotateCcw, 
+  Zap, 
+  AlertTriangle, 
+  Users, 
+  Building2, 
+  GitBranch, 
+  Layers, 
+  UserCheck, 
+  Sparkles,
+  ArrowRight,
+  ShieldAlert
+} from 'lucide-react';
 
 interface Company {
   id: string;
@@ -165,27 +180,27 @@ export default function GeneratePayrollPage() {
   const fetchAuxiliaryData = async () => {
     try {
       if (isSuperAdmin) {
-        const cRes = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+        const cRes = await fetch('/api/v1/companies', { headers: getHeaders() });
         const cData = await cRes.json();
         if (cRes.ok) setCompanies(cData.companies || []);
       }
 
       let urlSuffix = companyId ? `?companyId=${companyId}` : '';
-      const deptRes = await fetch(`http://localhost:5000/api/v1/departments${urlSuffix}`, { headers: getHeaders() });
+      const deptRes = await fetch(`/api/v1/departments${urlSuffix}`, { headers: getHeaders() });
       const deptData = await deptRes.json();
       if (deptRes.ok) setDepartments(deptData.departments || []);
 
-      const branchRes = await fetch(`http://localhost:5000/api/v1/branches${urlSuffix}`, { headers: getHeaders() });
+      const branchRes = await fetch(`/api/v1/branches${urlSuffix}`, { headers: getHeaders() });
       const branchData = await branchRes.json();
       if (branchRes.ok) setBranches(branchData.branches || []);
 
-      const empRes = await fetch(`http://localhost:5000/api/v1/employees${urlSuffix}`, { headers: getHeaders() });
+      const empRes = await fetch(`/api/v1/employees${urlSuffix}`, { headers: getHeaders() });
       const empData = await empRes.json();
       if (empRes.ok) setEmployees(empData.employees || []);
 
       // Fetch Attendance Policy for default cutoff cycle days
       if (companyId) {
-        const polRes = await fetch(`http://localhost:5000/api/v1/attendance/policies?companyId=${companyId}`, { headers: getHeaders() });
+        const polRes = await fetch(`/api/v1/attendance/policies?companyId=${companyId}`, { headers: getHeaders() });
         const polData = await polRes.json();
         if (polRes.ok && polData.policy) {
           if (polData.policy.cycle_start_day) setCycleStartDay(polData.policy.cycle_start_day);
@@ -263,7 +278,7 @@ export default function GeneratePayrollPage() {
     }, 650);
 
     try {
-      const res = await fetch('http://localhost:5000/api/v1/payroll/generate', {
+      const res = await fetch('/api/v1/payroll/generate', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
@@ -322,22 +337,7 @@ export default function GeneratePayrollPage() {
   ];
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="payroll-generate-container font-sans space-y-6 animate-fadeIn w-full pb-24 text-left">
-      <style dangerouslySetInnerHTML={{__html: `
-        .payroll-generate-container,
-        .payroll-generate-container button,
-        .payroll-generate-container input,
-        .payroll-generate-container select,
-        .payroll-generate-container label,
-        .payroll-generate-container span,
-        .payroll-generate-container div,
-        .payroll-generate-container p,
-        .payroll-generate-container th,
-        .payroll-generate-container td {
-          font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-        }
-      `}} />
-
+    <div style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }} className="payroll-generate-container space-y-4 animate-fadeIn w-full pb-20 text-left">
       <DashboardPageHeader
         title="Payroll Generation Engine"
         actionMessage=""
@@ -351,30 +351,32 @@ export default function GeneratePayrollPage() {
         hideUserBadge={true}
       />
 
-      {/* Card 1: Cycle Dates Card (Matching Screenshot Design) */}
-      <div className="bg-card rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-4 font-sans">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+      {/* Card 1: Cycle Dates Card */}
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-              </svg>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0">
+              <Calendar size={16} className="w-4 h-4 shrink-0" />
             </span>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight">Cycle Dates</h3>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <span>Cycle Dates & Cutoff Schedule</span>
+              </h3>
               <p className="text-[11px] text-slate-400 font-medium">Configure monthly attendance cutoff start and end day numbers</p>
             </div>
           </div>
-          <div className="px-3.5 py-1.5 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-xs font-bold font-sans">
-            Calculated Period: <span className="font-extrabold">{attendanceStartDate || '---'}</span> to <span className="font-extrabold">{attendanceEndDate || '---'}</span>
+
+          <div className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 text-xs font-bold">
+            Calculated Period: <span className="font-extrabold font-mono text-indigo-700 dark:text-indigo-200">{attendanceStartDate || '---'}</span> to <span className="font-extrabold font-mono text-indigo-700 dark:text-indigo-200">{attendanceEndDate || '---'}</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
           {/* Payroll Cycle Start Date (Day) */}
-          <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-              Payroll Cycle Start Date (Day) <span className="text-rose-500">*</span>
+          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
+            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+              <span>Payroll Cycle Start Date (Day)</span>
+              <span className="text-rose-500">*</span>
             </label>
             <input
               type="number"
@@ -382,15 +384,16 @@ export default function GeneratePayrollPage() {
               max={31}
               value={cycleStartDay}
               onChange={(e) => setCycleStartDay(parseInt(e.target.value) || 1)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all font-sans"
+              className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 font-mono"
             />
             <p className="text-[10px] text-slate-400 font-medium">Day of month when cycle starts (1-31)</p>
           </div>
 
           {/* Payroll Cycle End Date (Day) */}
-          <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-              Payroll Cycle End Date (Day) <span className="text-rose-500">*</span>
+          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
+            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+              <span>Payroll Cycle End Date (Day)</span>
+              <span className="text-rose-500">*</span>
             </label>
             <input
               type="number"
@@ -398,40 +401,39 @@ export default function GeneratePayrollPage() {
               max={31}
               value={cycleEndDay}
               onChange={(e) => setCycleEndDay(parseInt(e.target.value) || 31)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all font-sans"
+              className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 font-mono"
             />
             <p className="text-[10px] text-slate-400 font-medium">
-              Day of month when cycle ends (1-31). Use cross-month cycle (e.g., 26-25 means Nov 26 to Dec 25)
+              Day of month when cycle ends (1-31). Cross-month support enabled (e.g. 26 to 25)
             </p>
           </div>
         </div>
 
         {getCycleValidationError(cycleStartDay, cycleEndDay) && (
-          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold">
-            <svg className="w-4 h-4 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
+          <div className="flex items-center gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-semibold">
+            <AlertTriangle size={14} className="w-3.5 h-3.5 flex-shrink-0 text-amber-500 shrink-0" />
             <span>{getCycleValidationError(cycleStartDay, cycleEndDay)}</span>
           </div>
         )}
       </div>
 
-      {/* Card 2: Main Single Row Controls Card */}
-      <div className="bg-card rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-6">
+      {/* Card 2: Main Controls Card */}
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs space-y-4">
         
         {/* Header Title with Reset Button */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-[10.5px] font-bold border border-indigo-200 dark:border-indigo-800">
+              <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 text-[11px] font-bold border border-indigo-200 dark:border-indigo-800">
                 Scope: {getDerivedScopeLabel()}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10.5px] font-bold border border-emerald-200 dark:border-emerald-800">
+              <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-200 dark:border-emerald-800">
                 {matchedList.length} Staff Selected
               </span>
             </div>
-            <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 tracking-tight mt-1">
-              Configure Payroll Parameters
+            <h2 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight mt-1 flex items-center gap-1.5">
+              <Settings size={14} className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span>Configure Payroll Parameters</span>
             </h2>
           </div>
 
@@ -443,47 +445,50 @@ export default function GeneratePayrollPage() {
                 setSelectedDepartmentId('ALL');
                 setSelectedEmployeeId('ALL');
               }}
-              className="text-xs font-semibold text-rose-500 hover:text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900 transition-all cursor-pointer"
+              className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/50 px-3 py-1 rounded-lg border border-rose-200 dark:border-rose-900 transition-all cursor-pointer flex items-center gap-1"
             >
-              ✕ Reset Filters
+              <RotateCcw size={12} className="w-3 h-3 shrink-0" />
+              <span>Reset Filters</span>
             </button>
           )}
         </div>
 
-        {/* CONTROLS ROW - 5 DYNAMIC CONTROLS (WITHOUT COMPANY) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+        {/* CONTROLS ROW - 5 DYNAMIC CONTROLS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
           
           {/* 1. Pay Period */}
-          <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-            <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-              1. Pay Period
+          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
+            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Calendar size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
+              <span>1. Pay Period</span>
             </label>
             <select
               value={payPeriod}
               onChange={(e) => setPayPeriod(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all cursor-pointer font-sans"
+              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 cursor-pointer font-sans"
             >
               {dynamicMonthOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
             {attendanceStartDate && attendanceEndDate && (
-              <div className="pt-1 flex items-center justify-between text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/60 dark:bg-indigo-950/40 px-2 py-1 rounded-lg border border-indigo-200/60 dark:border-indigo-800/40">
-                <span>From: <strong className="font-extrabold">{attendanceStartDate}</strong></span>
-                <span>To: <strong className="font-extrabold">{attendanceEndDate}</strong></span>
+              <div className="pt-0.5 flex items-center justify-between text-[9px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/40 font-mono">
+                <span>From: {attendanceStartDate}</span>
+                <span>To: {attendanceEndDate}</span>
               </div>
             )}
           </div>
 
           {/* 2. Payroll Type */}
-          <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-            <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-              2. Payroll Type
+          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
+            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Sparkles size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
+              <span>2. Payroll Type</span>
             </label>
             <select
               value={payrollType}
               onChange={(e) => setPayrollType(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all cursor-pointer font-sans"
+              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 cursor-pointer font-sans"
             >
               <option value="REGULAR">Regular Payroll</option>
               <option value="BONUS">Annual Bonus</option>
@@ -494,9 +499,10 @@ export default function GeneratePayrollPage() {
           </div>
 
           {/* 3. Branch Filter */}
-          <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-            <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-              3. Branch
+          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
+            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <GitBranch size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
+              <span>3. Branch</span>
             </label>
             <SearchableSelect
               options={branchOptions}
@@ -507,9 +513,10 @@ export default function GeneratePayrollPage() {
           </div>
 
           {/* 4. Department Filter */}
-          <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-            <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-              4. Department
+          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
+            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Layers size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
+              <span>4. Department</span>
             </label>
             <SearchableSelect
               options={departmentOptions}
@@ -520,9 +527,10 @@ export default function GeneratePayrollPage() {
           </div>
 
           {/* 5. Employee Filter */}
-          <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-            <label className="block text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-              5. Employee
+          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
+            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <UserCheck size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
+              <span>5. Employee</span>
             </label>
             <SearchableSelect
               options={employeeOptions}
@@ -534,21 +542,19 @@ export default function GeneratePayrollPage() {
         </div>
 
         {/* Action Button Bar */}
-        <div className="pt-2 flex justify-end">
+        <div className="pt-1 flex justify-end">
           {isGenerating ? (
-            <div className="px-8 py-3 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-lg flex items-center justify-center gap-3 animate-pulse">
-              <span className="h-2.5 w-2.5 rounded-full bg-white animate-spin" />
-              <span>Step {progressStep} of 4: Computing Payroll from Database...</span>
+            <div className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2.5 animate-pulse">
+              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Step {progressStep} of 4: Computing Payroll...</span>
             </div>
           ) : (
             <button
               type="button"
               onClick={handleStartGeneration}
-              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-extrabold shadow-sm hover:shadow-indigo-500/20 hover:-translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+              <Zap size={14} className="w-3.5 h-3.5 fill-current stroke-0 shrink-0" />
               <span>Generate Payroll ({matchedList.length} Staff)</span>
             </button>
           )}

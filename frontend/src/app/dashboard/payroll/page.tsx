@@ -7,6 +7,26 @@ import SlideDrawer from '../components/SlideDrawer';
 import SearchableSelect from '../components/SearchableSelect';
 import { useDashboard } from '../components/DashboardContext';
 import { getHeaders } from '../utils/api';
+import { 
+  DollarSign, 
+  Calendar, 
+  Lock, 
+  Unlock, 
+  Plus, 
+  Search, 
+  CheckCircle2, 
+  TrendingUp, 
+  FileText, 
+  Users, 
+  ArrowRight,
+  Sparkles,
+  ShieldCheck,
+  Check,
+  Building2,
+  GitBranch,
+  Layers,
+  Filter
+} from 'lucide-react';
 
 interface Company {
   id: string;
@@ -162,7 +182,7 @@ export default function PayrollPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) {
@@ -176,9 +196,9 @@ export default function PayrollPage() {
 
       let urlSuffix = companyId ? `?companyId=${companyId}` : '';
       const [deptRes, branchRes, empRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/v1/departments${urlSuffix}`, { headers: getHeaders() }),
-        fetch(`http://localhost:5000/api/v1/branches${urlSuffix}`, { headers: getHeaders() }),
-        fetch(`http://localhost:5000/api/v1/employees${urlSuffix}`, { headers: getHeaders() })
+        fetch(`/api/v1/departments${urlSuffix}`, { headers: getHeaders() }),
+        fetch(`/api/v1/branches${urlSuffix}`, { headers: getHeaders() }),
+        fetch(`/api/v1/employees${urlSuffix}`, { headers: getHeaders() })
       ]);
 
       const [deptData, branchData, empData] = await Promise.all([
@@ -207,7 +227,7 @@ export default function PayrollPage() {
   const fetchPayrollRuns = async () => {
     setLoading(true);
     try {
-      let url = 'http://localhost:5000/api/v1/payroll/runs';
+      let url = '/api/v1/payroll/runs';
       if (companyId) url += `?companyId=${companyId}`;
       const res = await fetch(url, { headers: getHeaders() });
       const data = await res.json();
@@ -245,7 +265,7 @@ export default function PayrollPage() {
     try {
       const match = runs.find(r => r.pay_period === selectedPeriod);
       if (match) {
-        await fetch(`http://localhost:5000/api/v1/payroll/runs/${match.id}/action`, {
+        await fetch(`/api/v1/payroll/runs/${match.id}/action`, {
           method: 'POST',
           headers: getHeaders(),
           body: JSON.stringify({ action: 'RELEASE', reason: `Released for ${enabledCount} employees` })
@@ -275,39 +295,33 @@ export default function PayrollPage() {
 
   const enabledCountTotal = Object.values(selectedEmployeesState).filter(Boolean).length;
 
-  return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="payroll-hub-container font-sans space-y-6 animate-fadeIn w-full pb-20 relative text-left">
-      <style dangerouslySetInnerHTML={{__html: `
-        .payroll-hub-container,
-        .payroll-hub-container button,
-        .payroll-hub-container input,
-        .payroll-hub-container select,
-        .payroll-hub-container label,
-        .payroll-hub-container span,
-        .payroll-hub-container div,
-        .payroll-hub-container p,
-        .payroll-hub-container th,
-        .payroll-hub-container td {
-          font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-          letter-spacing: normal !important;
-        }
-        @keyframes subtle-pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.04); }
-        }
-        .animate-subtle-pulse {
-          animation: subtle-pulse 2.5s infinite ease-in-out;
-        }
-      `}} />
+  const filteredRuns = runs.filter(run => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      run.pay_period.toLowerCase().includes(q) ||
+      run.payroll_run_number.toLowerCase().includes(q) ||
+      (run.payroll_type && run.payroll_type.toLowerCase().includes(q)) ||
+      (run.status && run.status.toLowerCase().includes(q))
+    );
+  });
 
+  // Calculate totals for top summary KPI section
+  const totalNetPayout = runs.reduce((acc, r) => acc + (parseFloat(String(r.total_net_payout)) || 0), 0);
+  const totalEmployeesPaid = runs.reduce((acc, r) => acc + (r.total_employees || 0), 0);
+  const lockedMonthsCount = dynamicHorizonMonths.filter(m => m.isLocked).length;
+
+  return (
+    <div style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }} className="payroll-hub-container space-y-4 animate-fadeIn w-full pb-16 relative text-left">
       {/* Confetti Celebration Overlay */}
       {showConfetti && (
-        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden">
-          <div className="text-center animate-bounce">
-            <span className="text-6xl">🎉 🎊 💸 🔒 🎊 🎉</span>
-            <h2 className="text-xl font-bold text-white bg-indigo-600 px-6 py-2 rounded-full shadow-2xl mt-4">
-              Payroll Released Successfully!
-            </h2>
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden bg-slate-900/30 backdrop-blur-xs animate-fadeIn">
+          <div className="text-center animate-bounce space-y-3">
+            <span className="text-5xl filter drop-shadow-lg">🎉 🎊 💸 🔒 🎊 🎉</span>
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl shadow-2xl border border-white/20">
+              <h2 className="text-lg font-bold tracking-tight">Payroll Released & Disbursed Successfully!</h2>
+              <p className="text-xs text-indigo-100 mt-0.5">Audit log updated and payslips unlocked</p>
+            </div>
           </div>
         </div>
       )}
@@ -325,49 +339,146 @@ export default function PayrollPage() {
         hideUserBadge={true}
       />
 
-      {/* 12-Month Dynamic Horizon Cards Grid */}
-      <div className="bg-card rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm">
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-3">
+      {/* Top Compact Stat Summary Cards Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        {/* KPI 1: Total Disbursed Net */}
+        <div className="group relative rounded-xl bg-gradient-to-br from-indigo-50/95 via-sky-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-800/60 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Disbursed Net</span>
+            <div className="h-7 w-7 rounded-lg bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center border border-indigo-200/60 dark:border-indigo-800/60 shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <DollarSign size={16} className="w-4 h-4 shrink-0" />
+            </div>
+          </div>
+          <div className="mt-1.5 flex items-baseline justify-between">
+            <span className="text-lg font-extrabold text-indigo-600 dark:text-indigo-400 font-mono tracking-tight">
+              ₹{totalNetPayout.toLocaleString('en-IN')}
+            </span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+              <TrendingUp size={12} className="w-3 h-3 shrink-0" />
+              {runs.length} Batches
+            </span>
+          </div>
+        </div>
+
+        {/* KPI 2: Active Horizon */}
+        <div className="group relative rounded-xl bg-gradient-to-br from-emerald-50/95 via-teal-50/30 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-800/60 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Active Horizon</span>
+            <div className="h-7 w-7 rounded-lg bg-emerald-100/80 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center border border-emerald-200/60 dark:border-emerald-800/60 shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <Calendar size={16} className="w-4 h-4 shrink-0" />
+            </div>
+          </div>
+          <div className="mt-1.5 flex items-baseline justify-between">
+            <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight font-mono">
+              12 Months
+            </span>
+            <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+              <Sparkles size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
+              {dynamicHorizonMonths[0]?.monthName} - {dynamicHorizonMonths[11]?.monthName} {dynamicHorizonMonths[11]?.year}
+            </span>
+          </div>
+        </div>
+
+        {/* KPI 3: Employees Disbursed */}
+        <div className="group relative rounded-xl bg-gradient-to-br from-amber-50/95 via-orange-50/30 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900 border border-amber-200/70 dark:border-amber-800/60 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Employees Disbursed</span>
+            <div className="h-7 w-7 rounded-lg bg-amber-100/80 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 flex items-center justify-center border border-amber-200/60 dark:border-amber-800/60 shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <Users size={16} className="w-4 h-4 shrink-0" />
+            </div>
+          </div>
+          <div className="mt-1.5 flex items-baseline justify-between">
+            <span className="text-lg font-extrabold text-amber-600 dark:text-amber-400 font-mono tracking-tight">
+              {totalEmployeesPaid}
+            </span>
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+              <CheckCircle2 size={12} className="w-3 h-3 shrink-0" />
+              Cumulative
+            </span>
+          </div>
+        </div>
+
+        {/* KPI 4: Release Lock Status */}
+        <div className="group relative rounded-xl bg-gradient-to-br from-rose-50/95 via-pink-50/30 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900 border border-rose-200/70 dark:border-rose-800/60 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Release Lock Status</span>
+            <div className="h-7 w-7 rounded-lg bg-rose-100/80 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center border border-rose-200/60 dark:border-rose-800/60 shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <Lock size={16} className="w-4 h-4 shrink-0" />
+            </div>
+          </div>
+          <div className="mt-1.5 flex items-baseline justify-between">
+            <span className="text-lg font-extrabold text-rose-600 dark:text-rose-400 tracking-tight font-mono">
+              {lockedMonthsCount} / 12
+            </span>
+            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+              <ShieldCheck size={12} className="w-3 h-3 shrink-0" />
+              {lockedMonthsCount} Locked
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 12-Month Compact Horizon Cards Grid */}
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-slate-800/80 p-4 shadow-2xs">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <Calendar size={14} className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span>12-Month Disbursement Horizon</span>
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">Click any month to configure release and enable payslips</p>
+          </div>
+          <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800 text-[10px] font-bold tracking-tight">
+            Master Console
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2">
           {dynamicHorizonMonths.map((m) => {
             const isRed = m.isLocked;
+            const isSelected = selectedPeriod === m.periodCode;
 
             return (
               <div
                 key={m.periodCode}
                 onClick={() => handleOpenReleaseDrawer(m.periodCode)}
-                className={`p-3.5 rounded-xl border text-center space-y-2 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 hover:shadow-md ${
+                className={`p-2.5 rounded-xl border text-center space-y-1.5 cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-sm ${
+                  isSelected ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-slate-900' : ''
+                } ${
                   isRed
-                    ? 'border-rose-200 bg-rose-50/50 dark:border-rose-900/60 dark:bg-rose-950/20 hover:border-rose-300'
-                    : 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/60 dark:bg-emerald-950/20 hover:border-emerald-300'
+                    ? 'border-rose-200/80 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20 hover:border-rose-400'
+                    : 'border-emerald-200/80 bg-emerald-50/40 dark:border-emerald-900/60 dark:bg-emerald-950/20 hover:border-emerald-400'
                 }`}
               >
-                {/* Month & Year */}
+                {/* Month & Year Header */}
                 <div>
-                  <span className={`text-sm font-bold block ${isRed ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                  <span className={`text-xs font-extrabold block tracking-tight ${isRed ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
                     {m.monthName}
                   </span>
-                  <span className="text-[11px] text-slate-400 font-medium block">{m.year}</span>
+                  <span className="text-[10px] text-slate-400 font-semibold block">{m.year}</span>
                 </div>
 
-                {/* Animated Lock / Unlock Status Badge */}
-                <div className="py-1 flex justify-center">
+                {/* Lock / Unlock Status Badge */}
+                <div className="py-0.5 flex justify-center">
                   {isRed ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 animate-subtle-pulse">
-                      🔒 Locked
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800">
+                      <Lock size={10} className="w-2.5 h-2.5 text-rose-500 shrink-0" />
+                      <span>Locked</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-all hover:scale-105">
-                      🔓 Unlocked
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
+                      <Unlock size={10} className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
+                      <span>Unlocked</span>
                     </span>
                   )}
                 </div>
 
                 {/* Dynamic Ratio Display */}
-                <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
-                  <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 block">
+                <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800/60">
+                  <span className="text-[11px] font-mono font-bold text-slate-800 dark:text-slate-200 block">
                     {m.enabledPayslips} - {m.disabledPayslips}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-medium block">Enabled - Pending</span>
+                  <span className="text-[9px] text-slate-400 font-medium block">Enabled - Pending</span>
                 </div>
               </div>
             );
@@ -376,23 +487,27 @@ export default function PayrollPage() {
       </div>
 
       {/* Main Payroll Runs Table Container */}
-      <div className="bg-card rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-4">
-        {/* Table Header Row with Search Input & Generate Payroll Button side by side */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-slate-800/80 p-4 shadow-2xs space-y-4">
+        {/* Table Header Row with Search Input & Generate Payroll Button */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Payroll Disbursement Batches</h3>
-            <p className="text-xs text-slate-400 font-normal mt-0.5">Chronological audit log of payroll disbursement runs</p>
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <FileText size={16} className="w-4 h-4 text-indigo-500 shrink-0" />
+              <span>Payroll Disbursement Batches</span>
+            </h3>
+            <p className="text-[11px] text-slate-400 font-normal mt-0.5">Chronological audit log of payroll disbursement runs</p>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
             {/* Search Input */}
             <div className="relative w-full sm:w-64">
+              <Search size={14} className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 shrink-0" />
               <input
                 type="text"
-                placeholder="Search pay period..."
+                placeholder="Search pay period, run #..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 font-medium"
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 font-medium transition-all"
               />
             </div>
 
@@ -400,92 +515,99 @@ export default function PayrollPage() {
             <button
               type="button"
               onClick={() => router.push('/dashboard/payroll/generate')}
-              className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2 flex-shrink-0"
+              className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-sm hover:shadow-indigo-500/20 cursor-pointer flex items-center gap-1.5 flex-shrink-0"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
+              <Plus size={14} className="w-3.5 h-3.5 stroke-[3] shrink-0" />
               <span>+ Generate Payroll</span>
             </button>
           </div>
         </div>
 
         {/* Runs Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-lg border border-slate-200/70 dark:border-slate-800/80">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold text-xs">
-                <th className="py-3 px-3">Run Number</th>
-                <th className="py-3 px-3">Pay Period</th>
-                <th className="py-3 px-3 text-center">Payroll Type</th>
-                <th className="py-3 px-3 text-center">Employees Paid</th>
-                <th className="py-3 px-3 text-right">Gross Salary</th>
-                <th className="py-3 px-3 text-right">Deductions</th>
-                <th className="py-3 px-3 text-right">Net Pay</th>
-                <th className="py-3 px-3 text-center">Release Status</th>
-                <th className="py-3 px-3 text-center">Lock Status</th>
-                <th className="py-3 px-3 text-right">Actions</th>
+              <tr className="bg-slate-50/90 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                <th className="py-2.5 px-3">Run Number</th>
+                <th className="py-2.5 px-3">Pay Period</th>
+                <th className="py-2.5 px-3 text-center">Payroll Type</th>
+                <th className="py-2.5 px-3 text-center">Employees Paid</th>
+                <th className="py-2.5 px-3 text-right">Gross Salary</th>
+                <th className="py-2.5 px-3 text-right">Deductions</th>
+                <th className="py-2.5 px-3 text-right">Net Pay</th>
+                <th className="py-2.5 px-3 text-center">Release Status</th>
+                <th className="py-2.5 px-3 text-center">Lock Status</th>
+                <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white/50 dark:bg-slate-900/50">
               {loading ? (
                 <tr>
                   <td colSpan={10} className="py-8 text-center text-slate-400 font-medium">
-                    Loading payroll runs from database...
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <span>Loading payroll runs from database...</span>
+                    </div>
                   </td>
                 </tr>
-              ) : runs.length === 0 ? (
+              ) : filteredRuns.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-8 text-center text-slate-400 font-medium">
-                    No payroll runs found. Click Generate Payroll to create a batch.
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      <FileText size={24} className="w-6 h-6 text-slate-300 dark:text-slate-700 shrink-0" />
+                      <span>No payroll runs found. Click Generate Payroll to create a batch.</span>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                runs.map((run) => (
-                  <tr key={run.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">{run.payroll_run_number}</td>
-                    <td className="py-3.5 px-3 font-bold text-slate-800 dark:text-slate-100">{run.pay_period}</td>
-                    <td className="py-3.5 px-3 text-center">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/80 uppercase tracking-wider">
+                filteredRuns.map((run) => (
+                  <tr key={run.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-slate-100">{run.payroll_run_number}</td>
+                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-slate-100">{run.pay_period}</td>
+                    <td className="py-2.5 px-3 text-center">
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/80 uppercase tracking-wider">
                         {run.payroll_type || 'REGULAR'}
                       </span>
                     </td>
-                    <td className="py-3.5 px-3 text-center font-mono font-semibold text-slate-700 dark:text-slate-300">{run.total_employees}</td>
-                    <td className="py-3.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                    <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-700 dark:text-slate-300">{run.total_employees}</td>
+                    <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
                       ₹{(parseFloat(String(run.total_gross_payout)) || 0).toLocaleString('en-IN')}
                     </td>
-                    <td className="py-3.5 px-3 text-right font-mono text-rose-500">
+                    <td className="py-2.5 px-3 text-right font-mono text-rose-500 font-semibold">
                       ₹{(parseFloat(String(run.total_deductions)) || 0).toLocaleString('en-IN')}
                     </td>
-                    <td className="py-3.5 px-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                    <td className="py-2.5 px-3 text-right font-mono font-extrabold text-indigo-600 dark:text-indigo-400 text-xs">
                       ₹{(parseFloat(String(run.total_net_payout)) || 0).toLocaleString('en-IN')}
                     </td>
-                    <td className="py-3.5 px-3 text-center">
-                      <span className={`px-2.5 py-0.5 rounded text-xs font-semibold ${
+                    <td className="py-2.5 px-3 text-center">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                         run.status === 'RELEASED'
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                          : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800'
                       }`}>
                         {run.status}
                       </span>
                     </td>
-                    <td className="py-3.5 px-3 text-center">
+                    <td className="py-2.5 px-3 text-center">
                       {run.is_locked ? (
-                        <span className="text-xs font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950 px-2 py-0.5 rounded">
-                          🔒 Locked
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded">
+                          <Lock size={10} className="w-2.5 h-2.5 shrink-0" />
+                          <span>Locked</span>
                         </span>
                       ) : (
-                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded">
-                          🔓 Unlocked
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded">
+                          <Unlock size={10} className="w-2.5 h-2.5 shrink-0" />
+                          <span>Unlocked</span>
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-3 text-right">
+                    <td className="py-2.5 px-3 text-right">
                       <button
                         onClick={() => handleOpenReleaseDrawer(run.pay_period)}
-                        className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                        className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition-all shadow-2xs cursor-pointer inline-flex items-center gap-1"
                       >
-                        Release & Enable →
+                        <span>Release & Enable</span>
+                        <ArrowRight size={12} className="w-3 h-3 shrink-0" />
                       </button>
                     </td>
                   </tr>
@@ -496,98 +618,119 @@ export default function PayrollPage() {
         </div>
       </div>
 
-      {/* Right SlideDrawer Matching Reference Image */}
+      {/* Right SlideDrawer */}
       <SlideDrawer
         isOpen={releaseDrawerOpen}
         onClose={() => setReleaseDrawerOpen(false)}
         title={`Release Payroll - ${selectedPeriod}`}
       >
-        <div className="space-y-5 text-left font-sans">
+        <div className="space-y-4 text-left font-sans">
           
-          {/* Company Filter */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Company</label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectAllCompany}
-                  onChange={(e) => setSelectAllCompany(e.target.checked)}
-                  className="rounded text-indigo-600"
-                />
-                <span>Select All Company</span>
-              </label>
+          {/* Filter Cards Container */}
+          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+              <Filter size={14} className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span>Filter Scope Parameters</span>
             </div>
-            <SearchableSelect
-              options={[{ value: 'ALL', label: 'ALL Companies' }, ...companies.map(c => ({ value: c.id, label: c.name }))]}
-              value={drawerCompanyId}
-              onChange={setDrawerCompanyId}
-              placeholder="Select company..."
-            />
-          </div>
 
-          {/* Branch Filter */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Branch</label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectAllBranch}
-                  onChange={(e) => setSelectAllBranch(e.target.checked)}
-                  className="rounded text-indigo-600"
-                />
-                <span>Select All Branch</span>
-              </label>
+            {/* Company Filter */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <Building2 size={12} className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span>Company</span>
+                </label>
+                <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectAllCompany}
+                    onChange={(e) => setSelectAllCompany(e.target.checked)}
+                    className="rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Select All Company</span>
+                </label>
+              </div>
+              <SearchableSelect
+                options={[{ value: 'ALL', label: 'ALL Companies' }, ...companies.map(c => ({ value: c.id, label: c.name }))]}
+                value={drawerCompanyId}
+                onChange={setDrawerCompanyId}
+                placeholder="Select company..."
+              />
             </div>
-            <SearchableSelect
-              options={[{ value: 'ALL', label: 'ALL Branches' }, ...branches.map(b => ({ value: b.id, label: b.name }))]}
-              value={drawerBranchId}
-              onChange={setDrawerBranchId}
-              placeholder="Select branch..."
-            />
-          </div>
 
-          {/* Department Filter */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Department</label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectAllDept}
-                  onChange={(e) => setSelectAllDept(e.target.checked)}
-                  className="rounded text-indigo-600"
-                />
-                <span>Select All Dept</span>
-              </label>
+            {/* Branch Filter */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <GitBranch size={12} className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span>Branch</span>
+                </label>
+                <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectAllBranch}
+                    onChange={(e) => setSelectAllBranch(e.target.checked)}
+                    className="rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Select All Branch</span>
+                </label>
+              </div>
+              <SearchableSelect
+                options={[{ value: 'ALL', label: 'ALL Branches' }, ...branches.map(b => ({ value: b.id, label: b.name }))]}
+                value={drawerBranchId}
+                onChange={setDrawerBranchId}
+                placeholder="Select branch..."
+              />
             </div>
-            <SearchableSelect
-              options={[{ value: 'ALL', label: 'ALL Departments' }, ...departments.map(d => ({ value: d.id, label: d.name }))]}
-              value={drawerDeptId}
-              onChange={setDrawerDeptId}
-              placeholder="Select department..."
-            />
+
+            {/* Department Filter */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <Layers size={12} className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span>Department</span>
+                </label>
+                <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectAllDept}
+                    onChange={(e) => setSelectAllDept(e.target.checked)}
+                    className="rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>Select All Dept</span>
+                </label>
+              </div>
+              <SearchableSelect
+                options={[{ value: 'ALL', label: 'ALL Departments' }, ...departments.map(d => ({ value: d.id, label: d.name }))]}
+                value={drawerDeptId}
+                onChange={setDrawerDeptId}
+                placeholder="Select department..."
+              />
+            </div>
           </div>
 
           {/* Employees Checklist */}
-          <div className="space-y-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="space-y-2 pt-1">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Employees ({enabledCountTotal} / {drawerEmployees.length} Enabled)
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Users size={14} className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <span>Employees ({enabledCountTotal} / {drawerEmployees.length} Enabled)</span>
               </label>
             </div>
 
-            <input
-              type="text"
-              placeholder="Search employee..."
-              value={employeeSearchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs outline-none focus:border-indigo-500 font-medium"
-            />
+            <div className="relative">
+              <Search size={14} className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search employee by name or ID..."
+                value={employeeSearchQuery}
+                onChange={e => setEmployeeSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs outline-none focus:border-indigo-500 font-medium"
+              />
+            </div>
 
             {/* Employee Cards List */}
-            <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
               {drawerEmployees.map(emp => {
                 const isSelected = !!selectedEmployeesState[emp.id];
 
@@ -595,18 +738,18 @@ export default function PayrollPage() {
                   <div
                     key={emp.id}
                     onClick={() => toggleEmployeeSelection(emp.id)}
-                    className={`p-3 rounded-xl border cursor-pointer flex items-center justify-between transition-colors ${
+                    className={`p-2.5 rounded-lg border cursor-pointer flex items-center justify-between transition-colors ${
                       isSelected
-                        ? 'border-indigo-200 bg-indigo-50/60 dark:border-indigo-900 dark:bg-indigo-950/40'
-                        : 'border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-900/30'
+                        ? 'border-indigo-300 bg-indigo-50/70 dark:border-indigo-800 dark:bg-indigo-950/50'
+                        : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="h-8 w-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+                    <div className="flex items-center gap-2.5">
+                      <span className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
                         {(emp.first_name || 'E')[0]}
                       </span>
                       <div>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100 block">
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block leading-tight">
                           {emp.first_name} {emp.last_name}
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono block">
@@ -617,11 +760,11 @@ export default function PayrollPage() {
 
                     <div className="flex items-center">
                       {isSelected ? (
-                        <span className="h-6 w-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs">
-                          ✓
+                        <span className="h-5 w-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                          <Check size={12} className="w-3 h-3 stroke-[3] shrink-0" />
                         </span>
                       ) : (
-                        <span className="h-6 w-6 rounded-full border-2 border-slate-300 dark:border-slate-700" />
+                        <span className="h-5 w-5 rounded-full border-2 border-slate-300 dark:border-slate-700 shrink-0" />
                       )}
                     </div>
                   </div>
@@ -631,11 +774,11 @@ export default function PayrollPage() {
           </div>
 
           {/* Bottom Actions */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setReleaseDrawerOpen(false)}
-              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold"
+              className="px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all"
             >
               Cancel
             </button>
@@ -643,9 +786,10 @@ export default function PayrollPage() {
               type="button"
               onClick={handleSaveReleasePayroll}
               disabled={actionLoading === 'save_release'}
-              className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md cursor-pointer"
+              className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
             >
-              <span>{actionLoading === 'save_release' ? 'Saving...' : 'Save / Update'}</span>
+              <CheckCircle2 size={14} className="w-3.5 h-3.5 shrink-0" />
+              <span>{actionLoading === 'save_release' ? 'Saving...' : 'Save & Update Release'}</span>
             </button>
           </div>
         </div>

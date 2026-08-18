@@ -43,7 +43,7 @@ export default function OnboardingDashboard() {
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/onboarding', {
+      const res = await fetch('/api/v1/onboarding', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -65,7 +65,7 @@ export default function OnboardingDashboard() {
     setProcessingAction(rec.id);
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/onboarding/${rec.id}/send-offer`, {
+      const res = await fetch(`/api/v1/onboarding/${rec.id}/send-offer`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -86,7 +86,7 @@ export default function OnboardingDashboard() {
     setProcessingAction(rec.id);
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/onboarding/send-link', {
+      const res = await fetch('/api/v1/onboarding/send-link', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -112,7 +112,7 @@ export default function OnboardingDashboard() {
     setProcessingAction(rec.id);
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/onboarding/${rec.id}/accept-offer`, {
+      const res = await fetch(`/api/v1/onboarding/${rec.id}/accept-offer`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -135,7 +135,7 @@ export default function OnboardingDashboard() {
     setProcessingAction(rec.id);
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch(`http://localhost:5000/api/v1/onboarding/${rec.id}/reject-offer`, {
+      const res = await fetch(`/api/v1/onboarding/${rec.id}/reject-offer`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });

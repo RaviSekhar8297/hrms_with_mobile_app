@@ -777,7 +777,7 @@ export default function PayrollStructurePage() {
 
   // Year filter options (current year back 10 years)
   const currentYearNum = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState<string>('ALL');
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentYearNum));
   const past10Years = useMemo(() => {
     const years = [];
     for (let i = 0; i <= 10; i++) {
@@ -961,7 +961,6 @@ export default function PayrollStructurePage() {
             className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-xs font-extrabold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer shrink-0"
             title="Filter by Salary Year"
           >
-            <option value="ALL">All Years</option>
             {past10Years.map(yr => (
               <option key={yr} value={yr}>{yr}</option>
             ))}

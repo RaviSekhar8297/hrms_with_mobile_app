@@ -70,7 +70,7 @@ export default function LeaveBalancesPage() {
     setIsLoading(true);
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/leave-balances?companyId=${cid}&year=${selectedYear}`, {
+      const res = await fetch(`/api/v1/leave-balances?companyId=${cid}&year=${selectedYear}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -85,7 +85,7 @@ export default function LeaveBalancesPage() {
   const fetchLeaveTypes = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/leave-types?companyId=${cid}`, {
+      const res = await fetch(`/api/v1/leave-types?companyId=${cid}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -96,7 +96,7 @@ export default function LeaveBalancesPage() {
   const fetchEmployees = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/employees?companyId=${cid}`, {
+      const res = await fetch(`/api/v1/employees?companyId=${cid}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -112,8 +112,8 @@ export default function LeaveBalancesPage() {
     try {
       const method = editingBalance ? 'PUT' : 'POST';
       const url = editingBalance
-        ? `http://localhost:5000/api/v1/leave-balances/${editingBalance.id}`
-        : 'http://localhost:5000/api/v1/leave-balances';
+        ? `/api/v1/leave-balances/${editingBalance.id}`
+        : '/api/v1/leave-balances';
 
       const res = await fetch(url, {
         method,

@@ -106,7 +106,7 @@ export default function DesignationsPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
@@ -114,7 +114,7 @@ export default function DesignationsPage() {
 
   const fetchBranchesForCompany = async (targetCompanyId: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/branches?companyId=${targetCompanyId}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/branches?companyId=${targetCompanyId}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) return data.branches || [];
     } catch (e) { console.error(e); }
@@ -123,7 +123,7 @@ export default function DesignationsPage() {
 
   const fetchDepartmentsForCompany = async (targetCompanyId: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/departments?companyId=${targetCompanyId}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/departments?companyId=${targetCompanyId}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) return data.departments || [];
     } catch (e) { console.error(e); }
@@ -206,8 +206,8 @@ export default function DesignationsPage() {
 
     try {
       const url = editMode 
-        ? `http://localhost:5000/api/v1/designations/${selectedDesignationId}`
-        : 'http://localhost:5000/api/v1/designations';
+        ? `/api/v1/designations/${selectedDesignationId}`
+        : '/api/v1/designations';
       const method = editMode ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -265,7 +265,7 @@ export default function DesignationsPage() {
 
   const executeDeleteDesignation = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/designations/${id}`, {
+      const res = await fetch(`/api/v1/designations/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
@@ -293,6 +293,30 @@ export default function DesignationsPage() {
       setDrawerDepartments([]);
     }
     setDrawerOpen(true);
+  };
+
+  const formatDateTime = (rawStr?: string | null) => {
+    if (!rawStr) return '—';
+    try {
+      const dt = new Date(rawStr);
+      if (isNaN(dt.getTime())) return '—';
+      
+      const day = String(dt.getDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[dt.getMonth()];
+      const year = dt.getFullYear();
+      
+      let hours = dt.getHours();
+      const minutes = String(dt.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'pm' : 'am';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const strHours = String(hours).padStart(2, '0');
+      
+      return `${day} ${month} ${year} • ${strHours}:${minutes} ${ampm}`;
+    } catch {
+      return '—';
+    }
   };
 
   return (
@@ -525,15 +549,7 @@ export default function DesignationsPage() {
                     <div className="flex flex-col text-[10px] font-bold font-mono">
                       <span className="text-[8.5px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest">Created At</span>
                       <span className="text-slate-600 dark:text-slate-300 font-bold">
-                        {ds.created_at ? (
-                          <>
-                            {new Date(ds.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            {' • '}
-                            {new Date(ds.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                          </>
-                        ) : (
-                          '—'
-                        )}
+                        {formatDateTime(ds.created_at || (ds as any).createdAt)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">

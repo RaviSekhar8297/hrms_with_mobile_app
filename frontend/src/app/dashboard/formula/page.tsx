@@ -178,7 +178,7 @@ export default function PayrollFormulaPage() {
   const loadEngineData = async () => {
     setLoading(true);
     try {
-      const url = `http://localhost:5000/api/v1/payroll/sandbox-data${companyId ? `?companyId=${companyId}` : ''}`;
+      const url = `/api/v1/payroll/sandbox-data${companyId ? `?companyId=${companyId}` : ''}`;
       const res = await fetch(url, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
@@ -202,7 +202,7 @@ export default function PayrollFormulaPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) {
@@ -498,7 +498,7 @@ export default function PayrollFormulaPage() {
         showToast('Please enter all slab required fields.', 'error');
         return;
       }
-      url = 'http://localhost:5000/api/v1/payroll/slabs';
+      url = '/api/v1/payroll/slabs';
       payload = {
         slab_name: slabForm.slab_name,
         min_gross: parseFloat(slabForm.min_gross),
@@ -512,7 +512,7 @@ export default function PayrollFormulaPage() {
         showToast('Please enter component details.', 'error');
         return;
       }
-      url = 'http://localhost:5000/api/v1/payroll/components';
+      url = '/api/v1/payroll/components';
       payload = {
         component_code: componentForm.component_code.trim().toUpperCase(),
         component_name: componentForm.component_name,
@@ -528,7 +528,7 @@ export default function PayrollFormulaPage() {
         showToast('Please specify all component configuration parameters.', 'error');
         return;
       }
-      url = 'http://localhost:5000/api/v1/payroll/configurations';
+      url = '/api/v1/payroll/configurations';
       payload = {
         slab_id: configForm.slab_id,
         component_code: configForm.component_code,
@@ -577,9 +577,9 @@ export default function PayrollFormulaPage() {
     }
 
     let url = '';
-    if (activeTab === 'slabs') url = `http://localhost:5000/api/v1/payroll/slabs/${id}`;
-    else if (activeTab === 'components') url = `http://localhost:5000/api/v1/payroll/components/${id}`;
-    else if (activeTab === 'configs') url = `http://localhost:5000/api/v1/payroll/configurations/${id}`;
+    if (activeTab === 'slabs') url = `/api/v1/payroll/slabs/${id}`;
+    else if (activeTab === 'components') url = `/api/v1/payroll/components/${id}`;
+    else if (activeTab === 'configs') url = `/api/v1/payroll/configurations/${id}`;
 
     try {
       const res = await fetch(url, {

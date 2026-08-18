@@ -8,18 +8,18 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Animate progress bar
+    // Animate progress bar over 3 seconds (100 steps * 30ms = 3000ms)
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
           return 100;
         }
-        return prev + 4;
+        return prev + 1;
       });
     }, 30);
 
-    // Redirect after splash
+    // Redirect after 3 seconds splash
     const timer = setTimeout(() => {
       const token = localStorage.getItem('access_token');
       if (token) {
@@ -27,7 +27,7 @@ export default function Home() {
       } else {
         router.replace('/login');
       }
-    }, 900);
+    }, 3000);
 
     return () => {
       clearInterval(interval);
@@ -180,42 +180,68 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Progress bar */}
+        {/* Circular Progress Loader */}
         <div
           style={{
-            width: '200px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px',
+            gap: '14px',
           }}
         >
-          <div
-            style={{
-              width: '100%',
-              height: '3px',
-              borderRadius: '99px',
-              background: 'rgba(148,163,184,0.1)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
+          <div style={{ position: 'relative', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="64" height="64" viewBox="0 0 64 64" style={{ transform: 'rotate(-90deg)' }}>
+              <defs>
+                <linearGradient id="circleProgressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#8b5cf6" />
+                  <stop offset="50%" stopColor="#6366f1" />
+                  <stop offset="100%" stopColor="#3b82f6" />
+                </linearGradient>
+              </defs>
+              {/* Background Track Circle */}
+              <circle
+                cx="32"
+                cy="32"
+                r="26"
+                fill="none"
+                stroke="rgba(148, 163, 184, 0.12)"
+                strokeWidth="4"
+              />
+              {/* Animated Progress Circle */}
+              <circle
+                cx="32"
+                cy="32"
+                r="26"
+                fill="none"
+                stroke="url(#circleProgressGrad)"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray="163.36"
+                strokeDashoffset={163.36 - (progress / 100) * 163.36}
+                style={{
+                  transition: 'stroke-dashoffset 0.03s linear',
+                  filter: 'drop-shadow(0 0 6px rgba(139, 92, 246, 0.5))',
+                }}
+              />
+            </svg>
+            <span
               style={{
-                height: '100%',
-                width: `${progress}%`,
-                borderRadius: '99px',
-                background: 'linear-gradient(90deg, #7c3aed, #4f46e5, #818cf8)',
-                transition: 'width 0.08s linear',
-                boxShadow: '0 0 8px rgba(124,58,237,0.6)',
+                position: 'absolute',
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#c4b5fd',
+                letterSpacing: '-0.02em',
               }}
-            />
+            >
+              {progress}%
+            </span>
           </div>
           <p
             style={{
-              fontSize: '10px',
+              fontSize: '11px',
               fontWeight: 600,
-              color: 'rgba(148,163,184,0.45)',
-              letterSpacing: '0.05em',
+              color: 'rgba(148,163,184,0.55)',
+              letterSpacing: '0.06em',
             }}
           >
             Initializing session...

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import SearchableSelect from '../../components/SearchableSelect';
-import { getHeaders, API_BASE } from '../../utils/api';
+import { getHeaders, API_BASE, getUrl } from '../../utils/api';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 
@@ -124,7 +124,7 @@ function CreateEmployeeContent() {
         fetch(`${API_BASE}/api/v1/branches`, { headers: getHeaders() }),
         fetch(`${API_BASE}/api/v1/departments`, { headers: getHeaders() }),
         fetch(`${API_BASE}/api/v1/designations`, { headers: getHeaders() }),
-        fetch(`${API_BASE}/api/v1/tenant-roles`, { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/roles'), { headers: getHeaders() }),
         fetch(`${API_BASE}/api/v1/shifts`, { headers: getHeaders() }),
       ]);
 

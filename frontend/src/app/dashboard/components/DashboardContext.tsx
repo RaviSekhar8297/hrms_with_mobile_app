@@ -32,7 +32,7 @@ const DashboardContext = createContext<DashboardContextType | undefined>(undefin
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [layout, setLayoutState] = useState<LayoutType>('sidebar');
-  const [theme, setThemeState] = useState<ThemeType>('slate-dark');
+  const [theme, setThemeState] = useState<ThemeType>('nordic-light');
   const [font, setFontState] = useState<FontType>('Poppins');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [bodyLoading, setBodyLoading] = useState(false);
@@ -47,9 +47,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       if (savedTheme === 'slate-dark' || savedTheme === 'nordic-light') {
         setThemeState(savedTheme);
       } else {
-        setThemeState('slate-dark');
-        localStorage.setItem('pref_theme', 'slate-dark');
+        setThemeState('nordic-light');
+        localStorage.setItem('pref_theme', 'nordic-light');
       }
+    } else {
+      setThemeState('nordic-light');
+      localStorage.setItem('pref_theme', 'nordic-light');
     }
 
     const savedFont = localStorage.getItem('pref_font') as FontType;
@@ -100,14 +103,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Theme values configuration
     if (theme === 'nordic-light') {
       doc.classList.add('theme-nordic-light');
-      doc.style.setProperty('--background', '#f8fafc');
+      doc.style.setProperty('--background', '#d1e3da');
       doc.style.setProperty('--foreground', '#0f172a');
       doc.style.setProperty('--card', '#ffffff');
+      document.body.style.backgroundColor = '#d1e3da';
     } else {
-      doc.classList.add('dark', 'theme-slate-dark');
-      doc.style.setProperty('--background', '#0a0f1d');
-      doc.style.setProperty('--foreground', '#f8fafc');
-      doc.style.setProperty('--card', '#13192b');
+      doc.classList.add('theme-nordic-light');
+      doc.style.setProperty('--background', '#d1e3da');
+      doc.style.setProperty('--foreground', '#0f172a');
+      doc.style.setProperty('--card', '#ffffff');
+      document.body.style.backgroundColor = '#d1e3da';
     }
   }, [theme, font]);
 

@@ -5,15 +5,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.logUserAction = void 0;
 exports.enqueueActivityLog = enqueueActivityLog;
+exports.resolveCompanyId = resolveCompanyId;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
+const dns_1 = __importDefault(require("dns"));
+dns_1.default.setDefaultResultOrder('ipv4first');
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const morgan_1 = __importDefault(require("morgan"));
 const node_cron_1 = __importDefault(require("node-cron"));
+const nodemailer_1 = __importDefault(require("nodemailer"));
 const db_1 = require("./config/db");
 const auth_1 = require("./middlewares/auth");
 // Modular Routes
@@ -25,7 +29,8 @@ const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 5000;
+app.set('trust proxy', 1);
+const PORT = process.env.PORT || 5005;
 // Swagger API Documentation Config
 const swaggerOptions = {
     definition: {
@@ -33,19 +38,40 @@ const swaggerOptions = {
         info: {
             title: 'Enterprise HRMS REST API Documentation',
             version: '1.0.0',
-            description: 'Official API documentation for Enterprise Multi-Tenant HRMS system',
+            description: 'Official API documentation for Enterprise Multi-Tenant HRMS system. Use the Authorize button to enter your JWT Bearer token obtained from POST /api/v1/auth/login.',
         },
         servers: [
             {
-                url: 'http://localhost:5000',
+                url: '/',
+                description: 'Current API Server (Production / Active Domain)',
+            },
+            {
+                url: 'http://localhost:5005',
                 description: 'Local REST API Server',
             },
         ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                    description: 'Enter your access_token obtained from /api/v1/auth/login',
+                },
+            },
+        },
+        security: [
+            {
+                bearerAuth: [],
+            },
+        ],
     },
-    apis: ['./src/server.ts', './src/routes/*.ts'],
+    apis: ['./src/server.ts', './src/routes/*.ts', './dist/server.js', './dist/routes/*.js'],
 };
 const swaggerSpec = (0, swagger_jsdoc_1.default)(swaggerOptions);
 app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerSpec));
+app.use('/api/docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerSpec));
+app.use('/api/v1/docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerSpec));
 // 1. Helmet Security Headers (Secures HTTP headers)
 app.use((0, helmet_1.default)({
     contentSecurityPolicy: false,
@@ -105,13 +131,39 @@ const backgroundQueue = new TaskQueue();
 function enqueueActivityLog(companyId, userEmail, action, module, details, ipAddress, userAgent) {
     backgroundQueue.enqueue(async () => {
         try {
+            let jsonDetails;
+            if (typeof details === 'object' && details !== null) {
+                jsonDetails = JSON.stringify(details);
+            }
+            else if (typeof details === 'string') {
+                try {
+                    JSON.parse(details);
+                    jsonDetails = details;
+                }
+                catch {
+                    jsonDetails = JSON.stringify({ message: details });
+                }
+            }
+            else {
+                jsonDetails = JSON.stringify({ message: String(details || '') });
+            }
             await (0, db_1.query)(`INSERT INTO hrms.activity_logs (company_id, user_email, action, module, details, ip_address, user_agent)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`, [companyId, userEmail, action, module, details, ipAddress, userAgent]);
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`, [companyId, userEmail, action, module, jsonDetails, ipAddress, userAgent]);
         }
         catch (err) {
             console.error('Failed to write activity log via background queue:', err);
         }
     });
+}
+// Helper to check and resolve company ID from auth token or query parameter
+// Returns null for SuperAdmin 'all' / empty scope (cross-company view)
+function resolveCompanyId(req) {
+    const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
+    const raw = isSuperAdmin ? (req.query.companyId || req.body.companyId) : req.user?.companyId;
+    const id = raw ? String(raw).trim() : '';
+    if (!id || id === 'all')
+        return null;
+    return id;
 }
 const logUserAction = (req, action, moduleName, details) => {
     try {
@@ -183,14 +235,13 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
         username.toLowerCase() === 'superadmin@hrms.com';
     let userExists = isSuperAdminDev;
     try {
-        const empCheck = await (0, db_1.query)("SELECT email FROM hrms.employees WHERE email = $1 AND status = 'ACTIVE'", [username]);
+        const empCheck = await (0, db_1.query)("SELECT email FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)) AND status = 'ACTIVE'", [username]);
         if (empCheck.rows.length > 0) {
             userExists = true;
         }
     }
     catch (dbErr) {
         console.error('Pre-login DB user check error:', dbErr);
-        // Keep userExists as true to prevent blocking if database query fails transiently
         userExists = true;
     }
     if (!userExists) {
@@ -286,8 +337,31 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
     }
 });
 /**
- * 🔍 VERIFY TEMPORARY PASSWORD
- * Verifies username and temporary credentials with Keycloak before proceeding with the password reset wizard.
+ * @openapi
+ * /api/v1/auth/verify-temporary-password:
+ *   post:
+ *     summary: Verify Temporary Credentials
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - temporaryPassword
+ *             properties:
+ *               username:
+ *                 type: string
+ *               temporaryPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Temporary password verified
+ *       401:
+ *         description: Invalid credentials
  */
 app.post('/api/v1/auth/verify-temporary-password', async (req, res) => {
     const { username, temporaryPassword } = req.body;
@@ -329,7 +403,21 @@ app.post('/api/v1/auth/verify-temporary-password', async (req, res) => {
     }
 });
 /**
- * 🎉 GET WELCOME PROFILE (Public endpoint for onboarding welcome screen)
+ * @openapi
+ * /api/v1/auth/welcome-profile:
+ *   get:
+ *     summary: Get Public Welcome Profile for Onboarding
+ *     tags:
+ *       - Authentication
+ *     parameters:
+ *       - in: query
+ *         name: username
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Welcome profile data object
  */
 app.get('/api/v1/auth/welcome-profile', async (req, res) => {
     const username = req.query.username || '';
@@ -443,6 +531,10 @@ app.get('/api/v1/auth/welcome-profile', async (req, res) => {
         });
     }
 });
+/**
+ * 📊 GET DYNAMIC ANALYTICS SUMMARY
+ * Endpoint for Dashboard Analytics Summary
+ */
 async function getKeycloakAdminToken() {
     const masterUrl = `${process.env.KEYCLOAK_AUTH_SERVER_URL}/realms/master/protocol/openid-connect/token`;
     try {
@@ -490,8 +582,34 @@ async function getKeycloakAdminToken() {
     }
 }
 /**
- * 🔒 RESET TEMPORARY PASSWORD
- * Authenticates with temporary password first to verify identity, then updates in Keycloak.
+ * @openapi
+ * /api/v1/auth/reset-temporary-password:
+ *   post:
+ *     summary: Reset Temporary Password
+ *     tags:
+ *       - Authentication
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - temporaryPassword
+ *               - newPassword
+ *             properties:
+ *               username:
+ *                 type: string
+ *               temporaryPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *       401:
+ *         description: Invalid temporary password
  */
 app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
     const { username, temporaryPassword, newPassword } = req.body;
@@ -522,13 +640,13 @@ app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
         if (!isValidCredentials) {
             return res.status(401).json({ error: 'Invalid username/email or temporary password' });
         }
-        // Set is_temporary_password to FALSE in hrms.employees table so Welcome page is never shown again
+        // Set is_temporary_password to FALSE and save new updated custom_password in DB
         try {
-            await (0, db_1.query)("UPDATE hrms.employees SET is_temporary_password = FALSE WHERE LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)", [username]);
-            console.log(`Successfully set is_temporary_password = FALSE in DB for ${username}`);
+            await (0, db_1.query)("UPDATE hrms.employees SET is_temporary_password = FALSE, custom_password = $2 WHERE LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)", [username, newPassword]);
+            console.log(`Successfully updated password and set is_temporary_password = FALSE in DB for ${username}`);
         }
         catch (dbErr) {
-            console.error('Failed to update DB is_temporary_password flag:', dbErr);
+            console.error('Failed to update DB password and is_temporary_password flag:', dbErr);
         }
         // 2. Extract Keycloak User ID from token if available, or query via Admin API
         let keycloakUserId = null;
@@ -546,7 +664,8 @@ app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
         // Obtain Admin Access Token
         const adminToken = await getKeycloakAdminToken();
         if (!adminToken) {
-            return res.status(500).json({ error: 'Failed to retrieve Keycloak admin access token' });
+            console.warn(`[PASSWORD RESET] Keycloak Admin token unavailable. Password updated in database for ${username}.`);
+            return res.json({ success: true, message: 'Password updated successfully.' });
         }
         let userProfile = null;
         if (!keycloakUserId) {
@@ -586,8 +705,7 @@ app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
         });
         if (!resetRes.ok) {
             const errText = await resetRes.text();
-            console.error('Keycloak password reset error:', resetRes.status, errText);
-            return res.status(500).json({ error: 'Failed to update password in Keycloak: ' + errText });
+            console.warn('Keycloak password reset warning (handled gracefully):', resetRes.status, errText);
         }
         // 5. Clear Required Actions in Keycloak and fill missing profile attributes like lastName
         if (!userProfile) {
@@ -630,8 +748,33 @@ app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
     }
 });
 /**
- * 🔒 CHANGE LOGGED-IN USER PASSWORD
- * Updates the authenticated user's password directly in Keycloak.
+ * @openapi
+ * /api/v1/auth/change-password:
+ *   post:
+ *     summary: Change User Password
+ *     tags:
+ *       - Authentication
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newPassword
+ *             properties:
+ *               newPassword:
+ *                 type: string
+ *                 example: NewSecretPass123!
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *       400:
+ *         description: Invalid password length
+ *       401:
+ *         description: Unauthorized
  */
 app.post('/api/v1/auth/change-password', auth_1.authenticateToken, async (req, res) => {
     const { newPassword } = req.body;
@@ -703,8 +846,17 @@ app.post('/api/v1/auth/change-password', auth_1.authenticateToken, async (req, r
     }
 });
 /**
- * 📜 FETCH ACTIVITY LOGS
- * Fetches recent login and operation audits.
+ * @openapi
+ * /api/v1/auth/logs:
+ *   get:
+ *     summary: Fetch System Activity & Audit Logs
+ *     tags:
+ *       - Roles, Permissions & Logs
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of activity logs
  */
 app.get('/api/v1/auth/logs', auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
@@ -729,7 +881,23 @@ app.get('/api/v1/auth/logs', auth_1.authenticateToken, async (req, res) => {
     }
 });
 /**
- * 📊 GET DYNAMIC ANALYTICS SUMMARY
+ * @openapi
+ * /api/v1/analytics/summary:
+ *   get:
+ *     summary: Get Dynamic Dashboard Analytics Summary
+ *     tags:
+ *       - System Health
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: companyId
+ *         schema:
+ *           type: string
+ *         description: Optional company ID filter
+ *     responses:
+ *       200:
+ *         description: Dashboard statistics and summary metrics
  */
 app.get('/api/v1/analytics/summary', auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
@@ -852,18 +1020,52 @@ app.get('/api/v1/analytics/summary', auth_1.authenticateToken, async (req, res) 
     }
 });
 /**
- * 🏢 CREATE COMPANY (SuperAdmin Only)
- */
-/**
- * 🏢 CREATE COMPANY (SuperAdmin Only)
+ * @openapi
+ * /api/v1/companies:
+ *   post:
+ *     summary: Create Tenant Company (SuperAdmin Only)
+ *     tags:
+ *       - Organization Masters
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - subdomain
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Brihaspathi Tech
+ *               subdomain:
+ *                 type: string
+ *                 example: brihaspathi
+ *               company_code:
+ *                 type: string
+ *                 example: BRIH
+ *               domain:
+ *                 type: string
+ *                 example: brihaspathi.in
+ *     responses:
+ *       201:
+ *         description: Company created successfully
+ *       400:
+ *         description: Missing required fields
+ *       409:
+ *         description: Subdomain conflict
  */
 app.post('/api/v1/companies', auth_1.authenticateToken, auth_1.requireSuperAdmin, async (req, res) => {
-    const { name, subdomain, domain, branding_logo } = req.body;
+    const { name, company_code, subdomain, domain, branding_logo, established_date } = req.body;
     if (!name || !subdomain) {
         return res.status(400).json({ error: 'Name and subdomain are required' });
     }
+    const codeVal = company_code || (subdomain ? subdomain.toUpperCase() : 'COMP');
     try {
-        const result = await (0, db_1.query)('INSERT INTO hrms.companies (name, subdomain, domain, branding_logo) VALUES ($1, $2, $3, $4) RETURNING *', [name, subdomain, domain || null, branding_logo || null]);
+        const result = await (0, db_1.query)('INSERT INTO hrms.companies (name, company_code, subdomain, domain, branding_logo, established_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [name, codeVal, subdomain, domain || null, branding_logo || null, established_date || null]);
         const newCompany = result.rows[0];
         const defaultRoles = ['Admin'];
         for (const roleName of defaultRoles) {
@@ -883,20 +1085,30 @@ app.post('/api/v1/companies', auth_1.authenticateToken, auth_1.requireSuperAdmin
     }
 });
 /**
- * 🏢 GET COMPANIES (SuperAdmin gets all, Tenant users get their own company)
+ * @openapi
+ * /api/v1/companies:
+ *   get:
+ *     summary: List Companies
+ *     tags:
+ *       - Organization Masters
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of tenant companies
  */
 app.get('/api/v1/companies', auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     try {
         if (isSuperAdmin) {
-            const result = await (0, db_1.query)('SELECT id, name, subdomain, domain, branding_logo, status, created_at FROM hrms.companies ORDER BY name ASC');
+            const result = await (0, db_1.query)('SELECT id, name, company_code, subdomain, domain, branding_logo, status, established_date, created_at FROM hrms.companies ORDER BY name ASC');
             return res.json({ companies: result.rows });
         }
         const userCompanyId = req.user?.companyId;
         if (!userCompanyId) {
             return res.status(403).json({ error: 'Access denied: No company assigned' });
         }
-        const result = await (0, db_1.query)('SELECT id, name, subdomain, domain, branding_logo, status, created_at FROM hrms.companies WHERE id = $1', [userCompanyId]);
+        const result = await (0, db_1.query)('SELECT id, name, company_code, subdomain, domain, branding_logo, status, established_date, created_at FROM hrms.companies WHERE id = $1', [userCompanyId]);
         return res.json({ companies: result.rows });
     }
     catch (err) {
@@ -905,16 +1117,51 @@ app.get('/api/v1/companies', auth_1.authenticateToken, async (req, res) => {
     }
 });
 /**
- * 🏢 UPDATE COMPANY (SuperAdmin Only)
+ * @openapi
+ * /api/v1/companies/{id}:
+ *   put:
+ *     summary: Update Company Details
+ *     tags:
+ *       - Organization Masters
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               subdomain:
+ *                 type: string
+ *               domain:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 example: ACTIVE
+ *     responses:
+ *       200:
+ *         description: Company updated successfully
+ *       404:
+ *         description: Company not found
  */
 app.put('/api/v1/companies/:id', auth_1.authenticateToken, auth_1.requireSuperAdmin, async (req, res) => {
     const { id } = req.params;
-    const { name, subdomain, domain, branding_logo, status } = req.body;
+    const { name, company_code, subdomain, domain, branding_logo, status, established_date } = req.body;
     if (!name || !subdomain) {
         return res.status(400).json({ error: 'Name and subdomain are required' });
     }
+    const codeVal = company_code || (subdomain ? subdomain.toUpperCase() : 'COMP');
     try {
-        const result = await (0, db_1.query)('UPDATE hrms.companies SET name = $1, subdomain = $2, domain = $3, branding_logo = $4, status = $5, updated_at = NOW() WHERE id = $6 RETURNING *', [name, subdomain, domain || null, branding_logo || null, status || 'ACTIVE', id]);
+        const result = await (0, db_1.query)('UPDATE hrms.companies SET name = $1, company_code = $2, subdomain = $3, domain = $4, branding_logo = $5, status = $6, established_date = $7, updated_at = NOW() WHERE id = $8 RETURNING *', [name, codeVal, subdomain, domain || null, branding_logo || null, status || 'ACTIVE', established_date || null, id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Company not found' });
         }
@@ -932,7 +1179,25 @@ app.put('/api/v1/companies/:id', auth_1.authenticateToken, auth_1.requireSuperAd
     }
 });
 /**
- * 🏢 DELETE COMPANY (SuperAdmin Only)
+ * @openapi
+ * /api/v1/companies/{id}:
+ *   delete:
+ *     summary: Delete Company
+ *     tags:
+ *       - Organization Masters
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Company deleted successfully
+ *       404:
+ *         description: Company not found
  */
 app.delete('/api/v1/companies/:id', auth_1.authenticateToken, auth_1.requireSuperAdmin, async (req, res) => {
     const { id } = req.params;
@@ -996,7 +1261,8 @@ app.get('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Company ID could not be identified' });
     }
     try {
-        const scopeCtx = await (0, auth_1.getEmployeeDataScope)(req, 'employees', 'view_employees');
+        const targetModule = req.query.module || 'employees';
+        const scopeCtx = await (0, auth_1.getEmployeeDataScope)(req, targetModule);
         const scopeCond = (0, auth_1.buildDataScopeCondition)(scopeCtx, 'e', 'id', 2);
         let whereClause = `WHERE e.company_id = $1`;
         const queryParams = [companyId];
@@ -1104,8 +1370,8 @@ app.get('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
               m.first_name as manager_first_name,
               m.last_name as manager_last_name,
               m.emp_id_code as manager_emp_code,
-              sm.shift_name as shift_name,
-              sm.id as shift_id
+              COALESCE(e.shift_id, es.shift_id) as shift_id,
+              sm.shift_name as shift_name
        FROM hrms.employees e
        LEFT JOIN hrms.branches b ON e.branch_id = b.id
        LEFT JOIN hrms.departments d ON e.department_id = d.id
@@ -1118,8 +1384,8 @@ app.get('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
          WHERE employee_id = e.id
          ORDER BY effective_from DESC LIMIT 1
        ) es ON true
-       LEFT JOIN hrms.shift_masters sm ON es.shift_id = sm.id
-       WHERE e.id = $1 OR e.id::text = $1 OR e.emp_id_code = $1`, [id]);
+       LEFT JOIN hrms.shift_masters sm ON COALESCE(e.shift_id, es.shift_id) = sm.id
+       WHERE e.id::text = $1 OR e.emp_id_code = $1`, [id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Employee not found' });
         }
@@ -1382,9 +1648,10 @@ app.post('/api/v1/employees/bulk', auth_1.authenticateToken, async (req, res) =>
     for (let i = 0; i < employees.length; i++) {
         const emp = employees[i];
         const rowNum = i + 2; // Row 1 = header in CSV, so data starts at row 2
-        // Required fields validation (last_name is optional — defaults to empty string)
-        if (!emp.emp_id_code || !emp.first_name || !emp.email || !emp.joining_date) {
-            results.push({ row: rowNum, emp_id_code: emp.emp_id_code || '—', status: 'error', message: 'Required fields missing: emp_id_code, first_name, email, joining_date' });
+        const joiningDate = emp.joining_date || new Date().toISOString().split('T')[0];
+        // Required fields validation (minimal: emp_id_code, first_name, email)
+        if (!emp.emp_id_code || !emp.first_name || !emp.email) {
+            results.push({ row: rowNum, emp_id_code: emp.emp_id_code || '—', status: 'error', message: 'Required fields missing: emp_id_code, first_name, email' });
             continue;
         }
         // Resolve name-to-id lookups (case insensitive)
@@ -1413,7 +1680,7 @@ app.post('/api/v1/employees/bulk', auth_1.authenticateToken, async (req, res) =>
                 emp.email.trim().toLowerCase(),
                 emp.phone || null,
                 emp.status || 'ACTIVE',
-                emp.joining_date,
+                joiningDate,
                 emp.dob || null,
                 emp.gender || null,
                 null, // reporting_to_id resolved separately if needed
@@ -1463,87 +1730,117 @@ app.post('/api/v1/employees/bulk', auth_1.authenticateToken, async (req, res) =>
 app.put('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-    const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
+    let companyId = req.body.companyId || req.body.company_id || req.query.companyId || (isSuperAdmin ? null : req.user?.companyId);
     const { emp_id_code, first_name, last_name, email, phone, branch_id, department_id, designation_id, role_id, joining_date, status, shift_id, dob, gender, marital_status, blood_group, personal_email, reporting_to_id, employment_type, probation_period_months, confirmation_date, exit_date, resignation_date, bank_information, pan_number, aadhar_number, esi_number, uan_number, current_address, permanent_address, emergency_contacts, education, experience, skills, emp_image, password // Add password extraction
      } = req.body;
     if (password && password.length < 6) {
         return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
-    if (!companyId) {
-        return res.status(400).json({ error: 'Company ID is required' });
-    }
-    if (!emp_id_code || !first_name || !last_name || !email || !joining_date) {
-        return res.status(400).json({ error: 'Required fields missing' });
-    }
     try {
-        // Fetch current status for transition checks
-        const originalEmpQuery = await (0, db_1.query)('SELECT status FROM hrms.employees WHERE id = $1', [id]);
-        const originalStatus = originalEmpQuery.rows.length > 0 ? originalEmpQuery.rows[0].status : null;
+        // Fetch current status, existing values & company_id for transition and fallback checks
+        const originalEmpQuery = await (0, db_1.query)('SELECT * FROM hrms.employees WHERE id = $1', [id]);
+        if (originalEmpQuery.rows.length === 0) {
+            return res.status(404).json({ error: 'Employee not found' });
+        }
+        const existingEmp = originalEmpQuery.rows[0];
+        const originalStatus = existingEmp.status;
+        const dbCompanyId = existingEmp.company_id;
+        if (!companyId || companyId === 'all') {
+            companyId = dbCompanyId;
+        }
+        if (!companyId) {
+            return res.status(400).json({ error: 'Company ID is required' });
+        }
+        // Fallback required fields to existing database values if empty or missing in req.body
+        const final_emp_id_code = (emp_id_code && String(emp_id_code).trim() !== '') ? emp_id_code : existingEmp.emp_id_code;
+        const final_first_name = (first_name && String(first_name).trim() !== '') ? first_name : existingEmp.first_name;
+        const final_last_name = (last_name && String(last_name).trim() !== '') ? last_name : (existingEmp.last_name || '');
+        const final_email = (email && String(email).trim() !== '') ? email : existingEmp.email;
+        const final_joining_date = (joining_date && String(joining_date).trim() !== '') ? joining_date : existingEmp.joining_date;
+        if (!final_emp_id_code || !final_first_name || !final_email || !final_joining_date) {
+            const missing = [];
+            if (!final_emp_id_code)
+                missing.push('Employee ID Code');
+            if (!final_first_name)
+                missing.push('First Name');
+            if (!final_email)
+                missing.push('Email');
+            if (!final_joining_date)
+                missing.push('Joining Date');
+            return res.status(400).json({ error: `Required fields missing: ${missing.join(', ')}` });
+        }
         if (!isSuperAdmin) {
             const empCheck = await (0, db_1.query)('SELECT id FROM hrms.employees WHERE id = $1 AND company_id = $2', [id, companyId]);
             if (empCheck.rows.length === 0) {
                 return res.status(403).json({ error: 'Access denied: employee not found in your company context' });
             }
         }
-        if (branch_id) {
-            const check = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE id = $1 AND company_id = $2', [branch_id, companyId]);
+        const cleanBranchId = branch_id && branch_id !== '' && branch_id !== 'null' ? branch_id : null;
+        const cleanDeptId = department_id && department_id !== '' && department_id !== 'null' ? department_id : null;
+        const cleanDesigId = designation_id && designation_id !== '' && designation_id !== 'null' ? designation_id : null;
+        const cleanRoleId = role_id && role_id !== '' && role_id !== 'null' ? role_id : null;
+        const cleanReportingId = reporting_to_id && reporting_to_id !== '' && reporting_to_id !== 'null' ? reporting_to_id : null;
+        const cleanShiftId = shift_id && shift_id !== '' && shift_id !== 'null' ? shift_id : null;
+        if (cleanBranchId) {
+            const check = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE id = $1 AND (company_id = $2 OR company_id IS NULL)', [cleanBranchId, companyId]);
             if (check.rows.length === 0)
                 return res.status(400).json({ error: 'Invalid Branch reference' });
         }
-        if (department_id) {
-            const check = await (0, db_1.query)('SELECT id FROM hrms.departments WHERE id = $1 AND company_id = $2', [department_id, companyId]);
+        if (cleanDeptId) {
+            const check = await (0, db_1.query)('SELECT id FROM hrms.departments WHERE id = $1 AND (company_id = $2 OR company_id IS NULL)', [cleanDeptId, companyId]);
             if (check.rows.length === 0)
                 return res.status(400).json({ error: 'Invalid Department reference' });
         }
-        if (designation_id) {
-            const check = await (0, db_1.query)('SELECT id FROM hrms.designations WHERE id = $1 AND company_id = $2', [designation_id, companyId]);
+        if (cleanDesigId) {
+            const check = await (0, db_1.query)('SELECT id FROM hrms.designations WHERE id = $1 AND (company_id = $2 OR company_id IS NULL)', [cleanDesigId, companyId]);
             if (check.rows.length === 0)
                 return res.status(400).json({ error: 'Invalid Designation reference' });
         }
-        if (role_id) {
-            const check = await (0, db_1.query)('SELECT id FROM hrms.roles WHERE id = $1 AND company_id = $2', [role_id, companyId]);
+        if (cleanRoleId) {
+            const check = await (0, db_1.query)('SELECT id FROM hrms.roles WHERE id = $1 AND (company_id = $2 OR company_id IS NULL)', [cleanRoleId, companyId]);
             if (check.rows.length === 0)
                 return res.status(400).json({ error: 'Invalid Role reference' });
         }
-        if (reporting_to_id) {
+        if (cleanReportingId) {
             // Prevent setting reporting manager to self
-            if (reporting_to_id === id) {
+            if (cleanReportingId === id) {
                 return res.status(400).json({ error: 'Employee cannot report to themselves' });
             }
-            const check = await (0, db_1.query)('SELECT id FROM hrms.employees WHERE id = $1 AND company_id = $2', [reporting_to_id, companyId]);
+            const check = await (0, db_1.query)('SELECT id FROM hrms.employees WHERE id = $1 AND (company_id = $2 OR company_id IS NULL)', [cleanReportingId, companyId]);
             if (check.rows.length === 0)
                 return res.status(400).json({ error: 'Invalid Reporting Manager reference' });
         }
         const result = await (0, db_1.query)(`UPDATE hrms.employees SET
-          role_id = $1, branch_id = $2, department_id = $3, designation_id = $4,
-          emp_id_code = $5, first_name = $6, last_name = $7, email = $8, phone = $9,
-          status = $10, joining_date = $11,
-          dob = $12, gender = $13, marital_status = $14, blood_group = $15, personal_email = $16,
-          reporting_to_id = $17, employment_type = $18, probation_period_months = $19, confirmation_date = $20,
-          exit_date = $21, resignation_date = $22,
-          pan_number = $23, aadhar_number = $24, esi_number = $25, uan_number = $26, bank_information = $27,
-          current_address = $28, permanent_address = $29,
-          emergency_contacts = $30, education = $31, experience = $32, skills = $33,
-          emp_image = $34,
+          company_id = $1, role_id = $2, branch_id = $3, department_id = $4, designation_id = $5,
+          emp_id_code = $6, first_name = $7, last_name = $8, email = $9, phone = $10,
+          status = $11, joining_date = $12,
+          dob = $13, gender = $14, marital_status = $15, blood_group = $16, personal_email = $17,
+          reporting_to_id = $18, employment_type = $19, probation_period_months = $20, confirmation_date = $21,
+          exit_date = $22, resignation_date = $23,
+          pan_number = $24, aadhar_number = $25, esi_number = $26, uan_number = $27, bank_information = $28,
+          current_address = $29, permanent_address = $30,
+          emergency_contacts = $31, education = $32, experience = $33, skills = $34,
+          emp_image = $35, shift_id = $36,
           updated_at = NOW()
-         WHERE id = $35 RETURNING *`, [
-            role_id || null,
-            branch_id || null,
-            department_id || null,
-            designation_id || null,
-            emp_id_code,
-            first_name,
-            last_name,
-            email,
+         WHERE id = $37 RETURNING *`, [
+            companyId,
+            cleanRoleId,
+            cleanBranchId,
+            cleanDeptId,
+            cleanDesigId,
+            final_emp_id_code,
+            final_first_name,
+            final_last_name,
+            final_email,
             phone || null,
             status || 'ACTIVE',
-            joining_date,
+            final_joining_date,
             dob || null,
             gender || null,
             marital_status || null,
             blood_group || null,
             personal_email || null,
-            reporting_to_id || null,
+            cleanReportingId,
             employment_type || null,
             probation_period_months ? parseInt(probation_period_months) : null,
             confirmation_date || null,
@@ -1561,6 +1858,7 @@ app.put('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
             experience ? (typeof experience === 'string' ? experience : JSON.stringify(experience)) : '[]',
             skills ? (typeof skills === 'string' ? skills : JSON.stringify(skills)) : '[]',
             emp_image || null,
+            cleanShiftId,
             id
         ]);
         const updatedEmployee = result.rows[0];
@@ -1624,15 +1922,16 @@ app.put('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
                 console.warn('[KEYCLOAK SYNC] Keycloak profile update sync error:', kcErr);
             }
         })();
-        // Handle shift update if shift_id is provided
-        if (shift_id) {
+        // Handle shift update if cleanShiftId is provided
+        if (cleanShiftId) {
             try {
-                const existingShiftCheck = await (0, db_1.query)("SELECT id FROM hrms.employee_shifts WHERE employee_id = $1 AND is_default = true", [id]);
+                const effectiveDate = final_joining_date || new Date().toISOString().split('T')[0];
+                const existingShiftCheck = await (0, db_1.query)("SELECT id FROM hrms.employee_shifts WHERE employee_id = $1", [id]);
                 if (existingShiftCheck.rows.length > 0) {
-                    await (0, db_1.query)("UPDATE hrms.employee_shifts SET shift_id = $1, effective_from = $2 WHERE employee_id = $3 AND is_default = true", [shift_id, joining_date, id]);
+                    await (0, db_1.query)("UPDATE hrms.employee_shifts SET shift_id = $1, effective_from = $2 WHERE employee_id = $3", [cleanShiftId, effectiveDate, id]);
                 }
                 else {
-                    await (0, db_1.query)("INSERT INTO hrms.employee_shifts (employee_id, shift_id, effective_from, is_default) VALUES ($1, $2, $3, true)", [id, shift_id, joining_date]);
+                    await (0, db_1.query)("INSERT INTO hrms.employee_shifts (employee_id, shift_id, effective_from, is_default) VALUES ($1, $2, $3, true)", [id, cleanShiftId, effectiveDate]);
                 }
             }
             catch (shiftErr) {
@@ -1986,7 +2285,7 @@ app.get('/api/v1/departments', auth_1.authenticateToken, async (req, res) => {
     if (!companyId) {
         if (isSuperAdmin) {
             try {
-                let q = 'SELECT d.id, d.company_id, d.branch_id, b.name as branch_name, d.name, d.description, d.status FROM hrms.departments d LEFT JOIN hrms.branches b ON d.branch_id = b.id';
+                let q = 'SELECT d.id, d.company_id, d.branch_id, b.name as branch_name, d.name, d.description, d.status, d.created_at FROM hrms.departments d LEFT JOIN hrms.branches b ON d.branch_id = b.id';
                 const params = [];
                 if (branchId) {
                     q += ' WHERE d.branch_id = $1';
@@ -2004,7 +2303,7 @@ app.get('/api/v1/departments', auth_1.authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Company ID is required' });
     }
     try {
-        let q = 'SELECT d.id, d.company_id, d.branch_id, b.name as branch_name, d.name, d.description, d.status FROM hrms.departments d LEFT JOIN hrms.branches b ON d.branch_id = b.id WHERE d.company_id = $1';
+        let q = 'SELECT d.id, d.company_id, d.branch_id, b.name as branch_name, d.name, d.description, d.status, d.created_at FROM hrms.departments d LEFT JOIN hrms.branches b ON d.branch_id = b.id WHERE d.company_id = $1';
         const params = [companyId];
         if (branchId) {
             q += ' AND d.branch_id = $2';
@@ -2129,7 +2428,7 @@ app.get('/api/v1/designations', auth_1.authenticateToken, async (req, res) => {
         if (isSuperAdmin) {
             try {
                 let q = `SELECT d.id, d.company_id, d.branch_id, b.name as branch_name, 
-                          d.department_id, dept.name as department_name, d.name, d.description, d.status 
+                          d.department_id, dept.name as department_name, d.name, d.description, d.status, d.created_at 
                    FROM hrms.designations d 
                    LEFT JOIN hrms.branches b ON d.branch_id = b.id 
                    LEFT JOIN hrms.departments dept ON d.department_id = dept.id`;
@@ -2159,7 +2458,7 @@ app.get('/api/v1/designations', auth_1.authenticateToken, async (req, res) => {
     }
     try {
         let q = `SELECT d.id, d.company_id, d.branch_id, b.name as branch_name, 
-                      d.department_id, dept.name as department_name, d.name, d.description, d.status 
+                      d.department_id, dept.name as department_name, d.name, d.description, d.status, d.created_at 
                FROM hrms.designations d 
                LEFT JOIN hrms.branches b ON d.branch_id = b.id 
                LEFT JOIN hrms.departments dept ON d.department_id = dept.id 
@@ -2739,15 +3038,30 @@ app.delete('/api/v1/employee-shifts/:id', auth_1.authenticateToken, async (req, 
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
+app.get('/api/v1/attendance/policies', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const { company_id } = req.query;
+        let targetCompanyId = req.user?.companyId;
+        if (company_id)
+            targetCompanyId = company_id;
+        const result = await (0, db_1.query)(`SELECT * FROM hrms.attendance_policies WHERE company_id = $1 LIMIT 1`, [targetCompanyId]);
+        if (result.rows.length === 0) {
+            return res.json([{ company_id: targetCompanyId, cycle_start_day: 26, cycle_end_day: 25, grace_period_mins: 15 }]);
+        }
+        return res.json(result.rows);
+    }
+    catch (err) {
+        return res.status(500).json({ error: 'Failed to fetch attendance policies' });
+    }
+});
 /**
  * 🕒 ATTENDANCE SUMMARY LOG APIs
  */
 app.get('/api/v1/attendance/summary', auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-    const companyId = isSuperAdmin ? (req.query.companyId || null) : req.user?.companyId;
+    const rawCompany = req.query.companyId || req.query.company_id;
+    const companyId = isSuperAdmin ? (rawCompany ? String(rawCompany) : null) : req.user?.companyId;
     const { startDate, endDate, employeeId } = req.query;
-    if (!companyId && !isSuperAdmin)
-        return res.status(400).json({ error: 'Company ID is required' });
     try {
         let sql = `
       SELECT asum.id, asum.company_id, asum.employee_id, asum.attendance_date, asum.shift_id,
@@ -2757,16 +3071,19 @@ app.get('/api/v1/attendance/summary', auth_1.authenticateToken, async (req, res)
              asum.is_regularized, asum.regularized_by, asum.processed_at,
              e.first_name, e.last_name, e.emp_id_code,
              sm.shift_name as shift_name,
+             sm.start_time as shift_start_time,
+             sm.end_time as shift_end_time,
+             sm.grace_in_minutes as shift_grace_in,
              c.name as company_name
       FROM hrms.attendance_summary asum
-      JOIN hrms.employees e ON asum.employee_id = e.id
+      LEFT JOIN hrms.employees e ON asum.employee_id = e.id
       LEFT JOIN hrms.shift_masters sm ON asum.shift_id = sm.id
       LEFT JOIN hrms.companies c ON asum.company_id = c.id
     `;
         const params = [];
         let paramIdx = 1;
         let whereClauses = [];
-        if (companyId) {
+        if (companyId && companyId !== 'all') {
             whereClauses.push(`asum.company_id = $${paramIdx++}`);
             params.push(companyId);
         }
@@ -2782,7 +3099,7 @@ app.get('/api/v1/attendance/summary', auth_1.authenticateToken, async (req, res)
             whereClauses.push(`asum.employee_id = $${paramIdx++}`);
             params.push(employeeId);
         }
-        const scopeCtx = await (0, auth_1.getEmployeeDataScope)(req, 'attendance', 'view_attendance');
+        const scopeCtx = await (0, auth_1.getEmployeeDataScope)(req, 'attendance');
         const scopeCond = (0, auth_1.buildDataScopeCondition)(scopeCtx, 'asum', 'employee_id', paramIdx);
         if (scopeCond.whereSql) {
             whereClauses.push(scopeCond.whereSql);
@@ -2794,7 +3111,63 @@ app.get('/api/v1/attendance/summary', auth_1.authenticateToken, async (req, res)
         }
         sql += ` ORDER BY c.name ASC, asum.attendance_date DESC, e.emp_id_code ASC`;
         const result = await (0, db_1.query)(sql, params);
-        return res.json({ attendanceSummary: result.rows });
+        const rawRows = result.rows || [];
+        // Accurately compute late_minutes and status for each record
+        const processedRows = rawRows.map(row => {
+            const startTime = row.shift_start_time || '09:30:00';
+            const graceIn = typeof row.shift_grace_in === 'number' ? row.shift_grace_in : 15;
+            let computedLateMins = 0;
+            if (row.first_in) {
+                let ph = -1;
+                let pm = -1;
+                const str = String(row.first_in).replace('T', ' ').replace(/\.000Z$/, '').replace(/Z$/, '');
+                const parts = str.split(' ');
+                const timePart = parts.length >= 2 ? parts[1] : parts[0];
+                if (timePart && timePart.includes(':')) {
+                    const pieces = timePart.split(':');
+                    ph = parseInt(pieces[0], 10);
+                    pm = parseInt(pieces[1], 10);
+                }
+                if (ph >= 0 && pm >= 0) {
+                    const [sh, sm] = startTime.split(':').map((v) => parseInt(v, 10));
+                    const punchMins = ph * 60 + pm;
+                    const shiftStartMins = sh * 60 + sm;
+                    const graceDeadlineMins = shiftStartMins + graceIn;
+                    if (punchMins > graceDeadlineMins) {
+                        computedLateMins = punchMins - shiftStartMins;
+                    }
+                    else {
+                        computedLateMins = 0;
+                    }
+                }
+            }
+            // Derived status rule: if no out time or worked_minutes < 240, mark as ABSENT
+            let derivedStatus = (row.status || '').toUpperCase();
+            const hasOut = row.last_out && String(row.last_out) !== '--:--' && String(row.last_out) !== 'null';
+            const workedMins = row.worked_minutes || 0;
+            if (!hasOut || workedMins < 240) {
+                derivedStatus = 'ABSENT';
+            }
+            else if (workedMins >= 420) {
+                derivedStatus = 'PRESENT';
+            }
+            else if (workedMins >= 240) {
+                derivedStatus = 'HALF_DAY';
+            }
+            return {
+                ...row,
+                late_minutes: computedLateMins,
+                status: derivedStatus
+            };
+        });
+        // Update database records asynchronously to persist accurate calculations
+        Promise.all(processedRows.map(r => (0, db_1.query)(`UPDATE hrms.attendance_summary SET late_minutes = $1, status = $2 WHERE id = $3`, [r.late_minutes, r.status, r.id]).catch(() => { }))).catch(() => { });
+        return res.json({
+            attendanceSummary: processedRows,
+            records: processedRows,
+            summary: processedRows,
+            data: processedRows
+        });
     }
     catch (err) {
         console.error('Error fetching attendance summary:', err);
@@ -2886,47 +3259,132 @@ app.delete('/api/v1/attendance/summary/:id', auth_1.authenticateToken, async (re
 /**
  * 🕒 RAW PUNCH LOGS APIs
  */
-app.get('/api/v1/attendance/punches', auth_1.authenticateToken, async (req, res) => {
+/**
+ * @openapi
+ * /api/v1/attendance/raw-punches:
+ *   get:
+ *     summary: Display Attendance Raw Punch Logs
+ *     tags:
+ *       - Attendance & Raw Punches
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: start_date
+ *         schema:
+ *           type: string
+ *         description: Start date filter (YYYY-MM-DD)
+ *       - in: query
+ *         name: end_date
+ *         schema:
+ *           type: string
+ *         description: End date filter (YYYY-MM-DD)
+ *       - in: query
+ *         name: company_id
+ *         schema:
+ *           type: string
+ *         description: Company ID filter
+ *     responses:
+ *       200:
+ *         description: Array of attendance raw punch logs
+ *       401:
+ *         description: Unauthorized
+ */
+app.get(['/api/v1/attendance/punches', '/api/v1/attendance/raw-punches'], auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-    const companyId = isSuperAdmin ? (req.query.companyId || null) : req.user?.companyId;
-    if (!companyId && !isSuperAdmin)
-        return res.status(400).json({ error: 'Company ID is required' });
+    const rawCompany = req.query.companyId || req.query.company_id;
+    const companyId = isSuperAdmin ? (rawCompany ? String(rawCompany) : null) : req.user?.companyId;
+    const startDate = (req.query.start_date || req.query.startDate) ? String(req.query.start_date || req.query.startDate) : null;
+    const endDate = (req.query.end_date || req.query.endDate) ? String(req.query.end_date || req.query.endDate) : null;
     try {
-        let result;
-        if (companyId) {
-            result = await (0, db_1.query)(`SELECT rp.id, rp.company_id, rp.employee_id, rp.punch_time, rp.device_id, rp.source,
-                rp.direction, rp.latitude, rp.longitude, rp.location_name, rp.ip_address, rp.image_url, rp.is_processed, rp.created_at,
-                e.first_name, e.last_name, e.emp_id_code,
-                c.name as company_name
-         FROM hrms.attendance_raw_punches rp
-         JOIN hrms.employees e ON rp.employee_id = e.id
-         LEFT JOIN hrms.companies c ON rp.company_id = c.id
-         WHERE rp.company_id = $1
-         ORDER BY rp.punch_time DESC
-         LIMIT 500`, [companyId]);
+        let whereClauses = [];
+        let queryParams = [];
+        let idx = 1;
+        if (companyId && companyId !== 'all') {
+            whereClauses.push(`rp.company_id = $${idx++}`);
+            queryParams.push(companyId);
         }
-        else {
-            result = await (0, db_1.query)(`SELECT rp.id, rp.company_id, rp.employee_id, rp.punch_time, rp.device_id, rp.source,
-                rp.direction, rp.latitude, rp.longitude, rp.location_name, rp.ip_address, rp.image_url, rp.is_processed, rp.created_at,
-                e.first_name, e.last_name, e.emp_id_code,
-                c.name as company_name
-         FROM hrms.attendance_raw_punches rp
-         JOIN hrms.employees e ON rp.employee_id = e.id
-         LEFT JOIN hrms.companies c ON rp.company_id = c.id
-         ORDER BY rp.punch_time DESC
-         LIMIT 500`);
+        if (startDate) {
+            whereClauses.push(`rp.punch_time >= $${idx++}::date`);
+            queryParams.push(startDate);
         }
-        return res.json({ punches: result.rows });
+        if (endDate) {
+            whereClauses.push(`rp.punch_time <= ($${idx++}::date + INTERVAL '1 day')`);
+            queryParams.push(endDate);
+        }
+        const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+        const sql = `SELECT rp.id, rp.company_id, rp.employee_id, rp.punch_time, rp.device_id, rp.source,
+                        rp.direction, rp.latitude, rp.longitude, rp.location_name, rp.ip_address, rp.image_url, rp.is_processed, rp.created_at,
+                        e.first_name, e.last_name, e.emp_id_code,
+                        c.name as company_name
+                 FROM hrms.attendance_raw_punches rp
+                 JOIN hrms.employees e ON rp.employee_id = e.id
+                 LEFT JOIN hrms.companies c ON rp.company_id = c.id
+                 ${whereStr}
+                 ORDER BY rp.punch_time DESC
+                 LIMIT 500`;
+        const result = await (0, db_1.query)(sql, queryParams);
+        return res.json({ punches: result.rows, data: result.rows });
     }
     catch (err) {
         console.error('Error fetching raw punches:', err);
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
+/**
+ * @openapi
+ * /api/v1/attendance/punches:
+ *   post:
+ *     summary: Submit Attendance Punch Log
+ *     tags:
+ *       - Attendance & Raw Punches
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - employee_id
+ *               - punch_time
+ *               - direction
+ *             properties:
+ *               employee_id:
+ *                 type: string
+ *                 description: Employee UUID
+ *               punch_time:
+ *                 type: string
+ *                 example: "2026-08-17 09:15:00"
+ *               direction:
+ *                 type: string
+ *                 enum: [IN, OUT]
+ *                 example: IN
+ *               source:
+ *                 type: string
+ *                 example: WEB
+ *               location_name:
+ *                 type: string
+ *                 example: Main Office Gate
+ *               latitude:
+ *                 type: number
+ *                 example: 17.4483
+ *               longitude:
+ *                 type: number
+ *                 example: 78.3915
+ *               image_url:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Punch log created and processed successfully
+ *       400:
+ *         description: Missing required fields or invalid employee reference
+ */
 app.post('/api/v1/attendance/punches', auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
-    const { employee_id, punch_time, source, direction, ip_address, latitude, longitude, image_url } = req.body;
+    const { employee_id, punch_time, source, direction, ip_address, latitude, longitude, image_url, location_name } = req.body;
     if (!companyId || !employee_id || !punch_time || !direction) {
         return res.status(400).json({ error: 'Required fields missing' });
     }
@@ -2934,6 +3392,8 @@ app.post('/api/v1/attendance/punches', auth_1.authenticateToken, async (req, res
         const empCheck = await (0, db_1.query)('SELECT id FROM hrms.employees WHERE id = $1 AND company_id = $2', [employee_id, companyId]);
         if (empCheck.rows.length === 0)
             return res.status(400).json({ error: 'Invalid employee reference' });
+        // Auto add location_name column if missing
+        await (0, db_1.query)(`ALTER TABLE hrms.attendance_raw_punches ADD COLUMN IF NOT EXISTS location_name TEXT`).catch(() => { });
         let actualIp = ip_address;
         if (!actualIp) {
             const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
@@ -2946,8 +3406,8 @@ app.post('/api/v1/attendance/punches', auth_1.authenticateToken, async (req, res
                 actualIp = '127.0.0.1';
             }
         }
-        const result = await (0, db_1.query)(`INSERT INTO hrms.attendance_raw_punches (company_id, employee_id, punch_time, source, direction, ip_address, latitude, longitude, image_url, is_processed)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false) RETURNING *`, [
+        const result = await (0, db_1.query)(`INSERT INTO hrms.attendance_raw_punches (company_id, employee_id, punch_time, source, direction, ip_address, latitude, longitude, image_url, location_name, is_processed)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false) RETURNING *`, [
             companyId,
             employee_id,
             punch_time,
@@ -2956,9 +3416,10 @@ app.post('/api/v1/attendance/punches', auth_1.authenticateToken, async (req, res
             actualIp || null,
             latitude ? parseFloat(latitude) : null,
             longitude ? parseFloat(longitude) : null,
-            image_url || null
+            image_url || null,
+            location_name || null
         ]);
-        const punchDate = new Date(punch_time).toISOString().split('T')[0];
+        const punchDate = String(punch_time).split(' ')[0].split('T')[0];
         const dayPunches = await (0, db_1.query)(`SELECT punch_time, direction FROM hrms.attendance_raw_punches 
        WHERE employee_id = $1 AND punch_time::date = $2::date
        ORDER BY punch_time ASC`, [employee_id, punchDate]);
@@ -2979,7 +3440,6 @@ app.post('/api/v1/attendance/punches', auth_1.authenticateToken, async (req, res
         }
         let shiftId = null;
         let shiftStartTime = null;
-        let shiftGraceIn = 0;
         const shiftRes = await (0, db_1.query)(`SELECT es.shift_id, sm.start_time, sm.grace_in_minutes 
        FROM hrms.employee_shifts es
        JOIN hrms.shift_masters sm ON es.shift_id = sm.id
@@ -2988,39 +3448,48 @@ app.post('/api/v1/attendance/punches', auth_1.authenticateToken, async (req, res
         if (shiftRes.rows.length > 0) {
             shiftId = shiftRes.rows[0].shift_id;
             shiftStartTime = shiftRes.rows[0].start_time;
-            shiftGraceIn = shiftRes.rows[0].grace_in_minutes || 0;
         }
         else {
             const defShift = await (0, db_1.query)(`SELECT id, start_time, grace_in_minutes FROM hrms.shift_masters WHERE company_id = $1 AND is_active = true ORDER BY created_at ASC LIMIT 1`, [companyId]);
             if (defShift.rows.length > 0) {
                 shiftId = defShift.rows[0].id;
                 shiftStartTime = defShift.rows[0].start_time;
-                shiftGraceIn = defShift.rows[0].grace_in_minutes || 0;
             }
         }
         let lateMinutes = 0;
         if (firstIn && shiftStartTime) {
             const [sh, sm] = shiftStartTime.split(':').map(Number);
-            const punchLocalString = new Date(firstIn).toLocaleTimeString('en-US', {
-                hour12: false,
-                timeZone: 'Asia/Kolkata'
-            });
-            const [ph, pm] = punchLocalString.split(':').map(Number);
+            let ph = 0;
+            let pm = 0;
+            const str = String(firstIn);
+            if (str.includes('T') || str.includes(' ')) {
+                const timePart = str.includes('T') ? str.split('T')[1] : str.split(' ')[1];
+                if (timePart) {
+                    const tPieces = timePart.split(':');
+                    ph = parseInt(tPieces[0], 10);
+                    pm = parseInt(tPieces[1], 10);
+                }
+            }
+            else {
+                const d = new Date(firstIn);
+                ph = d.getHours();
+                pm = d.getMinutes();
+            }
             const punchTotalMinutes = ph * 60 + pm;
             const shiftTotalMinutes = sh * 60 + sm;
-            if (punchTotalMinutes > shiftTotalMinutes + shiftGraceIn) {
+            if (punchTotalMinutes > shiftTotalMinutes) {
                 lateMinutes = punchTotalMinutes - shiftTotalMinutes;
             }
         }
         let status = 'ABSENT';
-        if (workedMinutes >= 480) {
+        if (firstIn && lastOut && workedMinutes >= 420) {
             status = 'PRESENT';
         }
-        else if (workedMinutes >= 240) {
+        else if (firstIn && lastOut && workedMinutes >= 240) {
             status = 'HALF_DAY';
         }
-        else if (punchCount > 0) {
-            status = 'HALF_DAY';
+        else {
+            status = 'ABSENT';
         }
         await (0, db_1.query)(`INSERT INTO hrms.attendance_summary 
        (company_id, employee_id, attendance_date, shift_id, first_in, last_out, status, worked_minutes, late_minutes, punch_count, processed_at)
@@ -3066,12 +3535,10 @@ app.post('/api/v1/attendance/punches/bulk', auth_1.authenticateToken, async (req
         // Get default shift for company to fallback
         let defShiftId = null;
         let defShiftStart = null;
-        let defShiftGrace = 0;
         const defShiftRes = await (0, db_1.query)(`SELECT id, start_time, grace_in_minutes FROM hrms.shift_masters WHERE company_id = $1 AND is_active = true ORDER BY created_at ASC LIMIT 1`, [companyId]);
         if (defShiftRes.rows.length > 0) {
             defShiftId = defShiftRes.rows[0].id;
             defShiftStart = defShiftRes.rows[0].start_time;
-            defShiftGrace = defShiftRes.rows[0].grace_in_minutes || 0;
         }
         for (const p of punches) {
             const { empCode, punchTime } = p;
@@ -3119,26 +3586,26 @@ app.post('/api/v1/attendance/punches/bulk', auth_1.authenticateToken, async (req
            ORDER BY es.effective_from DESC LIMIT 1`, [empId, punchDate]);
                 let shiftId = defShiftId;
                 let shiftStart = defShiftStart;
-                let shiftGrace = defShiftGrace;
                 if (shiftRes.rows.length > 0) {
                     shiftId = shiftRes.rows[0].shift_id;
                     shiftStart = shiftRes.rows[0].start_time;
-                    shiftGrace = shiftRes.rows[0].grace_in_minutes || 0;
                 }
                 let lateMinutes = 0;
                 if (firstIn && shiftStart) {
                     const [sh, sm] = shiftStart.split(':').map(Number);
                     const punchLocal = new Date(firstIn).toLocaleTimeString('en-US', { hour12: false, timeZone: 'Asia/Kolkata' });
                     const [ph, pm] = punchLocal.split(':').map(Number);
-                    if (ph * 60 + pm > sh * 60 + sm + shiftGrace) {
+                    if (ph * 60 + pm > sh * 60 + sm) {
                         lateMinutes = (ph * 60 + pm) - (sh * 60 + sm);
                     }
                 }
                 let status = 'ABSENT';
-                if (workedMinutes >= 480)
+                if (firstIn && lastOut && workedMinutes >= 420)
                     status = 'PRESENT';
-                else if (workedMinutes >= 240 || dayPunches.rows.length > 0)
+                else if (firstIn && lastOut && workedMinutes >= 240)
                     status = 'HALF_DAY';
+                else
+                    status = 'ABSENT';
                 await (0, db_1.query)(`INSERT INTO hrms.attendance_summary 
            (company_id, employee_id, attendance_date, shift_id, first_in, last_out, status, worked_minutes, late_minutes, punch_count, processed_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
@@ -3562,7 +4029,7 @@ app.get('/api/v1/holidays', auth_1.authenticateToken, (0, auth_1.requirePermissi
     let companyId = isSuperAdmin ? req.query.companyId : req.user?.companyId;
     try {
         if (isSuperAdmin && (!companyId || companyId === 'all' || companyId === '')) {
-            const result = await (0, db_1.query)(`SELECT h.*, c.name as company_name 
+            const result = await (0, db_1.query)(`SELECT h.id, h.company_id, h.branch_id, h.name, TO_CHAR(h.holiday_date, 'YYYY-MM-DD') as holiday_date, h.description, h.is_restricted, h.restricted_branches, h.created_at, c.name as company_name 
          FROM hrms.holiday_masters h
          JOIN hrms.companies c ON h.company_id = c.id
          WHERE h.is_active = true 
@@ -3572,7 +4039,7 @@ app.get('/api/v1/holidays', auth_1.authenticateToken, (0, auth_1.requirePermissi
         else {
             if (!companyId || companyId === 'all')
                 return res.status(400).json({ error: 'Company ID is required' });
-            const result = await (0, db_1.query)(`SELECT h.*, c.name as company_name 
+            const result = await (0, db_1.query)(`SELECT h.id, h.company_id, h.branch_id, h.name, TO_CHAR(h.holiday_date, 'YYYY-MM-DD') as holiday_date, h.description, h.is_restricted, h.restricted_branches, h.created_at, c.name as company_name 
          FROM hrms.holiday_masters h
          LEFT JOIN hrms.companies c ON h.company_id = c.id
          WHERE h.company_id = $1 AND h.is_active = true 
@@ -3746,8 +4213,23 @@ app.post('/api/v1/leave-types', auth_1.authenticateToken, async (req, res) => {
             is_paid !== undefined ? is_paid : true,
             is_wfh !== undefined ? is_wfh : false
         ]);
+        const newLeaveType = result.rows[0];
+        // Auto-allocate this new leave type balance to all existing ACTIVE employees in the company
+        try {
+            const activeEmps = await (0, db_1.query)("SELECT id FROM hrms.employees WHERE company_id = $1 AND status = 'ACTIVE'", [companyId]);
+            const currentYear = new Date().getFullYear();
+            const allottedNum = parseFloat(allotted_per_year);
+            for (const emp of activeEmps.rows) {
+                await (0, db_1.query)(`INSERT INTO hrms.leave_balances (employee_id, leave_type_id, balance_year, allotted, used, pending_approval, remaining)
+           VALUES ($1, $2, $3, $4, 0, 0, $4)
+           ON CONFLICT (employee_id, leave_type_id, balance_year) DO NOTHING`, [emp.id, newLeaveType.id, currentYear, allottedNum]);
+            }
+        }
+        catch (allocErr) {
+            console.error('Error auto-allocating new leave type to active employees:', allocErr);
+        }
         (0, exports.logUserAction)(req, 'CREATE_LEAVE_TYPE', 'Leaves', `Created leave type '${name}' (${code}) with ${allotted_per_year} days/year`);
-        return res.status(201).json({ message: 'Leave type created successfully', leaveType: result.rows[0] });
+        return res.status(201).json({ message: 'Leave type created successfully and allocated to active employees', leaveType: newLeaveType });
     }
     catch (err) {
         console.error('Error creating leave type:', err);
@@ -3814,24 +4296,69 @@ app.delete('/api/v1/leave-types/:id', auth_1.authenticateToken, async (req, res)
  * 📅 LEAVE BALANCES APIs
  */
 app.get('/api/v1/leave-balances', auth_1.authenticateToken, async (req, res) => {
-    const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-    const email = req.user?.email;
     try {
+        const scope = await (0, auth_1.getEmployeeDataScope)(req);
+        const isSuperAdmin = scope.isSuperAdmin;
+        let companyId = req.query.companyId || scope.companyId || req.user?.companyId;
         let employeeId = req.query.employeeId;
-        if (!employeeId && !isSuperAdmin && email) {
-            const empCheck = await (0, db_1.query)('SELECT id FROM hrms.employees WHERE email = $1 AND status = \'ACTIVE\'', [email]);
-            if (empCheck.rows.length > 0) {
-                employeeId = empCheck.rows[0].id;
+        let sql = `
+      SELECT lb.*, 
+             lt.name as leave_type_name, lt.code as leave_type_code, lt.is_paid,
+             e.first_name || ' ' || e.last_name as employee_name,
+             e.email as employee_email,
+             e.emp_id_code,
+             c.name as company_name
+      FROM hrms.leave_balances lb 
+      JOIN hrms.leave_types lt ON lb.leave_type_id = lt.id 
+      JOIN hrms.employees e ON lb.employee_id = e.id
+      LEFT JOIN hrms.companies c ON e.company_id = c.id
+    `;
+        const whereConditions = [];
+        const params = [];
+        let yearParam = req.query.year;
+        if (yearParam) {
+            params.push(parseInt(yearParam, 10));
+            whereConditions.push(`lb.balance_year = $${params.length}`);
+        }
+        if (employeeId) {
+            params.push(employeeId);
+            whereConditions.push(`lb.employee_id = $${params.length}`);
+        }
+        else if (companyId && companyId !== 'all') {
+            params.push(companyId);
+            whereConditions.push(`(lt.company_id = $${params.length} OR e.company_id = $${params.length})`);
+        }
+        else if (!isSuperAdmin && scope.employeeId) {
+            params.push(scope.employeeId);
+            whereConditions.push(`lb.employee_id = $${params.length}`);
+        }
+        if (whereConditions.length > 0) {
+            sql += ` WHERE ` + whereConditions.join(' AND ');
+        }
+        sql += ` ORDER BY e.first_name ASC, lt.name ASC`;
+        const result = await (0, db_1.query)(sql, params);
+        // Auto-seed default leave balances for active employees if no records exist
+        if (result.rows.length === 0 && scope.employeeId) {
+            const currentYear = new Date().getFullYear();
+            const empRes = await (0, db_1.query)(`SELECT id, company_id FROM hrms.employees WHERE status = 'ACTIVE'`);
+            const ltRes = await (0, db_1.query)(`SELECT id, company_id, max_days_per_year FROM hrms.leave_types`);
+            if (empRes.rows.length > 0 && ltRes.rows.length > 0) {
+                for (const emp of empRes.rows) {
+                    const empLeaveTypes = ltRes.rows.filter(lt => !lt.company_id || lt.company_id === emp.company_id);
+                    for (const lt of empLeaveTypes) {
+                        const allotted = parseFloat(lt.max_days_per_year || 12);
+                        await (0, db_1.query)(`
+              INSERT INTO hrms.leave_balances (company_id, employee_id, leave_type_id, balance_year, allotted, used, remaining)
+              VALUES ($1, $2, $3, $4, $5, 0, $5)
+              ON CONFLICT DO NOTHING
+            `, [emp.company_id, emp.id, lt.id, currentYear, allotted]);
+                    }
+                }
+                // Re-fetch after seeding
+                const seededResult = await (0, db_1.query)(sql, params);
+                return res.json({ balances: seededResult.rows });
             }
         }
-        if (!employeeId) {
-            return res.json({ balances: [] });
-        }
-        const currentYear = new Date().getFullYear();
-        const result = await (0, db_1.query)(`SELECT lb.*, lt.name as leave_type_name, lt.code as leave_type_code, lt.is_paid
-       FROM hrms.leave_balances lb 
-       JOIN hrms.leave_types lt ON lb.leave_type_id = lt.id 
-       WHERE lb.employee_id = $1 AND lb.balance_year = $2`, [employeeId, currentYear]);
         return res.json({ balances: result.rows });
     }
     catch (err) {
@@ -4229,6 +4756,345 @@ app.post('/api/v1/leave-transaction-logs', auth_1.authenticateToken, async (req,
     }
 });
 /**
+ * 🎁 COMP-OFF CREDIT REQUEST APIs
+ */
+// GET /api/v1/comp-off-requests
+app.get('/api/v1/comp-off-requests', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const scope = await (0, auth_1.getEmployeeDataScope)(req);
+        const companyCondition = (0, auth_1.buildDataScopeCondition)(scope, 'cor.company_id', req.query.companyId);
+        let employeeFilter = '';
+        if (scope.dataScope === 'SELF' && scope.employeeId) {
+            employeeFilter = `AND cor.employee_id = '${scope.employeeId}'`;
+        }
+        const result = await (0, db_1.query)(`
+      SELECT 
+        cor.*,
+        e.emp_id_code,
+        (e.first_name || ' ' || e.last_name) as employee_name,
+        (appr.first_name || ' ' || appr.last_name) as approved_by_name
+      FROM hrms.comp_off_requests cor
+      JOIN hrms.employees e ON cor.employee_id = e.id
+      LEFT JOIN hrms.employees appr ON cor.approved_by = appr.id
+      WHERE 1=1 ${companyCondition.whereSql} ${employeeFilter}
+      ORDER BY cor.created_at DESC
+    `, companyCondition.params);
+        return res.json({ success: true, requests: result.rows });
+    }
+    catch (err) {
+        console.error('Error fetching comp-off requests:', err);
+        return res.status(500).json({ error: 'Failed to fetch comp-off requests' });
+    }
+});
+// GET /api/v1/comp-off-requests/eligible-dates (Auto-detects worked weekends/holidays with punch times)
+app.get('/api/v1/comp-off-requests/eligible-dates', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const scope = await (0, auth_1.getEmployeeDataScope)(req);
+        let empId = req.query.employeeId || scope.employeeId;
+        let companyId = req.query.companyId || scope.companyId || req.user?.companyId;
+        if (!empId && req.user?.email) {
+            const empLookup = await (0, db_1.query)(`SELECT id, company_id FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)) AND status = 'ACTIVE' LIMIT 1`, [req.user.email]);
+            if (empLookup.rows.length > 0) {
+                empId = empLookup.rows[0].id;
+                if (!companyId)
+                    companyId = empLookup.rows[0].company_id;
+            }
+        }
+        if (!companyId && empId) {
+            const cLookup = await (0, db_1.query)(`SELECT company_id FROM hrms.employees WHERE id = $1`, [empId]);
+            if (cLookup.rows.length > 0)
+                companyId = cLookup.rows[0].company_id;
+        }
+        if (!empId) {
+            return res.json({ eligibleDates: [] });
+        }
+        // Fetch policy thresholds
+        const policyRes = await (0, db_1.query)(`
+      SELECT comp_off_half_day_hours, comp_off_full_day_hours 
+      FROM hrms.attendance_policies 
+      WHERE company_id = $1 LIMIT 1
+    `, [companyId]);
+        const halfDayMinHours = policyRes.rows.length > 0 ? parseFloat(policyRes.rows[0].comp_off_half_day_hours || 4) : 4.0;
+        const fullDayMinHours = policyRes.rows.length > 0 ? parseFloat(policyRes.rows[0].comp_off_full_day_hours || 8) : 8.0;
+        // Fetch Company Week-Off Policy from hrms.weekoff_policies
+        const weekoffPolicyRes = await (0, db_1.query)(`
+      SELECT * FROM hrms.weekoff_policies 
+      WHERE company_id = $1 AND is_active = true 
+      LIMIT 1
+    `, [companyId]);
+        const weekoffPolicy = weekoffPolicyRes.rows[0] || null;
+        const isDateWeekoff = (dateObj) => {
+            if (!weekoffPolicy) {
+                const d = dateObj.getDay();
+                return d === 0 || d === 6; // fallback to Sunday/Saturday if no policy configured
+            }
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayName = dayNames[dateObj.getDay()];
+            const dayKey = dayName.toLowerCase();
+            const dom = dateObj.getDate();
+            const nthOccurrence = Math.ceil(dom / 7);
+            // Check alternate_rules (e.g. { Saturday: [2, 4], Sunday: [1, 2, 3, 4, 5] })
+            const altRules = weekoffPolicy.alternate_rules || {};
+            if (altRules[dayName] && Array.isArray(altRules[dayName])) {
+                return altRules[dayName].includes(nthOccurrence);
+            }
+            // Fallback to boolean flag or off_days array
+            if (weekoffPolicy[dayKey] === true)
+                return true;
+            if (Array.isArray(weekoffPolicy.off_days) && weekoffPolicy.off_days.includes(dayName))
+                return true;
+            return false;
+        };
+        // Fetch holidays from hrms.holiday_masters
+        const holRes = await (0, db_1.query)(`SELECT holiday_date, name as holiday_name FROM hrms.holiday_masters WHERE company_id = $1`, [companyId]);
+        const holidayMap = new Map();
+        holRes.rows.forEach(r => {
+            const dStr = String(r.holiday_date).split(' ')[0].split('T')[0];
+            holidayMap.set(dStr, r.holiday_name);
+        });
+        // Fetch existing comp-off requests to attach claim status directly to cards
+        const existingRes = await (0, db_1.query)(`
+      SELECT 
+        c.id, 
+        TO_CHAR(c.worked_date, 'YYYY-MM-DD') as worked_date_str, 
+        c.status,
+        c.approved_by,
+        e.first_name as approver_first_name,
+        e.last_name as approver_last_name
+      FROM hrms.comp_off_requests c
+      LEFT JOIN hrms.employees e ON e.id = c.approved_by
+      WHERE c.employee_id = $1
+    `, [empId]);
+        const existingMap = new Map();
+        existingRes.rows.forEach(r => {
+            if (r.worked_date_str) {
+                const approverName = r.approver_first_name
+                    ? `${r.approver_first_name} ${r.approver_last_name || ''}`.trim()
+                    : 'Pending';
+                existingMap.set(r.worked_date_str, { id: r.id, status: r.status, approved_by_name: approverName });
+            }
+        });
+        // Query raw punches grouped by date for exact weekend/holiday work detection
+        const rawPunchesRes = await (0, db_1.query)(`
+      SELECT 
+        (punch_time::date)::text as worked_date,
+        MIN(punch_time)::text as first_in,
+        MAX(punch_time)::text as last_out,
+        COUNT(*) as punch_count
+      FROM hrms.attendance_raw_punches
+      WHERE employee_id = $1
+      GROUP BY (punch_time::date)
+      ORDER BY worked_date DESC LIMIT 60
+    `, [empId]);
+        const eligibleDates = [];
+        const formatTimeStr = (tsStr) => {
+            if (!tsStr)
+                return '--:--';
+            const str = String(tsStr).replace('T', ' ');
+            const parts = str.split(' ');
+            if (parts.length >= 2) {
+                const timeParts = parts[1].split(':');
+                let h = parseInt(timeParts[0], 10);
+                const m = timeParts[1] || '00';
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12 || 12;
+                return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+            }
+            return new Date(tsStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        };
+        for (const r of rawPunchesRes.rows) {
+            const dateStr = String(r.worked_date).split(' ')[0].split('T')[0];
+            const claimInfo = existingMap.get(dateStr) || null;
+            const dateParts = dateStr.split('-');
+            const y = parseInt(dateParts[0], 10);
+            const m = parseInt(dateParts[1], 10) - 1;
+            const d = parseInt(dateParts[2], 10);
+            const dateObj = new Date(y, m, d);
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayName = dayNames[dateObj.getDay()];
+            const isHoliday = holidayMap.has(dateStr);
+            const isWeekOff = isDateWeekoff(dateObj);
+            const firstInDate = new Date(r.first_in);
+            const lastOutDate = new Date(r.last_out);
+            const diffMs = lastOutDate.getTime() - firstInDate.getTime();
+            const workedHours = Math.max(0, Math.round((diffMs / (1000 * 60 * 60)) * 10) / 10);
+            const canClaim = workedHours >= halfDayMinHours;
+            const compOffType = workedHours >= fullDayMinHours ? 'FULL_DAY' : (workedHours >= halfDayMinHours ? 'HALF_DAY' : 'INELIGIBLE');
+            const creditedDays = compOffType === 'FULL_DAY' ? 1.0 : (compOffType === 'HALF_DAY' ? 0.5 : 0.0);
+            const dayLabel = isHoliday
+                ? `Holiday (${holidayMap.get(dateStr)})`
+                : `${dayName} (Week-off)`;
+            const inStr = formatTimeStr(r.first_in);
+            const outStr = formatTimeStr(r.last_out);
+            const ineligibleReason = canClaim
+                ? null
+                : `Minimum 4 hours of work required for Comp-Off credit claim. Worked duration (${workedHours} hrs) is less than 4.0 hours.`;
+            // Return ONLY weekend or public holiday dates dynamically matched from weekoff_policies & holiday_masters
+            if ((isWeekOff || isHoliday) && parseInt(r.punch_count, 10) >= 1) {
+                eligibleDates.push({
+                    worked_date: dateStr,
+                    first_in: inStr,
+                    last_out: outStr,
+                    worked_hours: workedHours,
+                    comp_off_type: compOffType,
+                    credited_days: creditedDays,
+                    can_claim: canClaim,
+                    claim_info: claimInfo,
+                    ineligible_reason: ineligibleReason,
+                    day_label: dayLabel,
+                    is_weekend_or_holiday: true,
+                    reason_suggested: `Worked on ${dayLabel} (${inStr} - ${outStr}, ${workedHours} hrs)`
+                });
+            }
+        }
+        return res.json({ success: true, eligibleDates });
+    }
+    catch (err) {
+        console.error('Error fetching eligible comp-off dates:', err);
+        return res.status(500).json({ error: 'Failed to fetch eligible dates' });
+    }
+});
+// POST /api/v1/comp-off-requests (Employee Submits Comp-Off Request)
+app.post('/api/v1/comp-off-requests', auth_1.authenticateToken, async (req, res) => {
+    const { worked_date, comp_off_type, reason, attachment_url } = req.body;
+    const scope = await (0, auth_1.getEmployeeDataScope)(req);
+    let empId = scope.employeeId;
+    let companyId = scope.companyId || req.user?.companyId;
+    if (!empId && req.user?.email) {
+        const empLookup = await (0, db_1.query)(`SELECT id, company_id FROM hrms.employees 
+       WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)) 
+         AND status = 'ACTIVE' LIMIT 1`, [req.user.email]);
+        if (empLookup.rows.length > 0) {
+            empId = empLookup.rows[0].id;
+            if (!companyId)
+                companyId = empLookup.rows[0].company_id;
+        }
+    }
+    if (!companyId && empId) {
+        const cLookup = await (0, db_1.query)(`SELECT company_id FROM hrms.employees WHERE id = $1`, [empId]);
+        if (cLookup.rows.length > 0)
+            companyId = cLookup.rows[0].company_id;
+    }
+    if (!empId || !companyId) {
+        return res.status(400).json({ error: 'Employee context or company missing' });
+    }
+    if (!worked_date) {
+        return res.status(400).json({ error: 'Worked Date is required' });
+    }
+    const creditedDays = comp_off_type === 'HALF_DAY' ? 0.50 : 1.00;
+    const expiryDate = new Date(worked_date);
+    expiryDate.setDate(expiryDate.getDate() + 90); // 90 days validity default
+    try {
+        // Check duplicate request for same date
+        const dup = await (0, db_1.query)(`
+      SELECT id FROM hrms.comp_off_requests 
+      WHERE employee_id = $1 AND (TO_CHAR(worked_date, 'YYYY-MM-DD') = $2 OR worked_date::date = $2::date) AND status != 'REJECTED'
+    `, [empId, worked_date]);
+        if (dup.rows.length > 0) {
+            return res.status(400).json({ error: 'A comp-off request already exists for this worked date' });
+        }
+        const ins = await (0, db_1.query)(`
+      INSERT INTO hrms.comp_off_requests (
+        company_id, employee_id, worked_date, comp_off_type, credited_days, reason, attachment_url, status, expiry_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8)
+      RETURNING *
+    `, [companyId, empId, worked_date, comp_off_type || 'FULL_DAY', creditedDays, reason || null, attachment_url || null, expiryDate.toISOString().split('T')[0]]);
+        (0, exports.logUserAction)(req, 'CREATE_COMP_OFF_REQUEST', 'Leaves', `Submitted comp-off request for ${worked_date}`);
+        return res.status(201).json({ success: true, message: 'Comp-Off credit request submitted successfully', request: ins.rows[0] });
+    }
+    catch (err) {
+        console.error('Error submitting comp-off request:', err);
+        return res.status(500).json({ error: 'Failed to submit comp-off request' });
+    }
+});
+// POST /api/v1/comp-off-requests/:id/action (Approve or Reject)
+app.post('/api/v1/comp-off-requests/:id/action', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { action, rejection_reason } = req.body; // 'APPROVED' or 'REJECTED'
+    const scope = await (0, auth_1.getEmployeeDataScope)(req);
+    const approverEmpId = scope.employeeId;
+    if (!['APPROVED', 'REJECTED'].includes(action)) {
+        return res.status(400).json({ error: 'Invalid action. Must be APPROVED or REJECTED' });
+    }
+    try {
+        const reqRes = await (0, db_1.query)(`SELECT * FROM hrms.comp_off_requests WHERE id = $1`, [id]);
+        if (reqRes.rows.length === 0)
+            return res.status(404).json({ error: 'Comp-off request not found' });
+        const compReq = reqRes.rows[0];
+        if (compReq.status !== 'PENDING') {
+            return res.status(400).json({ error: `Request is already ${compReq.status}` });
+        }
+        if (action === 'REJECTED') {
+            await (0, db_1.query)(`
+        UPDATE hrms.comp_off_requests 
+        SET status = 'REJECTED', approved_by = $1, approved_at = NOW(), rejection_reason = $2, updated_at = NOW()
+        WHERE id = $3
+      `, [approverEmpId || null, rejection_reason || null, id]);
+            (0, exports.logUserAction)(req, 'REJECT_COMP_OFF_REQUEST', 'Leaves', `Rejected comp-off request for worked date ${compReq.worked_date}`);
+            return res.json({ success: true, message: 'Comp-off request rejected' });
+        }
+        // ACTION === 'APPROVED'
+        // 1. Auto-provision Compensatory Off Leave Type if missing
+        let ltRes = await (0, db_1.query)(`
+      SELECT id FROM hrms.leave_types 
+      WHERE company_id = $1 AND (LOWER(code) IN ('co', 'comp_off', 'compoff') OR LOWER(name) LIKE '%compensatory%')
+      LIMIT 1
+    `, [compReq.company_id]);
+        let leaveTypeId;
+        if (ltRes.rows.length === 0) {
+            const newLt = await (0, db_1.query)(`
+        INSERT INTO hrms.leave_types (company_id, name, code, allotted_per_year, accrual_type, carry_forward_type, max_carry_forward, is_paid, is_wfh)
+        VALUES ($1, 'Compensatory Off', 'CO', 0, 'YEARLY', 'NONE', 0, true, false)
+        RETURNING id
+      `, [compReq.company_id]);
+            leaveTypeId = newLt.rows[0].id;
+        }
+        else {
+            leaveTypeId = ltRes.rows[0].id;
+        }
+        const currentYear = new Date(compReq.worked_date).getFullYear() || new Date().getFullYear();
+        const daysToCredit = parseFloat(compReq.credited_days || 1.0);
+        // 2. Upsert employee leave balance
+        const balCheck = await (0, db_1.query)(`
+      SELECT id, allotted, remaining FROM hrms.leave_balances 
+      WHERE employee_id = $1 AND leave_type_id = $2 AND balance_year = $3
+    `, [compReq.employee_id, leaveTypeId, currentYear]);
+        if (balCheck.rows.length > 0) {
+            const currentBal = balCheck.rows[0];
+            const newAllotted = parseFloat(currentBal.allotted || 0) + daysToCredit;
+            const newRemaining = parseFloat(currentBal.remaining || 0) + daysToCredit;
+            await (0, db_1.query)(`
+        UPDATE hrms.leave_balances 
+        SET allotted = $1, remaining = $2, updated_at = NOW() 
+        WHERE id = $3
+      `, [newAllotted, newRemaining, currentBal.id]);
+        }
+        else {
+            await (0, db_1.query)(`
+        INSERT INTO hrms.leave_balances (employee_id, leave_type_id, balance_year, allotted, used, pending_approval, remaining)
+        VALUES ($1, $2, $3, $4, 0, 0, $4)
+      `, [compReq.employee_id, leaveTypeId, currentYear, daysToCredit]);
+        }
+        // 3. Log transaction
+        await (0, db_1.query)(`
+      INSERT INTO hrms.leave_transaction_logs (employee_id, leave_type_id, amount, transaction_type, performed_by, remarks)
+      VALUES ($1, $2, $3, 'CREDIT', $4, $5)
+    `, [compReq.employee_id, leaveTypeId, daysToCredit, approverEmpId || null, `Comp-off credited for worked date ${compReq.worked_date}`]);
+        // 4. Update request status
+        await (0, db_1.query)(`
+      UPDATE hrms.comp_off_requests 
+      SET status = 'APPROVED', is_credited = true, approved_by = $1, approved_at = NOW(), updated_at = NOW()
+      WHERE id = $2
+    `, [approverEmpId || null, id]);
+        (0, exports.logUserAction)(req, 'APPROVE_COMP_OFF_REQUEST', 'Leaves', `Approved ${daysToCredit} day comp-off for worked date ${compReq.worked_date}`);
+        return res.json({ success: true, message: 'Comp-off request approved and balance credited successfully!' });
+    }
+    catch (err) {
+        console.error('Error processing comp-off request action:', err);
+        return res.status(500).json({ error: 'Failed to process comp-off request' });
+    }
+});
+/**
  * 📅 WEEK-OFF POLICIES CRUD APIs
  */
 app.get('/api/v1/weekoffs', auth_1.authenticateToken, async (req, res) => {
@@ -4307,17 +5173,6 @@ app.delete('/api/v1/weekoffs', auth_1.authenticateToken, async (req, res) => {
 // =========================================================================
 // 💸 PAYROLL ENGINE API ROUTES (SLABS, COMPONENTS, CONFIGURATIONS)
 // =========================================================================
-// Helper to check and resolve company ID from auth token or query parameter
-// Returns null for SuperAdmin 'all' / empty scope (cross-company view)
-const resolveCompanyId = (req) => {
-    const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-    const raw = isSuperAdmin ? (req.query.companyId || req.body.companyId) : req.user?.companyId;
-    const id = raw ? String(raw).trim() : '';
-    // Treat 'all', empty string, or absence as null (SuperAdmin global scope)
-    if (!id || id === 'all')
-        return null;
-    return id;
-};
 // --- ENTERPRISE PAYROLL RUNS & EXECUTION API ENDPOINTS ---
 // 1. Fetch Payroll Runs
 app.get('/api/v1/payroll/runs', auth_1.authenticateToken, async (req, res) => {
@@ -4429,12 +5284,25 @@ app.post('/api/v1/payroll/generate', auth_1.authenticateToken, async (req, res) 
         let totalDeductions = 0;
         let totalNet = 0;
         let successCount = 0;
-        // Fetch Component Master
-        await (0, db_1.query)(`SELECT * FROM hrms.salary_components WHERE company_id = $1 OR company_id IS NULL ORDER BY display_order ASC`, [targetCompanyId]);
+        let skippedCount = 0;
         const totalDaysInMonth = new Date(year, month, 0).getDate();
         for (const emp of employees.rows) {
+            // 1. Query Active Salary Structure from hrms.salary_structures
+            const salRes = await (0, db_1.query)(`
+        SELECT * FROM hrms.salary_structures
+        WHERE (employee_id = $1 OR emp_uuid = $1)
+          AND (is_structure_active = true OR is_structure_active IS NULL)
+        ORDER BY effective_from_date DESC NULLS LAST, created_at DESC LIMIT 1
+      `, [emp.id]);
+            const salStruct = salRes.rows[0];
+            // If no valid active salary structure exists for employee, skip them (no dummy salaries!)
+            if (!salStruct) {
+                console.warn(`Skipping employee ${emp.email || emp.id}: Missing active salary structure for pay period ${startDate} to ${endDate}`);
+                skippedCount++;
+                continue;
+            }
             const psNumber = `PS${year}${String(month).padStart(2, '0')}${String(emp.emp_id || emp.id).slice(-4)}${Math.floor(10 + Math.random() * 90)}`;
-            // Dynamic Attendance Query for Pay Period Range (startDate to endDate)
+            // 2. Dynamic Attendance Query for Pay Period Range (startDate to endDate)
             const attRes = await (0, db_1.query)(`
         SELECT 
           COUNT(*) FILTER (WHERE LOWER(status) IN ('present', 'on_duty', 'regularized')) as present_cnt,
@@ -4446,9 +5314,9 @@ app.post('/api/v1/payroll/generate', auth_1.authenticateToken, async (req, res) 
       `, [emp.id, startDate, endDate]);
             const attData = attRes.rows[0];
             const hasAttData = attData && (parseInt(attData.present_cnt) + parseInt(attData.half_cnt) + parseInt(attData.leave_cnt) + parseInt(attData.off_cnt) > 0);
-            let presentDays = 26;
-            let workingDays = Math.max(22, totalDaysInMonth - 4);
-            let payableDays = totalDaysInMonth;
+            let presentDays = 0;
+            let workingDays = totalDaysInMonth;
+            let payableDays = 0;
             if (hasAttData) {
                 const pCnt = parseFloat(attData.present_cnt || 0);
                 const hCnt = parseFloat(attData.half_cnt || 0);
@@ -4458,40 +5326,60 @@ app.post('/api/v1/payroll/generate', auth_1.authenticateToken, async (req, res) 
                 workingDays = Math.max(1, totalDaysInMonth - oCnt);
                 payableDays = Math.min(totalDaysInMonth, presentDays + lCnt + oCnt);
             }
-            // Calculate earnings & deductions
-            const basic = parseFloat(emp.basic_salary) || 35000;
-            const hra = basic * 0.4;
-            const ca = 1600;
-            const ma = 1250;
-            const sa = Math.max(0, (parseFloat(emp.ctc || 600000) / 12) - (basic + hra + ca + ma));
-            const gross = basic + hra + ca + ma + sa;
-            const pf = Math.min(basic * 0.12, 1800);
-            const esi = gross <= 21000 ? gross * 0.0075 : 0;
-            const pt = gross > 20000 ? 200 : 0;
-            const tds = gross > 50000 ? (gross - 50000) * 0.1 : 0;
+            else {
+                // No attendance summary data found -> 0 present days (LOP for unpunched days)
+                presentDays = 0;
+                payableDays = 0;
+            }
+            // 3. Calculate earnings & deductions from salStruct
+            const monthlyBasic = parseFloat(salStruct.basic) || parseFloat(salStruct.basic_salary) || (parseFloat(salStruct.salary_per_month) * 0.5) || 0;
+            const monthlyHra = parseFloat(salStruct.hra) || (monthlyBasic * 0.4) || 0;
+            const monthlyCa = parseFloat(salStruct.ca) || parseFloat(salStruct.conveyance_allowance) || 0;
+            const monthlyMa = parseFloat(salStruct.ma) || parseFloat(salStruct.medical_allowance) || 0;
+            const monthlySa = parseFloat(salStruct.sa) || parseFloat(salStruct.special_allowance) || 0;
+            const monthlyOther = parseFloat(salStruct.other_allowance) || 0;
+            // Pro-rate earnings according to payableDays ratio
+            const prRatio = totalDaysInMonth > 0 ? (payableDays / totalDaysInMonth) : 0;
+            const basic = Math.round(monthlyBasic * prRatio);
+            const hra = Math.round(monthlyHra * prRatio);
+            const ca = Math.round(monthlyCa * prRatio);
+            const ma = Math.round(monthlyMa * prRatio);
+            const sa = Math.round(monthlySa * prRatio);
+            const other = Math.round(monthlyOther * prRatio);
+            const gross = basic + hra + ca + ma + sa + other;
+            // Calculate Deductions
+            const pf = salStruct.pf_check !== false && basic > 0 ? Math.min(Math.round(basic * 0.12), 1800) : 0;
+            const esi = salStruct.esi_check !== false && gross > 0 && gross <= 21000 ? Math.round(gross * 0.0075) : 0;
+            const pt = salStruct.pt_check !== false && gross > 20000 ? 200 : 0;
+            const tds = gross > 50000 ? Math.round((gross - 50000) * 0.1) : 0;
             const deductions = pf + esi + pt + tds;
             const net = Math.max(0, gross - deductions);
             totalGross += gross;
             totalDeductions += deductions;
             totalNet += net;
             successCount++;
-            const maskedAccount = emp.bank_acc_no ? `XXXXXX${String(emp.bank_acc_no).slice(-4)}` : 'XXXXXX4521';
+            // 4. Handle Bank Info cleanly (no fake HDFC account fallbacks)
+            const bankAcc = emp.bank_acc_no || emp.account_number;
+            const paymentMode = bankAcc ? 'BANK_TRANSFER' : 'CASH';
+            const maskedAccount = bankAcc ? `XXXXXX${String(bankAcc).slice(-4)}` : 'PENDING_BANK_INFO';
+            const bankName = emp.bank_name || (bankAcc ? 'Bank' : 'Pending Bank Details');
+            const ifscCode = emp.ifsc_code || 'PENDING';
             const empSnapshot = {
                 employee: { code: emp.emp_id || 'EMP101', name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() },
                 organization: { department: emp.department_name || 'General', designation: emp.designation_name || 'Staff', location: emp.branch_name || 'Headquarters' },
-                bank: { bank_name: emp.bank_name || 'HDFC Bank', masked_account: maskedAccount, ifsc: emp.ifsc_code || 'HDFC0001234', pan: emp.pan_number || 'ABCDE1234F' }
+                bank: { bank_name: bankName, masked_account: maskedAccount, ifsc: ifscCode, pan: emp.pan_number || 'NOT_PROVIDED' }
             };
-            // Insert Payslip Summary with actual days
+            // Insert Payslip Summary
             const psRes = await (0, db_1.query)(`
         INSERT INTO hrms.payslips (
           payroll_run_id, company_id, employee_id, payslip_number, employee_snapshot,
           total_days, working_days, present_days, payable_days, gross_earnings, gross_deductions,
           gross_salary, total_deductions, net_salary, payment_mode, payment_date, status, generated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'BANK_TRANSFER', CURRENT_DATE + INTERVAL '1 day', 'GENERATED', NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_DATE + INTERVAL '1 day', 'GENERATED', NOW())
         ON CONFLICT (company_id, employee_id, payroll_run_id) 
         DO UPDATE SET gross_salary = EXCLUDED.gross_salary, net_salary = EXCLUDED.net_salary, status = 'GENERATED', updated_at = NOW()
         RETURNING id
-      `, [run.id, targetCompanyId, emp.id, psNumber, JSON.stringify(empSnapshot), totalDaysInMonth, workingDays, presentDays, payableDays, gross, deductions, gross, deductions, net]);
+      `, [run.id, targetCompanyId, emp.id, psNumber, JSON.stringify(empSnapshot), totalDaysInMonth, workingDays, presentDays, payableDays, gross, deductions, gross, deductions, net, paymentMode]);
             const payslipId = psRes.rows[0].id;
             // Insert Payslip Line Items
             const items = [
@@ -4500,17 +5388,20 @@ app.post('/api/v1/payroll/generate', auth_1.authenticateToken, async (req, res) 
                 { code: 'CA', name: 'Conveyance Allowance', type: 'EARNING', amount: ca, order: 3 },
                 { code: 'MA', name: 'Medical Allowance', type: 'EARNING', amount: ma, order: 4 },
                 { code: 'SA', name: 'Special Allowance', type: 'EARNING', amount: sa, order: 5 },
-                { code: 'PF', name: 'Provident Fund (PF)', type: 'DEDUCTION', amount: pf, order: 6 },
-                { code: 'ESI', name: 'Employee State Insurance', type: 'DEDUCTION', amount: esi, order: 7 },
-                { code: 'PT', name: 'Professional Tax (PT)', type: 'DEDUCTION', amount: pt, order: 8 },
-                { code: 'TDS', name: 'Tax Deducted at Source', type: 'DEDUCTION', amount: tds, order: 9 }
+                { code: 'OTHER', name: 'Other Allowance', type: 'EARNING', amount: other, order: 6 },
+                { code: 'PF', name: 'Provident Fund (PF)', type: 'DEDUCTION', amount: pf, order: 7 },
+                { code: 'ESI', name: 'Employee State Insurance', type: 'DEDUCTION', amount: esi, order: 8 },
+                { code: 'PT', name: 'Professional Tax (PT)', type: 'DEDUCTION', amount: pt, order: 9 },
+                { code: 'TDS', name: 'Tax Deducted at Source', type: 'DEDUCTION', amount: tds, order: 10 }
             ];
             await (0, db_1.query)(`DELETE FROM hrms.payslip_items WHERE payslip_id = $1`, [payslipId]);
             for (const it of items) {
-                await (0, db_1.query)(`
-          INSERT INTO hrms.payslip_items (payslip_id, component_code, component_name, type, amount, display_order)
-          VALUES ($1, $2, $3, $4, $5, $6)
-        `, [payslipId, it.code, it.name, it.type, it.amount, it.order]);
+                if (it.amount > 0) {
+                    await (0, db_1.query)(`
+            INSERT INTO hrms.payslip_items (payslip_id, component_code, component_name, type, amount, display_order)
+            VALUES ($1, $2, $3, $4, $5, $6)
+          `, [payslipId, it.code, it.name, it.type, it.amount, it.order]);
+                }
             }
         }
         // Update Payroll Run status to GENERATED
@@ -4523,9 +5414,14 @@ app.post('/api/v1/payroll/generate', auth_1.authenticateToken, async (req, res) 
         await (0, db_1.query)(`
       INSERT INTO hrms.payroll_run_logs (payroll_run_id, action, from_status, to_status, description, metadata, performed_by)
       VALUES ($1, 'GENERATED', 'DRAFT', 'GENERATED', 'Payroll calculation completed successfully', $2, $3)
-    `, [run.id, JSON.stringify({ employees: successCount, totalNet }), userId || run.id]);
+    `, [run.id, JSON.stringify({ employees: successCount, skipped: skippedCount, totalNet }), userId || run.id]);
         await (0, db_1.query)('COMMIT');
-        return res.json({ message: 'Payroll generated successfully!', run: updatedRun.rows[0] });
+        return res.json({
+            message: `Payroll generated successfully for ${successCount} staff! (${skippedCount} skipped due to missing salary structures)`,
+            run: updatedRun.rows[0],
+            processed: successCount,
+            skipped: skippedCount
+        });
     }
     catch (err) {
         await (0, db_1.query)('ROLLBACK');
@@ -4593,7 +5489,12 @@ app.get('/api/v1/payroll/employee-payslips', auth_1.authenticateToken, async (re
         let sql = `
       SELECT p.*, e.emp_id_code, e.first_name, e.last_name, e.email, e.phone, e.joining_date,
              d.name as department_name, des.name as designation_name, b.name as branch_name,
-             r.pay_period, r.payroll_run_number
+             r.pay_period, r.payroll_run_number,
+             COALESCE((SELECT amount FROM hrms.payslip_items WHERE payslip_id = p.id AND component_code = 'BASIC' LIMIT 1), 0) as basic_amount,
+             COALESCE((SELECT amount FROM hrms.payslip_items WHERE payslip_id = p.id AND component_code = 'HRA' LIMIT 1), 0) as hra_amount,
+             COALESCE((SELECT amount FROM hrms.payslip_items WHERE payslip_id = p.id AND component_code = 'CA' LIMIT 1), 0) as ca_amount,
+             COALESCE((SELECT amount FROM hrms.payslip_items WHERE payslip_id = p.id AND component_code = 'MA' LIMIT 1), 0) as ma_amount,
+             COALESCE((SELECT amount FROM hrms.payslip_items WHERE payslip_id = p.id AND component_code = 'SA' LIMIT 1), 0) as sa_amount
       FROM hrms.payslips p
       JOIN hrms.employees e ON p.employee_id = e.id
       LEFT JOIN hrms.departments d ON e.department_id = d.id
@@ -4655,9 +5556,9 @@ app.get('/api/v1/payroll/payslips/employee/:empId', auth_1.authenticateToken, as
     try {
         // 1. Fetch Payslip
         const psRes = await (0, db_1.query)(`
-      SELECT p.*, e.emp_id_code, e.first_name, e.last_name, e.email, e.phone, e.joining_date, e.bank_information, e.pan_number, e.pf_number, e.esi_number,
+      SELECT p.*, e.emp_id_code, e.first_name, e.last_name, e.email, e.phone, e.joining_date, e.bank_information, e.pan_number, e.esi_number,
              d.name as department_name, des.name as designation_name, b.name as branch_name,
-             c.name as company_name, c.branding_logo as company_logo, c.address as company_address,
+             c.name as company_name, c.branding_logo as company_logo,
              r.pay_period, r.payroll_run_number
       FROM hrms.payslips p
       JOIN hrms.employees e ON p.employee_id = e.id
@@ -4672,6 +5573,7 @@ app.get('/api/v1/payroll/payslips/employee/:empId', auth_1.authenticateToken, as
         let payslip = psRes.rows[0];
         let items = [];
         if (payslip) {
+            payslip.company_address = payslip.company_address || 'Shangrila Plaza, 501, #508-510, Park View Enclave, Road No2, Banjara Hills, Hyderabad, Telangana 500034';
             const itemsRes = await (0, db_1.query)(`
         SELECT * FROM hrms.payslip_items WHERE payslip_id = $1 ORDER BY display_order ASC
       `, [payslip.id]);
@@ -4681,7 +5583,7 @@ app.get('/api/v1/payroll/payslips/employee/:empId', auth_1.authenticateToken, as
             // Fallback to employee query if no generated payslip exists yet
             const empRes = await (0, db_1.query)(`
         SELECT e.*, d.name as department_name, des.name as designation_name, b.name as branch_name,
-               c.name as company_name, c.branding_logo as company_logo, c.address as company_address
+               c.name as company_name, c.branding_logo as company_logo
         FROM hrms.employees e
         LEFT JOIN hrms.companies c ON e.company_id = c.id
         LEFT JOIN hrms.departments d ON e.department_id = d.id
@@ -4691,11 +5593,21 @@ app.get('/api/v1/payroll/payslips/employee/:empId', auth_1.authenticateToken, as
       `, [empId]);
             if (empRes.rows.length > 0) {
                 const emp = empRes.rows[0];
-                const basic = parseFloat(emp.basic_salary || 0);
-                const gross = basic > 0 ? basic * 1.5 : 45000;
-                const pf = basic > 0 ? basic * 0.12 : 1800;
-                const pt = 200;
+                // Query real active salary structure from hrms.salary_structures
+                const salRes = await (0, db_1.query)(`
+          SELECT * FROM hrms.salary_structures
+          WHERE (employee_id::text = $1 OR emp_uuid::text = $1 OR emp_id = $1)
+            AND (is_structure_active = true OR is_structure_active IS NULL)
+          ORDER BY effective_from_date DESC NULLS LAST, created_at DESC LIMIT 1
+        `, [emp.id]);
+                const salStruct = salRes.rows[0];
+                const gross = salStruct ? parseFloat(salStruct.salary_per_month || salStruct.gross_salary || 0) : 0;
+                const pf = salStruct ? parseFloat(salStruct.employee_pf || 0) : 0;
+                const pt = salStruct ? parseFloat(salStruct.professional_tax || 0) : 0;
                 const deductions = pf + pt;
+                const prevDate = new Date();
+                prevDate.setMonth(prevDate.getMonth() - 1);
+                const dynamicPayPeriod = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
                 payslip = {
                     id: emp.id,
                     employee_id: emp.id,
@@ -4705,23 +5617,34 @@ app.get('/api/v1/payroll/payslips/employee/:empId', auth_1.authenticateToken, as
                     email: emp.email,
                     phone: emp.phone,
                     joining_date: emp.joining_date,
-                    pf_number: emp.pf_number || emp.pf_no,
-                    esi_number: emp.esi_number || emp.esi_no,
+                    pf_number: emp.pf_no || 'N/A',
+                    esi_number: emp.esi_number || 'N/A',
                     company_name: emp.company_name,
                     company_logo: emp.company_logo,
-                    company_address: emp.company_address,
+                    company_address: 'Shangrila Plaza, 501, #508-510, Park View Enclave, Road No2, Banjara Hills, Hyderabad, Telangana 500034',
                     department_name: emp.department_name,
                     designation_name: emp.designation_name,
                     branch_name: emp.branch_name,
                     gross_salary: gross,
                     total_deductions: deductions,
                     net_salary: gross - deductions,
-                    pay_period: '2026-06',
-                    status: 'GENERATED'
+                    pay_period: dynamicPayPeriod,
+                    status: 'STRUCTURE_VIEW'
                 };
             }
         }
-        return res.json({ payslip, items });
+        // 2. Query ALL historical salary structures for this employee from hrms.salary_structures
+        let structures = [];
+        const targetEmpId = payslip ? payslip.employee_id : empId;
+        if (targetEmpId) {
+            const allSalRes = await (0, db_1.query)(`
+        SELECT * FROM hrms.salary_structures
+        WHERE (employee_id::text = $1 OR emp_uuid::text = $1 OR emp_id = $1)
+        ORDER BY effective_from_date DESC NULLS LAST, created_at DESC
+      `, [targetEmpId]);
+            structures = allSalRes.rows;
+        }
+        return res.json({ payslip, items, structures });
     }
     catch (err) {
         console.error('Error fetching single employee payslip:', err);
@@ -5066,13 +5989,23 @@ app.delete('/api/v1/payroll/configurations/:id', auth_1.authenticateToken, async
 app.get('/api/v1/payroll/structures', auth_1.authenticateToken, async (req, res) => {
     const companyId = resolveCompanyId(req);
     try {
-        let result;
+        const scopeCtx = await (0, auth_1.getEmployeeDataScope)(req, 'salary_structures', 'view_salary_structures');
+        let sql = `SELECT * FROM hrms.salary_structures WHERE 1=1`;
+        const params = [];
+        let paramIdx = 1;
         if (companyId) {
-            result = await (0, db_1.query)(`SELECT * FROM hrms.salary_structures WHERE company_id = $1 OR company_id IS NULL ORDER BY emp_id ASC`, [companyId]);
+            sql += ` AND (company_id = $${paramIdx} OR company_id IS NULL)`;
+            params.push(companyId);
+            paramIdx++;
         }
-        else {
-            result = await (0, db_1.query)(`SELECT * FROM hrms.salary_structures ORDER BY emp_id ASC`);
+        const { whereSql, params: scopeParams, nextParamIdx } = (0, auth_1.buildDataScopeCondition)(scopeCtx, '', 'employee_id', paramIdx);
+        if (whereSql) {
+            sql += ` AND ${whereSql}`;
+            params.push(...scopeParams);
+            paramIdx = nextParamIdx;
         }
+        sql += ` ORDER BY emp_id ASC`;
+        let result = await (0, db_1.query)(sql, params);
         // Auto-seed initial sample structures if empty
         if (result.rows.length === 0) {
             const initialSamples = [
@@ -5222,6 +6155,7 @@ app.listen(Number(PORT), '0.0.0.0', async () => {
         professional_tax NUMERIC(18, 2) DEFAULT 0,
         employer_pf NUMERIC(18, 2) DEFAULT 0,
         employer_esi NUMERIC(18, 2) DEFAULT 0,
+        gratuity NUMERIC(18, 2) DEFAULT 0,
         variable_pay NUMERIC(18, 2) DEFAULT 0,
         retention_bonus NUMERIC(18, 2) DEFAULT 0,
         net_salary NUMERIC(18, 2) DEFAULT 0,
@@ -5247,9 +6181,19 @@ app.listen(Number(PORT), '0.0.0.0', async () => {
     `);
         await (0, db_1.query)(`ALTER TABLE hrms.salary_structures ADD COLUMN IF NOT EXISTS employee_id UUID;`);
         await (0, db_1.query)(`ALTER TABLE hrms.salary_structures ADD COLUMN IF NOT EXISTS emp_uuid UUID;`);
+        await (0, db_1.query)(`ALTER TABLE hrms.salary_structures ADD COLUMN IF NOT EXISTS gratuity NUMERIC(18, 2) DEFAULT 0;`);
+        await (0, db_1.query)(`ALTER TABLE hrms.salary_structures ADD COLUMN IF NOT EXISTS variable_pay NUMERIC(18, 2) DEFAULT 0;`);
+        await (0, db_1.query)(`ALTER TABLE hrms.salary_structures ADD COLUMN IF NOT EXISTS is_variable_pay_applicable BOOLEAN DEFAULT FALSE;`);
+        await (0, db_1.query)(`ALTER TABLE hrms.salary_structures ADD COLUMN IF NOT EXISTS is_retention_bonus_applicable BOOLEAN DEFAULT FALSE;`);
+        await (0, db_1.query)(`ALTER TABLE hrms.salary_structures ADD COLUMN IF NOT EXISTS pf_check INT DEFAULT 1;`);
+        await (0, db_1.query)(`ALTER TABLE hrms.salary_structures ADD COLUMN IF NOT EXISTS esi_check INT DEFAULT 1;`);
+        await (0, db_1.query)(`ALTER TABLE hrms.salary_structures ADD COLUMN IF NOT EXISTS pt_check BOOLEAN DEFAULT TRUE;`);
         await (0, db_1.query)(`ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS cycle_start_day INT DEFAULT 26;`);
         await (0, db_1.query)(`ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS cycle_end_day INT DEFAULT 25;`);
         await (0, db_1.query)(`ALTER TABLE hrms.employees ADD COLUMN IF NOT EXISTS is_temporary_password BOOLEAN DEFAULT TRUE;`);
+        await (0, db_1.query)(`ALTER TABLE hrms.employees ADD COLUMN IF NOT EXISTS shift_id UUID;`);
+        await (0, db_1.query)(`ALTER TABLE hrms.companies ADD COLUMN IF NOT EXISTS company_code VARCHAR(50);`);
+        await (0, db_1.query)(`UPDATE hrms.companies SET company_code = UPPER(subdomain) WHERE company_code IS NULL OR company_code = '';`);
         // Database schema migration for 7 Enterprise Payroll Tables
         await (0, db_1.query)(`
       CREATE TABLE IF NOT EXISTS hrms.employee_salary_assignments (
@@ -5433,4 +6377,359 @@ app.listen(Number(PORT), '0.0.0.0', async () => {
         console.error('[MIGRATION] Error migrating database schema:', err);
     }
     await syncDynamicPermissions();
+});
+/**
+ * ⚡ SMART HR AUTOMATION APIs
+ */
+app.get('/api/v1/smart-hr/schedules', auth_1.authenticateToken, async (_req, res) => {
+    try {
+        const result = await (0, db_1.query)(`
+      SELECT s.*,
+             e.first_name || ' ' || e.last_name as target_employee_name,
+             e.emp_id_code as target_employee_code
+      FROM hrms.smart_hr_schedules s
+      LEFT JOIN hrms.employees e ON s.target_employee_id = e.id
+      ORDER BY s.created_at DESC
+    `);
+        res.json({ schedules: result.rows });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to fetch schedules' });
+    }
+});
+app.post('/api/v1/smart-hr/schedules', auth_1.authenticateToken, async (req, res) => {
+    const { title, task_type, frequency, execution_time, execution_day_of_week, execution_day_of_month, recipient_type, target_employee_id, channel_type } = req.body;
+    try {
+        const result = await (0, db_1.query)(`INSERT INTO hrms.smart_hr_schedules (title, task_type, frequency, execution_time, execution_day_of_week, execution_day_of_month, recipient_type, target_employee_id, channel_type, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE') RETURNING *`, [
+            title,
+            task_type,
+            frequency || 'DAILY',
+            execution_time || '09:00:00',
+            execution_day_of_week || null,
+            execution_day_of_month ? parseInt(execution_day_of_month, 10) : null,
+            recipient_type || 'ALL_EMPLOYEES',
+            target_employee_id || null,
+            channel_type || 'BOTH'
+        ]);
+        res.status(201).json({ schedule: result.rows[0] });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to create schedule' });
+    }
+});
+app.put('/api/v1/smart-hr/schedules/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { title, task_type, frequency, execution_time, execution_day_of_week, execution_day_of_month, recipient_type, target_employee_id, channel_type, status } = req.body;
+    try {
+        const result = await (0, db_1.query)(`UPDATE hrms.smart_hr_schedules 
+       SET title = $1, task_type = $2, frequency = $3, execution_time = $4, execution_day_of_week = $5, execution_day_of_month = $6, recipient_type = $7, target_employee_id = $8, channel_type = $9, status = $10, updated_at = NOW()
+       WHERE id = $11 RETURNING *`, [
+            title,
+            task_type,
+            frequency,
+            execution_time,
+            execution_day_of_week || null,
+            execution_day_of_month ? parseInt(execution_day_of_month, 10) : null,
+            recipient_type,
+            target_employee_id || null,
+            channel_type,
+            status || 'ACTIVE',
+            id
+        ]);
+        res.json({ schedule: result.rows[0] });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to update schedule' });
+    }
+});
+app.delete('/api/v1/smart-hr/schedules/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        await (0, db_1.query)('DELETE FROM hrms.smart_hr_schedules WHERE id = $1', [id]);
+        res.json({ message: 'Schedule deleted successfully' });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to delete schedule' });
+    }
+});
+const sendSmartHREmail = async (companyId, toEmail, subject, bodyText, customHtmlExtra = '') => {
+    try {
+        let emailConfig;
+        if (companyId) {
+            const res = await (0, db_1.query)(`SELECT * FROM hrms.email_integrations WHERE company_id = $1 AND is_active = true LIMIT 1`, [companyId]);
+            if (res.rows.length > 0)
+                emailConfig = res.rows[0];
+        }
+        if (!emailConfig) {
+            const res = await (0, db_1.query)(`SELECT * FROM hrms.email_integrations WHERE is_active = true ORDER BY updated_at DESC LIMIT 1`);
+            if (res.rows.length > 0)
+                emailConfig = res.rows[0];
+        }
+        if (!emailConfig || !emailConfig.smtp_host || !emailConfig.smtp_username) {
+            console.log('⚠️ No active SMTP Email Integration found in Configuration settings.');
+            return { success: false, reason: 'SMTP credentials not configured in Settings -> Configuration page' };
+        }
+        const port = parseInt(emailConfig.smtp_port, 10) || 587;
+        const isSSL = port === 465;
+        const transporter = nodemailer_1.default.createTransport({
+            host: emailConfig.smtp_host || 'smtp.gmail.com',
+            port: port,
+            secure: isSSL,
+            requireTLS: !isSSL,
+            auth: {
+                user: emailConfig.smtp_username,
+                pass: emailConfig.smtp_password_encrypted
+            },
+            tls: {
+                rejectUnauthorized: false
+            },
+            family: 4
+        });
+        const info = await transporter.sendMail({
+            from: `"${emailConfig.from_name || 'HR Team'}" <${emailConfig.from_email || emailConfig.smtp_username}>`,
+            to: toEmail,
+            subject: subject,
+            text: bodyText,
+            html: `<div style="font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto;">
+               <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                 <h2 style="color: #4f46e5; margin-top: 0; font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">${subject}</h2>
+                 <p style="font-size: 14px; color: #1e293b; margin-top: 15px;">Hello,</p>
+                 <div style="white-space: pre-wrap; font-size: 14px; color: #475569;">${bodyText.replace(/\n/g, '<br/>')}</div>
+                 ${customHtmlExtra}
+                 <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0 16px 0;" />
+                 <p style="font-size: 11px; color: #94a3b8; margin-bottom: 0; text-align: center;">This email was sent automatically by <strong>Smart HR Auto-Pilot Engine</strong>.</p>
+               </div>
+             </div>`
+        });
+        console.log('✅ Smart HR Email sent successfully:', info.messageId);
+        return { success: true, messageId: info.messageId };
+    }
+    catch (err) {
+        console.error('❌ Error sending Smart HR Email:', err.message || err);
+        return { success: false, error: err.message || 'SMTP sending error' };
+    }
+};
+app.post('/api/v1/smart-hr/schedules/:id/execute', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const schedResult = await (0, db_1.query)(`
+      SELECT s.*, e.first_name, e.last_name, e.email, e.emp_id_code
+      FROM hrms.smart_hr_schedules s
+      LEFT JOIN hrms.employees e ON s.target_employee_id = e.id
+      WHERE s.id = $1
+    `, [id]);
+        if (schedResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Schedule not found' });
+        }
+        const s = schedResult.rows[0];
+        let recipientEmails = [];
+        let targetName = 'All Active Employees';
+        if (s.recipient_type === 'SINGLE_EMPLOYEE' && s.target_employee_id) {
+            targetName = `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Single Employee';
+            if (s.email)
+                recipientEmails.push(s.email);
+        }
+        else {
+            const empRes = await (0, db_1.query)(`SELECT email FROM hrms.employees WHERE status = 'ACTIVE' AND email IS NOT NULL AND email != ''`);
+            recipientEmails = empRes.rows.map(r => r.email);
+        }
+        const emailSubject = `[Smart HR] ${s.title}`;
+        const emailBody = `Hello ${targetName},\n\nHere is your automated digest dispatch for: ${s.title}.\n\nTask Type: ${s.task_type}\nExecution Frequency: ${s.frequency}`;
+        let customHtmlExtra = '';
+        if (s.task_type?.includes('ATTENDANCE')) {
+            const empId = s.target_employee_id;
+            let attRows = [];
+            if (empId) {
+                const dbAtt = await (0, db_1.query)(`
+          SELECT attendance_date, status, first_in, last_out, worked_minutes, late_minutes
+          FROM hrms.attendance_summary
+          WHERE employee_id = $1
+            AND attendance_date >= CURRENT_DATE - INTERVAL '7 days'
+            AND attendance_date < CURRENT_DATE
+          ORDER BY attendance_date ASC
+        `, [empId]);
+                attRows = dbAtt.rows;
+            }
+            const tableRowsHtml = [];
+            let presentCount = 0;
+            let totalWorkedMinutes = 0;
+            for (let i = 7; i >= 1; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+                const displayDate = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                const match = attRows.find(r => {
+                    if (!r.attendance_date)
+                        return false;
+                    const rDate = new Date(r.attendance_date).toISOString().split('T')[0];
+                    return rDate === dateStr;
+                });
+                const isSunday = dayName === 'Sun';
+                const status = match?.status || (isSunday ? 'WEEKLY_OFF' : 'PRESENT');
+                if (status === 'PRESENT' || status === 'ON_TIME' || status === 'LATE')
+                    presentCount++;
+                const workedMins = match?.worked_minutes ? Number(match.worked_minutes) : (status === 'WEEKLY_OFF' ? 0 : 480);
+                totalWorkedMinutes += workedMins;
+                const hoursWorked = (workedMins / 60).toFixed(1) + ' hrs';
+                const checkIn = match?.first_in ? String(match.first_in).slice(0, 5) : (status === 'WEEKLY_OFF' ? '--:--' : '09:00 AM');
+                const checkOut = match?.last_out ? String(match.last_out).slice(0, 5) : (status === 'WEEKLY_OFF' ? '--:--' : '05:00 PM');
+                let badgeBg = '#ecfdf5';
+                let badgeText = '#047857';
+                let badgeBorder = '#a7f3d0';
+                if (status === 'ABSENT') {
+                    badgeBg = '#fef2f2';
+                    badgeText = '#b91c1c';
+                    badgeBorder = '#fecaca';
+                }
+                else if (status === 'LATE') {
+                    badgeBg = '#fffbeb';
+                    badgeText = '#b45309';
+                    badgeBorder = '#fde68a';
+                }
+                else if (status === 'WEEKLY_OFF') {
+                    badgeBg = '#f1f5f9';
+                    badgeText = '#475569';
+                    badgeBorder = '#cbd5e1';
+                }
+                tableRowsHtml.push(`
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 12px; font-weight: bold; color: #1e293b;">${displayDate}</td>
+            <td style="padding: 10px 12px; color: #64748b; font-weight: 600;">${dayName}</td>
+            <td style="padding: 10px 12px;">
+              <span style="background: ${badgeBg}; color: ${badgeText}; border: 1px solid ${badgeBorder}; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: inline-block;">
+                ${status}
+              </span>
+            </td>
+            <td style="padding: 10px 12px; font-family: monospace; color: #334155; font-weight: 600;">${checkIn}</td>
+            <td style="padding: 10px 12px; font-family: monospace; color: #334155; font-weight: 600;">${checkOut}</td>
+            <td style="padding: 10px 12px; font-weight: bold; color: #4338ca;">${hoursWorked}</td>
+          </tr>
+        `);
+            }
+            const totalHoursStr = (totalWorkedMinutes / 60).toFixed(1);
+            customHtmlExtra = `
+        <div style="margin-top: 20px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background: #ffffff;">
+          <div style="background: #4f46e5; padding: 12px 16px; color: #ffffff; font-weight: bold; font-size: 14px;">
+            📊 Weekly Attendance Digest Report (Past 7 Days)
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+            <thead>
+              <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: bold;">
+                <th style="padding: 10px 12px;">Date</th>
+                <th style="padding: 10px 12px;">Day</th>
+                <th style="padding: 10px 12px;">Status</th>
+                <th style="padding: 10px 12px;">Check In</th>
+                <th style="padding: 10px 12px;">Check Out</th>
+                <th style="padding: 10px 12px;">Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRowsHtml.join('')}
+            </tbody>
+          </table>
+          <div style="background: #f8fafc; padding: 12px 16px; font-size: 12px; color: #334155; font-weight: bold; border-top: 1px solid #e2e8f0;">
+            <span style="color: #047857; margin-right: 20px;">✅ Days Present: ${presentCount} / 7 Days</span>
+            <span style="color: #4338ca;">⏱️ Total Hours: ${totalHoursStr} Hrs</span>
+          </div>
+        </div>
+      `;
+        }
+        let emailResult = { success: false, reason: 'Email channel not selected' };
+        if ((s.channel_type === 'EMAIL' || s.channel_type === 'BOTH') && recipientEmails.length > 0) {
+            for (const email of recipientEmails) {
+                emailResult = await sendSmartHREmail(s.company_id, email, emailSubject, emailBody, customHtmlExtra);
+            }
+        }
+        const summaryStatus = emailResult.success
+            ? `Email sent to ${recipientEmails.join(', ')}`
+            : `Trigger executed: ${emailResult.reason || emailResult.error || 'SMTP Integration Not Configured'}`;
+        const logResult = await (0, db_1.query)(`
+      INSERT INTO hrms.smart_hr_logs (company_id, schedule_id, title, task_type, status, total_recipients, success_count, failed_count, summary)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
+    `, [
+            s.company_id,
+            s.id,
+            s.title,
+            s.task_type,
+            emailResult.success ? 'SUCCESS' : 'FAILED',
+            recipientEmails.length || 1,
+            emailResult.success ? recipientEmails.length : 0,
+            emailResult.success ? 0 : recipientEmails.length || 1,
+            summaryStatus
+        ]);
+        if (!emailResult.success) {
+            return res.status(400).json({
+                error: `Schedule executed, but email failed: ${emailResult.reason || emailResult.error || 'SMTP Not Configured'}`,
+                log: logResult.rows[0]
+            });
+        }
+        return res.json({ message: `Successfully executed & sent email to ${recipientEmails.join(', ')}!`, log: logResult.rows[0] });
+    }
+    catch (err) {
+        return res.status(500).json({ error: 'Failed to execute schedule' });
+    }
+});
+app.get('/api/v1/smart-hr/templates', auth_1.authenticateToken, async (_req, res) => {
+    try {
+        const result = await (0, db_1.query)('SELECT * FROM hrms.smart_hr_templates ORDER BY created_at DESC');
+        res.json({ templates: result.rows });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to fetch templates' });
+    }
+});
+app.post('/api/v1/smart-hr/templates', auth_1.authenticateToken, async (req, res) => {
+    const { template_type, title, subject, body_content, channel_type } = req.body;
+    try {
+        const result = await (0, db_1.query)(`INSERT INTO hrms.smart_hr_templates (template_type, title, subject, body_content, channel_type, is_active)
+       VALUES ($1, $2, $3, $4, $5, true) RETURNING *`, [template_type, title, subject, body_content, channel_type || 'BOTH']);
+        res.status(201).json({ template: result.rows[0] });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to create template' });
+    }
+});
+app.put('/api/v1/smart-hr/templates/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { template_type, title, subject, body_content, channel_type } = req.body;
+    try {
+        const result = await (0, db_1.query)(`UPDATE hrms.smart_hr_templates 
+       SET template_type = $1, title = $2, subject = $3, body_content = $4, channel_type = $5, updated_at = NOW()
+       WHERE id = $6 RETURNING *`, [template_type, title, subject, body_content, channel_type || 'BOTH', id]);
+        res.json({ template: result.rows[0] });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to update template' });
+    }
+});
+app.delete('/api/v1/smart-hr/templates/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        await (0, db_1.query)('DELETE FROM hrms.smart_hr_templates WHERE id = $1', [id]);
+        res.json({ message: 'Template deleted successfully' });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to delete template' });
+    }
+});
+app.get('/api/v1/smart-hr/logs', auth_1.authenticateToken, async (_req, res) => {
+    try {
+        const result = await (0, db_1.query)('SELECT * FROM hrms.smart_hr_logs ORDER BY executed_at DESC');
+        res.json({ logs: result.rows });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+});
+app.delete('/api/v1/smart-hr/logs/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        await (0, db_1.query)('DELETE FROM hrms.smart_hr_logs WHERE id = $1', [id]);
+        res.json({ message: 'Log deleted successfully' });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Failed to delete log' });
+    }
 });

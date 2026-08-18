@@ -73,7 +73,7 @@ export default function KPIDashboardPage() {
         const headers = { 'Authorization': `Bearer ${token}` };
         const q = companyId ? `?company_id=${companyId}` : '';
 
-        const empRes = await fetch(`http://localhost:5000/api/v1/employees${q}`, { headers });
+        const empRes = await fetch(`/api/v1/employees${q}`, { headers });
         if (empRes.ok) {
           const empData = await empRes.json();
           const list = empData.employees || empData || [];

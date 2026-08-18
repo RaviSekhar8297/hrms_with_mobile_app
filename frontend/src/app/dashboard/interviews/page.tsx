@@ -26,7 +26,7 @@ export default function InterviewsDashboard() {
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/interviews/schedules', {
+      const res = await fetch('/api/v1/interviews/schedules', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -44,7 +44,7 @@ export default function InterviewsDashboard() {
     try {
       setHistoryLoading(true);
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/interviews/feedback/history', {
+      const res = await fetch('/api/v1/interviews/feedback/history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -69,7 +69,7 @@ export default function InterviewsDashboard() {
   const handleSubmitFeedback = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:5000/api/v1/interviews/feedback', {
+      const res = await fetch('/api/v1/interviews/feedback', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,

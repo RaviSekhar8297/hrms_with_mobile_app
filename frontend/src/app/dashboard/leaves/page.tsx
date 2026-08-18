@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import DashboardPageHeader from '../components/DashboardPageHeader';
-import { getHeaders } from '../utils/api';
+import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 
@@ -58,7 +58,7 @@ export default function LeaveTypesAndLogsPage() {
     setIsLoading(true);
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/leave-types?companyId=${cid}`, {
+      const res = await fetch(`/api/v1/leave-types?companyId=${cid}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -73,7 +73,7 @@ export default function LeaveTypesAndLogsPage() {
   const fetchTransactionLogs = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/leave-transactions?companyId=${cid}`, {
+      const res = await fetch(getUrl('/api/v1/leave-requests', cid), {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -84,7 +84,7 @@ export default function LeaveTypesAndLogsPage() {
   const fetchEmployees = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/employees?companyId=${cid}`, {
+      const res = await fetch(`/api/v1/employees?companyId=${cid}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -102,8 +102,8 @@ export default function LeaveTypesAndLogsPage() {
     try {
       const method = editingType ? 'PUT' : 'POST';
       const url = editingType
-        ? `http://localhost:5000/api/v1/leave-types/${editingType.id}`
-        : 'http://localhost:5000/api/v1/leave-types';
+        ? `/api/v1/leave-types/${editingType.id}`
+        : '/api/v1/leave-types';
 
       const res = await fetch(url, {
         method,
@@ -133,7 +133,7 @@ export default function LeaveTypesAndLogsPage() {
   const handleDeleteLeaveType = async (id: string) => {
     if (!confirm('Are you sure you want to delete this leave type?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/v1/leave-types/${id}`, {
+      const res = await fetch(`/api/v1/leave-types/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
@@ -157,7 +157,7 @@ export default function LeaveTypesAndLogsPage() {
     }
     setIsSaving(true);
     try {
-      const res = await fetch('http://localhost:5000/api/v1/leave-transactions', {
+      const res = await fetch(getUrl('/api/v1/leave-requests'), {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({

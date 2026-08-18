@@ -4,15 +4,15 @@ async function testFetch() {
   const headers = { 'Authorization': `Bearer ${token}` };
 
   try {
-    const resLeave = await fetch(`http://127.0.0.1:5000/api/v1/leave-requests?companyId=${companyId}`, { headers });
+    const resLeave = await fetch(`http://127.0.0.1:5005/api/v1/leave-requests?companyId=${companyId}`, { headers });
     const dataLeave = await resLeave.json();
     console.log('1027 Leave Requests Count:', dataLeave.requests?.length, dataLeave.requests);
 
-    const resReg = await fetch(`http://127.0.0.1:5000/api/v1/attendance/regularizations?companyId=${companyId}`, { headers });
+    const resReg = await fetch(`http://127.0.0.1:5005/api/v1/attendance/regularizations?companyId=${companyId}`, { headers });
     const dataReg = await resReg.json();
     console.log('1027 Regularization Requests Count:', dataReg.regularizations?.length, dataReg.regularizations);
 
-    const resPerm = await fetch(`http://127.0.0.1:5000/api/v1/attendance/permissions?companyId=${companyId}`, { headers });
+    const resPerm = await fetch(`http://127.0.0.1:5005/api/v1/attendance/permissions?companyId=${companyId}`, { headers });
     const dataPerm = await resPerm.json();
     console.log('1027 Permission Requests Count:', dataPerm.permissions?.length, dataPerm.permissions);
   } catch (err) {
