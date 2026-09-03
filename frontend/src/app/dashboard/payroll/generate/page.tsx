@@ -168,8 +168,8 @@ export default function GeneratePayrollPage() {
   const [progressStep, setProgressStep] = useState(0);
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || permissions.includes('view_payroll');
-  const canCreate = isSuperAdmin || permissions.includes('create_payroll');
+  const canView = isSuperAdmin || permissions.includes('view_payroll') || permissions.includes('view_payroll_runs') || permissions.includes('*');
+  const canCreate = isSuperAdmin || permissions.includes('create_payroll') || permissions.includes('create_payroll_runs') || permissions.includes('*');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');

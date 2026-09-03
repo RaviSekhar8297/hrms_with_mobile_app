@@ -318,7 +318,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const hasPermission = (permissionName?: string) => {
     if (!permissionName) return true;
     if (isSuperAdmin) return true;
-    return permissions.includes(permissionName) || permissions.includes('*');
+    if (permissions.includes(permissionName) || permissions.includes('*')) return true;
+    if (permissionName === 'view_payroll_runs' && permissions.includes('view_payroll')) return true;
+    if (permissionName === 'view_payroll' && permissions.includes('view_payroll_runs')) return true;
+    return false;
   };
 
   // Unified list of sidebar groups and items

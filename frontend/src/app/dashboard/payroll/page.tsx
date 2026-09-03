@@ -168,10 +168,10 @@ export default function PayrollPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || permissions.includes('view_payroll');
-  const canCreate = isSuperAdmin || permissions.includes('create_payroll');
-  const canEdit = isSuperAdmin || permissions.includes('edit_payroll');
-  const canDelete = isSuperAdmin || permissions.includes('delete_payroll');
+  const canView = isSuperAdmin || permissions.includes('view_payroll') || permissions.includes('view_payroll_runs') || permissions.includes('*');
+  const canCreate = isSuperAdmin || permissions.includes('create_payroll') || permissions.includes('create_payroll_runs') || permissions.includes('*');
+  const canEdit = isSuperAdmin || permissions.includes('edit_payroll') || permissions.includes('edit_payroll_runs') || permissions.includes('*');
+  const canDelete = isSuperAdmin || permissions.includes('delete_payroll') || permissions.includes('delete_payroll_runs') || permissions.includes('*');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
