@@ -302,6 +302,58 @@ export default function GeneratePayrollPage() {
     });
   }, [employees, branches, departments, selectedBranchId, selectedDepartmentId, attendanceStartDate, attendanceEndDate]);
 
+  // CASCADING BRANCHES: Show only branches that contain employees in selected Department
+  const filteredBranches = useMemo(() => {
+    if (selectedDepartmentId === 'ALL') return branches;
+    const activeEmpsInDept = employees.filter(emp => {
+      const dId = String(emp.department_id ?? (emp as any).departmentId ?? '').trim().toLowerCase();
+      const dName = String((emp as any).department_name ?? (emp as any).departmentName ?? '').trim().toLowerCase();
+      const selDeptIdStr = String(selectedDepartmentId).trim().toLowerCase();
+      const matchedDept = departments.find(d => String(d.id).trim().toLowerCase() === selDeptIdStr);
+      const targetDeptName = matchedDept ? matchedDept.name.trim().toLowerCase() : '';
+      return (dId && (dId === selDeptIdStr || (matchedDept && dId === String(matchedDept.id).trim().toLowerCase()))) ||
+             (dName && (dName === selDeptIdStr || (targetDeptName && dName === targetDeptName)));
+    });
+
+    const validBranchIdsOrNames = new Set(
+      activeEmpsInDept.flatMap(emp => [
+        String(emp.branch_id ?? (emp as any).branchId ?? '').trim().toLowerCase(),
+        String((emp as any).branch_name ?? (emp as any).branchName ?? '').trim().toLowerCase()
+      ]).filter(Boolean)
+    );
+
+    return branches.filter(b => 
+      validBranchIdsOrNames.has(String(b.id).trim().toLowerCase()) ||
+      validBranchIdsOrNames.has(String(b.name).trim().toLowerCase())
+    );
+  }, [branches, employees, departments, selectedDepartmentId]);
+
+  // CASCADING DEPARTMENTS: Show only departments that contain employees in selected Branch
+  const filteredDepartments = useMemo(() => {
+    if (selectedBranchId === 'ALL') return departments;
+    const activeEmpsInBranch = employees.filter(emp => {
+      const bId = String(emp.branch_id ?? (emp as any).branchId ?? '').trim().toLowerCase();
+      const bName = String((emp as any).branch_name ?? (emp as any).branchName ?? '').trim().toLowerCase();
+      const selBranchIdStr = String(selectedBranchId).trim().toLowerCase();
+      const matchedBranch = branches.find(b => String(b.id).trim().toLowerCase() === selBranchIdStr);
+      const targetBranchName = matchedBranch ? matchedBranch.name.trim().toLowerCase() : '';
+      return (bId && (bId === selBranchIdStr || (matchedBranch && bId === String(matchedBranch.id).trim().toLowerCase()))) ||
+             (bName && (bName === selBranchIdStr || (targetBranchName && bName === targetBranchName)));
+    });
+
+    const validDeptIdsOrNames = new Set(
+      activeEmpsInBranch.flatMap(emp => [
+        String(emp.department_id ?? (emp as any).departmentId ?? '').trim().toLowerCase(),
+        String((emp as any).department_name ?? (emp as any).departmentName ?? '').trim().toLowerCase()
+      ]).filter(Boolean)
+    );
+
+    return departments.filter(d => 
+      validDeptIdsOrNames.has(String(d.id).trim().toLowerCase()) ||
+      validDeptIdsOrNames.has(String(d.name).trim().toLowerCase())
+    );
+  }, [departments, employees, branches, selectedBranchId]);
+
   const handleBranchSelect = (branchId: string) => {
     setSelectedBranchId(branchId);
     setSelectedEmployeeId('ALL');
@@ -412,13 +464,13 @@ export default function GeneratePayrollPage() {
   };
 
   const branchOptions = [
-    { value: 'ALL', label: `🏢 All Branches (${branches.length})` },
-    ...branches.map(b => ({ value: b.id, label: `📍 ${b.name}` }))
+    { value: 'ALL', label: `🏢 All Branches (${filteredBranches.length})` },
+    ...filteredBranches.map(b => ({ value: b.id, label: `📍 ${b.name}` }))
   ];
 
   const departmentOptions = [
-    { value: 'ALL', label: `📂 All Departments (${departments.length})` },
-    ...departments.map(d => ({ value: d.id, label: `📁 ${d.name}` }))
+    { value: 'ALL', label: `📂 All Departments (${filteredDepartments.length})` },
+    ...filteredDepartments.map(d => ({ value: d.id, label: `📁 ${d.name}` }))
   ];
 
   const employeeOptions = [
