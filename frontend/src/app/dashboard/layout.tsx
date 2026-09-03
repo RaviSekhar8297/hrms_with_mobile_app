@@ -1237,39 +1237,33 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   <span className="text-[10px] font-black uppercase tracking-widest text-indigo-950 mt-1">HRMS CORE</span>
                 </div>
 
-                {/* Orbiting App Badges / Nodes with Zero-Overlap & Lucide Icons */}
+                {/* Orbiting App Badges / Nodes with Harmonic Smooth Arc Motion (Zero Scrambling/Stacking) */}
                 <div className="absolute inset-0">
                   {flatItems.slice(0, 15).map((item: SidebarItem, idx: number) => {
-                    let ringRadius = 125;
+                    let ringRadius = 120;
                     let angle = 90;
 
-                    // Large Radial Gaps (125px -> 215px -> 310px) guarantee 0% overlapping!
-                    // 1st Line (Ring 1 - Inner, 4 items): Right to Left
-                    // 2nd Line (Ring 2 - Middle, 5 items): Left to Right
-                    // 3rd Line (Ring 3 - Outer, 6 items): Right to Left
+                    // Harmonic Pendulum Sine Oscillation: Each item moves back & forth gracefully along its EXACT arc line without ever jumping or stacking!
                     if (idx < 4) {
-                      ringRadius = 125;
-                      const baseAngles = [160, 115, 65, 20];
-                      const speed = 10;
-                      angle = (baseAngles[idx] - animTime * speed) % 180;
-                      if (angle < 15) angle += 150;
+                      ringRadius = 120;
+                      const homeAngles = [155, 115, 65, 25];
+                      const home = homeAngles[idx] || 90;
+                      angle = home + 14 * Math.sin(animTime * 0.8 + idx * 0.7);
                     } else if (idx < 9) {
-                      ringRadius = 215;
-                      const baseAngles = [168, 130, 90, 50, 12];
-                      const speed = 8;
-                      angle = (baseAngles[idx - 4] + animTime * speed) % 180;
-                      if (angle > 170) angle -= 160;
+                      ringRadius = 205;
+                      const homeAngles = [162, 126, 90, 54, 18];
+                      const home = homeAngles[idx - 4] || 90;
+                      angle = home - 16 * Math.sin(animTime * 0.6 + idx * 0.6);
                     } else {
-                      ringRadius = 310;
-                      const baseAngles = [172, 140, 108, 72, 40, 8];
-                      const speed = 6;
-                      angle = (baseAngles[idx - 9] - animTime * speed) % 180;
-                      if (angle < 8) angle += 164;
+                      ringRadius = 290;
+                      const homeAngles = [168, 137, 106, 74, 43, 12];
+                      const home = homeAngles[idx - 9] || 90;
+                      angle = home + 18 * Math.sin(animTime * 0.5 + idx * 0.5);
                     }
 
                     const rad = (angle * Math.PI) / 180;
                     const leftPct = 50 + (ringRadius / 375) * 50 * Math.cos(rad);
-                    const topPct = 90 - (ringRadius / 400) * 100 * Math.sin(rad);
+                    const topPct = 90 - (ringRadius / 390) * 100 * Math.sin(rad);
 
                     const isMatched = !appSearch || 
                       item.label.toLowerCase().includes(appSearch.toLowerCase()) || 
@@ -1306,8 +1300,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                         className={`absolute transition-all duration-300 ${
                           isMatched ? 'opacity-100 z-30' : 'opacity-20 scale-90 blur-[0.5px] z-10 pointer-events-none'
                         } group`}
-                        onMouseEnter={() => setHoveredApp(item)}
-                        onMouseLeave={() => setHoveredApp(null)}
                       >
                         <Link
                           href={`/dashboard/${item.tab}`}
@@ -1318,24 +1310,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                             {getLucideIcon(item.tab, item.icon)}
                           </div>
 
-                          {/* Hover Tooltip Badge */}
-                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 whitespace-nowrap bg-slate-900 text-white border border-slate-700 px-3 py-1.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-white">{item.label}</span>
-                            <span className="text-[10px] text-indigo-400 font-mono font-bold">➜</span>
+                          {/* Hover Tooltip Badge (Single cleanly positioned tooltip) */}
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 whitespace-nowrap bg-slate-900 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-1.5">
+                            <span>{item.label}</span>
+                            <span className="text-indigo-400 font-mono text-[10px]">➜</span>
                           </div>
                         </Link>
                       </div>
                     );
                   })}
                 </div>
-
-                {/* Bottom Active App Bar Indicator */}
-                {hoveredApp && (
-                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-white text-slate-900 border border-slate-200 px-4 py-2 rounded-2xl shadow-xl flex items-center gap-2 animate-fadeIn font-bold text-xs">
-                    <span className="text-indigo-600">{getLucideIcon(hoveredApp.tab, hoveredApp.icon)}</span>
-                    <span className="text-slate-900 font-extrabold">{hoveredApp.label}</span>
-                  </div>
-                )}
               </div>
             ) : (
               /* Grid Launcher Mode */
