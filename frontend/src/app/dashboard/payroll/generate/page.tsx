@@ -233,12 +233,27 @@ export default function GeneratePayrollPage() {
   // CASCADING LOGIC: Filter employees dynamically based on Branch & Department selections
   const filteredEmployees = employees.filter(emp => {
     if (selectedBranchId !== 'ALL') {
-      const bId = emp.branch_id ?? (emp as any).branchId ?? (emp as any).branch_name ?? '';
-      if (String(bId) !== String(selectedBranchId)) return false;
+      const bId = String(emp.branch_id ?? (emp as any).branchId ?? '');
+      const bName = String((emp as any).branch_name ?? (emp as any).branchName ?? '');
+      const matchedBranch = branches.find(b => String(b.id) === String(selectedBranchId));
+      const targetBranchName = matchedBranch ? matchedBranch.name : '';
+
+      const isBranchIdMatch = bId && bId === String(selectedBranchId);
+      const isBranchNameMatch = bName && (bName === String(selectedBranchId) || (targetBranchName && bName.toLowerCase() === targetBranchName.toLowerCase()));
+
+      if (!isBranchIdMatch && !isBranchNameMatch) return false;
     }
+
     if (selectedDepartmentId !== 'ALL') {
-      const dId = emp.department_id ?? (emp as any).departmentId ?? (emp as any).department_name ?? '';
-      if (String(dId) !== String(selectedDepartmentId)) return false;
+      const dId = String(emp.department_id ?? (emp as any).departmentId ?? '');
+      const dName = String((emp as any).department_name ?? (emp as any).departmentName ?? '');
+      const matchedDept = departments.find(d => String(d.id) === String(selectedDepartmentId));
+      const targetDeptName = matchedDept ? matchedDept.name : '';
+
+      const isDeptIdMatch = dId && dId === String(selectedDepartmentId);
+      const isDeptNameMatch = dName && (dName === String(selectedDepartmentId) || (targetDeptName && dName.toLowerCase() === targetDeptName.toLowerCase()));
+
+      if (!isDeptIdMatch && !isDeptNameMatch) return false;
     }
     return true;
   });
