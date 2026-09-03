@@ -50,6 +50,10 @@ interface Employee {
   emp_id_code?: string;
   first_name: string;
   last_name: string;
+  status?: string;
+  exit_date?: string;
+  joining_date?: string;
+  resignation_date?: string;
   department_name?: string;
   designation_name?: string;
   branch_name?: string;
@@ -230,9 +234,44 @@ export default function GeneratePayrollPage() {
     setSelectedEmployeeId('ALL');
   };
 
-  // CASCADING LOGIC: Filter employees dynamically based on Branch & Department selections
+  const normalizeDateStr = (raw?: string | null): string | null => {
+    if (!raw) return null;
+    const str = String(raw).trim();
+    if (str.length >= 10 && str.includes('-')) {
+      return str.slice(0, 10);
+    }
+    return null;
+  };
+
+  // CASCADING LOGIC: Filter employees dynamically based on Active Status, Mid-Cycle Exit Date, Branch & Department
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
+      // 1. ACTIVE & MID-CYCLE EXIT DATE ELIGIBILITY RULE:
+      const empStatus = String(emp.status || 'ACTIVE').trim().toUpperCase();
+      const exitDate = normalizeDateStr(emp.exit_date ?? (emp as any).exitDate ?? (emp as any).resignation_date ?? (emp as any).resignationDate);
+      const joiningDate = normalizeDateStr(emp.joining_date ?? (emp as any).joiningDate);
+
+      // Future joiner check: Exclude if joining date is after the attendance cycle end date
+      if (joiningDate && attendanceEndDate && joiningDate > attendanceEndDate) {
+        return false;
+      }
+
+      // Inactive / Exited employee check:
+      if (empStatus === 'INACTIVE' || empStatus === 'EXITED' || empStatus === 'TERMINATED' || empStatus === 'RESIGNED' || exitDate !== null) {
+        if (exitDate) {
+          // Include ONLY if exitDate falls WITHIN the selected attendance cycle window [attendanceStartDate, attendanceEndDate]
+          if (attendanceStartDate && attendanceEndDate) {
+            if (exitDate < attendanceStartDate || exitDate > attendanceEndDate) {
+              return false;
+            }
+          }
+        } else {
+          // Inactive without specified exit date -> exclude from current payroll
+          return false;
+        }
+      }
+
+      // 2. BRANCH FILTER:
       if (selectedBranchId !== 'ALL') {
         const bId = String(emp.branch_id ?? (emp as any).branchId ?? '').trim().toLowerCase();
         const bName = String((emp as any).branch_name ?? (emp as any).branchName ?? '').trim().toLowerCase();
@@ -246,6 +285,7 @@ export default function GeneratePayrollPage() {
         if (!isBranchIdMatch && !isBranchNameMatch) return false;
       }
 
+      // 3. DEPARTMENT FILTER:
       if (selectedDepartmentId !== 'ALL') {
         const dId = String(emp.department_id ?? (emp as any).departmentId ?? '').trim().toLowerCase();
         const dName = String((emp as any).department_name ?? (emp as any).departmentName ?? '').trim().toLowerCase();
@@ -260,7 +300,7 @@ export default function GeneratePayrollPage() {
       }
       return true;
     });
-  }, [employees, branches, departments, selectedBranchId, selectedDepartmentId]);
+  }, [employees, branches, departments, selectedBranchId, selectedDepartmentId, attendanceStartDate, attendanceEndDate]);
 
   const handleBranchSelect = (branchId: string) => {
     setSelectedBranchId(branchId);
