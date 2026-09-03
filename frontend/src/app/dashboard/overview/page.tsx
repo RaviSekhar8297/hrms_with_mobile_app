@@ -6,6 +6,7 @@ import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
 import { usePermissions } from '../hooks/usePermissions';
 import { getDeviceIdentifier, getDeviceModel } from '../utils/deviceUtils';
+import { useDashboard } from '../components/DashboardContext';
 
 interface Company {
   id: string;
@@ -94,9 +95,10 @@ const formatDetails = (details: any): string => {
 };
 
 export default function OverviewPage() {
+  const { companyId: contextCompanyId, setCompanyId: setContextCompanyId } = useDashboard();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(null);
+  const companyId = contextCompanyId || (typeof window !== 'undefined' ? localStorage.getItem('companyId') : null);
 
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -136,7 +138,7 @@ export default function OverviewPage() {
     const storedProfile = localStorage.getItem('myProfile');
     if (storedRoles) setRoles(JSON.parse(storedRoles));
     if (storedEmail) setEmail(storedEmail);
-    if (storedCompanyId) setCompanyId(storedCompanyId);
+    if (storedCompanyId) setContextCompanyId(storedCompanyId);
     if (storedProfile) {
       try { setMyProfile(JSON.parse(storedProfile)); } catch(e) {}
     }
@@ -225,12 +227,7 @@ export default function OverviewPage() {
 
   const handleCompanyChange = (id: string) => {
     const val = id || null;
-    setCompanyId(val);
-    if (val) {
-      localStorage.setItem('companyId', val);
-    } else {
-      localStorage.removeItem('companyId');
-    }
+    setContextCompanyId(val);
   };
 
   if (!isSuperAdmin) {
@@ -271,25 +268,6 @@ export default function OverviewPage() {
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl font-medium leading-relaxed">
             Logged in as <span className="font-extrabold text-blue-600 dark:text-blue-400">{email}</span>. Real-time multi-tenant database clusters, RBAC security matrix, and communication webhooks are active.
           </p>
-        </div>
-
-        {/* TENANT SCOPE SELECTOR & QUICK DIAGNOSTICS */}
-        <div className="flex flex-wrap items-center gap-4 shrink-0 justify-start md:justify-end relative z-10 w-full md:w-auto">
-          {companies.length > 0 && (
-            <div className="flex flex-col text-left space-y-1 w-full sm:w-64">
-              <span className="text-[9.5px] uppercase font-black tracking-wider text-slate-400">Active Tenant Scope</span>
-              <select
-                value={companyId || ''}
-                onChange={(e) => handleCompanyChange(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
-              >
-                <option value="">-- All Companies (Global Scope) --</option>
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
       </div>
 
