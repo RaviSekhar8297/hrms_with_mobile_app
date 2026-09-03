@@ -314,18 +314,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
 
-  // Helper to check dynamic role-based permissions
+  // Helper to check dynamic role-based permissions strictly
   const hasPermission = (permissionName?: string) => {
     if (!permissionName) return true;
     if (isSuperAdmin) return true;
-    if (permissions.includes(permissionName)) return true;
-
-    // Smart fallback check for resource-level actions (e.g., view_comp_off_requests, create_comp_off_requests, datascope_...)
-    if (permissionName.startsWith('view_')) {
-      const resource = permissionName.replace('view_', '');
-      return permissions.some(p => p.includes(resource));
-    }
-    return false;
+    return permissions.includes(permissionName) || permissions.includes('*');
   };
 
   // Unified list of sidebar groups and items
@@ -560,6 +553,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'payroll/tds',
           label: 'TDS Tax Calculator',
+          permission: 'view_payroll_runs',
           badge: 'Tax',
           icon: (
             <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
