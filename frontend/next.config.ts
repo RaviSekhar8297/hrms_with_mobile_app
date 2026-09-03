@@ -31,6 +31,7 @@ const nextConfig: NextConfig = {
     // Same-origin paths so office LAN (no nginx) and VPS HTTPS (nginx) both work.
     // When nginx already proxies these paths, it wins; these are the LAN / :3005 fallback.
     return [
+      { source: "/api/v1/:path*", destination: `${supabaseInternal}/rest/v1/:path*` },
       { source: "/api/:path*", destination: `${apiBackend}/api/:path*` },
       { source: "/supabase/:path*", destination: `${supabaseInternal}/:path*` },
       { source: "/keycloak/:path*", destination: `${keycloakInternal}/:path*` },

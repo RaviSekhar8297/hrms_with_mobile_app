@@ -8,6 +8,7 @@ const db_1 = require("../config/db");
 const auth_1 = require("../middlewares/auth");
 const server_1 = require("../server");
 const multer_1 = __importDefault(require("multer"));
+const nodemailer_1 = __importDefault(require("nodemailer"));
 const router = (0, express_1.Router)();
 // Configure multer for memory storage (files stored in memory/database instead of disk folders)
 const storage = multer_1.default.memoryStorage();
@@ -792,6 +793,46 @@ router.put('/applications/:id/stage', (0, auth_1.requirePermission)('recruitment
         const appResult = await (0, db_1.query)(`UPDATE hrms.job_applications SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND company_id = $3 RETURNING *`, [status, id, targetCompanyId]);
         // Insert history
         await (0, db_1.query)(`INSERT INTO hrms.candidate_stage_history (company_id, application_id, from_status, to_status) VALUES ($1, $2, $3, $4)`, [targetCompanyId, id, fromStatus, status]);
+        // If status is SELECTED or OFFERED, automatically create/sync onboarding entry in hrms.employee_onboardings
+        if (['SELECTED', 'OFFERED'].includes(status?.toUpperCase())) {
+            try {
+                const fullApp = await (0, db_1.query)(`SELECT ja.*, c.first_name, c.last_name, c.email, c.phone 
+           FROM hrms.job_applications ja 
+           LEFT JOIN hrms.candidates c ON c.id = ja.candidate_id 
+           WHERE ja.id = $1`, [id]);
+                if (fullApp.rowCount > 0) {
+                    const row = fullApp.rows[0];
+                    const candId = row.candidate_id;
+                    const candidateEmail = row.email || '';
+                    // Check if onboarding record already exists
+                    const existingOb = await (0, db_1.query)(`SELECT id FROM hrms.employee_onboardings WHERE candidate_id = $1 OR (candidate_submitted_data->>'email' = $2)`, [candId, candidateEmail]);
+                    if (existingOb.rowCount === 0) {
+                        const countRes = await (0, db_1.query)(`SELECT COUNT(*) as count FROM hrms.employee_onboardings`);
+                        const obNumber = parseInt(countRes.rows[0].count, 10) + 1;
+                        const onboardingCode = `ONB-${String(obNumber).padStart(4, '0')}`;
+                        const portalToken = require('crypto').randomBytes(24).toString('hex');
+                        const tokenExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
+                        const candidateData = {
+                            first_name: row.first_name || '',
+                            last_name: row.last_name || '',
+                            email: candidateEmail,
+                            phone: row.phone || '',
+                            job_id: row.job_id || ''
+                        };
+                        const compIdToUse = targetCompanyId || row.company_id;
+                        const targetJoiningDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // 15 days default joining target
+                        await (0, db_1.query)(`INSERT INTO hrms.employee_onboardings (
+                company_id, onboarding_code, candidate_id, application_id, portal_token, token_expires_at,
+                target_joining_date, link_sent_at, onboarding_status, email_status, candidate_submitted_data, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), 'PENDING_OFFER', 'NOT_SENT', $8, NOW(), NOW())`, [compIdToUse, onboardingCode, candId, id, portalToken, tokenExpiresAt, targetJoiningDate, JSON.stringify(candidateData)]);
+                        console.log(`✅ Automatically created onboarding record ${onboardingCode} for candidate ${candidateEmail} in OFFERED stage.`);
+                    }
+                }
+            }
+            catch (obErr) {
+                console.error('Error auto-syncing onboarding record for OFFERED stage:', obErr);
+            }
+        }
         return res.json(appResult.rows[0]);
     }
     catch (err) {
@@ -812,21 +853,25 @@ router.get('/settings/email', (0, auth_1.requirePermission)('recruitment:read'),
             targetCompanyId = req.query.company_id;
         let result;
         if (targetCompanyId) {
-            result = await (0, db_1.query)(`SELECT * FROM hrms.email_integrations WHERE company_id = $1`, [targetCompanyId]);
+            result = await (0, db_1.query)(`SELECT * FROM hrms.email_integrations WHERE company_id = $1 ORDER BY is_active DESC, updated_at DESC`, [targetCompanyId]);
         }
         else {
-            result = await (0, db_1.query)(`SELECT * FROM hrms.email_integrations ORDER BY updated_at DESC LIMIT 1`);
+            result = await (0, db_1.query)(`SELECT * FROM hrms.email_integrations ORDER BY is_active DESC, updated_at DESC`);
+        }
+        // If query parameter list=true or multiple accounts exist, return array
+        if (req.query.list === 'true') {
+            return res.json(result.rows);
         }
         if (result.rows.length > 0) {
-            res.json(result.rows[0]);
+            return res.json(result.rows[0]);
         }
         else {
-            res.json(null);
+            return res.json(null);
         }
     }
     catch (err) {
         console.error('Error fetching email integrations:', err);
-        res.status(500).json({ error: 'Failed to fetch email integrations' });
+        return res.status(500).json({ error: 'Failed to fetch email integrations' });
     }
 });
 /**
@@ -841,23 +886,32 @@ router.post('/settings/email', (0, auth_1.requirePermission)('recruitment:write'
         const isSuper = req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin');
         if (isSuper && req.body.company_id)
             targetCompanyId = req.body.company_id;
-        const { smtp_host, smtp_port, smtp_username, smtp_password_encrypted, encryption_type, from_email, from_name, is_active } = req.body;
-        const result = await (0, db_1.query)(`INSERT INTO hrms.email_integrations 
-        (company_id, smtp_host, smtp_port, smtp_username, smtp_password_encrypted, encryption_type, from_email, from_name, is_active) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT (company_id) 
-       DO UPDATE SET 
-         smtp_host = EXCLUDED.smtp_host, 
-         smtp_port = EXCLUDED.smtp_port, 
-         smtp_username = EXCLUDED.smtp_username, 
-         smtp_password_encrypted = EXCLUDED.smtp_password_encrypted, 
-         encryption_type = EXCLUDED.encryption_type, 
-         from_email = EXCLUDED.from_email, 
-         from_name = EXCLUDED.from_name, 
-         is_active = EXCLUDED.is_active, 
-         updated_at = NOW()
-       RETURNING *`, [targetCompanyId, smtp_host, smtp_port, smtp_username, smtp_password_encrypted, encryption_type, from_email, from_name, is_active]);
-        (0, server_1.enqueueActivityLog)(targetCompanyId || null, email || '', 'INTEGRATION_UPDATED', 'recruitment', `Updated SMTP Email integration`, req.ip || '', req.headers['user-agent'] || '');
+        const { id, smtp_host, smtp_port, smtp_username, smtp_password_encrypted, encryption_type, from_email, from_name, is_active } = req.body;
+        let result;
+        if (id) {
+            result = await (0, db_1.query)(`UPDATE hrms.email_integrations
+         SET smtp_host = $1, smtp_port = $2, smtp_username = $3, smtp_password_encrypted = $4,
+             encryption_type = $5, from_email = $6, from_name = $7, is_active = $8, updated_at = NOW()
+         WHERE id = $9
+         RETURNING *`, [smtp_host, smtp_port, smtp_username, smtp_password_encrypted, encryption_type, from_email, from_name, is_active, id]);
+        }
+        else {
+            result = await (0, db_1.query)(`INSERT INTO hrms.email_integrations 
+          (company_id, smtp_host, smtp_port, smtp_username, smtp_password_encrypted, encryption_type, from_email, from_name, is_active) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (company_id, from_email) 
+         DO UPDATE SET 
+           smtp_host = EXCLUDED.smtp_host, 
+           smtp_port = EXCLUDED.smtp_port, 
+           smtp_username = EXCLUDED.smtp_username, 
+           smtp_password_encrypted = EXCLUDED.smtp_password_encrypted, 
+           encryption_type = EXCLUDED.encryption_type, 
+           from_name = EXCLUDED.from_name, 
+           is_active = EXCLUDED.is_active, 
+           updated_at = NOW()
+         RETURNING *`, [targetCompanyId, smtp_host, smtp_port, smtp_username, smtp_password_encrypted, encryption_type, from_email, from_name, is_active]);
+        }
+        (0, server_1.enqueueActivityLog)(targetCompanyId || null, email || '', 'INTEGRATION_UPDATED', 'recruitment', `Updated SMTP Email integration for ${from_email}`, req.ip || '', req.headers['user-agent'] || '');
         res.json(result.rows[0]);
     }
     catch (err) {
@@ -1232,7 +1286,7 @@ router.post('/interviews/:id/feedback', (0, auth_1.requirePermission)('recruitme
         // Get employee ID from email, fallback to schedule interviewer_id
         let employeeId = null;
         if (req.user?.email) {
-            const employeeRes = await (0, db_1.query)(`SELECT id FROM hrms.employees WHERE email = $1`, [req.user.email]);
+            const employeeRes = await (0, db_1.query)(`SELECT id FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1))`, [req.user.email]);
             if (employeeRes.rows.length > 0) {
                 employeeId = employeeRes.rows[0].id;
             }
@@ -1353,6 +1407,326 @@ router.get('/employees', (0, auth_1.requirePermission)('recruitment:read'), asyn
     catch (err) {
         console.error('Error fetching recruitment employees:', err);
         res.status(500).json({ error: 'Failed to fetch employees' });
+    }
+});
+/**
+ * @route   POST /api/v1/recruitment/payslips/send-email
+ * @desc    Send payslip PDF statement via configured SMTP email integration with attached A4 Landscape PDF
+ * @access  Private
+ */
+router.post('/payslips/send-email', async (req, res) => {
+    try {
+        const { sender_email, recipient_email, subject, employee_name, emp_code, designation, month_label, company_name, company_logo, company_address, doj, pf_no, esi_no, paid_days, leaves_applied, lop_days, basic, hra, ca, other_allow, ma, pf, esi, prof_tax, total_gross, total_deductions, net_pay, in_words } = req.body;
+        if (!recipient_email) {
+            return res.status(400).json({ error: 'Recipient email is required' });
+        }
+        // Fetch SMTP Integration details for the requested sender_email or active DB account
+        let smtpRes = await (0, db_1.query)(`SELECT * FROM hrms.email_integrations WHERE from_email = $1 LIMIT 1`, [sender_email]);
+        if (smtpRes.rowCount === 0) {
+            smtpRes = await (0, db_1.query)(`SELECT * FROM hrms.email_integrations WHERE is_active = true LIMIT 1`);
+        }
+        if (smtpRes.rowCount === 0) {
+            smtpRes = await (0, db_1.query)(`SELECT * FROM hrms.email_integrations ORDER BY updated_at DESC LIMIT 1`);
+        }
+        if (smtpRes.rowCount === 0) {
+            return res.status(404).json({ error: 'No active email integration configuration found in DB' });
+        }
+        const config = smtpRes.rows[0];
+        const smtpHost = config.smtp_host || 'smtp.gmail.com';
+        const smtpPort = parseInt(config.smtp_port || '587', 10);
+        const smtpUser = config.smtp_username || config.from_email;
+        const smtpPass = config.smtp_password_encrypted || '';
+        const transporter = nodemailer_1.default.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: config.encryption_type === 'SSL' || smtpPort === 465,
+            auth: {
+                user: smtpUser,
+                pass: smtpPass
+            }
+        });
+        const compName = company_name || 'Brihaspathi Technologies Limited';
+        const compAddr = company_address || 'Shangrila Plaza, 501, #508-510, Park View Enclave, Road No2, Banjara Hills, Hyderabad, Telangana 500034';
+        const empName = employee_name || 'Employee';
+        const mLabel = month_label || 'Current Month';
+        let finalLogoUrl = company_logo;
+        if (!finalLogoUrl) {
+            try {
+                const compDb = await (0, db_1.query)(`SELECT branding_logo FROM hrms.companies WHERE branding_logo IS NOT NULL AND branding_logo != '' LIMIT 1`);
+                if (compDb.rows.length > 0) {
+                    finalLogoUrl = compDb.rows[0].branding_logo;
+                }
+            }
+            catch (errDb) {
+                console.error('Error fetching company branding logo:', errDb);
+            }
+        }
+        let logoHtml = `<strong style="font-size:16px; color:#0f172a; text-transform:uppercase;">${compName}</strong>`;
+        if (finalLogoUrl) {
+            if (finalLogoUrl.startsWith('/')) {
+                finalLogoUrl = `https://newhrms.brihaspathi.in${finalLogoUrl}`;
+            }
+            logoHtml = `<img src="${finalLogoUrl}" alt="Logo" style="max-height: 55px; max-width: 180px; width: auto; object-fit: contain;" />`;
+        }
+        const fullHtmlPayslip = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Official Payslip Statement - ${mLabel}</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 6mm;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #0f172a;
+    background-color: #ffffff;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .payslip-container {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    border: 2px solid #475569;
+    border-radius: 12px;
+    padding: 16px;
+    box-sizing: border-box;
+    background-color: #ffffff;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .table-bordered th, .table-bordered td {
+    border: 1px solid #94a3b8 !important;
+  }
+</style>
+</head>
+<body>
+
+  <div class="payslip-container">
+    <!-- Top Header: Logo & Company Name -->
+    <table style="width: 100%; margin-bottom: 10px;">
+      <tr>
+        <td style="width: 25%; text-align: left; vertical-align: middle;">
+          ${logoHtml}
+        </td>
+        <td style="text-align: center; vertical-align: middle;">
+          <h1 style="margin:0; font-size: 16px; font-weight: 900; color: #0f172a; text-transform: uppercase;">${compName}</h1>
+          <p style="margin: 3px 0 0 0; font-size: 9.5px; color: #475569; line-height: 1.2;">${compAddr}</p>
+          <h3 style="margin: 5px 0 0 0; font-size: 12px; font-weight: 900; color: #1e3a8a;">Pay Slip for ${mLabel}</h3>
+        </td>
+        <td style="width: 25%;"></td>
+      </tr>
+    </table>
+
+    <div style="border-bottom: 2px solid #1e3a8a; margin-bottom: 12px;"></div>
+
+    <!-- Employee Information Grid -->
+    <table class="table-bordered" style="font-size: 10px; margin-bottom: 12px;">
+      <colgroup>
+        <col style="width: 18%;" />
+        <col style="width: 32%;" />
+        <col style="width: 11%;" />
+        <col style="width: 13%;" />
+        <col style="width: 11%;" />
+        <col style="width: 15%;" />
+      </colgroup>
+      <tbody>
+        <tr>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155;">Name Of The Employee</td>
+          <td colspan="3" style="padding: 6px; font-weight: 900; color: #0f172a; text-align: center; background-color: #ffffff; font-size: 11px;">${empName}</td>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155; text-align: center;">DOJ</td>
+          <td style="padding: 6px; font-weight: bold; font-family: monospace; color: #0f172a; text-align: center; background-color: #ffffff;">${doj || '-'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155;">Employee Id</td>
+          <td style="padding: 6px; font-weight: 900; font-family: monospace; color: #0f172a; text-align: center; background-color: #ffffff;">${emp_code || '-'}</td>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155; text-align: center;">Month</td>
+          <td style="padding: 6px; font-weight: bold; color: #0f172a; text-align: center; background-color: #ffffff;">${mLabel}</td>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155; text-align: center;">PF No</td>
+          <td style="padding: 6px; font-weight: bold; font-family: monospace; color: #0f172a; text-align: center; background-color: #ffffff;">${pf_no || '-'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155;">Designation</td>
+          <td style="padding: 6px; font-weight: 900; color: #0f172a; text-align: center; text-transform: uppercase; background-color: #ffffff;">${designation || '-'}</td>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155; text-align: center;">Paid Days</td>
+          <td style="padding: 6px; font-weight: bold; font-family: monospace; color: #0f172a; text-align: center; background-color: #ffffff;">${paid_days || '0.0'}</td>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155; text-align: center;">ESI No</td>
+          <td style="padding: 6px; font-weight: bold; font-family: monospace; color: #0f172a; text-align: center; background-color: #ffffff;">${esi_no || '-'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155;">Leaves Applied</td>
+          <td colspan="3" style="padding: 6px; font-weight: bold; font-family: monospace; color: #0f172a; text-align: center; background-color: #ffffff;">${leaves_applied || '0.00'}</td>
+          <td style="padding: 6px; font-weight: bold; background-color: #f8fafc; color: #334155; text-align: center;">LOP Days</td>
+          <td style="padding: 6px; font-weight: bold; font-family: monospace; color: #0f172a; text-align: center; background-color: #ffffff;">${lop_days || '0.00'}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- EARNINGS SECTION (ALL 14 COLUMNS MATCHING SCREEN PAYSLIP) -->
+    <div style="border: 1px solid #94a3b8; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+      <div style="background-color: #5c6b73; color: #ffffff; font-weight: 900; font-size: 11px; padding: 4px; text-align: center; text-transform: uppercase;">
+        EARNINGS
+      </div>
+      <table class="table-bordered" style="font-size: 8.5px; text-align: center;">
+        <thead>
+          <tr style="background-color: #f1f5f9; font-weight: bold; color: #334155;">
+            <th style="padding: 4px;">Basic</th>
+            <th style="padding: 4px;">HRA</th>
+            <th style="padding: 4px;">Conv</th>
+            <th style="padding: 4px;">Arrears</th>
+            <th style="padding: 4px;">Fix HRA</th>
+            <th style="padding: 4px;">Other Allow</th>
+            <th style="padding: 4px;">Uniform Allow</th>
+            <th style="padding: 4px;">Med Allow</th>
+            <th style="padding: 4px;">CCA</th>
+            <th style="padding: 4px;">Mobile Allow</th>
+            <th style="padding: 4px;">Extra Amount</th>
+            <th style="padding: 4px;">Car Fuel & Maint</th>
+            <th style="padding: 4px;">Meal/Food</th>
+            <th style="padding: 4px;">Tel/Net Reimb</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="font-family: monospace; font-weight: bold; color: #0f172a; background-color: #ffffff;">
+            <td style="padding: 5px;">₹${basic || '0.0'}</td>
+            <td style="padding: 5px;">₹${hra || '0.0'}</td>
+            <td style="padding: 5px;">₹${ca || '0.0'}</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹${other_allow || '0.0'}</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹${ma || '0.0'}</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- DEDUCTIONS SECTION (ALL 11 COLUMNS MATCHING SCREEN PAYSLIP) -->
+    <div style="border: 1px solid #94a3b8; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+      <div style="background-color: #5c6b73; color: #ffffff; font-weight: 900; font-size: 11px; padding: 4px; text-align: center; text-transform: uppercase;">
+        DEDUCTIONS
+      </div>
+      <table class="table-bordered" style="font-size: 8.5px; text-align: center;">
+        <thead>
+          <tr style="background-color: #f1f5f9; font-weight: bold; color: #334155;">
+            <th style="padding: 4px;">PF</th>
+            <th style="padding: 4px;">ESI</th>
+            <th style="padding: 4px;">Prof Tax</th>
+            <th style="padding: 4px;">LWF</th>
+            <th style="padding: 4px;">IT</th>
+            <th style="padding: 4px;">Lic</th>
+            <th style="padding: 4px;">Other</th>
+            <th style="padding: 4px;">Bank Loan</th>
+            <th style="padding: 4px;">Comp Loan</th>
+            <th style="padding: 4px;">Rent Paid</th>
+            <th style="padding: 4px;">Salary Adv</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="font-family: monospace; font-weight: bold; color: #0f172a; background-color: #ffffff;">
+            <td style="padding: 5px;">₹${pf || '0.0'}</td>
+            <td style="padding: 5px;">₹${esi || '0.0'}</td>
+            <td style="padding: 5px;">₹${prof_tax || '0.0'}</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+            <td style="padding: 5px;">₹0.0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TOTALS SUMMARY & IN WORDS -->
+    <table class="table-bordered" style="font-size: 10px; margin-bottom: 10px;">
+      <tr style="background-color: #f8fafc;">
+        <td style="width: 33.33%; padding: 7px;">
+          <span style="font-size: 8.5px; font-weight: 900; color: #475569; text-transform: uppercase; display: block;">TOTAL EARNINGS (INR)</span>
+          <span style="font-family: monospace; font-weight: 900; font-size: 12px; color: #0f172a;">₹${total_gross || '0.0'}</span>
+        </td>
+        <td style="width: 33.33%; padding: 7px;">
+          <span style="font-size: 8.5px; font-weight: 900; color: #475569; text-transform: uppercase; display: block;">TOTAL DEDUCTIONS (INR)</span>
+          <span style="font-family: monospace; font-weight: 900; font-size: 12px; color: #0f172a;">₹${total_deductions || '0.0'}</span>
+        </td>
+        <td style="width: 33.33%; padding: 7px; background-color: #eff6ff;">
+          <span style="font-size: 8.5px; font-weight: 900; color: #1e40af; text-transform: uppercase; display: block;">NET PAY (INR)</span>
+          <span style="font-family: monospace; font-weight: 900; font-size: 13px; color: #1e3a8a;">₹${net_pay || '0.0'}</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 7px; font-weight: bold; background-color: #f8fafc; color: #334155; font-size: 9.5px; text-transform: uppercase;">IN WORDS</td>
+        <td colspan="2" style="padding: 7px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; font-size: 10.5px; background-color: #ffffff;">${in_words || '-'}</td>
+      </tr>
+    </table>
+
+    <div style="text-align: center; font-size: 9px; color: #64748b; font-style: italic; margin-top: 8px;">
+      ** system generated print out. no signature required **
+    </div>
+
+  </div>
+
+</body>
+</html>
+    `;
+        // Generate A4 Landscape PDF buffer using Puppeteer
+        let pdfBuffer = null;
+        try {
+            const puppeteer = require('puppeteer');
+            const browser = await puppeteer.launch({
+                headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            });
+            const page = await browser.newPage();
+            await page.setContent(fullHtmlPayslip, { waitUntil: 'networkidle0' });
+            pdfBuffer = await page.pdf({
+                format: 'A4',
+                landscape: true,
+                printBackground: true,
+                margin: { top: '6mm', right: '6mm', bottom: '6mm', left: '6mm' }
+            });
+            await browser.close();
+        }
+        catch (pdfErr) {
+            console.error('Puppeteer PDF generation error:', pdfErr);
+        }
+        const mailOptions = {
+            from: `"${config.from_name || 'Brihaspathi HRMS'}" <${config.from_email || sender_email}>`,
+            to: recipient_email,
+            subject: subject || `Official Payslip Statement - ${mLabel} - ${empName}`,
+            html: fullHtmlPayslip
+        };
+        if (pdfBuffer) {
+            mailOptions.attachments = [
+                {
+                    filename: `Payslip_${mLabel.replace(/\s+/g, '_')}_${emp_code || '1027'}.pdf`,
+                    content: pdfBuffer,
+                    contentType: 'application/pdf'
+                }
+            ];
+        }
+        await transporter.sendMail(mailOptions);
+        console.log(`Payslip email sent from ${config.from_email} to ${recipient_email} (PDF attached: ${Boolean(pdfBuffer)})`);
+        return res.json({ success: true, message: `Payslip PDF email sent successfully from ${config.from_email}` });
+    }
+    catch (err) {
+        console.error('Error dispatching payslip email via SMTP:', err);
+        return res.status(500).json({ error: err.message || 'Failed to send email' });
     }
 });
 exports.default = router;

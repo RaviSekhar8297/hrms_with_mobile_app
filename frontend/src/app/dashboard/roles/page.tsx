@@ -33,10 +33,9 @@ interface Role {
 }
 
 export default function RolesPage() {
-  const { showToast } = useDashboard();
+  const { showToast, companyId, setCompanyId } = useDashboard();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(null);
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [tenantRoles, setTenantRoles] = useState<Role[]>([]);
@@ -55,10 +54,12 @@ export default function RolesPage() {
   // Search Filters
   const [searchRoleQuery, setSearchRoleQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState('ALL');
 
-  // New Role Form
+  // New Role Form & Edit Role Form
   const [roleForm, setRoleForm] = useState({ name: '', description: '' });
+  const [editRoleDrawerOpen, setEditRoleDrawerOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [editRoleForm, setEditRoleForm] = useState({ name: '', description: '' });
 
   // View Switcher (Matrix Table vs Card Accordion)
   const [viewMode, setViewMode] = useState<'matrix' | 'card'>('matrix');
@@ -84,17 +85,14 @@ export default function RolesPage() {
   // Filtered Roles
   const filteredRoles = tenantRoles.filter(role => {
     const matchesSearch = role.name.toLowerCase().includes(searchRoleQuery.toLowerCase());
-    const matchesCompany = selectedCompanyFilter === 'ALL' || role.company_id === selectedCompanyFilter;
-    return matchesSearch && matchesCompany;
+    return matchesSearch;
   });
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
     const storedEmail = localStorage.getItem('email');
-    const storedCompanyId = localStorage.getItem('companyId');
     if (storedRoles) setRoles(JSON.parse(storedRoles));
     if (storedEmail) setEmail(storedEmail);
-    if (storedCompanyId) setCompanyId(storedCompanyId);
   }, []);
 
   const fetchCompanies = async () => {
@@ -108,8 +106,7 @@ export default function RolesPage() {
   const fetchRoles = async () => {
     setLoading(true);
     try {
-      const fetchCompanyId = isSuperAdmin ? null : companyId;
-      const res = await fetch(getUrl('/api/v1/roles', fetchCompanyId), { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/roles', companyId), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
         const fetchedRoles = data.roles || [];
@@ -145,7 +142,7 @@ export default function RolesPage() {
       fetchCompanies();
     }
     fetchPermissions();
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, companyId]);
 
   useEffect(() => {
     fetchRoles();
@@ -203,6 +200,61 @@ export default function RolesPage() {
       }
     } catch (err) {
       showToast('Failed to save role context', 'error');
+    }
+  };
+
+  const handleOpenEditRole = (role: Role, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingRole(role);
+    setEditRoleForm({ name: role.name, description: role.description || '' });
+    setEditRoleDrawerOpen(true);
+  };
+
+  const handleUpdateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRole) return;
+    if (!editRoleForm.name) {
+      showToast('Role Name is required', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/v1/roles/${editingRole.id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(editRoleForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Role details updated successfully!', 'success');
+        setEditRoleDrawerOpen(false);
+        setEditingRole(null);
+        fetchRoles();
+      } else {
+        showToast(data.error || 'Failed to update role', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to update role', 'error');
+    }
+  };
+
+  const handleDeleteRole = async (role: Role, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete role "${role.name}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/v1/roles/${role.id}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Role deleted successfully!', 'success');
+        fetchRoles();
+      } else {
+        showToast(data.error || 'Failed to delete role', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to delete role', 'error');
     }
   };
 
@@ -481,33 +533,43 @@ export default function RolesPage() {
                 <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold">A = All</span>
               </div>
 
-              {/* Company Filter if SuperAdmin */}
-              {isSuperAdmin && (
-                <div className="min-w-[180px]">
-                  <SearchableSelect
-                    placeholder="All Companies"
-                    options={companyOptions}
-                    value={selectedCompanyFilter}
-                    onChange={val => setSelectedCompanyFilter(val || 'ALL')}
-                  />
-                </div>
-              )}
+              </div>
             </div>
-          </div>
 
           {/* Matrix Table */}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse font-sans">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-widest text-[9.5px]">
+                  <th className="py-4 px-4 text-center w-12 min-w-[50px] text-slate-400">S.NO</th>
                   <th className="py-4 px-5 min-w-[200px]">RESOURCE TABLE</th>
                   <th className="py-4 px-4 min-w-[120px]">CATEGORY</th>
                   {filteredRoles.map(role => (
-                    <th key={role.id} className="py-4 px-4 text-center min-w-[170px]">
-                      <div className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px] truncate max-w-[160px]" title={role.name}>
-                        {role.name}
+                    <th key={role.id} className="py-4 px-4 text-center min-w-[170px] relative group/col">
+                      <div className="flex items-center justify-center gap-1.5 mb-1">
+                        <div className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px] truncate max-w-[120px]" title={role.name}>
+                          {role.name}
+                        </div>
+                        <button
+                          onClick={(e) => handleOpenEditRole(role, e)}
+                          title="Edit role name"
+                          className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-0.5"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteRole(role, e)}
+                          title="Delete role"
+                          className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors p-0.5"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        </button>
                       </div>
-                      <span className="text-[9.5px] font-bold text-indigo-600 dark:text-indigo-400 block mt-0.5 uppercase tracking-wider">
+                      <span className="text-[9.5px] font-bold text-indigo-600 dark:text-indigo-400 block uppercase tracking-wider">
                         {rolePermissionsState[role.id]?.length || 0} permissions active
                       </span>
                     </th>
@@ -517,12 +579,12 @@ export default function RolesPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-sans">
                 {filteredModules.length === 0 ? (
                   <tr>
-                    <td colSpan={2 + filteredRoles.length} className="py-12 text-center text-slate-400 font-bold uppercase tracking-wider">
+                    <td colSpan={3 + filteredRoles.length} className="py-12 text-center text-slate-400 font-bold uppercase tracking-wider">
                       No matching system resources found.
                     </td>
                   </tr>
                 ) : (
-                  filteredModules.map(moduleName => {
+                  filteredModules.map((moduleName, index) => {
                     const modulePerms = permissions.filter(p => p.module === moduleName);
                     const category = getModuleCategory(moduleName);
 
@@ -533,6 +595,11 @@ export default function RolesPage() {
 
                     return (
                       <tr key={moduleName} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/60 transition-colors">
+                        {/* Serial Number */}
+                        <td className="py-4 px-4 text-center text-xs font-black text-slate-400 dark:text-slate-500 font-sans">
+                          {index + 1}
+                        </td>
+
                         {/* Module Table Identifier */}
                         <td className="py-4 px-5">
                           <span className="inline-block px-3 py-1 rounded-xl bg-amber-500/10 text-amber-900 dark:text-amber-300 border border-amber-500/20 text-xs font-black uppercase tracking-wider shadow-2xs font-sans">
@@ -632,47 +699,33 @@ export default function RolesPage() {
 
                                 {/* Data Scope Badges Row (S T D A) */}
                                 {primaryPerm && rolePermIds.some(id => modulePerms.map(p => p.id).includes(id)) && (
-                                  (() => {
-                                    const isAdminRole = ['admin', 'superadmin'].includes(role.name.toLowerCase().trim());
-
-                                    if (isAdminRole) {
+                                  <div className="inline-flex items-center gap-1 pt-1.5 mt-0.5 border-t border-slate-200/50 dark:border-slate-800/60 w-full justify-center font-sans">
+                                    {[
+                                      { key: 'SELF', letter: 'S', title: 'Self Only (🔒 S)' },
+                                      { key: 'REPORTING', letter: 'T', title: 'Team / Subordinates (👥 T)' },
+                                      { key: 'DEPARTMENT', letter: 'D', title: 'Department (🏢 D)' },
+                                      { key: 'ALL', letter: 'A', title: 'All Company (🌐 A)' }
+                                    ].map(sc => {
+                                      const isSelected = activeScope === sc.key;
                                       return (
-                                        <div className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[8.5px] font-black uppercase tracking-wider mt-0.5">
-                                          <span>🌐 ALL</span>
-                                        </div>
+                                        <button
+                                          key={sc.key}
+                                          type="button"
+                                          onClick={() => {
+                                            const activeIds = modulePerms.filter(p => rolePermIds.includes(p.id)).map(p => p.id);
+                                            handleScopeChange(role.id, activeIds, sc.key);
+                                          }}
+                                          title={sc.title}
+                                          className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${isSelected
+                                            ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white border border-indigo-600 shadow-xs scale-105'
+                                            : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-700 dark:hover:text-slate-300'
+                                            }`}
+                                        >
+                                          {sc.letter}
+                                        </button>
                                       );
-                                    }
-
-                                    return (
-                                      <div className="inline-flex items-center gap-1 pt-1.5 mt-0.5 border-t border-slate-200/50 dark:border-slate-800/60 w-full justify-center font-sans">
-                                        {[
-                                          { key: 'SELF', letter: 'S', title: 'Self Only (🔒 S)' },
-                                          { key: 'REPORTING', letter: 'T', title: 'Team / Subordinates (👥 T)' },
-                                          { key: 'DEPARTMENT', letter: 'D', title: 'Department (🏢 D)' },
-                                          { key: 'ALL', letter: 'A', title: 'All Company (🌐 A)' }
-                                        ].map(sc => {
-                                          const isSelected = activeScope === sc.key;
-                                          return (
-                                            <button
-                                              key={sc.key}
-                                              type="button"
-                                              onClick={() => {
-                                                const activeIds = modulePerms.filter(p => rolePermIds.includes(p.id)).map(p => p.id);
-                                                handleScopeChange(role.id, activeIds, sc.key);
-                                              }}
-                                              title={sc.title}
-                                              className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${isSelected
-                                                ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white border border-indigo-600 shadow-xs scale-105'
-                                                : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-700 dark:hover:text-slate-300'
-                                                }`}
-                                            >
-                                              {sc.letter}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    );
-                                  })()
+                                    })}
+                                  </div>
                                 )}
                               </div>
                             </td>
@@ -708,20 +761,6 @@ export default function RolesPage() {
 
                 {/* Filtering & Quick Search Control Panel */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 w-full lg:max-w-2xl justify-end">
-                  {/* Company Filter Dropdown */}
-                  {isSuperAdmin && (
-                    <div className="flex items-center gap-2 flex-shrink-0 min-w-[220px]">
-                      <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex-shrink-0">Company:</span>
-                      <div className="flex-1 text-left">
-                        <SearchableSelect
-                          placeholder="All Companies"
-                          options={companyOptions}
-                          value={selectedCompanyFilter}
-                          onChange={val => setSelectedCompanyFilter(val || 'ALL')}
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   {/* Quick Search Roles */}
                   <div className="relative w-full sm:max-w-xs">
@@ -772,16 +811,38 @@ export default function RolesPage() {
                         {isActive && (
                           <span className="absolute left-0 top-3 bottom-3 w-1 bg-indigo-500 rounded-r-full animate-pulse" />
                         )}
-                        <div className="flex-1 min-w-0 pr-3">
-                          <div className="flex items-center gap-2">
-                            <h5 className={`text-[12px] font-black uppercase tracking-wider truncate ${isActive ? 'text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
-                              {role.name}
-                            </h5>
-                            {role.company_name && (
-                              <span className={`text-[8px] px-1.5 py-0.5 rounded font-extrabold max-w-[80px] truncate ${isActive ? 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`} title={role.company_name}>
-                                {role.company_name}
-                              </span>
-                            )}
+                        <div className="flex-1 min-w-0 pr-2">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <h5 className={`text-[12px] font-black uppercase tracking-wider truncate ${isActive ? 'text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
+                                {role.name}
+                              </h5>
+                              {role.company_name && (
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded font-extrabold max-w-[80px] truncate ${isActive ? 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`} title={role.company_name}>
+                                  {role.company_name}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => handleOpenEditRole(role, e)}
+                                title="Edit role name"
+                                className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-1"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteRole(role, e)}
+                                title="Delete role"
+                                className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors p-1"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                           <span className={`text-[9px] font-semibold tracking-wider block mt-1 ${isActive ? 'text-indigo-550 dark:text-indigo-400/80' : 'text-slate-400 dark:text-slate-500'}`}>
                             KEY: {role.name.toLowerCase().replace(/\s+/g, '_')}
@@ -1055,6 +1116,38 @@ export default function RolesPage() {
         </form>
       </SlideDrawer>
 
+      {/* Slide Drawer to Edit Role */}
+      <SlideDrawer isOpen={editRoleDrawerOpen} onClose={() => setEditRoleDrawerOpen(false)} title="Edit Access Role">
+        <form onSubmit={handleUpdateRole} className="space-y-5 text-left">
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-bold text-slate-555 dark:text-slate-400 uppercase tracking-widest">
+              Role Name Identifier *
+            </label>
+            <input
+              type="text" placeholder="e.g. Management"
+              value={editRoleForm.name}
+              onChange={e => setEditRoleForm({ ...editRoleForm, name: e.target.value })}
+              className={inputStyle}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-bold text-slate-555 dark:text-slate-400 uppercase tracking-widest">
+              Description *
+            </label>
+            <input
+              type="text" placeholder="e.g. Manages organization operations"
+              value={editRoleForm.description}
+              onChange={e => setEditRoleForm({ ...editRoleForm, description: e.target.value })}
+              className={inputStyle}
+            />
+          </div>
+
+          <button type="submit" className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black shadow-lg shadow-indigo-600/30 transition-all duration-200 cursor-pointer uppercase tracking-wider">
+            Save Role Changes
+          </button>
+        </form>
+      </SlideDrawer>
     </div>
   );
 }

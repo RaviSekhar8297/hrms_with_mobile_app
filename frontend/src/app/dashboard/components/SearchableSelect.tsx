@@ -46,7 +46,7 @@ export default function SearchableSelect({
   );
 
   return (
-    <div ref={containerRef} className="relative w-full select-none text-left">
+    <div ref={containerRef} className={`relative w-full select-none text-left ${isOpen ? 'z-[100]' : 'z-10'}`}>
       {/* Hidden input for HTML5 standard form validation */}
       <input
         type="text"
@@ -80,7 +80,7 @@ export default function SearchableSelect({
 
       {/* Dropdown Card panel */}
       {isOpen && (
-        <div className="absolute left-0 right-0 z-50 mt-1.5 rounded-xl border border-slate-250 dark:border-slate-800 bg-card p-2 shadow-xl dark:shadow-slate-950/60 animate-fadeIn max-h-60 flex flex-col">
+        <div className="absolute left-0 right-0 z-[100] mt-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-2xl dark:shadow-slate-950/80 animate-fadeIn max-h-60 flex flex-col">
           {/* Filter Search Input box */}
           <div className="relative mb-1.5 flex-shrink-0 flex items-center">
             <input
@@ -89,7 +89,7 @@ export default function SearchableSelect({
               placeholder="Search..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="!pl-9 !pr-8 w-full rounded-lg border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 py-2 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-450 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold"
+              className="!pl-9 !pr-8 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-800/80 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all font-semibold"
             />
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none"
@@ -128,17 +128,17 @@ export default function SearchableSelect({
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                  className={`px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all ${
                     opt.value === value
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   {opt.label}
                 </div>
               ))
             ) : (
-              <div className="px-3 py-2 text-center text-xs text-slate-450 dark:text-slate-500 font-medium">
+              <div className="px-3 py-2 text-center text-xs text-slate-400 dark:text-slate-500 font-medium">
                 No matching results
               </div>
             )}

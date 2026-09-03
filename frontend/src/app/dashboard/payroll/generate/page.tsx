@@ -8,18 +8,22 @@ import { useDashboard } from '../../components/DashboardContext';
 import { getHeaders } from '../../utils/api';
 import { 
   Calendar, 
-  Settings, 
   RotateCcw, 
   Zap, 
   AlertTriangle, 
-  Users, 
-  Building2, 
   GitBranch, 
   Layers, 
   UserCheck, 
   Sparkles,
   ArrowRight,
-  ShieldAlert
+  ShieldCheck,
+  Clock,
+  Sliders,
+  CheckCircle2,
+  CalendarDays,
+  ChevronRight,
+  Info,
+  Building2
 } from 'lucide-react';
 
 interface Company {
@@ -56,12 +60,15 @@ interface Employee {
 
 export default function GeneratePayrollPage() {
   const router = useRouter();
-  const { showToast } = useDashboard();
+  const { showToast, companyId: globalCompanyId } = useDashboard();
 
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
+
+  const activeCompanyId = globalCompanyId || companyId;
 
   // DYNAMIC MONTHS GENERATION (Calculates past 12 months dynamically from system clock)
   const generateDynamicMonths = () => {
@@ -81,9 +88,7 @@ export default function GeneratePayrollPage() {
   };
 
   const dynamicMonthOptions = generateDynamicMonths();
-
-  // Wizard Filters
-  const [payPeriod, setPayPeriod] = useState(dynamicMonthOptions[0].value);
+  const [payPeriod, setPayPeriod] = useState<string>(dynamicMonthOptions[0].value);
   const [payrollType, setPayrollType] = useState('REGULAR');
   
   // Cutoff Cycle Days & Calculated Dates
@@ -163,19 +168,21 @@ export default function GeneratePayrollPage() {
   const [progressStep, setProgressStep] = useState(0);
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const canView = isSuperAdmin || permissions.includes('view_payroll');
+  const canCreate = isSuperAdmin || permissions.includes('create_payroll');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
     const storedEmail = localStorage.getItem('email');
-    const storedCompanyId = localStorage.getItem('companyId');
+    const storedPermissions = localStorage.getItem('permissions');
     if (storedRoles) setRoles(JSON.parse(storedRoles));
     if (storedEmail) setEmail(storedEmail);
-    if (storedCompanyId) setCompanyId(storedCompanyId);
+    if (storedPermissions) setPermissions(JSON.parse(storedPermissions));
   }, []);
 
   useEffect(() => {
     fetchAuxiliaryData();
-  }, [companyId, isSuperAdmin]);
+  }, [activeCompanyId, isSuperAdmin]);
 
   const fetchAuxiliaryData = async () => {
     try {
@@ -185,7 +192,8 @@ export default function GeneratePayrollPage() {
         if (cRes.ok) setCompanies(cData.companies || []);
       }
 
-      let urlSuffix = companyId ? `?companyId=${companyId}` : '';
+      const cid = activeCompanyId || localStorage.getItem('companyId');
+      let urlSuffix = cid && cid !== 'all' ? `?companyId=${cid}` : '';
       const deptRes = await fetch(`/api/v1/departments${urlSuffix}`, { headers: getHeaders() });
       const deptData = await deptRes.json();
       if (deptRes.ok) setDepartments(deptData.departments || []);
@@ -199,8 +207,8 @@ export default function GeneratePayrollPage() {
       if (empRes.ok) setEmployees(empData.employees || []);
 
       // Fetch Attendance Policy for default cutoff cycle days
-      if (companyId) {
-        const polRes = await fetch(`/api/v1/attendance/policies?companyId=${companyId}`, { headers: getHeaders() });
+      if (cid && cid !== 'all') {
+        const polRes = await fetch(`/api/v1/attendance/policies?companyId=${cid}`, { headers: getHeaders() });
         const polData = await polRes.json();
         if (polRes.ok && polData.policy) {
           if (polData.policy.cycle_start_day) setCycleStartDay(polData.policy.cycle_start_day);
@@ -224,8 +232,14 @@ export default function GeneratePayrollPage() {
 
   // CASCADING LOGIC: Filter employees dynamically based on Branch & Department selections
   const filteredEmployees = employees.filter(emp => {
-    if (selectedBranchId !== 'ALL' && emp.branch_id && emp.branch_id !== selectedBranchId) return false;
-    if (selectedDepartmentId !== 'ALL' && emp.department_id && emp.department_id !== selectedDepartmentId) return false;
+    if (selectedBranchId !== 'ALL') {
+      const bId = emp.branch_id ?? (emp as any).branchId ?? (emp as any).branch_name ?? '';
+      if (String(bId) !== String(selectedBranchId)) return false;
+    }
+    if (selectedDepartmentId !== 'ALL') {
+      const dId = emp.department_id ?? (emp as any).departmentId ?? (emp as any).department_name ?? '';
+      if (String(dId) !== String(selectedDepartmentId)) return false;
+    }
     return true;
   });
 
@@ -242,10 +256,10 @@ export default function GeneratePayrollPage() {
   const handleEmployeeSelect = (empId: string) => {
     setSelectedEmployeeId(empId);
     if (empId !== 'ALL') {
-      const emp = employees.find(e => e.id === empId);
+      const emp = employees.find(e => String(e.id) === String(empId));
       if (emp) {
-        if (emp.branch_id) setSelectedBranchId(emp.branch_id);
-        if (emp.department_id) setSelectedDepartmentId(emp.department_id);
+        if (emp.branch_id) setSelectedBranchId(String(emp.branch_id));
+        if (emp.department_id) setSelectedDepartmentId(String(emp.department_id));
       }
     }
   };
@@ -257,8 +271,33 @@ export default function GeneratePayrollPage() {
     return 'Entire Company';
   };
 
+  const getSelectedCompanyName = () => {
+    if (!companyId) return null;
+    const c = companies.find(comp => comp.id === companyId);
+    return c ? c.name : 'Active Tenant Company';
+  };
+
+  const getSelectedBranchLabel = () => {
+    if (selectedBranchId === 'ALL') return `All Branches (${branches.length})`;
+    const b = branches.find(branch => branch.id === selectedBranchId);
+    return b ? b.name : selectedBranchId;
+  };
+
+  const getSelectedDepartmentLabel = () => {
+    if (selectedDepartmentId === 'ALL') return `All Departments (${departments.length})`;
+    const d = departments.find(dept => dept.id === selectedDepartmentId);
+    return d ? d.name : selectedDepartmentId;
+  };
+
+  const getSelectedEmployeeLabel = () => {
+    if (selectedEmployeeId === 'ALL') return `All Employees (${filteredEmployees.length})`;
+    const emp = employees.find(e => String(e.id) === String(selectedEmployeeId));
+    if (!emp) return selectedEmployeeId;
+    return `${emp.emp_id_code || emp.emp_id || ''} - ${emp.first_name || ''} ${emp.last_name || ''}`.trim();
+  };
+
   const matchedList = selectedEmployeeId !== 'ALL'
-    ? employees.filter(e => e.id === selectedEmployeeId)
+    ? employees.filter(e => String(e.id) === String(selectedEmployeeId))
     : filteredEmployees;
 
   const handleStartGeneration = async () => {
@@ -298,7 +337,7 @@ export default function GeneratePayrollPage() {
       const data = await res.json();
 
       if (res.ok) {
-        showToast('🎉 Payroll batch generated successfully from Database! Redirecting to Payroll Hub...', 'success');
+        showToast('🎉 Payroll batch generated successfully! Redirecting to Payroll Hub...', 'success');
         setTimeout(() => {
           router.push('/dashboard/payroll');
         }, 1200);
@@ -313,31 +352,59 @@ export default function GeneratePayrollPage() {
     }
   };
 
-  const companyOptions = [
-    { value: 'ALL', label: '🌐 All Companies (Global Scope)' },
-    ...companies.map(c => ({ value: c.id, label: `🏢 ${c.name}` }))
-  ];
-
   const branchOptions = [
-    { value: 'ALL', label: `All Branches (${branches.length})` },
-    ...branches.map(b => ({ value: b.id, label: `${b.name}` }))
+    { value: 'ALL', label: `🏢 All Branches (${branches.length})` },
+    ...branches.map(b => ({ value: b.id, label: `📍 ${b.name}` }))
   ];
 
   const departmentOptions = [
-    { value: 'ALL', label: `All Departments (${departments.length})` },
-    ...departments.map(d => ({ value: d.id, label: `${d.name}` }))
+    { value: 'ALL', label: `📂 All Departments (${departments.length})` },
+    ...departments.map(d => ({ value: d.id, label: `📁 ${d.name}` }))
   ];
 
   const employeeOptions = [
-    { value: 'ALL', label: `All Employees (${filteredEmployees.length})` },
+    { value: 'ALL', label: `👥 All Employees (${filteredEmployees.length})` },
     ...filteredEmployees.map((emp, idx) => ({
       value: emp.id,
-      label: `${emp.emp_id_code || emp.emp_id || (10001 + idx)} - ${emp.first_name || ''} ${emp.last_name || ''}`.trim()
+      label: `👤 ${emp.emp_id_code || emp.emp_id || (10001 + idx)} - ${emp.first_name || ''} ${emp.last_name || ''}`.trim()
     }))
   ];
 
+  const formatDateWithMonthName = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1;
+    const day = parseInt(parts[2]);
+    const d = new Date(year, month, day);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  // Helper preset setters
+  const applyPresetCutoff = (start: number, end: number) => {
+    setCycleStartDay(start);
+    setCycleEndDay(end);
+  };
+
+  if (roles.length > 0 && !canView) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn">
+        <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-3xl">
+          🔒
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Access Denied</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs mt-1.5 max-w-sm">
+          You do not have the required permissions to access the Payroll Generation Engine. Please contact your administrator.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }} className="payroll-generate-container space-y-4 animate-fadeIn w-full pb-20 text-left">
+    <div className="w-full space-y-6 pb-24 text-left animate-fadeIn">
+      {/* PAGE HEADER & TOP BREADCRUMB */}
       <DashboardPageHeader
         title="Payroll Generation Engine"
         actionMessage=""
@@ -351,215 +418,374 @@ export default function GeneratePayrollPage() {
         hideUserBadge={true}
       />
 
-      {/* Card 1: Cycle Dates Card */}
-      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs space-y-3">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0">
-              <Calendar size={16} className="w-4 h-4 shrink-0" />
-            </span>
-            <div>
-              <h3 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                <span>Cycle Dates & Cutoff Schedule</span>
-              </h3>
-              <p className="text-[11px] text-slate-400 font-medium">Configure monthly attendance cutoff start and end day numbers</p>
-            </div>
-          </div>
-
-          <div className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 text-xs font-bold">
-            Calculated Period: <span className="font-extrabold font-mono text-indigo-700 dark:text-indigo-200">{attendanceStartDate || '---'}</span> to <span className="font-extrabold font-mono text-indigo-700 dark:text-indigo-200">{attendanceEndDate || '---'}</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
-          {/* Payroll Cycle Start Date (Day) */}
-          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
-            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-              <span>Payroll Cycle Start Date (Day)</span>
-              <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={31}
-              value={cycleStartDay}
-              onChange={(e) => setCycleStartDay(parseInt(e.target.value) || 1)}
-              className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 font-mono"
-            />
-            <p className="text-[10px] text-slate-400 font-medium">Day of month when cycle starts (1-31)</p>
-          </div>
-
-          {/* Payroll Cycle End Date (Day) */}
-          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
-            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
-              <span>Payroll Cycle End Date (Day)</span>
-              <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={31}
-              value={cycleEndDay}
-              onChange={(e) => setCycleEndDay(parseInt(e.target.value) || 31)}
-              className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 font-mono"
-            />
-            <p className="text-[10px] text-slate-400 font-medium">
-              Day of month when cycle ends (1-31). Cross-month support enabled (e.g. 26 to 25)
-            </p>
-          </div>
-        </div>
-
-        {getCycleValidationError(cycleStartDay, cycleEndDay) && (
-          <div className="flex items-center gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-semibold">
-            <AlertTriangle size={14} className="w-3.5 h-3.5 flex-shrink-0 text-amber-500 shrink-0" />
-            <span>{getCycleValidationError(cycleStartDay, cycleEndDay)}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Card 2: Main Controls Card */}
-      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs space-y-4">
+      {/* 🚀 MAIN WIZARD CONTAINER */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
-        {/* Header Title with Reset Button */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 text-[11px] font-bold border border-indigo-200 dark:border-indigo-800">
-                Scope: {getDerivedScopeLabel()}
-              </span>
-              <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-200 dark:border-emerald-800">
-                {matchedList.length} Staff Selected
-              </span>
-            </div>
-            <h2 className="text-xs font-bold text-slate-900 dark:text-white tracking-tight mt-1 flex items-center gap-1.5">
-              <Settings size={14} className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-              <span>Configure Payroll Parameters</span>
-            </h2>
-          </div>
+        {/* LEFT & CENTER COLUMN (2/3): PARAMETERS & SCOPE SELECTION */}
+        <div className="lg:col-span-2 space-y-6">
 
-          {(selectedBranchId !== 'ALL' || selectedDepartmentId !== 'ALL' || selectedEmployeeId !== 'ALL') && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedBranchId('ALL');
-                setSelectedDepartmentId('ALL');
-                setSelectedEmployeeId('ALL');
-              }}
-              className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/50 px-3 py-1 rounded-lg border border-rose-200 dark:border-rose-900 transition-all cursor-pointer flex items-center gap-1"
-            >
-              <RotateCcw size={12} className="w-3 h-3 shrink-0" />
-              <span>Reset Filters</span>
-            </button>
-          )}
-        </div>
-
-        {/* CONTROLS ROW - 5 DYNAMIC CONTROLS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-          
-          {/* 1. Pay Period */}
-          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
-            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Calendar size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
-              <span>1. Pay Period</span>
-            </label>
-            <select
-              value={payPeriod}
-              onChange={(e) => setPayPeriod(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 cursor-pointer font-sans"
-            >
-              {dynamicMonthOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            {attendanceStartDate && attendanceEndDate && (
-              <div className="pt-0.5 flex items-center justify-between text-[9px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/80 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/40 font-mono">
-                <span>From: {attendanceStartDate}</span>
-                <span>To: {attendanceEndDate}</span>
+          {/* STEP 1: PAY PERIOD & ATTENDANCE CUTOFF CYCLE */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs hover:shadow-md transition-shadow space-y-6">
+            
+            {/* Step Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
+                  01
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                    Pay Period & Attendance Cycle
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Select the target payroll month and set attendance cutoff days</p>
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* 2. Payroll Type */}
-          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
-            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
-              <span>2. Payroll Type</span>
-            </label>
-            <select
-              value={payrollType}
-              onChange={(e) => setPayrollType(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 cursor-pointer font-sans"
-            >
-              <option value="REGULAR">Regular Payroll</option>
-              <option value="BONUS">Annual Bonus</option>
-              <option value="ARREARS">Arrears</option>
-              <option value="OFF_CYCLE">Off-Cycle</option>
-              <option value="FINAL_SETTLEMENT">Final Settlement (F&F)</option>
-            </select>
-          </div>
-
-          {/* 3. Branch Filter */}
-          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
-            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <GitBranch size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
-              <span>3. Branch</span>
-            </label>
-            <SearchableSelect
-              options={branchOptions}
-              value={selectedBranchId}
-              onChange={handleBranchSelect}
-              placeholder="Search branch..."
-            />
-          </div>
-
-          {/* 4. Department Filter */}
-          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
-            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Layers size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
-              <span>4. Department</span>
-            </label>
-            <SearchableSelect
-              options={departmentOptions}
-              value={selectedDepartmentId}
-              onChange={handleDepartmentSelect}
-              placeholder="Search department..."
-            />
-          </div>
-
-          {/* 5. Employee Filter */}
-          <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 space-y-1.5 hover:border-indigo-300 transition-colors">
-            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <UserCheck size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
-              <span>5. Employee</span>
-            </label>
-            <SearchableSelect
-              options={employeeOptions}
-              value={selectedEmployeeId}
-              onChange={handleEmployeeSelect}
-              placeholder="Search employee..."
-            />
-          </div>
-        </div>
-
-        {/* Action Button Bar */}
-        <div className="pt-1 flex justify-end">
-          {isGenerating ? (
-            <div className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2.5 animate-pulse">
-              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Step {progressStep} of 4: Computing Payroll...</span>
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-semibold border border-indigo-100 dark:border-indigo-900/40">
+                <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Monthly Cutoff</span>
+              </div>
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleStartGeneration}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-extrabold shadow-sm hover:shadow-indigo-500/20 hover:-translate-y-0.5 transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Zap size={14} className="w-3.5 h-3.5 fill-current stroke-0 shrink-0" />
-              <span>Generate Payroll ({matchedList.length} Staff)</span>
-            </button>
-          )}
+
+            {/* Main Inputs Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              
+              {/* Target Pay Period */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-indigo-500" />
+                  <span>Target Pay Period <span className="text-rose-500">*</span></span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={payPeriod}
+                    onChange={(e) => setPayPeriod(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/50 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer appearance-none pr-8"
+                  >
+                    {dynamicMonthOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronRight className="w-4 h-4 rotate-90" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Payroll Type */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-purple-500" />
+                  <span>Payroll Processing Type <span className="text-rose-500">*</span></span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={payrollType}
+                    onChange={(e) => setPayrollType(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/50 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer appearance-none pr-8"
+                  >
+                    <option value="REGULAR">Regular Monthly Payroll</option>
+                    <option value="BONUS">Annual Bonus Disbursement</option>
+                    <option value="ARREARS">Salary Arrears Processing</option>
+                    <option value="OFF_CYCLE">Off-Cycle Payroll Run</option>
+                    <option value="FINAL_SETTLEMENT">Final Settlement (F&F)</option>
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronRight className="w-4 h-4 rotate-90" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* INTEGRATED CALCULATED ATTENDANCE WINDOW & EDITABLE CUTOFF DAYS CARD */}
+            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-purple-50/40 to-indigo-50/90 dark:from-indigo-950/50 dark:via-purple-950/30 dark:to-indigo-950/50 border border-indigo-200/90 dark:border-indigo-800/80 space-y-4 shadow-xs">
+              
+              {/* Card Header & Presets */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-indigo-200/60 dark:border-indigo-800/60 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Clock className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-indigo-950 dark:text-indigo-100 flex items-center gap-1.5">
+                      <span>Calculated Attendance Window</span>
+                    </h4>
+                    <p className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80 font-medium">
+                      Attendance logs will be calculated between these two dates
+                    </p>
+                  </div>
+                </div>
+
+                {/* Presets */}
+                <div className="flex items-center gap-1.5 flex-wrap text-[11px] shrink-0">
+                  <span className="text-indigo-800/70 dark:text-indigo-300/70 font-bold text-[10px]">Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetCutoff(26, 25)}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all border cursor-pointer ${
+                      cycleStartDay === 26 && cycleEndDay === 25
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                        : 'bg-white/80 dark:bg-slate-900/80 text-indigo-900 dark:text-indigo-200 border-indigo-200/80 dark:border-indigo-800/80 hover:bg-white'
+                    }`}
+                  >
+                    26th – 25th
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetCutoff(1, 31)}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all border cursor-pointer ${
+                      cycleStartDay === 1 && cycleEndDay === 31
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                        : 'bg-white/80 dark:bg-slate-900/80 text-indigo-900 dark:text-indigo-200 border-indigo-200/80 dark:border-indigo-800/80 hover:bg-white'
+                    }`}
+                  >
+                    1st – 31st
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetCutoff(21, 20)}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all border cursor-pointer ${
+                      cycleStartDay === 21 && cycleEndDay === 20
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                        : 'bg-white/80 dark:bg-slate-900/80 text-indigo-900 dark:text-indigo-200 border-indigo-200/80 dark:border-indigo-800/80 hover:bg-white'
+                    }`}
+                  >
+                    21st – 20th
+                  </button>
+                </div>
+              </div>
+
+              {/* Editable Days & Live Computed Date Range Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-center pt-1">
+                
+                {/* Start Day Edit Input */}
+                <div className="p-3 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between shadow-2xs">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Cycle Start Day:</span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={cycleStartDay}
+                      onChange={(e) => setCycleStartDay(parseInt(e.target.value) || 1)}
+                      className="w-14 px-2 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/60 text-xs font-black text-indigo-700 dark:text-indigo-300 outline-none focus:ring-2 focus:ring-indigo-500/30 text-center font-mono"
+                    />
+                    <span className="text-[11px] text-slate-500 font-medium">of start</span>
+                  </div>
+                </div>
+
+                {/* End Day Edit Input */}
+                <div className="p-3 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between shadow-2xs">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Cycle End Day:</span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={cycleEndDay}
+                      onChange={(e) => setCycleEndDay(parseInt(e.target.value) || 31)}
+                      className="w-14 px-2 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/60 text-xs font-black text-indigo-700 dark:text-indigo-300 outline-none focus:ring-2 focus:ring-indigo-500/30 text-center font-mono"
+                    />
+                    <span className="text-[11px] text-slate-500 font-medium">of end</span>
+                  </div>
+                </div>
+
+                {/* Calculated Result Badge */}
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/90 flex items-center justify-center gap-2 font-mono text-xs font-black text-indigo-700 dark:text-indigo-300 shadow-2xs">
+                  <span>{formatDateWithMonthName(attendanceStartDate) || '---'}</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span>{formatDateWithMonthName(attendanceEndDate) || '---'}</span>
+                </div>
+              </div>
+
+              {getCycleValidationError(cycleStartDay, cycleEndDay) && (
+                <div className="flex items-center gap-2.5 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/80 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{getCycleValidationError(cycleStartDay, cycleEndDay)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* STEP 2: TARGET SCOPE & EMPLOYEE SELECTION */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs hover:shadow-md transition-shadow space-y-6">
+            
+            {/* Step Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
+                  02
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                    Target Execution Scope & Filters
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Filter payroll computation by Branch, Department, or Individual Employee</p>
+                </div>
+              </div>
+
+              {(selectedBranchId !== 'ALL' || selectedDepartmentId !== 'ALL' || selectedEmployeeId !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBranchId('ALL');
+                    setSelectedDepartmentId('ALL');
+                    setSelectedEmployeeId('ALL');
+                  }}
+                  className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/50 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Filters</span>
+                </button>
+              )}
+            </div>
+
+            {/* Scope Filter Controls */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {/* Branch Filter */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <GitBranch className="w-4 h-4 text-indigo-500" />
+                  <span>Branch Office</span>
+                </label>
+                <SearchableSelect
+                  options={branchOptions}
+                  value={selectedBranchId}
+                  onChange={handleBranchSelect}
+                  placeholder="Search branch..."
+                />
+              </div>
+
+              {/* Department Filter */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-indigo-500" />
+                  <span>Department</span>
+                </label>
+                <SearchableSelect
+                  options={departmentOptions}
+                  value={selectedDepartmentId}
+                  onChange={handleDepartmentSelect}
+                  placeholder="Search department..."
+                />
+              </div>
+
+              {/* Employee Filter */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-indigo-500" />
+                  <span>Specific Employee</span>
+                </label>
+                <SearchableSelect
+                  options={employeeOptions}
+                  value={selectedEmployeeId}
+                  onChange={handleEmployeeSelect}
+                  placeholder="Search employee..."
+                />
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* RIGHT COLUMN (1/3): EXECUTION SUMMARY & RUN CARD */}
+        <div className="space-y-6 sticky top-4">
+
+          {/* PRORATED PAYROLL RULES NOTE CARD */}
+          <div className="bg-gradient-to-br from-indigo-50/90 via-purple-50/40 to-indigo-50/90 dark:from-indigo-950/50 dark:via-purple-950/30 dark:to-indigo-950/50 rounded-2xl border border-indigo-200/90 dark:border-indigo-800/80 p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-indigo-200/60 dark:border-indigo-800/60 pb-2.5">
+              <div className="flex items-center gap-2 text-indigo-950 dark:text-indigo-100 font-extrabold text-xs">
+                <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span>Note: Prorated Payroll Calculation Rules</span>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-600 text-white shadow-2xs">
+                PRORATED RULES
+              </span>
+            </div>
+
+            <div className="text-xs text-indigo-950 dark:text-indigo-100 leading-relaxed font-medium">
+              <div className="p-3 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-indigo-100 dark:border-indigo-900/60 shadow-2xs space-y-2">
+                <div className="flex items-start gap-2 font-semibold text-slate-800 dark:text-slate-200 text-[11px]">
+                  <span className="text-indigo-600 font-bold shrink-0">1. Mid-Month Joining:</span>
+                  <span>If an employee joins mid-cycle, weekoffs and holidays prior to Joining Date (DOJ) are excluded.</span>
+                </div>
+                <div className="flex items-start gap-2 font-semibold text-slate-800 dark:text-slate-200 text-[11px] pt-1.5 border-t border-indigo-100/80 dark:border-indigo-900/40">
+                  <span className="text-indigo-600 font-bold shrink-0">2. Mid-Month Exit:</span>
+                  <span>If an employee exits mid-cycle, weekoffs and holidays after Relieving Date (DOL) are excluded.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SUMMARY CARD */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-xs space-y-6">
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-800/80 pb-3 font-outfit flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>Execution Summary</span>
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">READY</span>
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
+                <span className="text-slate-500 dark:text-slate-400 font-semibold">Target Scope:</span>
+                <span className="font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-lg border border-indigo-200/80 dark:border-indigo-800/80">
+                  {getDerivedScopeLabel()}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
+                <span className="text-slate-500 dark:text-slate-400 font-semibold">Eligible Staff Count:</span>
+                <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-200/80 dark:border-emerald-800/80">
+                  {matchedList.length} Staff
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
+                <span className="text-slate-500 dark:text-slate-400 font-semibold">Payroll Type:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {payrollType}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
+                <span className="text-slate-500 dark:text-slate-400 font-semibold">Cutoff Range:</span>
+                <span className="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  {cycleStartDay}th to {cycleEndDay}th
+                </span>
+              </div>
+            </div>
+
+            {/* RUN BUTTON */}
+            <div className="pt-2">
+              {isGenerating ? (
+                <div className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white text-xs font-black shadow-lg flex flex-col items-center justify-center gap-2 animate-pulse">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Step {progressStep} of 4: Computing Payroll Engine...</span>
+                </div>
+              ) : canCreate ? (
+                <button
+                  type="button"
+                  onClick={handleStartGeneration}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-extrabold shadow-md hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex items-center justify-center gap-2.5 tracking-wide uppercase"
+                >
+                  <Zap className="w-4 h-4 fill-current stroke-0" />
+                  <span>Generate Payroll ({matchedList.length} Staff)</span>
+                </button>
+              ) : (
+                <div className="w-full py-3.5 px-4 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-bold text-center">
+                  🔒 Create Payroll permission required to generate batch
+                </div>
+              )}
+            </div>
+          </div>
+
+
+
+        </div>
+
       </div>
     </div>
   );
 }
+

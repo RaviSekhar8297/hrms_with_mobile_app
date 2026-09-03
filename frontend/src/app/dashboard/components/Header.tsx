@@ -4,14 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { User, LogOut } from 'lucide-react';
 import { getHeaders, getUrl } from '../utils/api';
-
-interface NotificationItem {
-  id: number;
-  text: string;
-  time: string;
-  unread: boolean;
-  category?: 'system' | 'employee' | 'payroll';
-}
+import NotificationBell from './NotificationBell';
+import { useDashboard } from './DashboardContext';
 
 interface HeaderProps {
   companyName: string;
@@ -31,11 +25,67 @@ interface HeaderProps {
   setTheme: (theme: any) => void;
 }
 
+function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: string; isSuperAdmin: boolean }) {
+  const { companyId, setCompanyId, companies, setCompanies } = useDashboard();
+
+  useEffect(() => {
+    if (isSuperAdmin && companies.length === 0) {
+      fetch('/api/v1/companies', { headers: getHeaders() })
+        .then(res => res.json())
+        .then(data => {
+          const list = Array.isArray(data) ? data : (data.companies || []);
+          if (list.length > 0) {
+            setCompanies(list);
+            if (!companyId && !localStorage.getItem('companyId')) {
+              setCompanyId(list[0].id);
+            }
+          }
+        })
+        .catch(err => console.error('Error fetching companies in header:', err));
+    }
+  }, [isSuperAdmin, companies.length]);
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-blue-950/60 dark:to-indigo-950/50 border border-blue-200/80 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 shadow-2xs">
+        <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[11px] font-extrabold shadow-xs flex-shrink-0">
+          🏢
+        </div>
+        <span className="text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase truncate max-w-[85px] xs:max-w-[120px] sm:max-w-[210px] md:max-w-[280px]">
+          {companyName || 'Company Tenant'}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-blue-950/60 dark:to-indigo-950/50 border border-blue-300/80 dark:border-blue-700/60 text-blue-700 dark:text-blue-300 shadow-2xs">
+      <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[11px] font-extrabold shadow-xs flex-shrink-0">
+        🏢
+      </div>
+      <select
+        value={companyId || 'all'}
+        onChange={(e) => setCompanyId(e.target.value === 'all' ? null : e.target.value)}
+        className="bg-transparent text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase text-blue-700 dark:text-blue-300 focus:outline-none cursor-pointer pr-0.5 py-0.5 truncate max-w-[90px] xs:max-w-[130px] sm:max-w-[220px] md:max-w-[300px]"
+      >
+        <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold uppercase">
+          -- All Companies --
+        </option>
+        {companies.map(c => (
+          <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold uppercase">
+            {c.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 const GLOBAL_NAV_ITEMS = [
   { label: 'Overview / Dashboard', path: '/dashboard/overview', category: 'Module', icon: '📊' },
   { label: 'Employees Directory', path: '/dashboard/employees', category: 'Module', icon: '👥' },
-  { label: 'Attendance Requests', path: '/dashboard/attendance_requests', category: 'Module', icon: '⏱️' },
-  { label: 'Permission Requests', path: '/dashboard/attendance_permissions', category: 'Module', icon: '📝' },
+  { label: 'Requests', path: '/dashboard/attendance_requests', category: 'Module', icon: '⏱️' },
+  { label: 'Permissions', path: '/dashboard/attendance/permissions', category: 'Module', icon: '📝' },
   { label: 'Attendance Policies & Logs', path: '/dashboard/attendance', category: 'Module', icon: '📅' },
   { label: 'Leave Requests & Balances', path: '/dashboard/leaves', category: 'Module', icon: '🌴' },
   { label: 'Payroll Management', path: '/dashboard/payroll', category: 'Module', icon: '💰' },
@@ -73,9 +123,7 @@ export const Header: React.FC<HeaderProps> = ({
   theme,
   setTheme,
 }) => {
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [notifFilter, setNotifFilter] = useState<'all' | 'unread'>('all');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
@@ -83,7 +131,6 @@ export const Header: React.FC<HeaderProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const profileMenuRef = useRef<HTMLDivElement>(null);
-  const notifMenuRef = useRef<HTMLDivElement>(null);
 
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
@@ -121,13 +168,6 @@ export const Header: React.FC<HeaderProps> = ({
     fetchMe();
   }, []);
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    { id: 1, text: 'New employee Arjun Kumar registered in Hitech City Branch', time: '2 mins ago', unread: true, category: 'employee' },
-    { id: 2, text: 'Branch "Hitech City, Hyderabad" configuration saved', time: '1 hour ago', unread: true, category: 'system' },
-    { id: 3, text: 'System security scan passed with zero vulnerabilities', time: '5 hours ago', unread: true, category: 'system' },
-    { id: 4, text: 'Monthly payroll batch generated for Engineering Dept', time: '1 day ago', unread: false, category: 'payroll' },
-  ]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -139,9 +179,6 @@ export const Header: React.FC<HeaderProps> = ({
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
         setShowProfileMenu(false);
-      }
-      if (notifMenuRef.current && !notifMenuRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
       }
     };
 
@@ -184,16 +221,6 @@ export const Header: React.FC<HeaderProps> = ({
       }).slice(0, 6)
     : [];
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
-
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-  };
-
-  const clearNotification = (id: number) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
-
   const toggleTheme = () => {
     if (theme === 'nordic-light') {
       setTheme('slate-dark');
@@ -204,15 +231,15 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
-      style={{ fontFamily: '"DM Sans", sans-serif' }}
-      className="flex h-18 flex-shrink-0 items-center justify-between border-b border-slate-200/60 dark:border-slate-800/80 bg-card/95 backdrop-blur-md px-4 md:px-6 shadow-xs transition-colors duration-200 z-20"
+      style={{ fontFamily: '"Inter", "DM Sans", sans-serif' }}
+      className="flex h-16 flex-shrink-0 items-center justify-between rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm px-2.5 sm:px-4 md:px-6 transition-colors duration-200 z-20 w-full"
     >
       {/* 👈 Left Header Section: Mobile Menu + Company Badge + Live Clock */}
       <div className="flex items-center gap-3">
         {/* Mobile Hamburger Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-xs cursor-pointer"
+          className="md:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-xs cursor-pointer"
           title="Toggle Navigation Menu"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -220,24 +247,17 @@ export const Header: React.FC<HeaderProps> = ({
           </svg>
         </button>
 
-        {/* Header Organization / Company Badge */}
-        <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50/80 dark:from-blue-950/40 dark:to-indigo-950/30 border border-blue-200/70 dark:border-blue-900/50 text-blue-700 dark:text-blue-300 shadow-2xs">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xs font-black shadow-xs flex-shrink-0">
-            🏢
-          </div>
-          <span className="text-xs font-black tracking-wide uppercase truncate max-w-[130px] sm:max-w-[200px] md:max-w-[260px]">
-            {companyName}
-          </span>
-        </div>
+        {/* Header Organization / Company Badge / Global Selector */}
+        <HeaderCompanySelector companyName={companyName} isSuperAdmin={isSuperAdmin} />
 
-        {/* Live Date & Clock Display Badge (Stacked: Time Top, Date Bottom) */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 select-none shadow-2xs">
+        {/* Live Date & Clock Display Badge */}
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200/90 dark:border-slate-700/70 text-slate-700 dark:text-slate-200 select-none shadow-2xs">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" title="System Clock Active" />
           <div className="flex flex-col text-left leading-tight">
-            <span className="text-xs font-mono font-black tracking-wide tabular-nums text-slate-800 dark:text-slate-100">
+            <span className="text-[11px] font-mono font-bold tracking-tight tabular-nums text-slate-800 dark:text-slate-100">
               {currentTime ? currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : ''}
             </span>
-            <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 tracking-tight mt-0.5">
+            <span className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 tracking-tight">
               {currentTime ? currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : ''}
             </span>
           </div>
@@ -245,10 +265,10 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 👉 Center & Right Header Section: Global Search + Session Timer + Notifications + Theme + Profile */}
-      <div className="flex items-center gap-2.5 sm:gap-3 flex-1 justify-end">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 justify-end">
 
         {/* 🔍 GLOBAL SEARCH INPUT & DROPDOWN */}
-        <div className="relative flex-1 max-w-xs sm:max-w-md mx-2">
+        <div className="hidden md:block relative flex-1 max-w-xs sm:max-w-md mx-2">
           <div className="relative flex items-center">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none z-10 text-slate-400">
               <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -415,7 +435,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* 🌓 Quick Dark/Light Theme Switcher */}
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
+          className="hidden md:flex p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
           title={`Switch to ${theme === 'nordic-light' ? 'Slate Dark' : 'Nordic Light'} mode`}
         >
           {theme === 'nordic-light' ? (
@@ -441,106 +461,14 @@ export const Header: React.FC<HeaderProps> = ({
           </svg>
         </button>
 
-        {/* 🔔 Notification Bell & Popover Drawer */}
-        <div ref={notifMenuRef} className="relative">
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
-            title="Notification Center"
-          >
-            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-            </svg>
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
-            )}
-          </button>
-
-          {showNotifications && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-              <div className="absolute right-0 mt-2.5 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-4 shadow-2xl z-50 animate-toast">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-xs text-slate-800 dark:text-slate-200 uppercase tracking-widest">
-                      Notifications
-                    </span>
-                    {unreadCount > 0 && (
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                        {unreadCount} new
-                      </span>
-                    )}
-                  </div>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={markAllAsRead}
-                      className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                    >
-                      Mark all as read
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex gap-1 mb-3 p-1 rounded-xl bg-slate-100/70 dark:bg-slate-800/60 text-[10px] font-extrabold">
-                  <button
-                    onClick={() => setNotifFilter('all')}
-                    className={`flex-1 py-1 rounded-lg transition-colors cursor-pointer ${
-                      notifFilter === 'all'
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    All ({notifications.length})
-                  </button>
-                  <button
-                    onClick={() => setNotifFilter('unread')}
-                    className={`flex-1 py-1 rounded-lg transition-colors cursor-pointer ${
-                      notifFilter === 'unread'
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    Unread ({unreadCount})
-                  </button>
-                </div>
-
-                <div className="space-y-2 max-h-72 overflow-y-auto no-scrollbar">
-                  {notifications
-                    .filter((n) => (notifFilter === 'unread' ? n.unread : true))
-                    .map((notif) => (
-                      <div
-                        key={notif.id}
-                        className={`group relative p-3 rounded-xl border transition-all text-xs leading-relaxed ${
-                          notif.unread
-                            ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/60 dark:border-blue-900/40'
-                            : 'bg-transparent border-transparent hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <p className="font-medium text-slate-800 dark:text-slate-200 pr-4">{notif.text}</p>
-                          <button
-                            onClick={() => clearNotification(notif.id)}
-                            className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs transition-opacity cursor-pointer"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold block mt-1.5">
-                          {notif.time}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        {/* 🔔 Live Enterprise Notification Bell & Drawer */}
+        <NotificationBell />
 
         {/* 👤 Senior Executive User Profile Avatar & Dropdown */}
-        <div ref={profileMenuRef} className="relative">
+        <div ref={profileMenuRef} className="relative shrink-0">
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2.5 bg-slate-100/70 dark:bg-slate-800/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 p-1 sm:pl-3.5 sm:pr-2 sm:py-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 select-none transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-2 bg-slate-100/70 dark:bg-slate-800/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 p-1 sm:pl-3.5 sm:pr-2 sm:py-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 select-none transition-all cursor-pointer shadow-xs shrink-0"
           >
             {/* 1. NAMES ON LEFT */}
             <div className="hidden sm:flex flex-col text-right">

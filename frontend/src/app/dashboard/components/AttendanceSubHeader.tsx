@@ -4,12 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 
 export interface AttendanceSubHeaderProps {
-  activeTab: 'logs' | 'rules' | 'regularization' | 'permissions' | 'raw' | 'summary';
+  activeTab: 'logs' | 'rules' | 'regularization' | 'permissions' | 'raw' | 'summary' | 'locks';
 }
 
 export const ATTENDANCE_NAV_ITEMS = [
   { id: 'logs', label: 'Attendance', href: '/dashboard/attendance', icon: '📅' },
-  { id: 'rules', label: 'Attendance Rules', href: '/dashboard/attendance/rules', icon: '⏰' },
+  { id: 'rules', label: 'Rules', href: '/dashboard/attendance/rules', icon: '⏰' },
+  { id: 'locks', label: 'Locks', href: '/dashboard/attendance/locks', icon: '🔒' },
   { id: 'regularization', label: 'Regularization', href: '/dashboard/attendance/regularization', icon: '📝' },
   { id: 'permissions', label: 'Permission', href: '/dashboard/attendance/permissions', icon: '🎫' },
   { id: 'raw', label: 'Attendance Logs', href: '/dashboard/attendance/raw-punches', icon: '🔌' },
@@ -27,6 +28,8 @@ export const AttendanceSubHeader: React.FC<AttendanceSubHeaderProps> = ({ active
 
         if (item.id === 'rules') {
           activeBgClass = 'bg-indigo-600 text-white shadow-xs scale-[1.02] border-indigo-600';
+        } else if (item.id === 'locks') {
+          activeBgClass = 'bg-rose-600 text-white shadow-xs scale-[1.02] border-rose-600';
         } else if (item.id === 'regularization') {
           activeBgClass = 'bg-emerald-600 text-white shadow-xs scale-[1.02] border-emerald-600';
         } else if (item.id === 'permissions') {

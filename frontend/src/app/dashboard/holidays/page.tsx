@@ -408,43 +408,43 @@ export default function HolidaysPage() {
 
       {/* 📊 KPI STATS OVERVIEW CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-indigo-50/95 via-sky-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center text-lg shrink-0 border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs group-hover:scale-105 transition-transform">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center text-lg shrink-0">
             📅
           </div>
           <div>
-            <p className="text-[10.5px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">Total Holidays</p>
-            <p className="text-xl font-black text-indigo-600 dark:text-indigo-400 font-mono">{holidays.length}</p>
+            <p className="text-[10.5px] font-extrabold uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">Total Holidays</p>
+            <p className="text-xl font-black text-slate-800 dark:text-slate-100 font-mono mt-0.5">{holidays.length}</p>
           </div>
         </div>
 
-        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-emerald-50/95 via-teal-50/30 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100/80 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center text-lg shrink-0 border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs group-hover:scale-105 transition-transform">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-lg shrink-0">
             🏢
           </div>
           <div>
-            <p className="text-[10.5px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">Active Branches</p>
-            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{branches.length}</p>
+            <p className="text-[10.5px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">Active Branches</p>
+            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">{branches.length}</p>
           </div>
         </div>
 
-        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-amber-50/95 via-orange-50/30 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900 border border-amber-200/70 dark:border-amber-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-100/80 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 flex items-center justify-center text-lg shrink-0 border border-amber-200/60 dark:border-amber-800/60 shadow-xs group-hover:scale-105 transition-transform">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 flex items-center justify-center text-lg shrink-0">
             ✨
           </div>
           <div>
-            <p className="text-[10.5px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider">General Holidays</p>
-            <p className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono">{holidays.filter(h => !h.is_restricted).length}</p>
+            <p className="text-[10.5px] font-extrabold uppercase text-amber-600 dark:text-amber-400 tracking-wider">General Holidays</p>
+            <p className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono mt-0.5">{holidays.filter(h => !h.is_restricted).length}</p>
           </div>
         </div>
 
-        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-rose-50/95 via-pink-50/30 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900 border border-rose-200/70 dark:border-rose-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-rose-100/80 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center text-lg shrink-0 border border-rose-200/60 dark:border-rose-800/60 shadow-xs group-hover:scale-105 transition-transform">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900 flex items-center justify-center text-lg shrink-0">
             📜
           </div>
           <div>
-            <p className="text-[10.5px] font-black uppercase text-rose-600 dark:text-rose-400 tracking-wider">Restricted (RH)</p>
-            <p className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono">{holidays.filter(h => h.is_restricted).length}</p>
+            <p className="text-[10.5px] font-extrabold uppercase text-rose-600 dark:text-rose-400 tracking-wider">Restricted (RH)</p>
+            <p className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono mt-0.5">{holidays.filter(h => h.is_restricted).length}</p>
           </div>
         </div>
       </div>

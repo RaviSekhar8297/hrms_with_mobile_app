@@ -7,20 +7,20 @@
 
 
 :root {
-  --background: #d1e3da;
+  --background: #f4f6f9;
   --foreground: #0f172a;
   --card: #ffffff;
 }
 
 /* Nordic Light theme overrides (no dark class) */
 html.theme-nordic-light {
-  --background: #d1e3da;
+  --background: #f4f6f9;
   --foreground: #0f172a;
   --card: #ffffff;
 }
 
 @theme inline {
-  --color-background: #d1e3da;
+  --color-background: #f4f6f9;
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --font-sans: "Poppins", "Inter", sans-serif;
@@ -36,7 +36,7 @@ aside.font-sidebar * {
 }
 
 html, body, main, .bg-background {
-  background-color: #d1e3da !important;
+  background-color: #f4f6f9 !important;
   color: #0f172a !important;
   font-family: 'Poppins', 'Inter', sans-serif !important;
   transition: background-color 0.25s ease, color 0.25s ease;

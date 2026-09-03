@@ -83,7 +83,9 @@ async function authenticateToken(req, res, next) {
         // Otherwise, we fetch their company_id and employee details from our DB using their email
         if (!isSuper && email) {
             try {
-                const empQuery = await (0, db_1.query)("SELECT company_id FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)) AND status = 'ACTIVE' LIMIT 1", [email]);
+                const empQuery = await (0, db_1.query)(`SELECT company_id FROM hrms.employees 
+           WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1))
+             AND status = 'ACTIVE' LIMIT 1`, [email]);
                 if (empQuery.rows.length > 0) {
                     req.user.companyId = empQuery.rows[0].company_id;
                 }
@@ -110,6 +112,7 @@ function requireSuperAdmin(req, res, next) {
 // Middleware to check if user has a specific dynamic permission
 function requirePermission(permissionName) {
     return async (req, res, next) => {
+        // 1. SuperAdmin has complete, unrestricted access to all endpoints
         const isSuper = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
         if (isSuper) {
             return next();
@@ -118,23 +121,29 @@ function requirePermission(permissionName) {
             return res.status(403).json({ error: 'Access denied: User context missing' });
         }
         try {
-            // Fetch employee and their role permissions
+            // 2. Fetch employee's assigned role_id from DB using exact email or emp_id_code lookup
             const empQuery = await (0, db_1.query)(`SELECT e.role_id 
          FROM hrms.employees e 
-         WHERE e.email = $1 AND e.status = 'ACTIVE'`, [req.user.email]);
-            if (empQuery.rows.length === 0) {
-                return res.status(403).json({ error: 'Access denied: Employee not found or inactive' });
+         WHERE (LOWER(e.email) = LOWER($1) OR LOWER(e.emp_id_code) = LOWER($1)) 
+           AND e.status = 'ACTIVE' LIMIT 1`, [req.user.email]);
+            if (empQuery.rows.length === 0 || !empQuery.rows[0].role_id) {
+                return res.status(403).json({ error: 'Access denied: Active employee or assigned role not found' });
             }
             const roleId = empQuery.rows[0].role_id;
-            if (!roleId) {
-                return res.status(403).json({ error: 'Access denied: User has no assigned role' });
-            }
+            // 3. Query PostgreSQL hrms.role_permissions dynamically for assigned permission
             const permQuery = await (0, db_1.query)(`SELECT COUNT(*) as count 
          FROM hrms.role_permissions rp 
          JOIN hrms.permissions p ON rp.permission_id = p.id 
-         WHERE rp.role_id = $1 AND p.name = $2`, [roleId, permissionName]);
+         WHERE rp.role_id = $1 
+           AND (
+             LOWER(p.name) = LOWER($2) 
+             OR LOWER(p.name) = LOWER($2 || '_masters')
+             OR LOWER(p.name) = LOWER(REPLACE($2, '_masters', ''))
+             OR LOWER(p.module) = LOWER(SPLIT_PART($2, ':', 1))
+             OR p.name = '*'
+           )`, [roleId, permissionName]);
             if (parseInt(permQuery.rows[0].count, 10) === 0) {
-                return res.status(403).json({ error: `Access denied: Requires permission "${permissionName}"` });
+                return res.status(403).json({ error: `Access denied: Role does not have permission "${permissionName}"` });
             }
             return next();
         }

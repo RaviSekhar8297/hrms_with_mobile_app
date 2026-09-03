@@ -79,20 +79,56 @@ export default function LoginPage() {
         } else {
           localStorage.removeItem('remembered_email');
         }
+        let userEmail = data.email || username;
+        let userRoles: string[] = Array.isArray(data.roles) ? data.roles : ['SuperAdmin'];
+        try {
+          if (data.access_token) {
+            const tokenPayload = JSON.parse(atob(data.access_token.split('.')[1]));
+            if (tokenPayload.email) userEmail = tokenPayload.email;
+            if (tokenPayload.realm_access?.roles && Array.isArray(tokenPayload.realm_access.roles)) {
+              userRoles = [...tokenPayload.realm_access.roles];
+            } else if (tokenPayload.roles && Array.isArray(tokenPayload.roles)) {
+              userRoles = [...tokenPayload.roles];
+            }
+          }
+        } catch {}
+
+        const lowerUser = username.toLowerCase();
+        if (
+          lowerUser === 'superadmin' || 
+          lowerUser === 'superadmin@hrms.com'
+        ) {
+          if (!userRoles.includes('SuperAdmin')) {
+            userRoles.push('SuperAdmin');
+          }
+        }
+
         localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('email', data.email);
-        localStorage.setItem('roles', JSON.stringify(data.roles));
-        localStorage.setItem('permissions', JSON.stringify(data.permissions || []));
+        localStorage.setItem('email', userEmail);
+        localStorage.setItem('roles', JSON.stringify(userRoles));
+        sessionStorage.setItem('session_active', 'true');
         if (data.companyId) localStorage.setItem('companyId', data.companyId);
         else localStorage.removeItem('companyId');
 
-        const rolesArr = data.roles || [];
+        try {
+          const permRes = await fetch('/api/v1/auth/user-permissions', {
+            headers: { Authorization: `Bearer ${data.access_token}` }
+          });
+          if (permRes.ok) {
+            const permData = await permRes.json();
+            if (permData.permissions) {
+              localStorage.setItem('permissions', JSON.stringify(permData.permissions));
+            }
+            if (permData.scopes) {
+              localStorage.setItem('permissionScopes', JSON.stringify(permData.scopes));
+            }
+          }
+        } catch {}
+
+        const rolesArr = userRoles;
         const isSuperAdminUser = rolesArr.includes('SuperAdmin') || 
-                                 username.toLowerCase() === 'superadmin' || 
-                                 username.toLowerCase() === 'rajasekhar' || 
-                                 username.toLowerCase() === 'admin@hrms.com' ||
-                                 username.toLowerCase() === 'superadmin@hrms.com' ||
-                                 username.toLowerCase() === 'md@brihaspathi.com';
+                                 lowerUser === 'superadmin' || 
+                                 lowerUser === 'superadmin@hrms.com';
         
         const isFirstTimeLogin = !isSuperAdminUser && (data.is_temporary_password === true);
 
@@ -102,7 +138,10 @@ export default function LoginPage() {
           router.replace('/dashboard');
         }
       } else {
-        const errMsg = data.error || 'Invalid email or password. Please try again.';
+        let errMsg = data.error || 'Invalid email or password. Please try again.';
+        if (errMsg === 'invalid_grant' || errMsg.includes('invalid_grant') || errMsg.toLowerCase().includes('invalid credential')) {
+          errMsg = 'Invalid email or password. Please check your credentials and try again.';
+        }
         const isTempPass = password === '123456' || password === '123' || password.toLowerCase().includes('temp');
         if ((errMsg.includes('fully set up') || errMsg.includes('temporary')) && isTempPass) {
           router.replace(`/passwordupdate?username=${encodeURIComponent(username)}&temp=${encodeURIComponent(password)}`);
@@ -120,229 +159,346 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   return (
-    <div data-login-container="true" className="min-h-screen h-screen w-full flex flex-col lg:flex-row font-sans bg-slate-50 text-slate-900 select-none overflow-hidden relative">
+    <div data-login-container="true" className="min-h-screen lg:h-screen w-full flex flex-col lg:flex-row font-sans bg-[#F8FAFC] text-[#0F172A] select-none overflow-y-auto lg:overflow-hidden relative">
       
-      {/* 🌌 SOFT LIGHT GRADIENT ORBS */}
-      <div className="absolute top-[-10%] left-[-5%] w-[650px] h-[650px] bg-indigo-200/35 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-[650px] h-[650px] bg-purple-200/35 rounded-full blur-[140px] pointer-events-none" />
+      {/* 🌌 ELEGANT AMBIENT BACKDROP LIGHTS */}
+      <div className="absolute top-[-10%] left-[-5%] w-[700px] h-[700px] bg-indigo-100/70 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[25%] w-[700px] h-[700px] bg-purple-100/60 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute top-[30%] right-[-5%] w-[600px] h-[600px] bg-blue-100/50 rounded-full blur-[160px] pointer-events-none" />
 
-      {/* 🔔 ELEGANT TOAST NOTIFICATION */}
-      {(error || successMessage) && (
-        <div 
-          className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-[440px] rounded-2xl p-4 flex items-center gap-3.5 shadow-2xl backdrop-blur-2xl border transition-all duration-300 animate-slide-down bg-white"
-          style={{
-            borderColor: error ? '#fecdd3' : '#a7f3d0',
-            boxShadow: error ? '0 20px 50px -10px rgba(225, 29, 72, 0.2)' : '0 20px 50px -10px rgba(16, 185, 129, 0.2)',
-            color: '#0f172a'
-          }}
-        >
-          <div className={`p-2.5 rounded-xl text-white shrink-0 ${error ? 'bg-rose-600' : 'bg-emerald-600'}`}>
-            {error ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-            )}
-          </div>
+      {/* 🔮 SUBTLE BACKGROUND GRID PATTERN */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#cbd5e120_1px,transparent_1px),linear-gradient(to_bottom,#cbd5e120_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] pointer-events-none" />
 
-          <div className="flex-1 min-w-0 text-left">
-            <h4 className={`text-[10px] font-black uppercase tracking-widest ${error ? 'text-rose-600' : 'text-emerald-700'}`}>
-              {error ? 'Notice' : 'Success'}
-            </h4>
-            <p className="text-xs font-bold text-slate-800 mt-0.5 leading-snug break-words">
-              {error || successMessage}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => { setError(''); setSuccessMessage(''); }}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer shrink-0"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {/* 🏢 LEFT PANEL: FULL-HEIGHT ENTERPRISE SHOWCASE */}
-      <div className="hidden lg:flex lg:w-7/12 h-screen relative p-12 xl:p-16 flex-col justify-between overflow-hidden bg-gradient-to-br from-indigo-50/80 via-slate-50 to-purple-50/60 border-r border-slate-200/80">
+      {/* 🏢 LEFT SHOWCASE PANEL (Sleek Real Enterprise Product Showcase) */}
+      <div className="hidden lg:flex w-full lg:w-7/12 h-auto lg:h-full p-6 lg:p-8 xl:p-10 flex-col justify-between relative z-10 bg-transparent overflow-hidden">
         
-        {/* Top Branding Header */}
+        {/* Top Header Branding */}
         <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-purple-700 text-white flex items-center justify-center shadow-xl shadow-indigo-600/25">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-              </svg>
+          <div className="flex items-center gap-3.5 group cursor-pointer">
+            {/* Custom Glowing B Logo Emblem */}
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#4F46E5] via-[#7C3AED] to-[#0284C7] p-0.5 shadow-lg shadow-indigo-500/20 transition-transform duration-300 group-hover:scale-105 flex items-center justify-center">
+              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center p-2">
+                <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 6H18C21.3137 6 24 8.68629 24 12C24 14.2 22.8 16.1 21 17.1C23.3 18.2 25 20.4 25 23C25 26.866 21.866 30 18 30H7V6Z" fill="url(#b_grad_fill)" opacity="0.15"/>
+                  <path d="M7 6H17C20.3137 6 23 8.68629 23 12C23 15.3137 20.3137 18 17 18H7V6Z" stroke="url(#b_grad_stroke1)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M7 18H18C21.866 18 25 21.134 25 25C25 28.866 21.866 32 18 32H7V18Z" stroke="url(#b_grad_stroke2)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <defs>
+                    <linearGradient id="b_grad_fill" x1="7" y1="6" x2="25" y2="30" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#4F46E5"/>
+                      <stop offset="1" stopColor="#0284C7"/>
+                    </linearGradient>
+                    <linearGradient id="b_grad_stroke1" x1="7" y1="6" x2="23" y2="18" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#4F46E5"/>
+                      <stop offset="1" stopColor="#7C3AED"/>
+                    </linearGradient>
+                    <linearGradient id="b_grad_stroke2" x1="7" y1="18" x2="25" y2="32" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#7C3AED"/>
+                      <stop offset="1" stopColor="#0284C7"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
             </div>
             <div className="text-left">
-              <span className="text-xl font-black tracking-wider uppercase block font-outfit text-slate-900 leading-none">
+              <span className="text-2xl font-black tracking-wider text-[#0F172A] font-outfit block leading-tight">
                 BRIHASPATHI
               </span>
-              <span className="text-xs font-bold text-indigo-700 tracking-widest uppercase block mt-1">
-                Enterprise Operating Platform
+              <span className="text-[10px] font-black tracking-[0.25em] text-[#4F46E5] uppercase block -mt-0.5 font-outfit">
+                Enterprise HRMS Suite
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold shadow-xs">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-            <span>v4.8 • Online System</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 border border-indigo-200/80 text-[#4F46E5] text-[11px] font-extrabold uppercase tracking-wider shadow-sm backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-[#4F46E5] animate-ping" />
+            <span>Next-Gen Enterprise HR Platform</span>
           </div>
         </div>
 
-        {/* Center Main Presentation Hero */}
-        <div className="relative z-10 my-auto py-6 space-y-8 text-left max-w-xl">
+        {/* Center Section: Hero Text + Real Product Showcase Dashboard Card */}
+        <div className="relative z-10 my-auto py-3 space-y-5">
           
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-indigo-200 bg-white/90 text-indigo-800 text-xs font-bold uppercase tracking-wider shadow-xs backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
-            <span>Unified Enterprise Workflow Management</span>
-          </div>
-
-          <div className="space-y-4">
-            <h1 className="text-4xl xl:text-5xl font-black tracking-tight text-slate-900 leading-[1.12] font-outfit">
-              One Platform. <br />
-              <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 bg-clip-text text-transparent">
-                Total Enterprise Workflow.
+          {/* Main Headline & Subtitle */}
+          <div className="text-left space-y-2 max-w-2xl">
+            <h1 className="text-3xl lg:text-4xl xl:text-[42px] font-black tracking-tight text-[#0F172A] font-outfit leading-tight">
+              Empower Your Workforce with <br />
+              <span className="bg-gradient-to-r from-[#4F46E5] via-[#7C3AED] to-[#0284C7] bg-clip-text text-transparent">
+                Intelligent HR Automation
               </span>
             </h1>
-            <p className="text-sm font-semibold text-slate-600 leading-relaxed max-w-lg">
-              Streamline organizational governance, operational workflows, entity hierarchies, and automated business processes across all your locations in one unified platform.
+            <p className="text-sm font-semibold text-slate-600 leading-relaxed max-w-xl">
+              Streamline payroll, attendance, talent acquisition, and employee performance in one unified, secure cloud platform.
             </p>
           </div>
 
-          {/* Feature Showcase Grid */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* REALISTIC HIGH-FIDELITY PRODUCT SHOWCASE CARD */}
+          <div className="bg-white/80 rounded-3xl p-5 xl:p-6 border border-slate-200/80 backdrop-blur-xl shadow-2xl shadow-indigo-950/10 space-y-5">
             
-            <div className="p-4.5 rounded-2xl border border-slate-200/90 bg-white/90 backdrop-blur-xl shadow-xs hover:border-indigo-300 transition-all text-left">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-black uppercase text-indigo-700 tracking-wider font-outfit font-bold">Enterprise Operations</span>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+            {/* Top Metrics Row */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-3 text-left">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Active Workforce</span>
+                <div className="text-lg xl:text-xl font-black text-slate-900 font-mono mt-0.5">1,248</div>
+                <span className="text-[10px] font-extrabold text-emerald-600 block mt-0.5">↑ +4.2% this month</span>
               </div>
-              <div className="text-2xl font-black text-slate-900 font-outfit">Total Control</div>
-              <p className="text-xs text-slate-500 mt-1 font-medium">End-to-end organizational governance</p>
+
+              <div className="bg-sky-50/70 border border-sky-100 rounded-2xl p-3 text-left">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Attendance Rate</span>
+                <div className="text-lg xl:text-xl font-black text-slate-900 font-mono mt-0.5">98.4%</div>
+                <span className="text-[10px] font-extrabold text-sky-600 block mt-0.5">On-time today</span>
+              </div>
+
+              <div className="bg-purple-50/70 border border-purple-100 rounded-2xl p-3 text-left">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Monthly Payroll</span>
+                <div className="text-lg xl:text-xl font-black text-slate-900 font-mono mt-0.5">₹ 1.42 Cr</div>
+                <span className="text-[10px] font-extrabold text-purple-600 block mt-0.5">100% Processed</span>
+              </div>
+
+              <div className="bg-emerald-50/70 border border-emerald-100 rounded-2xl p-3 text-left">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Open Requisitions</span>
+                <div className="text-lg xl:text-xl font-black text-slate-900 font-mono mt-0.5">12</div>
+                <span className="text-[10px] font-extrabold text-emerald-600 block mt-0.5">Active hiring</span>
+              </div>
             </div>
 
-            <div className="p-4.5 rounded-2xl border border-slate-200/90 bg-white/90 backdrop-blur-xl shadow-xs hover:border-purple-300 transition-all text-left">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-black uppercase text-purple-700 tracking-wider font-outfit font-bold">Multi-Entity OS</span>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">Global</span>
+            {/* Middle Section: Live HR Activity Feed + Department Distribution */}
+            <div className="grid grid-cols-12 gap-4 text-left">
+              
+              {/* Activity Stream */}
+              <div className="col-span-7 bg-slate-50/90 rounded-2xl p-3.5 border border-slate-200/80 space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Live Activity Feed
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500">Real-time</span>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-slate-100 shadow-2xs">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0">✓</div>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-extrabold text-slate-900 block truncate">Onboarding Completed</span>
+                      <span className="text-[10px] text-slate-500 font-medium block">Ananya Rao • Sr. Software Engineer</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-slate-100 shadow-2xs">
+                    <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 font-black text-[10px] flex items-center justify-center shrink-0">💳</div>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-extrabold text-slate-900 block truncate">March Payroll Disbursed</span>
+                      <span className="text-[10px] text-slate-500 font-medium block">1,248 Payslips generated successfully</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="text-2xl font-black text-slate-900 font-outfit">Scalable</div>
-              <p className="text-xs text-slate-500 mt-1 font-medium">Multi-branch management & sync</p>
+
+              {/* Department Headcount Bar */}
+              <div className="col-span-5 bg-slate-50/90 rounded-2xl p-3.5 border border-slate-200/80 space-y-2">
+                <span className="text-xs font-black text-slate-800 uppercase tracking-wider block border-b border-slate-200 pb-2">
+                  Department Distribution
+                </span>
+                <div className="space-y-2 text-[11px] pt-1">
+                  <div>
+                    <div className="flex justify-between font-bold text-slate-700 mb-0.5">
+                      <span>Engineering</span>
+                      <span className="font-mono text-indigo-600">42%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-[#4F46E5] h-full w-[42%]" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between font-bold text-slate-700 mb-0.5">
+                      <span>Sales & Marketing</span>
+                      <span className="font-mono text-purple-600">28%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-[#7C3AED] h-full w-[28%]" />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between font-bold text-slate-700 mb-0.5">
+                      <span>Operations & HR</span>
+                      <span className="font-mono text-sky-600">30%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-[#0284C7] h-full w-[30%]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
-          </div>
-
-          {/* Security Assurance Badge Pill */}
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200/90 bg-white/90 shadow-xs backdrop-blur-md">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600 shrink-0">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            <span className="text-xs font-bold text-slate-700">ISO 27001 Certified Security • 256-bit AES Encrypted Vaults</span>
           </div>
 
         </div>
 
-        {/* Footer info */}
-        <div className="relative z-10 flex items-center justify-between text-xs text-slate-500 pt-4 border-t border-slate-200/80">
-          <span>© {new Date().getFullYear()} <strong className="text-slate-800 font-bold">Brihaspathi Technologies</strong></span>
-          <span className="font-mono text-xs text-indigo-700 font-bold">Brihaspathi Enterprise</span>
+        {/* 🎨 BOTTOM FEATURE TRUST HIGHLIGHTS BAR */}
+        <div className="relative z-10 pt-3 border-t border-slate-200/90 shrink-0">
+          <div className="grid grid-cols-4 gap-3">
+            {[
+              { title: '50,000+ Employees', subtitle: 'Trusted Nationwide', icon: '👥' },
+              { title: '99.99% Uptime SLA', subtitle: 'Enterprise Reliability', icon: '⚡' },
+              { title: '256-Bit SSL Encrypted', subtitle: 'Bank-Grade Security', icon: '🔒' },
+              { title: 'ISO 27001 Certified', subtitle: 'Global Compliance', icon: '🛡️' }
+            ].map((item, i) => (
+              <div 
+                key={i} 
+                className="bg-white/80 backdrop-blur-md rounded-2xl p-2.5 border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-2.5 cursor-default text-left"
+              >
+                <div className="w-7 h-7 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 text-sm shadow-2xs">
+                  {item.icon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-black text-slate-800 font-outfit leading-tight truncate">{item.title}</div>
+                  <div className="text-[9.5px] font-semibold text-slate-500 leading-tight truncate">{item.subtitle}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
       </div>
 
-      {/* 🔐 RIGHT PANEL: FULL HEIGHT CLEAN WHITE SIGN IN CONSOLE PANEL */}
-      <div className="w-full lg:w-5/12 h-screen flex flex-col justify-between p-8 sm:p-12 xl:p-16 relative z-10 bg-white">
+      {/* 🔐 RIGHT PANEL: ULTRA-CLEAN LIGHT SIGN IN CONSOLE */}
+      <div className="w-full lg:w-5/12 min-h-screen lg:min-h-0 lg:h-full flex flex-col justify-center lg:justify-between p-5 sm:p-7 lg:p-8 xl:p-10 relative z-10 bg-transparent overflow-x-hidden">
         
         {/* Mobile Header Logo */}
-        <div className="lg:hidden flex items-center justify-between w-full pb-4 border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <div className="lg:hidden flex items-center justify-between w-full pb-3 mb-3 border-b border-slate-200 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#4F46E5] text-white flex items-center justify-center font-bold shadow-md">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
               </svg>
             </div>
             <div className="text-left">
-              <span className="text-base font-black tracking-widest uppercase block font-outfit text-slate-900 leading-none">
+              <span className="text-sm font-black tracking-widest uppercase block font-outfit text-[#0F172A] leading-none">
                 BRIHASPATHI
               </span>
-              <span className="text-[10px] font-bold text-indigo-600 block mt-0.5">Enterprise Portal</span>
+              <span className="text-[9px] font-black text-[#4F46E5] block mt-0.5">Enterprise Portal</span>
             </div>
           </div>
-          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-800">
+          <span className="text-[9px] font-bold px-2.5 py-1 rounded-full border border-emerald-300 bg-emerald-50 text-emerald-800">
             System Online
           </span>
         </div>
 
-        {/* Form Container */}
-        <div className="my-auto w-full max-w-md mx-auto py-4">
+        {/* Elevated White Sign In Card */}
+        <div className="my-auto w-full max-w-lg mx-auto bg-white rounded-3xl p-7 sm:p-9 shadow-2xl shadow-slate-900/10 border border-slate-200/90 transition-all duration-300 shrink-0">
           
-          <div className="text-left mb-8 space-y-2">
-            <h2 className="text-3xl font-black tracking-tight text-slate-900 font-outfit">
-              Welcome Back
+          <div className="text-left mb-6 space-y-1.5">
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-[#0F172A] font-outfit">
+              Sign In to HRMS
             </h2>
-            <p className="text-xs font-semibold text-slate-500">
-              Sign in to access your enterprise workspace.
+            <p className="text-xs sm:text-sm font-semibold text-slate-500">
+              Welcome back! Please enter your credentials to access your dashboard.
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          {/* Alert Error Messages */}
+          {error && (
+            <div className="mb-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-3 shadow-xs animate-fadeIn">
+              <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" strokeWidth="2.5" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="3" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <h5 className="text-[11px] font-black uppercase tracking-widest text-rose-600 leading-tight">Authentication Notice</h5>
+                <p className="text-xs font-extrabold text-slate-800 leading-snug mt-0.5">{error}</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setError('')} 
+                className="text-slate-400 hover:text-slate-700 font-bold text-base px-1 cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mb-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-3 shadow-xs animate-fadeIn">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <h5 className="text-[11px] font-black uppercase tracking-widest text-emerald-700 leading-tight">Success</h5>
+                <p className="text-xs font-extrabold text-slate-800 leading-snug mt-0.5">{successMessage}</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setSuccessMessage('')} 
+                className="text-slate-400 hover:text-slate-700 font-bold text-base px-1 cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
             
             {/* Username Field */}
             <div className="space-y-1.5 text-left">
-              <label htmlFor="username" className="text-xs font-extrabold uppercase text-slate-700 tracking-wider block font-outfit">
-                Username or Email <span className="text-indigo-600">*</span>
+              <label htmlFor="username" className="text-[11px] font-extrabold uppercase text-slate-700 tracking-wider block font-outfit">
+                Username or Email <span className="text-[#4F46E5]">*</span>
               </label>
-              <div className="relative">
+              <div className="relative flex items-center">
+                <div className="absolute left-4 text-slate-400 pointer-events-none">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                </div>
                 <input
                   id="username"
                   type="text"
                   required
-                  placeholder="e.g. employee@brihaspathi.com"
+                  placeholder="Enter your username or email"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
-                  className="login-input w-full py-3.5 px-4 rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-bold text-sm outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/15 transition-all placeholder:text-slate-400 placeholder:font-medium shadow-xs"
+                  className="login-input w-full py-3.5 pl-12 pr-4 rounded-xl border border-slate-200 bg-white text-slate-900 font-semibold text-sm outline-none focus:border-[#4F46E5] focus:ring-4 focus:ring-indigo-500/15 transition-all placeholder:font-normal placeholder:text-slate-400 shadow-2xs"
                 />
               </div>
             </div>
 
-            {/* Password Field (EXPLICIT PURE BLACK COLOR FIX FOR TYPING & BULLETS) */}
+            {/* Password Field */}
             <div className="space-y-1.5 text-left">
               <div className="flex justify-between items-center">
-                <label htmlFor="password" className="text-xs font-extrabold uppercase text-slate-700 tracking-wider block font-outfit">
-                  Password <span className="text-indigo-600">*</span>
+                <label htmlFor="password" className="text-[11px] font-extrabold uppercase text-slate-700 tracking-wider block font-outfit">
+                  Password <span className="text-[#4F46E5]">*</span>
                 </label>
                 <a 
                   href="#" 
                   onClick={(e) => { e.preventDefault(); alert('Please contact your HR Administrator to reset your credentials.'); }}
-                  className="text-xs font-bold text-indigo-700 hover:underline transition-all"
+                  className="text-xs font-bold text-[#4F46E5] hover:text-[#7C3AED] hover:underline transition-colors"
                 >
                   Forgot Password?
                 </a>
               </div>
               <div className="relative flex items-center">
+                <div className="absolute left-4 text-slate-400 pointer-events-none">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="Enter your password..."
+                  placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={{ color: '#0f172a', backgroundColor: '#ffffff', WebkitTextFillColor: '#0f172a' }}
-                  className="login-input w-full py-3.5 px-4 pr-12 rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-bold text-sm outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/15 transition-all placeholder:text-slate-400 placeholder:font-medium shadow-xs"
+                  className="login-input w-full py-3.5 pl-12 pr-12 rounded-xl border border-slate-200 bg-white text-slate-900 font-semibold text-sm outline-none focus:border-[#4F46E5] focus:ring-4 focus:ring-indigo-500/15 transition-all placeholder:font-normal placeholder:text-slate-400 placeholder:tracking-widest shadow-2xs"
                 />
                 <button
                   type="button"
@@ -353,7 +509,6 @@ export default function LoginPage() {
                   {showPassword ? (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
                       <line x1="1" y1="1" x2="23" y2="23" />
                     </svg>
                   ) : (
@@ -367,13 +522,13 @@ export default function LoginPage() {
             </div>
 
             {/* Remember Me */}
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <div className="flex items-center justify-between pt-0.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input 
                   type="checkbox" 
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 accent-indigo-600 cursor-pointer" 
+                  className="w-4 h-4 rounded border-slate-300 text-[#4F46E5] accent-[#4F46E5] cursor-pointer" 
                 />
                 <span className="text-xs font-bold text-slate-800">Keep me signed in</span>
               </label>
@@ -383,10 +538,10 @@ export default function LoginPage() {
             <button 
               type="submit" 
               disabled={loading} 
-              className="w-full py-4 px-6 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-indigo-600/25 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed font-outfit tracking-wide mt-2"
+              className="w-full py-4 px-6 bg-gradient-to-r from-[#4F46E5] via-[#7C3AED] to-[#2563EB] hover:opacity-95 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-indigo-500/25 hover:scale-[1.01] active:scale-[0.99] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed font-outfit tracking-wider uppercase mt-3"
             >
               {loading ? (
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   <span>Signing In...</span>
                 </div>
@@ -404,7 +559,7 @@ export default function LoginPage() {
           </form>
 
           {/* Social SSO Options */}
-          <div className="relative my-6 text-center">
+          <div className="relative my-5 text-center">
             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-slate-200" />
             <span className="relative px-3 font-bold text-[10px] font-outfit bg-white text-slate-400 uppercase tracking-widest">
               Or Sign In With
@@ -451,7 +606,7 @@ export default function LoginPage() {
                 key={i}
                 type="button"
                 onClick={sso.onClick}
-                className="flex items-center justify-center gap-2 py-2.5 px-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all font-bold text-xs cursor-pointer shadow-xs text-slate-800 font-outfit"
+                className="flex items-center justify-center gap-2 py-2.5 px-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 hover:border-indigo-300 transition-all font-bold text-xs cursor-pointer shadow-2xs text-slate-800 font-outfit"
               >
                 {sso.icon}
                 <span className="hidden sm:inline">{sso.name}</span>
@@ -462,41 +617,16 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <footer className="text-[11px] font-semibold flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 w-full max-w-md mx-auto pt-4 border-t border-slate-100">
-          <span>© {new Date().getFullYear()} <strong className="text-slate-800">Brihaspathi Tech</strong></span>
+        <footer className="text-xs font-semibold flex flex-col sm:flex-row items-center justify-between gap-1 text-slate-500 w-full max-w-lg mx-auto pt-2 border-t border-slate-200/80">
+          <span>© {new Date().getFullYear()} <strong className="text-slate-800">Brihaspathi Technologies</strong></span>
           <div className="flex gap-3 font-medium text-slate-500">
-            <a href="#" className="hover:text-indigo-700 transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-[#4F46E5] transition-colors">Privacy Policy</a>
             <span>•</span>
-            <a href="#" className="hover:text-indigo-700 transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-[#4F46E5] transition-colors">Terms of Service</a>
           </div>
         </footer>
 
       </div>
-
-      {/* Scoped CSS animations & Explicit Input Autofill Fix */}
-      <style>{`
-        @keyframes slide-down {
-          0% { transform: translateY(-120%) translateX(-50%); opacity: 0; }
-          100% { transform: translateY(0) translateX(-50%); opacity: 1; }
-        }
-        .animate-slide-down {
-          animation: slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        div[data-login-container] input,
-        div[data-login-container] input:focus,
-        div[data-login-container] input:active {
-          color: #0f172a !important;
-          -webkit-text-fill-color: #0f172a !important;
-          caret-color: #0f172a !important;
-        }
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus {
-          -webkit-text-fill-color: #0f172a !important;
-          -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
-          transition: background-color 5000s ease-in-out 0s;
-        }
-      `}</style>
 
     </div>
   );

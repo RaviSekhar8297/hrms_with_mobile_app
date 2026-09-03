@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { DashboardProvider, useDashboard, FontType } from './components/DashboardContext';
 import { Header } from './components/Header';
 import { Sidebar, SidebarGroup, SidebarItem } from './components/Sidebar';
+import { FloatingAiWidget } from './components/FloatingAiWidget';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -22,6 +23,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     toasts,
     dismissToast,
     bodyLoading,
+    companyId,
   } = useDashboard();
 
   const [authorized, setAuthorized] = useState(false);
@@ -39,6 +41,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [logoError, setLogoError] = useState<boolean>(false);
   const [designation, setDesignation] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
+
+  // Dynamic Company Branding sync when companyId changes
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    const currentCompanyId = companyId || localStorage.getItem('companyId');
+    fetch(`/api/v1/companies`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const companies: Array<{ id: string; name: string; branding_logo: string }> =
+          data.companies || [];
+        const match = companies.find((c) => c.id === currentCompanyId) || companies[0];
+        if (match) {
+          setCompanyLogo(match.branding_logo || '');
+          setCompanyName(match.name || 'HRMS PORTAL');
+        }
+      })
+      .catch(() => {});
+  }, [companyId]);
 
   useEffect(() => {
     setCurrentTime(new Date());
@@ -162,8 +188,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       setDesignation(storedDesignation);
     }
 
-    if (!token) {
-      router.push('/login');
+    // Verify tab/browser session state. If browser was closed, sessionStorage is wiped automatically.
+    const isSessionActive = sessionStorage.getItem('session_active');
+    if (!token || !isSessionActive) {
+      handleLogout();
+      return;
     } else {
       setAuthorized(true);
       setEmail(storedEmail || 'user@hrms.com');
@@ -173,6 +202,23 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       if (storedPermissions) {
         setPermissions(JSON.parse(storedPermissions));
       }
+
+      // Auto-refetch live permissions from server to keep sidebar 100% synced with System Permission Matrix
+      fetch('/api/v1/auth/user-permissions', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.permissions && Array.isArray(data.permissions)) {
+            setPermissions(data.permissions);
+            localStorage.setItem('permissions', JSON.stringify(data.permissions));
+          }
+          if (data.scopes && typeof data.scopes === 'object') {
+            localStorage.setItem('permissionScopes', JSON.stringify(data.scopes));
+          }
+        })
+        .catch(() => {});
+
       // Load company branding
       const storedCompanyId = localStorage.getItem('companyId');
       fetch(`/api/v1/companies`, {
@@ -231,14 +277,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     window.fetch = async (...args) => {
       const response = await originalFetch(...args);
       if (response.status === 401) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('email');
-        localStorage.removeItem('roles');
-        localStorage.removeItem('permissions');
-        localStorage.removeItem('companyId');
-        localStorage.removeItem('designation');
-        sessionStorage.clear();
-        router.push('/login?clear=true');
+        handleLogout();
       }
       return response;
     };
@@ -253,10 +292,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('email');
     localStorage.removeItem('roles');
     localStorage.removeItem('permissions');
+    localStorage.removeItem('permissionScopes');
     localStorage.removeItem('companyId');
     localStorage.removeItem('designation');
     sessionStorage.clear();
-    router.push('/login?clear=true');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login?clear=true';
+    }
   };
 
   if (!authorized) {
@@ -276,7 +318,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const hasPermission = (permissionName?: string) => {
     if (!permissionName) return true;
     if (isSuperAdmin) return true;
-    return permissions.includes(permissionName);
+    if (permissions.includes(permissionName)) return true;
+
+    // Smart fallback check for resource-level actions (e.g., view_comp_off_requests, create_comp_off_requests, datascope_...)
+    if (permissionName.startsWith('view_')) {
+      const resource = permissionName.replace('view_', '');
+      return permissions.some(p => p.includes(resource));
+    }
+    return false;
   };
 
   // Unified list of sidebar groups and items
@@ -304,6 +353,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               ),
             },
             {
+              tab: 'flow',
+              label: 'Work Flow',
+              badge: 'Guide',
+              icon: (
+                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              ),
+            },
+            {
               tab: 'analytics',
               label: 'Analytics',
               icon: (
@@ -320,6 +379,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               icon: (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ),
+            },
+            {
+              tab: 'ai-assistant',
+              label: 'AI Assistant',
+              badge: 'Free AI',
+              icon: (
+                <svg className="w-5 h-5 text-purple-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
                 </svg>
               ),
             },
@@ -344,20 +413,33 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               ),
             },
             {
-              tab: 'attendance_requests',
-              label: 'Attendance Requests',
+              tab: 'flow',
+              label: 'Work Flow',
+              badge: 'Guide',
               icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               ),
             },
             {
-              tab: 'attendance_permissions',
-              label: 'Permission Requests',
+              tab: 'employees',
+              label: 'Employees',
+              permission: 'view_employees',
+              badge: 'Active',
               icon: (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ),
+            },
+            {
+              tab: 'ai-assistant',
+              label: 'AI Assistant',
+              badge: 'Free AI',
+              icon: (
+                <svg className="w-5 h-5 text-purple-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
                 </svg>
               ),
             },
@@ -367,12 +449,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       title: 'Organization',
       items: [
         {
-          tab: 'flow',
+          tab: 'org_flow',
           label: 'Organization Flow',
-          permission: 'view_branches',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v3m0 0a3 3 0 100 6 3 3 0 000-6zm-7 9h14m-14 0a2 2 0 00-2 2v2a2 2 0 002 2h4a2 2 0 002-2v-2a2 2 0 00-2-2H5zm10 0a2 2 0 00-2 2v2a2 2 0 002 2h4a2 2 0 002-2v-2a2 2 0 00-2-2h-4z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           ),
         },
@@ -438,7 +519,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'payroll',
           label: 'Payroll Hub',
-          permission: 'view_salary_slabs',
+          permission: 'view_payroll_runs',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -448,7 +529,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'payroll/generate',
           label: 'Generate Payroll',
-          permission: 'view_salary_slabs',
+          permission: 'view_payroll_runs',
           badge: 'Pro',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -477,8 +558,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ),
         },
         {
+          tab: 'payroll/tds',
+          label: 'TDS Tax Calculator',
+          badge: 'Tax',
+          icon: (
+            <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          ),
+        },
+        {
           tab: 'payslip',
           label: 'Payslip Console',
+          permission: 'view_payslips',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -502,8 +594,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'attendance/rules',
-          label: 'Attendance Rules',
-          permission: 'view_attendance_rules',
+          label: 'Rules',
+          permission: 'view_attendance_policies',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -512,9 +604,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ),
         },
         {
+          tab: 'attendance/locks',
+          label: 'Locks',
+          permission: 'view_attendance_locks',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          ),
+        },
+        {
           tab: 'attendance/regularization',
           label: 'Regularization',
-          permission: 'view_regularization_requests',
+          permission: 'view_attendance_regularizations',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -523,7 +625,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'attendance/permissions',
-          label: 'Permission',
+          label: 'Permissions',
           permission: 'view_permission_requests',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -532,9 +634,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ),
         },
         {
+          tab: 'attendance_requests',
+          label: 'Requests',
+          permission: 'view_attendance_summary',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+          ),
+        },
+        {
           tab: 'attendance/raw-punches',
-          label: 'Attendance Logs',
-          permission: 'view_raw_punches',
+          label: 'Logs',
+          permission: 'view_attendance_raw_punches',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -543,11 +655,21 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'attendance_summary',
-          label: 'Attendance Summary',
+          label: 'Summary',
           permission: 'view_attendance_summary',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'attendance/device-binding',
+          label: 'Device Binding',
+          permission: 'view_employee_devices',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
           ),
         },
@@ -604,7 +726,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'leaves/compoff',
           label: 'Comp-Off Claims',
-          permission: 'view_leave_requests',
+          permission: 'view_comp_off_requests',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -640,6 +762,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'recruitment',
           label: 'Recruitment (ATS)',
+          permission: 'view_job_postings',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -656,17 +779,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ),
         },
         {
-          tab: 'interviews',
-          label: 'Interviews Panel',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          ),
-        },
-        {
           tab: 'onboarding',
           label: 'Employee Onboarding',
+          permission: 'view_employee_onboardings',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -768,20 +883,25 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     },
   ];
 
+  const isCompanyAdmin = isSuperAdmin || roles.some((r) => r.toLowerCase().includes('admin'));
+
   const flatItems = Array.from(
     new Map(
       sidebarGroups
         .filter((g) => !g.superAdminOnly || isSuperAdmin)
         .flatMap((g) => g.items)
-        .filter((item) => hasPermission(item.permission))
+        .filter((item) => {
+          if (item.tab === 'roles') {
+            return isCompanyAdmin && hasPermission(item.permission);
+          }
+          return hasPermission(item.permission);
+        })
         .map((item) => [item.tab, item])
     ).values()
   );
 
   return (
-    <div style={{ backgroundColor: '#d1e3da' }} className="flex h-screen w-screen overflow-hidden text-foreground transition-colors duration-200 font-sans">
-
-
+    <div style={{ backgroundColor: '#f4f6f9' }} className="flex h-screen w-screen overflow-hidden text-foreground transition-colors duration-200 font-sans p-3 gap-3">
 
       {/* 🖥️ LEFT SIDEBAR (Desktop) */}
       {layout === 'sidebar' && (
@@ -844,42 +964,31 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </button>
             </div>
 
-            <div className="px-2 pb-3 mb-2 flex-shrink-0 border-b border-slate-100 dark:border-slate-800">
-              <div className="group relative flex items-center w-full h-[38px] rounded-xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                <div className="flex items-center justify-center pl-3.5 pr-2.5 text-slate-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search navigation..."
-                  value={sidebarSearch}
-                  onChange={(e) => setSidebarSearch(e.target.value)}
-                  className="w-full h-full bg-transparent border-0 focus:ring-0 focus:outline-none text-xs placeholder-slate-400 text-slate-800 dark:text-slate-100 font-medium pr-8"
-                />
-              </div>
+            <div 
+              className="flex-1 overflow-y-auto no-scrollbar" 
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest('a')) {
+                  setMobileMenuOpen(false);
+                }
+              }}
+            >
+              <Sidebar
+                isMobile={true}
+                sidebarCollapsed={false}
+                setSidebarCollapsed={() => {}}
+                companyName={companyName}
+                companyLogo={companyLogo}
+                logoError={logoError}
+                setLogoError={setLogoError}
+                sidebarSearch={sidebarSearch}
+                setSidebarSearch={setSidebarSearch}
+                sidebarGroups={sidebarGroups}
+                isSuperAdmin={isSuperAdmin}
+                hasPermission={hasPermission}
+                currentTab={currentTab}
+                pathname={pathname}
+              />
             </div>
-
-            <nav className="flex-1 overflow-y-auto no-scrollbar space-y-4" onClick={() => setMobileMenuOpen(false)}>
-              {sidebarGroups.map((group, idx) => (
-                <div key={idx} className="space-y-1">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2 block">
-                    {group.title}
-                  </span>
-                  {group.items.map((item) => (
-                    <Link
-                      key={item.tab}
-                      href={`/dashboard/${item.tab}`}
-                      className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 transition-colors"
-                    >
-                      <span>{item.icon}</span>
-                      <span>{item.label}</span>
-                    </Link>
-                  ))}
-                </div>
-              ))}
-            </nav>
 
             <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
               <button
@@ -894,7 +1003,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       {/* 🚀 MAIN CONTENT CONTAINER */}
-      <div style={{ backgroundColor: '#d1e3da' }} className="flex flex-1 flex-col h-full overflow-hidden">
+      <div style={{ backgroundColor: '#f4f6f9' }} className="flex flex-1 flex-col h-full overflow-hidden gap-3 min-w-0">
         {/* TOP HEADER BAR */}
         <Header
           companyName={companyName}
@@ -915,7 +1024,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         />
 
         {/* 🚀 MAIN BODY AREA */}
-        <main style={{ backgroundColor: '#d1e3da' }} className="flex-1 overflow-y-auto p-4 md:p-8 relative no-scrollbar">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative no-scrollbar rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm">
           {bodyLoading ? (
             <div className="w-full h-full flex flex-col gap-6 animate-fadeIn p-2">
               <div className="h-9 w-1/4 rounded-xl shimmer-loading" />
@@ -945,7 +1054,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
             onClick={handleFabClick}
-            className="flex items-center gap-2.5 px-6 py-3 rounded-full border border-slate-200/80 dark:border-slate-800/80 bg-card/90 shadow-2xl backdrop-blur-xl hover:scale-105 active:scale-95 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all duration-250 cursor-grab active:cursor-grabbing group text-slate-800 dark:text-slate-200"
+            className="flex items-center justify-center gap-2.5 p-3 sm:px-6 sm:py-3 rounded-full border border-slate-200/80 dark:border-slate-800/80 bg-card/90 shadow-2xl backdrop-blur-xl hover:scale-105 active:scale-95 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all duration-250 cursor-grab active:cursor-grabbing group text-slate-800 dark:text-slate-200"
           >
             <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -953,67 +1062,85 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <rect x="14" y="14" width="7" height="7" rx="1.5" />
               <rect x="3" y="14" width="7" height="7" rx="1.5" />
             </svg>
-            <span className="text-[10px] uppercase tracking-widest font-black">App Launcher</span>
+            <span className="hidden sm:inline text-[10px] uppercase tracking-widest font-black">App Launcher</span>
           </button>
         </div>
       )}
 
-      {/* 🎛️ MORE APPS POP-UP DRAWER */}
+      {/* 🎛️ MORE APPS POP-UP DRAWER (Docked right above Floating Launcher Button as Speech Bubble) */}
       {moreAppsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setMoreAppsOpen(false)} />
-          <div className="relative w-full max-w-2xl bg-card rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 shadow-2xl z-50 animate-scaleUp max-h-[70vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-200/50 dark:border-slate-800/60 pb-4 mb-5 flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex-shrink-0">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+          {/* Backdrop overlay */}
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs pointer-events-auto transition-opacity" onClick={() => setMoreAppsOpen(false)} />
+          
+          {/* Speech Bubble Docked Popover Container */}
+          <div
+            className="fixed bottom-20 left-1/2 z-50 w-[92vw] max-w-[460px] sm:w-[500px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[2.2rem] border border-slate-200/90 dark:border-slate-800/90 p-4 sm:p-5 shadow-[0_25px_70px_rgba(0,0,0,0.35)] animate-scaleUp flex flex-col overflow-hidden max-h-[58vh] sm:max-h-[66vh] origin-bottom pointer-events-auto transition-all duration-300 ease-out font-sans"
+            style={{
+              transform: `translate(calc(-50% + ${
+                typeof window !== 'undefined'
+                  ? Math.max(-window.innerWidth / 2 + 160, Math.min(window.innerWidth / 2 - 160, fabPos.x))
+                  : fabPos.x
+              }px), ${fabPos.y}px)`
+            }}
+          >
+            {/* Speech Bubble Triangle Pointer Tail Pointing Down to Floating Button */}
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-white dark:border-t-slate-900 drop-shadow-md z-50" />
+
+            {/* Popover Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/70 pb-3 mb-3 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/20 flex-shrink-0 text-white">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
                   </svg>
                 </div>
                 <div className="flex flex-col text-left">
-                  <h3 className="text-base font-black tracking-tight text-slate-800 dark:text-slate-100">
-                    Enterprise Module Launcher
+                  <h3 className="text-xs sm:text-sm font-black tracking-tight text-slate-900 dark:text-slate-100 font-sans">
+                    App Launcher
                   </h3>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5 tracking-wider uppercase">
-                    All platform modules & tools
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold tracking-wider uppercase">
+                    All Platform Tools
                   </span>
                 </div>
               </div>
               <button
                 onClick={() => setMoreAppsOpen(false)}
-                className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all cursor-pointer"
+                className="w-7 h-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center transition-all cursor-pointer"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div className="mb-5 relative flex-shrink-0">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            {/* Compact Search Bar */}
+            <div className="mb-2.5 relative flex-shrink-0">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none text-slate-400">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </span>
               <input
                 type="text"
-                placeholder="Search modules & tools..."
+                placeholder="Search modules..."
                 value={appSearch}
                 onChange={(e) => setAppSearch(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all placeholder-slate-400 text-slate-800 dark:text-slate-100 font-semibold"
+                className="w-full pl-8.5 pr-8 py-1.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 text-[11px] outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 transition-all placeholder-slate-400 text-slate-800 dark:text-slate-100 font-semibold"
               />
               {appSearch && (
                 <button
                   onClick={() => setAppSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1 cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1 cursor-pointer"
                 >
                   ✕
                 </button>
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto no-scrollbar pr-1 min-h-0">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pb-4">
+            {/* App Grid (3 Columns on Mobile, 4 Columns on Desktop) */}
+            <div className="flex-1 overflow-y-auto no-scrollbar pr-0.5 min-h-0">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-2.5 pb-1">
                 {flatItems
                   .filter(
                     (item) =>
@@ -1025,14 +1152,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       key={item.tab}
                       href={`/dashboard/${item.tab}`}
                       onClick={() => setMoreAppsOpen(false)}
-                      className={`group flex flex-col items-center text-center p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                      className={`group flex flex-col items-center text-center p-2 sm:p-2.5 rounded-2xl border transition-all duration-200 cursor-pointer ${
                         currentTab === item.tab
-                          ? 'bg-blue-500/10 border-blue-500/40 shadow-md ring-1 ring-blue-500/20'
-                          : 'border-slate-200/70 dark:border-slate-800/60 bg-card hover:border-blue-300 dark:hover:border-blue-900/60 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 hover:shadow-lg'
+                          ? 'bg-blue-500/10 border-blue-500/40 shadow-sm ring-1 ring-blue-500/20'
+                          : 'border-slate-200/70 dark:border-slate-800/60 bg-card hover:border-blue-300 dark:hover:border-blue-900/60 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 hover:shadow-md'
                       }`}
                     >
                       <div
-                        className={`flex items-center justify-center h-11 w-11 rounded-2xl mb-3 text-2xl transition-transform duration-200 group-hover:scale-110 ${
+                        className={`flex items-center justify-center h-8.5 w-8.5 sm:h-9.5 sm:w-9.5 rounded-xl mb-1 text-lg sm:text-xl transition-transform duration-200 group-hover:scale-110 ${
                           currentTab === item.tab
                             ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
                             : 'bg-slate-100/80 dark:bg-slate-800/60 text-slate-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/30 group-hover:text-blue-600'
@@ -1041,7 +1168,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                         {item.icon}
                       </div>
                       <span
-                        className={`text-xs font-bold tracking-wide leading-tight ${
+                        className={`text-[10px] sm:text-[11px] font-bold tracking-tight leading-tight line-clamp-2 ${
                           currentTab === item.tab
                             ? 'text-blue-600 dark:text-blue-400'
                             : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400'
@@ -1259,7 +1386,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-
+      {/* Global 100% Free Floating AI Assistant Widget */}
+      <FloatingAiWidget />
     </div>
   );
 }

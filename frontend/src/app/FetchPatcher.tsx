@@ -61,5 +61,33 @@ export default function FetchPatcher() {
     };
   }, []);
 
+  useEffect(() => {
+    const disableAutocomplete = () => {
+      try {
+        const inputs = document.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])');
+        inputs.forEach((input) => {
+          if (input.getAttribute('autocomplete') !== 'off') {
+            input.setAttribute('autocomplete', 'off');
+          }
+          if (input.getAttribute('autocomplete') !== 'off') {
+            input.setAttribute('autoComplete', 'off');
+          }
+        });
+        const forms = document.querySelectorAll('form');
+        forms.forEach((form) => {
+          if (form.getAttribute('autocomplete') !== 'off') {
+            form.setAttribute('autocomplete', 'off');
+          }
+        });
+      } catch {}
+    };
+
+    disableAutocomplete();
+    const observer = new MutationObserver(() => disableAutocomplete());
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, []);
+
   return null;
 }

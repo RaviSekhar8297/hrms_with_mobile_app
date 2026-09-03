@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 type Tab = 'overview' | 'jobs' | 'ats' | 'offers' | 'rounds';
 
 export default function RecruitmentDashboard() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('ats');
   const [showCreateJobModal, setShowCreateJobModal] = useState(false);
   const [showSmtpModal, setShowSmtpModal] = useState(false);
@@ -38,8 +40,11 @@ export default function RecruitmentDashboard() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const [selectedAtsJobId, setSelectedAtsJobId] = useState<string>('all');
+  const [stageFilter, setStageFilter] = useState<'APPLIED' | 'SCREENING' | 'INTERVIEWING' | 'SELECTED'>('APPLIED');
   const [applications, setApplications] = useState<any[]>([]);
   const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
+  const [submittingCandidate, setSubmittingCandidate] = useState(false);
+  const [movingAppId, setMovingAppId] = useState<string | null>(null);
   const [newCandidate, setNewCandidate] = useState({ first_name: '', last_name: '', email: '', phone: '', job_id: '' });
   const [newCandidateResume, setNewCandidateResume] = useState<File | null>(null);
 
@@ -107,8 +112,11 @@ export default function RecruitmentDashboard() {
     }
   };
 
+  const [loadingApps, setLoadingApps] = useState(false);
+
   const fetchApplications = async (jobId: string) => {
     try {
+      setLoadingApps(true);
       const token = localStorage.getItem('access_token');
       let url = `/api/v1/recruitment/applications?job_id=${jobId || 'all'}`;
       if (selectedCompanyId) url += `&company_id=${selectedCompanyId}`;
@@ -118,6 +126,8 @@ export default function RecruitmentDashboard() {
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoadingApps(false);
     }
   };
 
@@ -156,6 +166,7 @@ export default function RecruitmentDashboard() {
       return;
     }
     try {
+      setSubmittingCandidate(true);
       const token = localStorage.getItem('access_token');
       const submitData = new FormData();
       submitData.append('job_id', jobToUse);
@@ -188,6 +199,8 @@ export default function RecruitmentDashboard() {
       }
     } catch (err) {
       showToast('Error adding candidate', 'error');
+    } finally {
+      setSubmittingCandidate(false);
     }
   };
 
@@ -414,6 +427,7 @@ export default function RecruitmentDashboard() {
 
   const handleMoveCandidateToStage = async (appId: string, newStatus: string) => {
     try {
+      setMovingAppId(appId);
       const token = localStorage.getItem('access_token');
       const res = await fetch(`/api/v1/recruitment/applications/${appId}/stage`, {
         method: 'PUT',
@@ -431,10 +445,12 @@ export default function RecruitmentDashboard() {
       }
     } catch (err) {
       showToast('Error updating stage', 'error');
+    } finally {
+      setMovingAppId(null);
     }
   };
 
-  const STAGE_ORDER = ['APPLIED', 'SCREENING', 'INTERVIEWING', 'SELECTED', 'OFFERED', 'HIRED'];
+  const STAGE_ORDER = ['APPLIED', 'SCREENING', 'INTERVIEWING', 'SELECTED', 'HIRED'];
   const LOCKED_STAGES = ['SELECTED', 'HIRED', 'REJECTED'];
 
   const canDragApp = (app: any) => !LOCKED_STAGES.includes(app.status?.toUpperCase());
@@ -822,32 +838,6 @@ export default function RecruitmentDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       ),
-    },
-    {
-      id: 'rounds',
-      label: 'Interview Rounds',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" /></svg>
-      ),
-    },
-    {
-      id: 'offers',
-      label: 'Offers',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'overview',
-      label: 'Analytics & Overview',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-        </svg>
-      ),
     }
   ];
 
@@ -855,120 +845,150 @@ export default function RecruitmentDashboard() {
     <div style={{ fontFamily: '"DM Sans", sans-serif' }} className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden">
       
       {/* PAGE HEADER */}
-      <div className="flex-shrink-0 px-8 pt-6 pb-2 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 flex-shrink-0 border border-white/20">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+      <div className="flex-shrink-0 px-6 pt-6 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 shrink-0">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Recruitment ATS</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
+              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-outfit">Recruitment & ATS Pipeline</h1>
+              <span className="px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                 Live Console
               </span>
             </div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
-              End-to-end Hiring Pipeline, Kanban ATS, and Candidate Management
+              End-to-end Job Openings, Applicant Tracking System (ATS), and Candidate Stage Pipeline
             </p>
           </div>
         </div>
 
-        {isSuperAdmin && companies.length > 0 && (
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3.5 py-1.5 rounded-xl shadow-xs border border-slate-200/80 dark:border-slate-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Company:</span>
-            <select 
-              value={selectedCompanyId} 
-              onChange={e => setSelectedCompanyId(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer pr-1"
+        <div className="flex items-center gap-3 flex-wrap w-full md:w-auto justify-end">
+          {isSuperAdmin && companies.length > 0 && (
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Company:</span>
+              <select 
+                value={selectedCompanyId} 
+                onChange={e => setSelectedCompanyId(e.target.value)}
+                className="bg-transparent text-xs font-extrabold text-slate-800 dark:text-slate-100 outline-none cursor-pointer"
+              >
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {activeTab === 'jobs' && (
+            <button 
+              onClick={() => {
+                setEditingJobId(null);
+                setNewJob({ title: '', department_id: '', location: '', employment_type: 'Full-Time', experience_range: '', headcount: 1, salary_range: '', currency: 'INR', description: '', interview_rounds: [] });
+                setShowCreateJobModal(true);
+              }}
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-indigo-500/25 transition-all cursor-pointer"
             >
-              {companies.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
+              + Create New Job Opening
+            </button>
+          )}
 
-      {/* TOOLBAR CARD (TABS + DYNAMIC ACTION BUTTON) */}
-      <div className="flex-shrink-0 px-8 pb-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-1.5 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-3">
-          
-          {/* TABS */}
-          <div className="flex overflow-x-auto no-scrollbar gap-1.5 w-full sm:w-auto p-0.5">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 cursor-pointer ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 scale-[1.02]'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
-                  }`}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* DYNAMIC ACTION BUTTON */}
-          <div className="pr-1.5 w-full sm:w-auto flex justify-end">
-            {activeTab === 'rounds' && (
-              <button 
-                onClick={() => {
-                  setEditingRoundId(null);
-                  setNewRoundData({ round_name: '', round_type: 'General' });
-                  setShowManageRoundsModal(true);
-                }}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md shadow-blue-600/20 active:scale-95 whitespace-nowrap cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Create Master Round
-              </button>
-            )}
-
-            {activeTab === 'jobs' && (
-              <button 
-                onClick={() => {
-                  setEditingJobId(null);
-                  setNewJob({ title: '', department_id: '', location: '', employment_type: 'Full-Time', experience_range: '', headcount: 1, salary_range: '', currency: 'INR', description: '', interview_rounds: [] });
-                  setShowCreateJobModal(true);
-                }}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md shadow-blue-600/20 active:scale-95 whitespace-nowrap cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Create New Job
-              </button>
-            )}
-
-            {activeTab === 'ats' && (
-              <button 
-                onClick={() => setShowAddCandidateModal(true)}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md shadow-blue-600/20 active:scale-95 whitespace-nowrap cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Add Candidate
-              </button>
-            )}
-          </div>
-
+          {activeTab === 'ats' && (
+            <button 
+              onClick={() => setShowAddCandidateModal(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-indigo-500/25 transition-all cursor-pointer"
+            >
+              + Add Candidate
+            </button>
+          )}
         </div>
       </div>
 
+      {/* UNIFIED STAGE & JOBS TOOLBAR */}
+      <div className="flex-shrink-0 px-6 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-2xs">
+        
+        {/* LEFT SIDE: STAGE FILTER BUTTONS + ACTIVE JOBS TAB */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 5 STAGE FILTER BUTTONS */}
+          {[
+            { id: 'APPLIED', label: 'Applied', icon: '📥' },
+            { id: 'SCREENING', label: 'Screening', icon: '🔍' },
+            { id: 'INTERVIEWING', label: 'Interviewing', icon: '📹' },
+            { id: 'SELECTED', label: 'Selected', icon: '⭐' },
+          ].map((stg) => {
+            const isActive = activeTab === 'ats' && stageFilter === stg.id;
+            const count = applications.filter(a => a.status && a.status.toUpperCase() === stg.id).length;
+            return (
+              <button
+                key={stg.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab('ats');
+                  setStageFilter(stg.id as any);
+                }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
+                  isActive
+                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white border-blue-600 shadow-md shadow-blue-600/25 scale-[1.02]'
+                    : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100/90'
+                }`}
+              >
+                <span>{stg.icon}</span>
+                <span>{stg.label}</span>
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+                  isActive 
+                    ? 'bg-white/20 text-white' 
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+
+          <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
+
+          {/* ACTIVE JOBS MANAGEMENT TAB */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('jobs')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
+              activeTab === 'jobs'
+                ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white border-blue-600 shadow-md shadow-blue-600/25 scale-[1.02]'
+                : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100/90'
+            }`}
+          >
+            <span>💼 Active Jobs</span>
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+              {jobs.length}
+            </span>
+          </button>
+        </div>
+
+        {/* RIGHT SIDE: INLINE JOB FILTER DROPDOWN & DYNAMIC ACTIONS */}
+        <div className="flex items-center gap-3 shrink-0">
+          {activeTab === 'ats' && (
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">JOB:</span>
+              <select 
+                value={selectedAtsJobId || 'all'} 
+                onChange={(e) => setSelectedAtsJobId(e.target.value)} 
+                className="bg-transparent text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer"
+              >
+                <option value="all">🌐 All Openings</option>
+                {jobs.map(job => (
+                  <option key={job.id} value={job.id}>{job.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+      </div>
+
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 overflow-y-auto px-8 pb-8 pt-2 relative">
+      <div className="flex-1 overflow-y-auto p-6 relative">
         
         {/* =============================================================== */}
         {/* === ROUNDS TAB === */}
@@ -1155,174 +1175,179 @@ export default function RecruitmentDashboard() {
         )}
 
         {/* =============================================================== */}
-        {/* ATS KANBAN BOARD (CRUD: candidates, job_applications, stage_history, notes, docs) */}
+        {/* ATS STAGE CANDIDATES LIST */}
         {/* =============================================================== */}
         {activeTab === 'ats' && (
-          <div className="h-full flex flex-col animate-fadeIn">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex gap-4">
-                <select value={selectedAtsJobId || 'all'} onChange={(e) => setSelectedAtsJobId(e.target.value)} className="px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-500">
-                  <option value="all">All Jobs</option>
-                  {jobs.map(job => (
-                    <option key={job.id} value={job.id}>{job.title} ({job.id.substring(0,8)})</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => setShowAddCandidateModal(true)} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  + Add Candidate Manually
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex-1 flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-              {/* Kanban Columns */}
-              {['APPLIED', 'SCREENING', 'INTERVIEWING', 'SELECTED', 'OFFERED'].map((stage, idx) => {
-                const stageApps = applications.filter(a => a.status && a.status.toUpperCase() === stage);
+          <div className="space-y-6 animate-fadeIn">
+
+            {/* CANDIDATES LIST FOR CURRENT SELECTED STAGE */}
+            {(() => {
+              if (loadingApps) {
                 return (
-                <div key={stage} onDragOver={handleDragOver} onDrop={(e) => handleDropCandidate(e, stage)} className="flex-shrink-0 w-[280px] bg-slate-100/50 dark:bg-slate-900/30 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-hidden shadow-inner">
-                  
-                  <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 flex justify-between items-center backdrop-blur-md">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${idx === 0 ? 'bg-slate-400' : idx === 1 ? 'bg-blue-400' : idx === 2 ? 'bg-amber-400' : idx === 3 ? 'bg-indigo-400' : 'bg-emerald-400'}`}></div>
-                      <h3 className="font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider text-xs">{stage}</h3>
+                  <div className="p-16 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center space-y-4 shadow-2xs animate-fadeIn">
+                    <div className="relative flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full border-4 border-indigo-100 dark:border-indigo-950 border-t-indigo-600 dark:border-t-indigo-400 animate-spin"></div>
+                      <span className="absolute text-sm">⚡</span>
                     </div>
-                    <span className="px-2 py-1 bg-white dark:bg-slate-800 rounded-lg text-xs font-black text-slate-600 dark:text-slate-400 shadow-sm border border-slate-200 dark:border-slate-700">{stageApps.length}</span>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900 dark:text-white font-outfit">Loading Candidate Pipeline...</h4>
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Fetching candidate records & status for {stageFilter} stage</p>
+                    </div>
                   </div>
-                  <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                      {stageApps.length > 0 ? stageApps.map(app => {
-                        const isLocked = LOCKED_STAGES.includes(app.status?.toUpperCase());
-                        return (
+                );
+              }
+
+              const currentStageApps = applications.filter(a => a.status && a.status.toUpperCase() === stageFilter);
+              
+              if (currentStageApps.length === 0) {
+                return (
+                  <div className="p-16 rounded-2xl bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center text-3xl mb-4">
+                      📭
+                    </div>
+                    <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-200">No candidates in {stageFilter} stage</h3>
+                    <p className="text-xs text-slate-500 font-medium mt-1">Candidates moved to {stageFilter} stage will appear here.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {currentStageApps.map((app) => {
+                      // Determine Next Stage
+                      const stageSequence = ['APPLIED', 'SCREENING', 'INTERVIEWING', 'SELECTED'];
+                      const currentIdx = stageSequence.indexOf(app.status?.toUpperCase() || 'APPLIED');
+                      const nextStage = currentIdx < stageSequence.length - 1 ? stageSequence[currentIdx + 1] : null;
+
+                      return (
                         <div 
-                          key={app.application_id} 
-                          draggable={!isLocked} 
-                          onDragStart={(e) => { if (!isLocked) handleDragStart(e, app.application_id); }} 
-                          onClick={() => openCandidateProfile(app)}
-                          className={`group bg-white dark:bg-slate-800 p-3.5 rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)] border border-slate-200 dark:border-slate-700 transition-colors ${
-                            isLocked
-                              ? 'cursor-default opacity-90 border-slate-200 dark:border-slate-700'
-                              : 'cursor-grab active:cursor-grabbing hover:border-blue-400 dark:hover:border-blue-500'
-                          }`}
+                          key={app.application_id}
+                          className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-all border-b border-slate-100 dark:border-slate-800/80 last:border-0"
                         >
-                          <div className="flex justify-between items-start mb-2.5">
-                            <div className="font-bold text-slate-800 dark:text-white text-[13px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight">{app.first_name} {app.last_name}</div>
-                            <button className="text-slate-300 hover:text-slate-500 transition-colors ml-2">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                            </button>
-                          </div>
-                          
-                          <div className="space-y-1.5 mb-3">
-                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[11px] font-medium">
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                              <span className="truncate">{app.email}</span>
+                          {/* Candidate Bio Info */}
+                          <div className="flex items-center gap-4 cursor-pointer group" onClick={() => openCandidateProfile(app)}>
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white flex items-center justify-center font-black text-base shadow-sm shrink-0 border border-white/20">
+                              {app.first_name?.[0]}{app.last_name?.[0] || ''}
                             </div>
-                            
-                            {app.phone && (
-                              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[11px] font-medium">
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                                <span className="truncate">{app.phone}</span>
+                            <div>
+                              <div className="flex items-center gap-2.5">
+                                <h4 className="text-sm font-black text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">
+                                  {app.first_name} {app.last_name}
+                                </h4>
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+                                  {stageFilter}
+                                </span>
                               </div>
+                              <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
+                                <span className="flex items-center gap-1">📧 {app.email}</span>
+                                {app.phone && <span className="flex items-center gap-1">📞 {app.phone}</span>}
+                                <span className="flex items-center gap-1">📅 Applied: {new Date(app.applied_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons: Advance Stage & Profile Details */}
+                          <div className="flex items-center gap-2.5 shrink-0 justify-end flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => openCandidateProfile(app)}
+                              className="px-4 py-2 rounded-xl text-xs font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              <span>📋 Profile & Details</span>
+                            </button>
+
+                            {/* Stage specific Action Buttons */}
+                            {stageFilter === 'INTERVIEWING' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCandidate(app);
+                                  setShowScheduleModal(true);
+                                }}
+                                className="px-4 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm shadow-amber-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                              >
+                                <span>📹 Schedule Interview</span>
+                              </button>
                             )}
 
-                            <div className="pt-2 border-t border-slate-100 dark:border-slate-700/40 flex items-center justify-between">
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md border border-indigo-200/50">
-                                🎯 {app.current_round_name ? app.current_round_name : 'No Round Scheduled'}
-                              </span>
-                              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">
-                                {app.completed_rounds || 0}/{app.total_rounds || 0} Done
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="pt-3 border-t border-slate-100 dark:border-slate-700/50 flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[9px] font-black border border-blue-100 dark:border-blue-800">
-                                {app.first_name?.[0]}{(app.last_name?.[0] || '')}
-                              </div>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{stage}</span>
-                            </div>
-                            <div className="text-[10px] font-semibold text-slate-400">
-                              {new Date(app.applied_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                            </div>
+                            {nextStage ? (
+                              <button
+                                type="button"
+                                disabled={movingAppId === app.application_id}
+                                onClick={() => handleMoveCandidateToStage(app.application_id, nextStage)}
+                                className="px-4.5 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md shadow-indigo-500/20 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-75 disabled:cursor-not-allowed"
+                              >
+                                {movingAppId === app.application_id ? (
+                                  <span className="flex items-center gap-2">
+                                    <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                    </svg>
+                                    <span>Moving to {nextStage}...</span>
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span>Move to {nextStage}</span>
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                                    </svg>
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => router.push('/dashboard/onboarding')}
+                                className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 hover:bg-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                              >
+                                ✨ In Onboarding Pipeline ➔
+                              </button>
+                            )}
                           </div>
                         </div>
-                        );
-                      }) : (
-                        <div className="text-center p-4 text-xs font-semibold text-slate-400">
-                          No candidates in this stage
-                        </div>
-                      )}
+                      );
+                    })}
                   </div>
                 </div>
-              )})}
-            </div>
+              );
+            })()}
+
           </div>
         )}
 
         {/* Candidate Profile Off-canvas */}
         {showCandidatePanel && selectedCandidate && (
           <div className="fixed inset-0 z-50 flex justify-end">
-            <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm" onClick={() => setShowCandidatePanel(false)}></div>
-            <div className="relative w-[500px] bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col animate-slideInRight">
+            <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" onClick={() => setShowCandidatePanel(false)}></div>
+            <div className="relative w-full max-w-[550px] bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col animate-slideInRight">
               
-              <div className="p-8 border-b border-slate-200 dark:border-slate-800 flex justify-between items-start bg-gradient-to-br from-indigo-500/5 to-purple-500/5 dark:from-indigo-900/20 dark:to-purple-900/20 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full"></div>
-                <div className="flex gap-5 items-center relative z-10">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-2xl font-black shadow-lg shadow-indigo-500/30 transform hover:scale-105 transition-transform duration-300">
+              {/* DRAWER HEADER */}
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-900 dark:to-slate-850">
+                <div className="flex gap-4 items-center">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center text-xl font-black shadow-md shrink-0">
                     {selectedCandidate.first_name?.[0]}{selectedCandidate.last_name?.[0] || ''}
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{selectedCandidate.first_name} {selectedCandidate.last_name}</h2>
-                    <div className="flex gap-3 text-[11px] font-bold text-slate-500 mt-2 bg-white/60 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/50 backdrop-blur-md">
-                      <span className="flex items-center gap-1"><svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>{selectedCandidate.email}</span>
-                      <span className="text-slate-300 dark:text-slate-600">|</span>
-                      <span className="flex items-center gap-1"><svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>{selectedCandidate.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-3">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Stage:</span>
-                      <select 
-                        value={selectedCandidate.status?.toUpperCase() || 'APPLIED'} 
-                        onChange={(e) => handleMoveCandidateToStage(selectedCandidate.application_id, e.target.value)}
-                        className="px-3 py-1 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs font-black rounded-xl border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer"
-                      >
-                        <option value="APPLIED">1. APPLIED</option>
-                        <option value="SCREENING">2. SCREENING</option>
-                        <option value="INTERVIEWING">3. INTERVIEWING</option>
-                        <option value="SELECTED">⭐ 4. SELECTED</option>
-                        <option value="OFFERED">✉️ 5. OFFERED</option>
-                        <option value="HIRED">🎉 6. HIRED</option>
-                        <option value="REJECTED">❌ REJECTED</option>
-                      </select>
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight font-outfit">
+                      {selectedCandidate.first_name} {selectedCandidate.last_name}
+                    </h2>
+                    <div className="flex items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
+                      <span>📧 {selectedCandidate.email}</span>
+                      {selectedCandidate.phone && <span>📞 {selectedCandidate.phone}</span>}
                     </div>
                   </div>
                 </div>
-                <button onClick={() => setShowCandidatePanel(false)} className="p-2.5 bg-white/80 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-full text-slate-400 hover:text-slate-600 transition-all z-10">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                <button 
+                  onClick={() => setShowCandidatePanel(false)} 
+                  className="w-9 h-9 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-full text-slate-500 hover:text-slate-700 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                >
+                  ✕
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                
-                {/* APPLIED STAGE NOTICE BANNER */}
-                {selectedCandidate.status?.toUpperCase() === 'APPLIED' && (
-                  <div className="p-4 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm shrink-0">
-                        📋
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-indigo-900 dark:text-indigo-200">Candidate in Initial Applied Stage</h4>
-                        <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Review full details & resume below. Click 'Move to Screening' to enable interview scheduling.</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleMoveCandidateToStage(selectedCandidate.application_id, 'SCREENING')}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer shrink-0"
-                    >
-                      Move to Screening &rarr;
-                    </button>
-                  </div>
-                )}
+              {/* DRAWER BODY */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
                 {/* INTERVIEWS SECTION */}
                 <section>
@@ -2345,8 +2370,30 @@ export default function RecruitmentDashboard() {
             </div>
             
             <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
-              <button onClick={() => setShowAddCandidateModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-sm">Cancel</button>
-              <button onClick={handleAddCandidate} className="px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 active:scale-95 transition-all text-sm">Add Candidate</button>
+              <button 
+                onClick={() => setShowAddCandidateModal(false)} 
+                disabled={submittingCandidate}
+                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleAddCandidate} 
+                disabled={submittingCandidate}
+                className="px-5 py-2.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 active:scale-95 transition-all text-sm flex items-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
+              >
+                {submittingCandidate ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    <span>Saving Candidate...</span>
+                  </>
+                ) : (
+                  <span>Add Candidate</span>
+                )}
+              </button>
             </div>
           </div>
         </div>

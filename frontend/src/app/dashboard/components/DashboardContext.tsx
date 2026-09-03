@@ -13,6 +13,13 @@ export type LayoutType = 'sidebar' | 'bottom-dock';
 export type ThemeType = 'slate-dark' | 'nordic-light';
 export type FontType = 'Poppins' | 'Inter' | 'Outfit' | 'Space Grotesk' | 'Playfair Display' | 'DM Sans';
 
+interface CompanyItem {
+  id: string;
+  name: string;
+  subdomain?: string;
+  status?: string;
+}
+
 interface DashboardContextType {
   layout: LayoutType;
   setLayout: (layout: LayoutType) => void;
@@ -25,6 +32,10 @@ interface DashboardContextType {
   dismissToast: (id: string) => void;
   bodyLoading: boolean;
   setBodyLoading: (loading: boolean) => void;
+  companyId: string | null;
+  setCompanyId: (id: string | null) => void;
+  companies: CompanyItem[];
+  setCompanies: (list: CompanyItem[]) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -36,9 +47,23 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [font, setFontState] = useState<FontType>('Poppins');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [bodyLoading, setBodyLoading] = useState(false);
+  const [companyId, setCompanyIdState] = useState<string | null>(null);
+  const [companies, setCompanies] = useState<CompanyItem[]>([]);
 
-  // Initialize from LocalStorage
+  const setCompanyId = (id: string | null) => {
+    setCompanyIdState(id);
+    if (id) {
+      localStorage.setItem('companyId', id);
+    } else {
+      localStorage.removeItem('companyId');
+    }
+  };
+
+  // Initialize from LocalStorage & fetch companies if needed
   useEffect(() => {
+    const savedCompanyId = localStorage.getItem('companyId');
+    if (savedCompanyId) setCompanyIdState(savedCompanyId);
+
     const savedLayout = localStorage.getItem('pref_layout') as LayoutType;
     if (savedLayout) setLayoutState(savedLayout);
 
@@ -103,16 +128,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Theme values configuration
     if (theme === 'nordic-light') {
       doc.classList.add('theme-nordic-light');
-      doc.style.setProperty('--background', '#d1e3da');
+      doc.style.setProperty('--background', '#f4f6f9');
       doc.style.setProperty('--foreground', '#0f172a');
       doc.style.setProperty('--card', '#ffffff');
-      document.body.style.backgroundColor = '#d1e3da';
+      document.body.style.backgroundColor = '#f4f6f9';
     } else {
       doc.classList.add('theme-nordic-light');
-      doc.style.setProperty('--background', '#d1e3da');
+      doc.style.setProperty('--background', '#f4f6f9');
       doc.style.setProperty('--foreground', '#0f172a');
       doc.style.setProperty('--card', '#ffffff');
-      document.body.style.backgroundColor = '#d1e3da';
+      document.body.style.backgroundColor = '#f4f6f9';
     }
   }, [theme, font]);
 
@@ -153,6 +178,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         dismissToast,
         bodyLoading,
         setBodyLoading,
+        companyId,
+        setCompanyId,
+        companies,
+        setCompanies,
       }}
     >
       {children}

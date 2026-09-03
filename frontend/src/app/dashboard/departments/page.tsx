@@ -36,10 +36,10 @@ interface Department {
 }
 
 export default function DepartmentsPage() {
-  const { showToast } = useDashboard();
+  const { showToast, companyId, setCompanyId } = useDashboard();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -54,13 +54,16 @@ export default function DepartmentsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
-  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null);
   const [deletingDepartment, setDeletingDepartment] = useState<Department | null>(null);
 
   // Form states
   const [deptForm, setDeptForm] = useState({ name: '', description: '', branch_id: '', companyId: '', status: 'ACTIVE' });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const canView = isSuperAdmin || permissions.includes('view_departments');
+  const canCreate = isSuperAdmin || permissions.includes('create_departments');
+  const canEdit = isSuperAdmin || permissions.includes('edit_departments');
+  const canDelete = isSuperAdmin || permissions.includes('delete_departments');
 
   const filteredDepartments = departments.filter(d => 
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,18 +79,15 @@ export default function DepartmentsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterCompanyId, searchTerm]);
+  }, [companyId, searchTerm]);
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
     const storedEmail = localStorage.getItem('email');
-    const storedCompanyId = localStorage.getItem('companyId');
+    const storedPermissions = localStorage.getItem('permissions');
     if (storedRoles) setRoles(JSON.parse(storedRoles));
     if (storedEmail) setEmail(storedEmail);
-    if (storedCompanyId) {
-      setCompanyId(storedCompanyId);
-      setDeptForm(prev => ({ ...prev, companyId: storedCompanyId }));
-    }
+    if (storedPermissions) setPermissions(JSON.parse(storedPermissions));
   }, []);
 
   const fetchCompanies = async () => {
@@ -111,8 +111,7 @@ export default function DepartmentsPage() {
 
   const fetchBranches = async () => {
     try {
-      const activeId = isSuperAdmin ? filterCompanyId : companyId;
-      const res = await fetch(getUrl('/api/v1/branches', activeId), { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/branches', companyId), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
         setBranches(data.branches || []);
@@ -126,8 +125,7 @@ export default function DepartmentsPage() {
   const fetchDepartments = async () => {
     setLoading(true);
     try {
-      const activeId = isSuperAdmin ? filterCompanyId : companyId;
-      const res = await fetch(getUrl('/api/v1/departments', activeId), { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/departments', companyId), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setDepartments(data.departments || []);
     } catch (e) { console.error(e); }
@@ -140,7 +138,7 @@ export default function DepartmentsPage() {
     }
     fetchBranches();
     fetchDepartments();
-  }, [companyId, filterCompanyId, isSuperAdmin]);
+  }, [companyId, isSuperAdmin]);
 
   useEffect(() => {
     if (!deletingDepartment) return;
@@ -283,6 +281,20 @@ export default function DepartmentsPage() {
     }
   };
 
+  if (roles.length > 0 && !canView) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn">
+        <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-3xl">
+          🔒
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Access Denied</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs mt-1.5 max-w-sm">
+          You do not have the required permissions to access the Departments module. Please contact your administrator.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn">
       <div className="w-full">
@@ -405,33 +417,16 @@ export default function DepartmentsPage() {
               />
             </div>
 
-            {isSuperAdmin && (
-              <div className="flex items-center gap-2.5">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Company:</span>
-                <div className="w-44 text-left">
-                  <SearchableSelect
-                    placeholder="All Companies"
-                    options={[
-                      { value: 'ALL', label: 'All Companies' },
-                      ...companies.map(c => ({ value: c.id, label: c.name }))
-                    ]}
-                    value={filterCompanyId || 'ALL'}
-                    onChange={val => {
-                      setFilterCompanyId(val === 'ALL' ? null : val);
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
             {/* ADD DEPARTMENT BUTTON IN CONTROLS ROW */}
-            <button
-              onClick={openAddDrawer}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-            >
-              <i className="fa-solid fa-plus text-xs"></i>
-              <span>Add Department</span>
-            </button>
+            {canCreate && (
+              <button
+                onClick={openAddDrawer}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <i className="fa-solid fa-plus text-xs"></i>
+                <span>Add Department</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -507,24 +502,28 @@ export default function DepartmentsPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEditClick(d)}
-                        title="Edit department"
-                        className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-blue-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/edit"
-                      >
-                        <svg className="w-4 h-4 transition-transform group-hover/edit:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setDeletingDepartment(d)}
-                        title="Delete department"
-                        className="h-8 w-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 hover:bg-gradient-to-r hover:from-rose-600 hover:to-red-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-rose-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/del"
-                      >
-                        <svg className="w-4 h-4 transition-transform group-hover/del:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                        </svg>
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleEditClick(d)}
+                          title="Edit department"
+                          className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-blue-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/edit"
+                        >
+                          <svg className="w-4 h-4 transition-transform group-hover/edit:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                          </svg>
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => setDeletingDepartment(d)}
+                          title="Delete department"
+                          className="h-8 w-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 hover:bg-gradient-to-r hover:from-rose-600 hover:to-red-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-rose-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/del"
+                        >
+                          <svg className="w-4 h-4 transition-transform group-hover/del:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

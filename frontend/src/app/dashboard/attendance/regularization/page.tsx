@@ -8,9 +8,11 @@ import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 
-export default function RegularizationRequestsPage() {
-  const { showToast } = useDashboard();
-  const { isSuperAdmin } = usePermissions();
+export default function AttendanceRegularizationPage() {
+  const { showToast, companyId: globalCompanyId } = useDashboard();
+  const { isSuperAdmin, getPermissionScope } = usePermissions();
+  const regScope = getPermissionScope('view_attendance_regularizations');
+  const canSeeTeamTab = isSuperAdmin || regScope !== 'SELF';
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -18,6 +20,8 @@ export default function RegularizationRequestsPage() {
   const [roles, setRoles] = useState<string[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [viewScope, setViewScope] = useState<'my' | 'team'>('my');
+
+  const activeCompanyId = globalCompanyId || companyId;
 
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,7 +50,7 @@ export default function RegularizationRequestsPage() {
       try { setRoles(JSON.parse(storedRoles)); } catch { setRoles([]); }
     }
 
-    const savedCompanyId = localStorage.getItem('selectedCompanyId');
+    const savedCompanyId = localStorage.getItem('companyId');
     if (savedCompanyId) {
       setCompanyId(savedCompanyId);
     }
@@ -55,11 +59,9 @@ export default function RegularizationRequestsPage() {
   }, []);
 
   useEffect(() => {
-    if (companyId) {
-      fetchEmployees();
-      fetchRequests();
-    }
-  }, [companyId, viewScope]);
+    fetchEmployees();
+    fetchRequests();
+  }, [activeCompanyId, viewScope]);
 
   const fetchCompanies = async () => {
     try {
@@ -78,9 +80,10 @@ export default function RegularizationRequestsPage() {
   };
 
   const fetchEmployees = async () => {
-    if (!companyId) return;
     try {
-      const res = await fetch(`${API_BASE}/api/v1/employees?company_id=${companyId}`, { headers: getHeaders() });
+      const cid = activeCompanyId || localStorage.getItem('companyId');
+      const url = cid && cid !== 'all' ? `${API_BASE}/api/v1/employees?company_id=${cid}` : `${API_BASE}/api/v1/employees`;
+      const res = await fetch(url, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
         setEmployees(Array.isArray(data) ? data : (data.employees || data.data || []));
@@ -94,11 +97,14 @@ export default function RegularizationRequestsPage() {
   };
 
   const fetchRequests = async () => {
-    if (!companyId) return;
     setIsLoading(true);
     try {
+      const cid = activeCompanyId || localStorage.getItem('companyId');
       const scopeParam = isSuperAdmin ? 'all' : viewScope;
-      const res = await fetch(`${API_BASE}/api/v1/attendance/regularizations?company_id=${companyId}&scope=${scopeParam}`, { headers: getHeaders() });
+      const url = cid && cid !== 'all'
+        ? `${API_BASE}/api/v1/attendance/regularizations?company_id=${cid}&scope=${scopeParam}`
+        : `${API_BASE}/api/v1/attendance/regularizations?scope=${scopeParam}`;
+      const res = await fetch(url, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
         setRequests(Array.isArray(data) ? data : (data.data || data.regularizations || []));
@@ -165,7 +171,10 @@ export default function RegularizationRequestsPage() {
         body: JSON.stringify({ action }),
       });
       if (res.ok) {
-        showToast(`Request ${action.toLowerCase()} successfully!`, 'success');
+        showToast(
+          `Regularization request ${action === 'APPROVED' ? 'approved' : 'rejected'} successfully!`,
+          action === 'APPROVED' ? 'success' : 'info'
+        );
         fetchRequests();
       } else {
         const err = await res.json();
@@ -173,7 +182,7 @@ export default function RegularizationRequestsPage() {
       }
     } catch (e) {
       console.error(e);
-      showToast('Connection error', 'error');
+      showToast('Connection error while updating request', 'error');
     }
   };
 
@@ -183,7 +192,7 @@ export default function RegularizationRequestsPage() {
   const rejectedCount = safeRequests.filter(r => r?.status === 'REJECTED').length;
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto p-4 sm:p-6 font-sans">
+    <div className="space-y-6 animate-fadeIn w-full font-sans">
       <DashboardPageHeader
         title="Attendance Management"
         actionMessage=""
@@ -197,8 +206,51 @@ export default function RegularizationRequestsPage() {
         hideUserBadge={true}
       />
 
-      {/* HEADER & SCOPE SWITCHER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+      {/* SUMMARY STATS CARDS (TOP) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between hover:border-indigo-400">
+          <div>
+            <p className="text-[10.5px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Applications</p>
+            <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono mt-1">{requests.length}</h3>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900 flex items-center justify-center text-lg">
+            📝
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between hover:border-amber-400">
+          <div>
+            <p className="text-[10.5px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pending Approval</p>
+            <h3 className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono mt-1">{pendingCount}</h3>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900 flex items-center justify-center text-lg">
+            ⏳
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between hover:border-emerald-400">
+          <div>
+            <p className="text-[10.5px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Approved</p>
+            <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">{approvedCount}</h3>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 flex items-center justify-center text-lg">
+            ✅
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between hover:border-rose-400">
+          <div>
+            <p className="text-[10.5px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">Rejected</p>
+            <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono mt-1">{rejectedCount}</h3>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 flex items-center justify-center text-lg">
+            ❌
+          </div>
+        </div>
+      </div>
+
+      {/* HEADER & FILTER BAR (BELOW COUNT CARDS) */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-xs">
         <div>
           <h2 className="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <span>📝</span> Attendance Punch Regularization Requests
@@ -209,13 +261,13 @@ export default function RegularizationRequestsPage() {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          {!isSuperAdmin && (
-            <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          {canSeeTeamTab && (
+            <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
               <button
                 onClick={() => setViewScope('my')}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                   viewScope === 'my'
-                    ? 'bg-emerald-600 text-white shadow-xs'
+                    ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -225,46 +277,26 @@ export default function RegularizationRequestsPage() {
                 onClick={() => setViewScope('team')}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                   viewScope === 'team'
-                    ? 'bg-emerald-600 text-white shadow-xs'
+                    ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                👥 Team Approvals
+                👥 {regScope === 'ALL' || isSuperAdmin ? 'All Employee Approvals' : 'Team Approvals'}
               </button>
             </div>
           )}
 
           <button
             onClick={() => setDrawerOpen(true)}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
           >
             <span>➕</span> Apply Regularization
           </button>
         </div>
       </div>
 
-      {/* SUMMARY STATS CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-indigo-50/95 via-sky-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
-          <p className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Applications</p>
-          <h3 className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono mt-1">{requests.length}</h3>
-        </div>
-        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-amber-50/95 via-orange-50/30 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900 border border-amber-200/70 dark:border-amber-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
-          <p className="text-[10.5px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pending Approval</p>
-          <h3 className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 font-mono mt-1">{pendingCount}</h3>
-        </div>
-        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-emerald-50/95 via-teal-50/30 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
-          <p className="text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Approved</p>
-          <h3 className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-1">{approvedCount}</h3>
-        </div>
-        <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-rose-50/95 via-pink-50/30 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900 border border-rose-200/70 dark:border-rose-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
-          <p className="text-[10.5px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Rejected</p>
-          <h3 className="text-2xl font-extrabold text-rose-600 dark:text-rose-400 font-mono mt-1">{rejectedCount}</h3>
-        </div>
-      </div>
-
       {/* REQUESTS TABLE */}
-      <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
+      <div className="rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
@@ -281,7 +313,19 @@ export default function RegularizationRequestsPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">Loading regularization requests...</td>
+                  <td colSpan={7} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-3">
+                      <div className="relative flex items-center justify-center">
+                        <div className="w-10 h-10 border-4 border-indigo-200 dark:border-indigo-950 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                          Loading Regularization Requests...
+                        </p>
+                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Fetching attendance regularization & miss-punch requests</p>
+                      </div>
+                    </div>
+                  </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
@@ -314,11 +358,32 @@ export default function RegularizationRequestsPage() {
                         {req.punch_type === 'CHECK_IN' ? 'Check In' : 'Check Out'}
                       </span>
                     </td>
-                    <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
-                      {req.requested_time}
+                    <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap text-xs">
+                      {(() => {
+                        const fmt = (t?: string) => {
+                          if (!t || t === 'null') return '';
+                          const parts = t.split(':');
+                          return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : t;
+                        };
+                        const inTime = fmt(req.requested_in);
+                        const outTime = fmt(req.requested_out);
+                        if (inTime && outTime) return `${inTime} - ${outTime}`;
+                        if (inTime) return inTime;
+                        if (outTime) return outTime;
+                        return fmt(req.requested_time) || '—';
+                      })()}
                     </td>
-                    <td className="py-3 px-3 text-slate-600 dark:text-slate-400 max-w-xs truncate">
-                      {req.reason || '—'}
+                    <td className="py-3 px-3 text-slate-600 dark:text-slate-400">
+                      {req.reason ? (
+                        <span
+                          title={req.reason}
+                          className="cursor-help font-medium transition-colors hover:text-indigo-600 dark:hover:text-indigo-400"
+                        >
+                          {req.reason.length > 15 ? `${req.reason.slice(0, 15)}...` : req.reason}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="py-3 px-3 text-center">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${

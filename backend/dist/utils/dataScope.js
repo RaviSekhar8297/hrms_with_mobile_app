@@ -30,9 +30,13 @@ async function getEmployeeDataScope(req, moduleName, permissionName) {
         };
     }
     try {
-        const empRes = await (0, db_1.query)(`SELECT e.id, e.department_id, e.company_id, e.role_id 
+        const userEmail = (req.user.email || '').trim();
+        const empRes = await (0, db_1.query)(`SELECT e.id, e.department_id, e.company_id, e.role_id, r.name as role_name
        FROM hrms.employees e 
-       WHERE e.email = $1 AND e.status = 'ACTIVE'`, [req.user.email]);
+       LEFT JOIN hrms.roles r ON e.role_id = r.id
+       WHERE (LOWER(e.email) = LOWER($1) OR LOWER(e.emp_id_code) = LOWER($1))
+         AND e.status = 'ACTIVE' 
+       LIMIT 1`, [userEmail]);
         if (empRes.rows.length === 0) {
             return {
                 employeeId: null,
@@ -103,7 +107,8 @@ function buildDataScopeCondition(scopeCtx, tableAlias = 'e', empIdCol = 'id', st
     if (scopeCtx.isSuperAdmin || scopeCtx.dataScope === 'ALL') {
         return { whereSql: '', params: [], nextParamIdx: startingParamIdx };
     }
-    const empCol = tableAlias ? `${tableAlias}.${empIdCol}` : empIdCol;
+    const cleanAlias = tableAlias ? tableAlias.replace(/\.$/, '') : '';
+    const empCol = cleanAlias ? `${cleanAlias}.${empIdCol}` : empIdCol;
     if (scopeCtx.dataScope === 'SELF') {
         if (!scopeCtx.employeeId) {
             return { whereSql: '1=0', params: [], nextParamIdx: startingParamIdx };
@@ -119,9 +124,9 @@ function buildDataScopeCondition(scopeCtx, tableAlias = 'e', empIdCol = 'id', st
             return { whereSql: '1=0', params: [], nextParamIdx: startingParamIdx };
         }
         if (empIdCol === 'id') {
-            const alias = tableAlias ? `${tableAlias}.` : '';
+            const aliasPrefix = cleanAlias ? `${cleanAlias}.` : '';
             return {
-                whereSql: `(${alias}id = $${startingParamIdx} OR ${alias}reporting_to_id = $${startingParamIdx})`,
+                whereSql: `(${aliasPrefix}id = $${startingParamIdx} OR ${aliasPrefix}reporting_to_id = $${startingParamIdx})`,
                 params: [scopeCtx.employeeId],
                 nextParamIdx: startingParamIdx + 1,
             };
@@ -144,9 +149,9 @@ function buildDataScopeCondition(scopeCtx, tableAlias = 'e', empIdCol = 'id', st
                 nextParamIdx: startingParamIdx + 1,
             };
         }
-        if (empIdCol === 'id' && tableAlias) {
+        if (empIdCol === 'id' && cleanAlias) {
             return {
-                whereSql: `${tableAlias}.department_id = $${startingParamIdx}`,
+                whereSql: `${cleanAlias}.department_id = $${startingParamIdx}`,
                 params: [scopeCtx.departmentId],
                 nextParamIdx: startingParamIdx + 1,
             };

@@ -5,10 +5,31 @@ import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
+import { 
+  Calendar, 
+  Clock, 
+  Mail, 
+  MessageSquare, 
+  Users, 
+  User, 
+  Play, 
+  Pencil, 
+  Trash2, 
+  Plus, 
+  Cake, 
+  Award, 
+  DollarSign, 
+  BarChart2, 
+  CheckCircle2, 
+  PauseCircle 
+} from 'lucide-react';
 
 export default function SmartHRPage() {
-  const { showToast } = useDashboard();
+  const { showToast, companyId: globalCompanyId, companies } = useDashboard();
   const [companyId, setCompanyId] = useState<string | null>(null);
+
+  // Active company ID priority: global context -> local state -> localStorage
+  const activeCompanyId = globalCompanyId || companyId || (typeof window !== 'undefined' ? localStorage.getItem('companyId') : null);
 
   const [activeTab, setActiveTab] = useState<'schedules' | 'templates' | 'logs'>('schedules');
   const [isLoading, setIsLoading] = useState(false);
@@ -57,6 +78,34 @@ export default function SmartHRPage() {
     channel_type: 'BOTH'
   });
 
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    try {
+      const storedPerms = localStorage.getItem('permissions');
+      const storedRoles = localStorage.getItem('roles');
+      if (storedPerms) setPermissions(JSON.parse(storedPerms));
+      if (storedRoles) {
+        const rList = JSON.parse(storedRoles);
+        setIsSuperAdmin(rList.map((r: string) => r.toLowerCase()).includes('superadmin'));
+      }
+    } catch {}
+  }, []);
+
+  const canViewSchedules = isSuperAdmin || permissions.includes('view_smart_hr_schedules') || permissions.includes('*');
+  const canCreateSchedules = isSuperAdmin || permissions.includes('create_smart_hr_schedules') || permissions.includes('*');
+  const canEditSchedules = isSuperAdmin || permissions.includes('edit_smart_hr_schedules') || permissions.includes('*');
+  const canDeleteSchedules = isSuperAdmin || permissions.includes('delete_smart_hr_schedules') || permissions.includes('*');
+
+  const canViewTemplates = isSuperAdmin || permissions.includes('view_smart_hr_templates') || permissions.includes('*');
+  const canCreateTemplates = isSuperAdmin || permissions.includes('create_smart_hr_templates') || permissions.includes('*');
+  const canEditTemplates = isSuperAdmin || permissions.includes('edit_smart_hr_templates') || permissions.includes('*');
+  const canDeleteTemplates = isSuperAdmin || permissions.includes('delete_smart_hr_templates') || permissions.includes('*');
+
+  const canViewLogs = isSuperAdmin || permissions.includes('view_smart_hr_logs') || permissions.includes('*');
+  const canDeleteLogs = isSuperAdmin || permissions.includes('delete_smart_hr_logs') || permissions.includes('*');
+
   useEffect(() => {
     const storedCompanyId = localStorage.getItem('companyId');
     if (storedCompanyId) setCompanyId(storedCompanyId);
@@ -75,12 +124,13 @@ export default function SmartHRPage() {
     fetchIntegrations();
     fetchEmployees();
     fetchAttendancePolicy();
-  }, [companyId]);
+  }, [activeCompanyId]);
 
   const fetchAttendancePolicy = async () => {
     try {
-      const cid = companyId ? `?company_id=${companyId}` : '';
-      const res = await fetch(`/api/v1/attendance/policies${cid}`, { headers: getHeaders() });
+      const cid = activeCompanyId;
+      const q = cid && cid !== 'all' ? `?companyId=${cid}&company_id=${cid}` : '';
+      const res = await fetch(`/api/v1/attendance/policies${q}`, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {
@@ -95,10 +145,11 @@ export default function SmartHRPage() {
 
   const fetchIntegrations = async () => {
     try {
-      const cid = companyId ? `?company_id=${companyId}` : '';
+      const cid = activeCompanyId;
+      const q = cid && cid !== 'all' ? `?companyId=${cid}&company_id=${cid}` : '';
       const [emailRes, whatsappRes] = await Promise.all([
-        fetch(`/api/v1/recruitment/settings/email${cid}`, { headers: getHeaders() }),
-        fetch(`/api/v1/recruitment/settings/whatsapp${cid}`, { headers: getHeaders() })
+        fetch(`/api/v1/recruitment/settings/email${q}`, { headers: getHeaders() }),
+        fetch(`/api/v1/recruitment/settings/whatsapp${q}`, { headers: getHeaders() })
       ]);
       if (emailRes.ok) {
         const data = await emailRes.json();
@@ -113,8 +164,8 @@ export default function SmartHRPage() {
 
   const fetchEmployees = async () => {
     try {
-      const cid = companyId || 'all';
-      const res = await fetch(`/api/v1/employees?companyId=${cid}`, { headers: getHeaders() });
+      const cid = activeCompanyId || 'all';
+      const res = await fetch(`/api/v1/employees?companyId=${cid}&company_id=${cid}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setEmployees(data.employees || []);
     } catch (e) {}
@@ -123,7 +174,9 @@ export default function SmartHRPage() {
   const fetchSchedules = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/v1/smart-hr/schedules', { headers: getHeaders() });
+      const cid = activeCompanyId;
+      const q = cid && cid !== 'all' ? `?companyId=${cid}&company_id=${cid}` : '';
+      const res = await fetch(`/api/v1/smart-hr/schedules${q}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setSchedules(data.schedules || []);
     } catch (e) {
@@ -135,7 +188,9 @@ export default function SmartHRPage() {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch('/api/v1/smart-hr/templates', { headers: getHeaders() });
+      const cid = activeCompanyId;
+      const q = cid && cid !== 'all' ? `?companyId=${cid}&company_id=${cid}` : '';
+      const res = await fetch(`/api/v1/smart-hr/templates${q}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setTemplates(data.templates || []);
     } catch (e) {}
@@ -143,7 +198,9 @@ export default function SmartHRPage() {
 
   const fetchLogs = async () => {
     try {
-      const res = await fetch('/api/v1/smart-hr/logs', { headers: getHeaders() });
+      const cid = activeCompanyId;
+      const q = cid && cid !== 'all' ? `?companyId=${cid}&company_id=${cid}` : '';
+      const res = await fetch(`/api/v1/smart-hr/logs${q}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setLogs(data.logs || []);
     } catch (e) {}
@@ -180,7 +237,10 @@ export default function SmartHRPage() {
       const res = await fetch(url, {
         method,
         headers: getHeaders(),
-        body: JSON.stringify(scheduleForm)
+        body: JSON.stringify({
+          ...scheduleForm,
+          company_id: activeCompanyId && activeCompanyId !== 'all' ? activeCompanyId : undefined
+        })
       });
       const data = await res.json();
       if (res.ok) {
@@ -339,7 +399,10 @@ export default function SmartHRPage() {
       const res = await fetch(url, {
         method,
         headers: getHeaders(),
-        body: JSON.stringify(templateForm)
+        body: JSON.stringify({
+          ...templateForm,
+          company_id: activeCompanyId && activeCompanyId !== 'all' ? activeCompanyId : undefined
+        })
       });
       const data = await res.json();
       if (res.ok) {
@@ -439,28 +502,28 @@ export default function SmartHRPage() {
   const getSplineTaskIcon = (taskType: string) => {
     if (taskType?.includes('BIRTHDAY')) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-500/20 via-rose-500/20 to-purple-500/20 border border-pink-300/40 shadow-sm flex items-center justify-center text-2xl shrink-0 transform hover:scale-110 transition-all duration-300">
-          🎂
+        <div className="w-10 h-10 rounded-xl bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-300 border border-pink-200 dark:border-pink-800 flex items-center justify-center shrink-0 shadow-2xs">
+          <Cake className="w-5 h-5 text-pink-600 dark:text-pink-300" />
         </div>
       );
     }
     if (taskType?.includes('ANNIVERSARY')) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-yellow-500/20 to-orange-500/20 border border-amber-300/40 shadow-sm flex items-center justify-center text-2xl shrink-0 transform hover:scale-110 transition-all duration-300">
-          🏆
+        <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center justify-center shrink-0 shadow-2xs">
+          <Award className="w-5 h-5 text-amber-600 dark:text-amber-300" />
         </div>
       );
     }
     if (taskType?.includes('PAYROLL')) {
       return (
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500/20 via-teal-500/20 to-green-500/20 border border-emerald-300/40 shadow-sm flex items-center justify-center text-2xl shrink-0 transform hover:scale-110 transition-all duration-300">
-          💰
+        <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0 shadow-2xs">
+          <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-300" />
         </div>
       );
     }
     return (
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-500/20 via-indigo-500/20 to-cyan-500/20 border border-blue-300/40 shadow-sm flex items-center justify-center text-2xl shrink-0 transform hover:scale-110 transition-all duration-300">
-        📊
+      <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-300 border border-sky-200 dark:border-sky-800 flex items-center justify-center shrink-0 shadow-2xs">
+        <BarChart2 className="w-5 h-5 text-sky-600 dark:text-sky-300" />
       </div>
     );
   };
@@ -477,90 +540,96 @@ export default function SmartHRPage() {
 
       {/* 🎛️ TAB SWITCHER & ACTION BUTTON BAR */}
       <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 w-full sm:w-auto overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('schedules')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'schedules'
-                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-            }`}
-          >
-            <span>🗓️</span>
-            <span>Automated Schedules</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'schedules' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
-              {schedules.length}
-            </span>
-          </button>
+        <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 w-full sm:w-auto overflow-x-auto gap-1">
+          {canViewSchedules && (
+            <button
+              onClick={() => setActiveTab('schedules')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'schedules'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/50'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Automated Schedules</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'schedules' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                {schedules.length}
+              </span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab('templates')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'templates'
-                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-            }`}
-          >
-            <span>✉️</span>
-            <span>Message Templates</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'templates' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
-              {templates.length}
-            </span>
-          </button>
+          {canViewTemplates && (
+            <button
+              onClick={() => setActiveTab('templates')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'templates'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/50'
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              <span>Message Templates</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'templates' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                {templates.length}
+              </span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab('logs')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'logs'
-                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-            }`}
-          >
-            <span>⏱️</span>
-            <span>Execution Logs</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'logs' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
-              {logs.length}
-            </span>
-          </button>
+          {canViewLogs && (
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'logs'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/50'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>Execution Logs</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'logs' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                {logs.length}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* GATEWAY STATUS BADGES & RIGHT ACTION BUTTON */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
-            <span className={`px-3 py-1 rounded-xl text-[11px] font-black tracking-wide flex items-center gap-2 border transition-all ${
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${
               emailConfigured 
-                ? 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-800 border-emerald-200 shadow-xs' 
-                : 'bg-gradient-to-r from-rose-50 to-red-50 text-rose-800 border-rose-200'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' 
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
             }`}>
-              <span className="text-sm">📧</span>
-              <span>Email Gateway: <strong className={emailConfigured ? 'text-emerald-700 font-extrabold' : 'text-rose-700 font-extrabold'}>{emailConfigured ? 'ACTIVE' : 'OFFLINE'}</strong></span>
+              <Mail className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Email Gateway: <strong className="font-extrabold">{emailConfigured ? 'ACTIVE' : 'OFFLINE'}</strong></span>
             </span>
 
-            <span className={`px-3 py-1 rounded-xl text-[11px] font-black tracking-wide flex items-center gap-2 border transition-all ${
+            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${
               whatsappConfigured 
-                ? 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-800 border-emerald-200 shadow-xs' 
-                : 'bg-gradient-to-r from-rose-50 to-red-50 text-rose-800 border-rose-200'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' 
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
             }`}>
-              <span className="text-sm">💬</span>
-              <span>WhatsApp API: <strong className={whatsappConfigured ? 'text-emerald-700 font-extrabold' : 'text-rose-700 font-extrabold'}>{whatsappConfigured ? 'CONNECTED' : 'OFFLINE'}</strong></span>
+              <MessageSquare className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
+              <span>WhatsApp API: <strong className="font-extrabold">{whatsappConfigured ? 'CONNECTED' : 'OFFLINE'}</strong></span>
             </span>
           </div>
 
-          {activeTab === 'schedules' && (
+          {activeTab === 'schedules' && canCreateSchedules && (
             <button
               onClick={openNewSchedule}
-              className="px-4 py-2 bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
             >
-              <span>✨</span>
+              <Plus className="w-4 h-4" />
               <span>Create New Schedule</span>
             </button>
           )}
-          {activeTab === 'templates' && (
+          {activeTab === 'templates' && canCreateTemplates && (
             <button
               onClick={openNewTemplate}
-              className="px-4 py-2 bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
             >
-              <span>✨</span>
+              <Plus className="w-4 h-4" />
               <span>Create New Template</span>
             </button>
           )}
@@ -582,31 +651,39 @@ export default function SmartHRPage() {
               {schedules.map(s => (
                 <div
                   key={s.id}
-                  style={{ boxShadow: 'rgba(14, 30, 37, 0.08) 0px 2px 4px 0px, rgba(14, 30, 37, 0.16) 0px 2px 16px 0px' }}
-                  className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                  className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-indigo-300 dark:hover:border-indigo-800 transition-all flex flex-col justify-between space-y-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       {getSplineTaskIcon(s.task_type)}
                       <div>
-                        <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{s.title}</h4>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 font-outfit">{s.title}</h4>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           {s.task_type?.includes('PAYROLL') ? (
-                            <span className="px-2.5 py-0.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 font-extrabold text-[10.5px] border border-purple-200/80 flex items-center gap-1">
-                              <span>🗓️</span>
+                            <span className="px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-extrabold text-[11px] border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                               MONTHLY ({s.execution_day_of_month || 26}th Date - Post Cutoff)
                             </span>
+                          ) : s.task_type?.includes('BIRTHDAY') ? (
+                            <span className="px-2.5 py-1 rounded-md bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 font-extrabold text-[11px] border border-pink-200 dark:border-pink-800 flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-pink-600 dark:text-pink-400" />
+                              DAILY
+                            </span>
+                          ) : s.task_type?.includes('ANNIVERSARY') ? (
+                            <span className="px-2.5 py-1 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-extrabold text-[11px] border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                              DAILY
+                            </span>
                           ) : (
-                            <span className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-[10.5px] border border-slate-200/80 flex items-center gap-1">
-                              <span>🗓️</span>
+                            <span className="px-2.5 py-1 rounded-md bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-extrabold text-[11px] border border-sky-200 dark:border-sky-800 flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-sky-600 dark:text-sky-400" />
                               {s.frequency}
                               {s.frequency === 'WEEKLY' && s.execution_day_of_week ? ` (${s.execution_day_of_week})` : ''}
-                              {s.frequency === 'MONTHLY' && s.execution_day_of_month ? ` (${s.execution_day_of_month}${Number(s.execution_day_of_month) === 31 ? 'st - Last Day' : 'th Date'})` : ''}
                             </span>
                           )}
 
-                          <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 font-black text-[11px] border border-indigo-200 flex items-center gap-1 font-mono">
-                            <span>⏰</span>
+                          <span className="px-2.5 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-[11px] border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                             {format12Hour(s.execution_time)}
                           </span>
                         </div>
@@ -618,108 +695,104 @@ export default function SmartHRPage() {
                         type="button"
                         onClick={() => handleToggleScheduleStatus(s)}
                         title={`Click to ${s.status === 'ACTIVE' ? 'Pause' : 'Activate'} schedule`}
-                        className={`relative inline-flex h-7 items-center rounded-full px-1.5 py-0.5 transition-all duration-200 ease-in-out cursor-pointer text-[10px] font-black tracking-wider uppercase border shadow-xs ${
+                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 border ${
                           s.status === 'ACTIVE'
-                            ? 'bg-emerald-500 text-white border-emerald-600 pl-2.5 pr-1.5'
-                            : 'bg-amber-100 text-amber-800 border-amber-300 pl-1.5 pr-2.5 dark:bg-amber-950/60 dark:text-amber-300'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                            : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                         }`}
                       >
                         {s.status === 'ACTIVE' ? (
-                          <span className="flex items-center gap-1.5">
-                            <span>ACTIVE</span>
-                            <span className="h-4 w-4 rounded-full bg-white shadow-md inline-block shrink-0" />
-                          </span>
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>Active</span>
+                          </>
                         ) : (
-                          <span className="flex items-center gap-1.5">
-                            <span className="h-4 w-4 rounded-full bg-amber-500 shadow-md inline-block shrink-0" />
-                            <span>PAUSED</span>
-                          </span>
+                          <>
+                            <PauseCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                            <span>Paused</span>
+                          </>
                         )}
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px] p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] p-3.5 bg-slate-50/80 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-800">
                     <div>
-                      <span className="text-slate-400 block font-bold text-[10.5px]">Dispatch Channel</span>
+                      <span className="text-slate-500 dark:text-slate-400 block font-bold text-[10.5px]">Dispatch Channel</span>
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         {(s.channel_type === 'EMAIL' || s.channel_type === 'BOTH') && (
-                          <span className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold flex items-center gap-1.5 border ${
-                            emailConfigured 
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200/80 shadow-xs' 
-                              : 'bg-rose-50 text-rose-800 border-rose-200/80'
-                          }`}>
-                            <span>📧</span>
-                            <span>Email ({emailConfigured ? 'Active' : 'Not Set'})</span>
+                          <span className="px-2.5 py-1 rounded-md text-[10.5px] font-extrabold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1">
+                            <Mail className="w-3 h-3 text-emerald-600" /> Email ({emailConfigured ? 'Active' : 'Not Set'})
                           </span>
                         )}
 
                         {(s.channel_type === 'WHATSAPP' || s.channel_type === 'BOTH') && (
-                          <span className={`px-2.5 py-1 rounded-lg text-[10.5px] font-extrabold flex items-center gap-1.5 border ${
-                            whatsappConfigured 
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200/80 shadow-xs' 
-                              : 'bg-rose-50 text-rose-800 border-rose-200/80'
-                          }`}>
-                            <span>💬</span>
-                            <span>WhatsApp ({whatsappConfigured ? 'Connected' : 'Offline'})</span>
+                          <span className="px-2.5 py-1 rounded-md text-[10.5px] font-extrabold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800 flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3 text-rose-500" /> WhatsApp ({whatsappConfigured ? 'Connected' : 'Offline'})
                           </span>
                         )}
                       </div>
                     </div>
                     <div>
-                      <span className="text-slate-400 block font-bold text-[10.5px]">Target Recipients</span>
+                      <span className="text-slate-500 dark:text-slate-400 block font-bold text-[10.5px]">Target Recipients</span>
                       <div className="flex items-center gap-1.5 mt-1">
                         {s.recipient_type === 'SINGLE_EMPLOYEE' ? (
-                          <span className="text-slate-800 dark:text-slate-200 font-extrabold flex items-center gap-1.5 text-xs truncate bg-indigo-50/80 dark:bg-indigo-950/40 px-2.5 py-1 rounded-lg border border-indigo-200/70">
-                            <span>👤</span>
-                            <span>{s.target_employee_name || 'Single Employee'}</span>
+                          <span className="text-sky-800 dark:text-sky-200 font-extrabold flex items-center gap-1 text-xs truncate bg-sky-50 dark:bg-sky-950/60 px-2.5 py-1 rounded-md border border-sky-200/80 dark:border-sky-800">
+                            <User className="w-3 h-3 text-sky-600 dark:text-sky-400" /> {s.target_employee_name || 'Single Employee'}
                           </span>
                         ) : (
-                          <span className="text-slate-800 dark:text-slate-200 font-extrabold flex items-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200/80">
-                            <span>👥</span>
-                            <span>All Active Employees</span>
+                          <span className="text-sky-800 dark:text-sky-200 font-extrabold flex items-center gap-1 text-xs bg-sky-50 dark:bg-sky-950/60 px-2.5 py-1 rounded-md border border-sky-200/80 dark:border-sky-800">
+                            <Users className="w-3 h-3 text-sky-600 dark:text-sky-400" /> All Active Employees
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
-                    <span className="text-slate-400 font-medium flex items-center gap-1.5 font-mono text-[10.5px]">
-                      <span>🗓️</span>
-                      <span><strong>Created At:</strong> {new Date(s.created_at || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(s.created_at || Date.now()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                    <span className="text-slate-400 font-medium flex items-center gap-1 font-mono text-[10.5px]">
+                      <span>Created: {new Date(s.created_at || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                     </span>
 
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleExecuteNow(s.id)}
-                        disabled={runningScheduleId === s.id}
-                        className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-extrabold rounded-xl hover:bg-emerald-600 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-60"
-                        title="Run instant trigger right now"
-                      >
-                        {runningScheduleId === s.id ? (
-                          <>
-                            <span className="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></span>
-                            <span>Sending...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>⚡</span> Run Now
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => openEditSchedule(s)}
-                        className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 text-xs font-extrabold rounded-xl hover:bg-blue-600 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-                      >
-                        <span>✏️</span> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSchedule(s.id)}
-                        className="px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 text-xs font-extrabold rounded-xl hover:bg-rose-600 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-                      >
-                        <span>🗑️</span> Delete
-                      </button>
+                      {canEditSchedules && (
+                        <>
+                          <button
+                            onClick={() => handleExecuteNow(s.id)}
+                            disabled={runningScheduleId === s.id}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
+                            title="Run instant trigger right now"
+                          >
+                            {runningScheduleId === s.id ? (
+                              <>
+                                <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                <span>Running...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-3.5 h-3.5 fill-white text-white" />
+                                <span>Run Now</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => openEditSchedule(s)}
+                            className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                            <span>Edit</span>
+                          </button>
+                        </>
+                      )}
+                      {canDeleteSchedules && (
+                        <button
+                          onClick={() => handleDeleteSchedule(s.id)}
+                          className="p-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-600 text-rose-600 hover:text-white rounded-xl border border-rose-200 dark:border-rose-800 transition-all cursor-pointer"
+                          title="Delete schedule"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

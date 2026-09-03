@@ -25,11 +25,10 @@ interface Branch {
 }
 
 export default function BranchesPage() {
-  const { showToast } = useDashboard();
+  const { showToast, companyId, setCompanyId } = useDashboard();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(null);
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -39,7 +38,6 @@ export default function BranchesPage() {
   const [editMode, setEditMode] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [deletingBranch, setDeletingBranch] = useState<Branch | null>(null);
-  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form states
@@ -54,14 +52,9 @@ export default function BranchesPage() {
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
     const storedEmail = localStorage.getItem('email');
-    const storedCompanyId = localStorage.getItem('companyId');
     const storedPermissions = localStorage.getItem('permissions');
     if (storedRoles) setRoles(JSON.parse(storedRoles));
     if (storedEmail) setEmail(storedEmail);
-    if (storedCompanyId) {
-      setCompanyId(storedCompanyId);
-      setBranchForm(prev => ({ ...prev, companyId: storedCompanyId }));
-    }
     if (storedPermissions) setPermissions(JSON.parse(storedPermissions));
   }, []);
 
@@ -76,8 +69,7 @@ export default function BranchesPage() {
   const fetchBranches = async () => {
     setLoading(true);
     try {
-      const activeId = isSuperAdmin ? filterCompanyId : companyId;
-      const res = await fetch(getUrl('/api/v1/branches', activeId), { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/branches', companyId), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setBranches(data.branches || []);
     } catch (e) { console.error(e); }
@@ -89,7 +81,7 @@ export default function BranchesPage() {
       fetchCompanies();
     }
     fetchBranches();
-  }, [companyId, filterCompanyId, isSuperAdmin]);
+  }, [companyId, isSuperAdmin]);
 
   useEffect(() => {
     if (!deletingBranch) return;
@@ -242,24 +234,6 @@ export default function BranchesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-            {isSuperAdmin && (
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Company:</span>
-                <div className="w-48 text-left">
-                  <SearchableSelect
-                    placeholder="All Companies"
-                    options={[
-                      { value: 'ALL', label: 'All Companies' },
-                      ...companies.map(c => ({ value: c.id, label: c.name }))
-                    ]}
-                    value={filterCompanyId || 'ALL'}
-                    onChange={val => {
-                      setFilterCompanyId(val === 'ALL' ? null : val);
-                    }}
-                  />
-                </div>
-              </div>
-            )}
 
             {canCreate && (
               <button

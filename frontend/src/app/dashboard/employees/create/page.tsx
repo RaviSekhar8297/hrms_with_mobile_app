@@ -218,18 +218,18 @@ function CreateEmployeeContent() {
   const safeShifts = Array.isArray(shifts) ? shifts : [];
   const safeEmployees = Array.isArray(employees) ? employees : [];
 
-  const filteredBranches = activeCompanyId
+  const filteredBranches = (activeCompanyId && activeCompanyId !== 'all')
     ? safeBranches.filter(b => b?.company_id === activeCompanyId)
-    : [];
+    : safeBranches;
   const filteredDepartments = empForm.branch_id
     ? safeDepartments.filter(d => d?.branch_id === empForm.branch_id || !d?.branch_id)
-    : (activeCompanyId ? safeDepartments.filter(d => d?.company_id === activeCompanyId) : []);
+    : ((activeCompanyId && activeCompanyId !== 'all') ? safeDepartments.filter(d => d?.company_id === activeCompanyId) : safeDepartments);
   const filteredDesignations = empForm.department_id
     ? safeDesignations.filter(ds => ds?.department_id === empForm.department_id)
-    : (activeCompanyId ? safeDesignations.filter(ds => ds?.company_id === activeCompanyId) : []);
-  const filteredRoles = activeCompanyId ? safeRoles.filter(r => r?.company_id === activeCompanyId) : [];
-  const filteredShifts = activeCompanyId ? safeShifts.filter(s => s?.company_id === activeCompanyId) : [];
-  const filteredEmployees = activeCompanyId ? safeEmployees.filter(e => e?.company_id === activeCompanyId) : safeEmployees;
+    : ((activeCompanyId && activeCompanyId !== 'all') ? safeDesignations.filter(ds => ds?.company_id === activeCompanyId) : safeDesignations);
+  const filteredRoles = (activeCompanyId && activeCompanyId !== 'all') ? safeRoles.filter(r => r?.company_id === activeCompanyId) : safeRoles;
+  const filteredShifts = (activeCompanyId && activeCompanyId !== 'all') ? safeShifts.filter(s => s?.company_id === activeCompanyId) : safeShifts;
+  const filteredEmployees = (activeCompanyId && activeCompanyId !== 'all') ? safeEmployees.filter(e => e?.company_id === activeCompanyId) : safeEmployees;
 
   // Real-time Duplicate Check
   const duplicateEmp = useMemo(() => {
@@ -392,10 +392,10 @@ function CreateEmployeeContent() {
 
   // CSV Template Downloader
   const downloadSampleCsv = () => {
-    const csvContent = "emp_id_code,first_name,last_name,email\n" +
-      "EMP-201,Rahul,Sharma,rahul.s@example.com\n" +
-      "EMP-202,Priya,Verma,priya.v@example.com\n" +
-      "EMP-203,Suresh,Kumar,suresh.k@example.com";
+    const csvContent = "emp_id_code,first_name,last_name,email,phone,joining_date,branch_name,department_name,designation_name\n" +
+      "EMP-201,Rahul,Sharma,rahul.s@example.com,9876543210,2026-01-15,Head Office,Engineering,Senior Software Engineer\n" +
+      "EMP-202,Priya,Verma,priya.v@example.com,9876543211,2026-02-01,Regional Office,Human Resources,HR Manager\n" +
+      "EMP-203,Suresh,Kumar,suresh.k@example.com,9876543212,2026-02-15,Head Office,Finance,Accounts Executive";
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -404,10 +404,10 @@ function CreateEmployeeContent() {
     a.download = 'employee_bulk_upload_template.csv';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('📥 Minimal CSV Template downloaded successfully!', 'info');
+    showToast('📥 Employee CSV Template downloaded successfully!', 'info');
   };
 
-  // CSV Bulk Upload Processing Handler
+  // CSV Bulk Upload Processing Handler (Positional 2nd row parser with keyword fallback)
   const handleBulkUpload = async () => {
     if (!bulkFile) {
       showToast('⚠️ Please select a CSV file first.', 'error');
@@ -433,16 +433,48 @@ function CreateEmployeeContent() {
       }
 
       const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      
+      // Parse data starting from 2nd row (index 1) with positional fallback
       const parsedEmployees = lines.slice(1).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-        const obj: Record<string, string> = {};
-        headers.forEach((h, i) => {
-          let val = values[i] || '';
-          if (h.toLowerCase() === 'email') val = val.replace(/\s+/g, '');
-          obj[h] = val;
-        });
-        return obj;
-      });
+        if (values.length === 0 || values.every(v => !v)) return null;
+
+        const getColValue = (posIndex: number, keywords: string[]) => {
+          let matchedIndex = -1;
+          headers.forEach((h, idx) => {
+            const lowerH = h.toLowerCase();
+            if (keywords.some(k => lowerH.includes(k))) {
+              matchedIndex = idx;
+            }
+          });
+          if (matchedIndex !== -1 && values[matchedIndex] !== undefined) {
+            return values[matchedIndex];
+          }
+          return values[posIndex] || '';
+        };
+
+        const empIdCode = getColValue(0, ['code', 'emp', 'id']) || `EMP-${Math.floor(1000 + Math.random() * 9000)}`;
+        const firstName = getColValue(1, ['first', 'fname', 'name']);
+        const lastName = getColValue(2, ['last', 'lname', 'surname']);
+        const email = (getColValue(3, ['email', 'mail']) || '').replace(/\s+/g, '');
+        const phone = getColValue(4, ['phone', 'mobile', 'contact']);
+        const joiningDate = getColValue(5, ['join', 'doj', 'date']);
+        const branchName = getColValue(6, ['branch', 'office', 'location']);
+        const deptName = getColValue(7, ['dept', 'department']);
+        const desigName = getColValue(8, ['desig', 'designation', 'title', 'role']);
+
+        return {
+          emp_id_code: empIdCode,
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          phone: phone,
+          joining_date: joiningDate,
+          branch_name: branchName,
+          department_name: deptName,
+          designation_name: desigName,
+        };
+      }).filter(Boolean);
 
       const res = await fetch(`${API_BASE}/api/v1/employees/bulk`, {
         method: 'POST',
@@ -475,7 +507,7 @@ function CreateEmployeeContent() {
   const stylishInputClass = "w-full px-3.5 py-2.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/40 text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 outline-none shadow-2xs";
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="space-y-5 max-w-[1600px] mx-auto p-4 sm:p-5 font-sans">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="space-y-6 animate-fadeIn w-full font-sans">
       <DashboardPageHeader
         title="Employee Directory"
         actionMessage=""

@@ -5,9 +5,13 @@ import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function LeaveRequestsPage() {
   const { showToast } = useDashboard();
+  const { isSuperAdmin: isSuperAdminPerm, getPermissionScope } = usePermissions();
+  const leaveScope = getPermissionScope('view_leave_requests');
+  const canSeeTeamTab = isSuperAdminPerm || leaveScope !== 'SELF';
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -266,42 +270,42 @@ export default function LeaveRequestsPage() {
 
       {/* 📊 SUMMARY CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-indigo-50/95 via-sky-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Total Applications</span>
-            <span className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono mt-1 block">{requests.length}</span>
+            <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Total Applications</span>
+            <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono mt-1 block">{requests.length}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-bold text-xl border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs group-hover:scale-105 transition-transform">
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center font-bold text-xl">
             📝
           </div>
         </div>
 
-        <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-amber-50/95 via-orange-50/30 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900 border border-amber-200/70 dark:border-amber-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">Pending Queue</span>
-            <span className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 font-mono mt-1 block">{pendingCount}</span>
+            <span className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">Pending Queue</span>
+            <span className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono mt-1 block">{pendingCount}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-100/80 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 flex items-center justify-center font-bold text-xl border border-amber-200/60 dark:border-amber-800/60 shadow-xs group-hover:scale-105 transition-transform">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 flex items-center justify-center font-bold text-xl">
             ⏳
           </div>
         </div>
 
-        <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-emerald-50/95 via-teal-50/30 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Approved</span>
-            <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-1 block">{approvedCount}</span>
+            <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Approved</span>
+            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1 block">{approvedCount}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-100/80 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center font-bold text-xl border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs group-hover:scale-105 transition-transform">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center font-bold text-xl">
             ✅
           </div>
         </div>
 
-        <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-rose-50/95 via-pink-50/30 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900 border border-rose-200/70 dark:border-rose-800/60 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs flex items-center justify-between">
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">Rejected</span>
-            <span className="text-2xl font-extrabold text-rose-600 dark:text-rose-400 font-mono mt-1 block">{rejectedCount}</span>
+            <span className="text-[11px] font-extrabold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">Rejected</span>
+            <span className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono mt-1 block">{rejectedCount}</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-100/80 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center font-bold text-xl border border-rose-200/60 dark:border-rose-800/60 shadow-xs group-hover:scale-105 transition-transform">
+          <div className="w-12 h-12 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900 flex items-center justify-center font-bold text-xl">
             ❌
           </div>
         </div>
@@ -311,11 +315,11 @@ export default function LeaveRequestsPage() {
       <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         
         {/* SCOPE SWITCHER / BADGE */}
-        {isManager ? (
+        {canSeeTeamTab ? (
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
             <button
               onClick={() => setViewScope('my')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 viewScope === 'my'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -325,18 +329,14 @@ export default function LeaveRequestsPage() {
             </button>
             <button
               onClick={() => setViewScope('team')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 viewScope === 'team'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
-              Team Approvals Queue
+              {leaveScope === 'ALL' || isSuperAdmin ? 'All Employee Leave Queue' : 'Team Approvals Queue'}
             </button>
-          </div>
-        ) : isSuperAdmin ? (
-          <div className="px-3.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center gap-1.5 shrink-0">
-            <span>🏢</span> Organization Leave Requests Queue
           </div>
         ) : (
           <div className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 shrink-0">

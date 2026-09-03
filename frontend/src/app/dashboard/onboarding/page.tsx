@@ -21,6 +21,8 @@ interface OnboardingRecord {
   candidate_submitted_data?: any;
   document_verification_status?: any;
   checklist_status?: any;
+  email_status?: string;
+  email_error_message?: string;
   created_at: string;
   candidate_name?: string;
   candidate_email?: string;
@@ -39,11 +41,131 @@ export default function OnboardingDashboard() {
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
+  // Company Filter States (Super Admin)
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  // Direct Candidate Invite Modal States
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [senderEmail, setSenderEmail] = useState<string>('');
+  const [availableSenders, setAvailableSenders] = useState<{ id: string; email: string; name: string }[]>([]);
+  const [inviteForm, setInviteForm] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    job_title: '',
+    candidate_type: 'EXPERIENCED' as 'EXPERIENCED' | 'FRESHER',
+    target_joining_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  });
+  const [submittingInvite, setSubmittingInvite] = useState(false);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        if (u.role === 'SUPER_ADMIN' || u.is_super_admin) setIsSuperAdmin(true);
+      } catch {}
+    }
+    fetchCompanies();
+  }, []);
+
+  const fetchCompanies = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch('/api/v1/companies', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(data.companies || []);
+      }
+    } catch (err) {}
+  };
+
+  useEffect(() => {
+    if (isInviteModalOpen) {
+      const token = localStorage.getItem('access_token');
+      let url = '/api/v1/onboarding/smtp-info';
+      if (selectedCompanyId) {
+        url += `?company_id=${selectedCompanyId}`;
+      }
+      fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(r => r.json())
+        .then(data => {
+          const sendersList = data.available_senders || data.senders || [];
+          if (sendersList.length > 0) {
+            setAvailableSenders(sendersList);
+            setSenderEmail(data.selected_email || data.sender_email || sendersList[0].email);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isInviteModalOpen, selectedCompanyId]);
+
+  const handleDirectInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteForm.full_name || !inviteForm.email) {
+      showToast('Full name and Email are required', 'error');
+      return;
+    }
+    setSubmittingInvite(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const companyId = localStorage.getItem('selectedCompanyId');
+      const res = await fetch('/api/v1/onboarding/direct-invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ...inviteForm, company_id: companyId, sender_email: senderEmail })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const magicUrl = `${window.location.origin}${data.magic_link}`;
+        try {
+          await navigator.clipboard.writeText(magicUrl);
+        } catch {}
+
+        if (data.email_sent === false) {
+          showToast(`⚠️ Invite created & link copied, but Email dispatch failed: ${data.email_error || 'SMTP Error'}`, 'error');
+        } else {
+          showToast(`🚀 Onboarding invite created, Email sent & link copied to clipboard!`, 'success');
+        }
+        setIsInviteModalOpen(false);
+        setInviteForm({
+          full_name: '',
+          email: '',
+          phone: '',
+          job_title: '',
+          candidate_type: 'EXPERIENCED',
+          target_joining_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        });
+        fetchRecords();
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'Failed to send direct invite', 'error');
+      }
+    } catch (e) {
+      showToast('Connection error sending direct invite', 'error');
+    } finally {
+      setSubmittingInvite(false);
+    }
+  };
+
   const fetchRecords = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
-      const res = await fetch('/api/v1/onboarding', {
+      let url = '/api/v1/onboarding';
+      if (selectedCompanyId) {
+        url += `?company_id=${selectedCompanyId}`;
+      }
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -59,7 +181,7 @@ export default function OnboardingDashboard() {
 
   useEffect(() => {
     fetchRecords();
-  }, []);
+  }, [selectedCompanyId]);
 
   const handleSendOfferLetter = async (rec: OnboardingRecord) => {
     setProcessingAction(rec.id);
@@ -70,7 +192,7 @@ export default function OnboardingDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        showToast(`📩 Offer Letter dispatched to ${rec.candidate_name || rec.candidate_email}`, 'success');
+        showToast(`📩 Offer Letter sent to ${rec.candidate_name || rec.candidate_email}`, 'success');
         fetchRecords();
       } else {
         showToast('Failed to send offer letter', 'error');
@@ -211,33 +333,29 @@ export default function OnboardingDashboard() {
             </p>
           </div>
 
-          {/* Quick Metrics Bar */}
+          {/* Direct Candidate Invite Action & Company Selector */}
           <div className="flex items-center gap-3">
-            <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 flex items-center gap-3 shadow-2xs">
-              <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="8.5" cy="7" r="4" />
-                  <polyline points="17 11 19 13 23 9" />
-                </svg>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Onboarding</span>
-                <span className="text-base font-extrabold text-slate-800 dark:text-white font-outfit leading-none">{totalUpcoming}</span>
-              </div>
-            </div>
+            {companies.length > 0 && (
+              <select
+                value={selectedCompanyId || 'all'}
+                onChange={(e) => setSelectedCompanyId(e.target.value)}
+                className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer shadow-2xs"
+              >
+                <option value="all">🌐 All Companies</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
 
-            <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 flex items-center gap-3 shadow-2xs">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Converted</span>
-                <span className="text-base font-extrabold text-slate-800 dark:text-white font-outfit leading-none">{totalCompleted}</span>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsInviteModalOpen(true)}
+              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/20 flex items-center gap-2 transition-all cursor-pointer border-0 active:scale-95 whitespace-nowrap"
+            >
+              <span className="text-sm font-black">+</span>
+              <span>Direct Candidate Invite</span>
+            </button>
           </div>
         </div>
 
@@ -270,25 +388,25 @@ export default function OnboardingDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* SEARCH WRAPPER */}
-            <div className="onboarding-search-wrapper flex items-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 focus-within:border-indigo-500 transition-all flex-1 sm:w-72 shadow-2xs">
-              <svg className="w-4 h-4 text-slate-400 shrink-0 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            {/* SEARCH INPUT MATCHING ALL STAGES HEIGHT EXACTLY */}
+            <div className="relative flex items-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 h-10 w-full sm:w-80 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-2xs">
+              <svg className="w-4 h-4 text-slate-400 shrink-0 mr-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <input
                 type="text"
-                placeholder="Search candidate name or role..."
+                placeholder="Search candidate name, email, role..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="onboarding-search-input bg-transparent border-0 outline-none w-full text-xs font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                className="bg-transparent border-0 outline-none w-full text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 h-full"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer shadow-2xs"
+              className="h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer shadow-2xs shrink-0"
             >
               <option value="ALL">All Stages</option>
               <option value="INITIATED">Offer Initiated</option>
@@ -395,117 +513,15 @@ export default function OnboardingDashboard() {
                     </div>
                   </div>
 
-                  {/* 5. ACTION BUTTONS & ACTIONS BUTTON */}
-                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                    
-                    {/* Step 1: Send Offer Letter */}
-                    {!isOfferSent ? (
-                      <button
-                        onClick={() => handleSendOfferLetter(item)}
-                        disabled={processingAction === item.id}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50"
-                        title="Dispatch Offer Letter to candidate"
-                      >
-                        {processingAction === item.id ? 'Sending...' : '📩 Send Offer'}
-                      </button>
-                    ) : (
-                      <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-[11px] font-bold rounded-xl flex items-center gap-1">
-                        ✓ Offer Sent
-                      </span>
-                    )}
-
-                    {/* Step 2: Send Onboarding Link OR Actions Toolbar */}
-                    {!isCompleted && (
-                      !isOfferSent ? (
-                        <button
-                          disabled
-                          className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800/50 text-slate-400 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 cursor-not-allowed"
-                          title="Send Offer Letter First to Enable Onboarding Link"
-                        >
-                          🔒 Link Locked
-                        </button>
-                      ) : !isLinkSent && !hasSubmittedDocs ? (
-                        <button
-                          onClick={() => handleSendOnboardingLink(item)}
-                          disabled={processingAction === item.id}
-                          className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-xl transition-all cursor-pointer border border-blue-200 dark:border-blue-800/40 disabled:opacity-50"
-                          title="Send Portal Link to Candidate"
-                        >
-                          {processingAction === item.id ? 'Sending...' : '🔗 Send Link'}
-                        </button>
-                      ) : isLinkSent && !hasSubmittedDocs ? (
-                        /* CLEAN ACTIONS BUTTON */
-                        <div className="flex items-center gap-1.5">
-                          <span className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-xs font-extrabold rounded-xl flex items-center gap-1.5 shadow-2xs">
-                            <span className="h-4 w-4 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center">✓</span>
-                            <span>Link Sent</span>
-                          </span>
-
-                          {!isExpanded ? (
-                            <button
-                              onClick={() => setExpandedRowId(item.id)}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-purple-600/20 border-0 group"
-                              title="Click for Manual Accept/Reject Actions"
-                            >
-                              <span className="group-hover:rotate-180 transition-transform duration-500">⚙️</span>
-                              <span className="font-extrabold tracking-tight">Actions</span>
-                            </button>
-                          ) : (
-                            /* EXPANDED INLINE BUTTONS */
-                            <div className="flex items-center gap-1 bg-slate-900 text-white p-1 rounded-xl shadow-lg border border-slate-700 animate-fadeIn">
-                              <button
-                                onClick={() => handleAcceptOfferManual(item)}
-                                disabled={processingAction === item.id}
-                                className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-extrabold rounded-lg transition-all cursor-pointer"
-                                title="Accept Offer on behalf of candidate"
-                              >
-                                🟢 Accept
-                              </button>
-
-                              <button
-                                onClick={() => handleRejectOfferManual(item)}
-                                disabled={processingAction === item.id}
-                                className="px-2.5 py-1 bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold rounded-lg transition-all cursor-pointer"
-                                title="Reject / Cancel Offer"
-                              >
-                                🔴 Reject
-                              </button>
-
-                              <button
-                                onClick={() => handleSendOnboardingLink(item)}
-                                disabled={processingAction === item.id}
-                                className="px-2.5 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs font-extrabold rounded-lg transition-all cursor-pointer"
-                                title="Resend Portal Link"
-                              >
-                                🔄 Resend
-                              </button>
-
-                              <button
-                                onClick={() => setExpandedRowId(null)}
-                                className="px-1.5 py-1 text-slate-400 hover:text-white font-bold text-xs cursor-pointer ml-1"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ) : null
-                    )}
-
-                    {/* Step 3: Review & Approve Button */}
-                    {hasSubmittedDocs ? (
-                      <button
-                        onClick={() => router.push(`/dashboard/onboarding/${item.id}`)}
-                        className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-600/20 flex items-center gap-1.5"
-                      >
-                        <span>👁</span> Review & Approve
-                      </button>
-                    ) : (
-                      <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-extrabold text-[11px] rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-1 cursor-not-allowed">
-                        <span>⏳</span> Waiting
-                      </span>
-                    )}
-
+                  {/* 5. SINGLE CLEAN MANAGE BUTTON */}
+                  <div className="shrink-0">
+                    <button
+                      onClick={() => router.push(`/dashboard/onboarding/${item.id}`)}
+                      className="px-4 py-2 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-600 text-indigo-600 hover:text-white dark:text-indigo-400 font-extrabold text-xs rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer shadow-2xs flex items-center gap-2 group"
+                    >
+                      <span>Manage Onboarding</span>
+                      <span className="group-hover:translate-x-1 transition-transform font-black">→</span>
+                    </button>
                   </div>
 
                 </div>
@@ -515,6 +531,187 @@ export default function OnboardingDashboard() {
         </div>
 
       </div>
+
+      {/* 🚀 DIRECT CANDIDATE ONBOARDING INVITE OFF-CANVAS SLIDE DRAWER */}
+      {isInviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop (Click to Close Drawer) */}
+          <div 
+            className="absolute inset-0 bg-slate-900/30 backdrop-blur-xs transition-opacity cursor-pointer"
+            onClick={() => setIsInviteModalOpen(false)}
+          ></div>
+          
+          <div className="relative w-full max-w-[520px] bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col animate-slideInRight">
+            
+            {/* DRAWER HEADER */}
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-900 dark:to-slate-850">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center text-xl font-bold shadow-md">
+                  🚀
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white font-outfit">Direct Candidate Invite</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Bypass ATS & dispatch onboarding portal link directly</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsInviteModalOpen(false)}
+                className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center font-bold text-sm cursor-pointer border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* DRAWER FORM BODY */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <form onSubmit={handleDirectInviteSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Kiran Kumar"
+                    value={inviteForm.full_name}
+                    onChange={(e) => setInviteForm({ ...inviteForm, full_name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="kiran@gmail.com"
+                      value={inviteForm.email}
+                      onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Phone Number</label>
+                    <input
+                      type="tel"
+                      placeholder="9848012345"
+                      value={inviteForm.phone}
+                      onChange={(e) => setInviteForm({ ...inviteForm, phone: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Job Designation</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Software Engineer"
+                      value={inviteForm.job_title}
+                      onChange={(e) => setInviteForm({ ...inviteForm, job_title: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Target Joining Date</label>
+                    <input
+                      type="date"
+                      value={inviteForm.target_joining_date}
+                      onChange={(e) => setInviteForm({ ...inviteForm, target_joining_date: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    Candidate Joining Type *
+                  </label>
+                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setInviteForm({ ...inviteForm, candidate_type: 'EXPERIENCED' })}
+                      className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
+                        inviteForm.candidate_type === 'EXPERIENCED'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 scale-[1.01]'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold'
+                      }`}
+                    >
+                      <span>💼</span>
+                      <span>Experienced Professional</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInviteForm({ ...inviteForm, candidate_type: 'FRESHER' })}
+                      className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
+                        inviteForm.candidate_type === 'FRESHER'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 scale-[1.01]'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold'
+                      }`}
+                    >
+                      <span>🎓</span>
+                      <span>Fresher Candidate</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                    Sending Email From (SMTP Sender) *
+                  </label>
+                  {availableSenders.length > 0 ? (
+                    <select
+                      value={senderEmail}
+                      onChange={(e) => setSenderEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:border-indigo-500 cursor-pointer shadow-2xs"
+                    >
+                      {availableSenders.map((s) => (
+                        <option key={s.id || s.email} value={s.email}>
+                          ✉️ {s.email} {s.name ? `(${s.name})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2 shadow-2xs">
+                      <span>✉️</span>
+                      <span>{senderEmail || 'hr@brihaspathi.com'}</span>
+                      <span className="ml-auto text-[10px] text-slate-400 font-mono">(System SMTP Email)</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setIsInviteModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingInvite}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black shadow-md shadow-purple-600/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {submittingInvite ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Sending Invite...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🚀 Send Direct Invite</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* SCOPED OVERRIDE STYLES TO PREVENT INPUT ICON OVERLAP */}
       <style>{`

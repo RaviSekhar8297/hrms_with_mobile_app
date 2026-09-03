@@ -94,11 +94,10 @@ const emptyStructure: SalaryStructureItem = {
 
 export default function PayrollStructurePage() {
   const router = useRouter();
-  const { showToast } = useDashboard();
+  const { showToast, companyId, setCompanyId } = useDashboard();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
 
   const [structures, setStructures] = useState<SalaryStructureItem[]>([]);
@@ -187,9 +186,10 @@ export default function PayrollStructurePage() {
 
   const fetchEmployeesAndFormulaData = async () => {
     try {
+      const cid = companyId;
       const [empRes, sandboxRes] = await Promise.all([
-        fetch(getUrl('/api/v1/employees', companyId), { headers: getHeaders() }),
-        fetch(getUrl('/api/v1/payroll/sandbox-data', companyId), { headers: getHeaders() })
+        fetch(getUrl('/api/v1/employees', cid), { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/payroll/sandbox-data', cid), { headers: getHeaders() })
       ]);
       if (empRes.ok) {
         const empData = await empRes.json();
@@ -208,7 +208,8 @@ export default function PayrollStructurePage() {
   const fetchSalaryStructures = async () => {
     setLoading(true);
     try {
-      const res = await fetch(getUrl('/api/v1/payroll/structures', companyId), {
+      const cid = companyId;
+      const res = await fetch(getUrl('/api/v1/payroll/structures', cid), {
         headers: getHeaders()
       });
       if (res.ok) {
@@ -235,7 +236,7 @@ export default function PayrollStructurePage() {
           variablePay: Number(row.variable_pay || 0),
           retentionBonus: Number(row.retention_bonus || 0),
           netSalary: Number(row.net_salary || 0),
-          monthlyCtc: Number(row.monthly_ctc || row.salary_per_month || 0),
+          monthlyCtc: Number(row.monthly_ctc || 0),
           pfCheck: Number(row.pf_check ?? 1),
           esiCheck: Number(row.esi_check ?? 1),
           ptCheck: Boolean(row.pt_check ?? true),
@@ -251,12 +252,15 @@ export default function PayrollStructurePage() {
           effectiveFromDate: row.effective_from_date ? String(row.effective_from_date).split('T')[0] : '',
           effectiveToDate: row.effective_to_date ? String(row.effective_to_date).split('T')[0] : '',
           taxRegime: row.tax_regime || 'New',
-          createdAt: row.created_at ? String(row.created_at).split('T')[0] : ''
+          createdAt: row.created_at,
         }));
         setStructures(mapped);
+      } else {
+        setStructures([]);
       }
     } catch (err) {
       console.error('Error fetching salary structures:', err);
+      showToast('Failed to load salary structures.', 'error');
     } finally {
       setLoading(false);
     }
@@ -276,11 +280,9 @@ export default function PayrollStructurePage() {
     const storedRoles = localStorage.getItem('roles');
     const storedPermissions = localStorage.getItem('permissions');
     const storedEmail = localStorage.getItem('email');
-    const storedCompanyId = localStorage.getItem('companyId');
     if (storedRoles) setRoles(JSON.parse(storedRoles));
     if (storedPermissions) setUserPermissions(JSON.parse(storedPermissions));
     if (storedEmail) setEmail(storedEmail);
-    if (storedCompanyId) setCompanyId(storedCompanyId);
 
     fetchSalaryStructures();
     fetchEmployeesAndFormulaData();
@@ -775,16 +777,10 @@ export default function PayrollStructurePage() {
     }
   };
 
-  // Year filter options (current year back 10 years)
+  // Year filter options (current year only)
   const currentYearNum = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYearNum));
-  const past10Years = useMemo(() => {
-    const years = [];
-    for (let i = 0; i <= 10; i++) {
-      years.push(currentYearNum - i);
-    }
-    return years;
-  }, [currentYearNum]);
+  const yearOptions = useMemo(() => [currentYearNum], [currentYearNum]);
 
   const filteredStructures = useMemo(() => {
     return structures.filter((s: SalaryStructureItem) => {
@@ -954,14 +950,14 @@ export default function PayrollStructurePage() {
             />
           </div>
 
-          {/* 📅 YEAR FILTER DROPDOWN (Current Year back 10 Years) */}
+          {/* 📅 YEAR FILTER DROPDOWN (Current Year Only) */}
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(e.target.value)}
             className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-xs font-extrabold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer shrink-0"
             title="Filter by Salary Year"
           >
-            {past10Years.map(yr => (
+            {yearOptions.map(yr => (
               <option key={yr} value={yr}>{yr}</option>
             ))}
           </select>
@@ -980,7 +976,7 @@ export default function PayrollStructurePage() {
           {/* ➕ ICON-ONLY ADD NEW BUTTON */}
           {canCreate && (
             <button
-              onClick={handleOpenCreate}
+              onClick={() => router.push('/dashboard/structure/new')}
               title="Add New Salary Structure"
               className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-all cursor-pointer flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0"
             >
@@ -1028,13 +1024,13 @@ export default function PayrollStructurePage() {
           <div className="overflow-x-auto overflow-y-auto max-h-[62vh] premium-scrollbar border border-slate-100 dark:border-slate-800/80 rounded-xl">
             <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider text-[9.5px] bg-slate-50 dark:bg-slate-900 sticky top-0 z-20 backdrop-blur-md">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider text-[9.5px] bg-slate-100 dark:bg-slate-900 sticky top-0 z-20">
                   {/* STICKY ACTIONS COLUMN */}
                   {canPerformActions && (
-                    <th className="py-3.5 px-3.5 sticky left-0 z-30 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs w-[95px] min-w-[95px]">Actions</th>
+                    <th className="py-3.5 px-3.5 sticky left-0 z-30 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-[95px] min-w-[95px]">Actions</th>
                   )}
                   {/* STICKY EMPLOYEE COLUMN (Name on top, Emp ID underneath) */}
-                  <th className={`py-3.5 px-3.5 sticky z-30 bg-slate-50 dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs min-w-[180px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>Employee</th>
+                  <th className={`py-3.5 px-3.5 sticky z-30 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 min-w-[180px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>Employee</th>
                   <th className="py-3.5 px-3.5">DOJ</th>
                   <th className="py-3.5 px-3.5 text-right">Annual Salary (₹)</th>
                   <th className="py-3.5 px-3.5 text-right">Monthly Salary (₹)</th>
@@ -1095,7 +1091,7 @@ export default function PayrollStructurePage() {
                   <tr key={s.id || s.empId} className={`transition-colors ${isInactive ? 'bg-slate-50/60 dark:bg-slate-900/40 opacity-75' : 'hover:bg-indigo-50/30 dark:hover:bg-slate-800/50'}`}>
                     {/* STICKY ACTIONS COLUMN */}
                     {canPerformActions && (
-                      <td className="py-2.5 px-3.5 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs w-[95px] min-w-[95px]">
+                      <td className="py-2.5 px-3.5 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-[95px] min-w-[95px]">
                         <div className="flex items-center gap-2">
                           {/* Edit button — Disabled if employee is inactive */}
                           {canEdit && (
@@ -1137,7 +1133,7 @@ export default function PayrollStructurePage() {
                     )}
 
                     {/* STICKY EMPLOYEE COLUMN (Name on Top, Emp ID Underneath) */}
-                    <td className={`py-2.5 px-3.5 sticky z-10 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 shadow-xs min-w-[180px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>
+                    <td className={`py-2.5 px-3.5 sticky z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 min-w-[180px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>
                       <div className="flex flex-col text-left">
                         <span className={`font-bold uppercase tracking-tight text-xs ${isInactive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
                           {s.name}
@@ -1269,7 +1265,16 @@ export default function PayrollStructurePage() {
                         {s.taxRegime}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3.5 font-medium text-slate-400 text-[10.5px]">{s.createdAt || '-'}</td>
+                    <td className="py-2.5 px-3.5 font-medium text-slate-500 dark:text-slate-400 text-[11px] whitespace-nowrap">
+                      {s.createdAt ? (() => {
+                        try {
+                          const d = new Date(s.createdAt);
+                          return isNaN(d.getTime()) ? String(s.createdAt) : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                        } catch {
+                          return String(s.createdAt);
+                        }
+                      })() : '-'}
+                    </td>
 
                     {/* Status Column (Synchronized with Employee Status) */}
                     <td className="py-2.5 px-3.5 text-center">
@@ -1393,454 +1398,6 @@ export default function PayrollStructurePage() {
           </div>
         )}
       </div>
-
-      {/* OFF-CANVAS SLIDE DRAWER FOR ADD / EDIT */}
-      {drawerOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end font-sans">
-          <div
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-fadeIn"
-            onClick={() => setDrawerOpen(false)}
-          />
-          <aside className="relative w-full max-w-lg md:max-w-xl h-full bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl z-50 flex flex-col justify-between animate-slideIn">
-            {/* Header: Dark Blue background with + ADD SALARY STRUCTURE */}
-            <div className="flex h-16 items-center justify-between bg-[#084b7a] px-6 text-white flex-shrink-0 shadow-md">
-              <div className="flex items-center gap-2.5">
-                <span className="text-base font-extrabold">+</span>
-                <h3 className="text-sm font-black tracking-wide uppercase font-sans">
-                  {formMode === 'create' ? 'ADD SALARY STRUCTURE' : 'EDIT SALARY STRUCTURE'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setDrawerOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer text-base font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Scrollable Form Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-5 no-scrollbar text-xs font-sans">
-              {/* Section 1: Inputs Card */}
-              <div className="p-4 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 font-sans">
-                {/* SEARCHABLE EMPLOYEE SELECT */}
-                <div className="relative font-sans" ref={empDropdownRef}>
-                  <label className="text-[10px] font-black tracking-wider uppercase text-slate-600 dark:text-slate-300 block mb-1.5 font-sans">
-                    SELECT EMPLOYEE<span className="text-rose-500">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setEmpDropdownOpen(!empDropdownOpen)}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-xl px-3.5 py-2.5 font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 text-xs font-sans flex items-center justify-between cursor-pointer text-left shadow-2xs"
-                  >
-                    <span className="truncate">
-                      {activeForm.name && activeForm.empId
-                        ? `${activeForm.empId} - ${activeForm.name}`
-                        : '-- SELECT EMPLOYEE --'}
-                    </span>
-                    <svg
-                      className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${empDropdownOpen ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                    </svg>
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {empDropdownOpen && (
-                    <div className="absolute z-50 mt-1.5 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-2 font-sans animate-fadeIn max-h-64 flex flex-col">
-                      {/* Search Input Box */}
-                      <div className="relative mb-2 font-sans">
-                        <div className="flex items-center gap-3 px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-full transition-all focus-within:border-blue-500 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:ring-2 focus-within:ring-blue-500/10 shadow-2xs">
-                          <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                          </svg>
-                          <input
-                            type="text"
-                            placeholder="Search Emp ID or Name..."
-                            value={empSearchQuery}
-                            onChange={e => setEmpSearchQuery(e.target.value)}
-                            autoFocus
-                            className="w-full bg-transparent border-none text-xs font-semibold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 placeholder:font-medium p-0 shadow-none focus:ring-0 focus:outline-none"
-                            style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
-                          />
-                          {empSearchQuery && (
-                            <button
-                              type="button"
-                              onClick={() => setEmpSearchQuery('')}
-                              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold shrink-0 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Options List */}
-                      <div className="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-800/60 no-scrollbar">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSelectEmployee('');
-                            setEmpDropdownOpen(false);
-                          }}
-                          className="w-full px-3 py-2 text-left text-xs font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                        >
-                          -- NONE / DESELECT --
-                        </button>
-                        {filteredEmpList.length === 0 ? (
-                          <div className="p-3 text-center text-xs text-slate-400 font-medium">
-                            No employees found
-                          </div>
-                        ) : (
-                          filteredEmpList.map((emp: any) => {
-                            const isSelected = String(emp.id) === String(selectedEmpId);
-                            return (
-                              <button
-                                key={emp.id}
-                                type="button"
-                                onClick={() => {
-                                  handleSelectEmployee(String(emp.id));
-                                  setEmpDropdownOpen(false);
-                                  setEmpSearchQuery('');
-                                }}
-                                className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between rounded-lg transition-colors cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-extrabold'
-                                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium'
-                                }`}
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-bold">
-                                    {emp.emp_id_code ? `${emp.emp_id_code} - ` : ''}
-                                    {emp.first_name || ''} {emp.last_name || ''}
-                                  </span>
-                                  {(emp.department_name || emp.department || emp.designation) && (
-                                    <span className="text-[10px] text-slate-400 font-normal">
-                                      {[emp.department_name || emp.department, emp.designation].filter(Boolean).join(' • ')}
-                                    </span>
-                                  )}
-                                </div>
-                                {isSelected && (
-                                  <span className="text-blue-600 font-black">✓</span>
-                                )}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* SALARY YEAR */}
-                <div>
-                  <label className="text-[10px] font-black tracking-wider uppercase text-slate-600 dark:text-slate-300 block mb-1.5 font-sans">
-                    SALARY YEAR<span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={activeForm.salaryYear}
-                    onChange={e => setActiveForm({ ...activeForm, salaryYear: Number(e.target.value) })}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-xl px-3.5 py-2.5 font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 cursor-pointer text-xs font-sans"
-                  >
-                    {dynamicYears.map(yr => (
-                      <option key={yr} value={yr}>{yr}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* DUPLICATE STRUCTURE WARNING ALERT */}
-                {isDuplicateStructure && (
-                  <div className="p-3 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 rounded-xl text-amber-800 dark:text-amber-300 text-xs font-bold flex items-start gap-2.5 animate-fadeIn font-sans shadow-2xs">
-                    <span className="text-base leading-none">⚠️</span>
-                    <div>
-                      <p className="font-black text-amber-900 dark:text-amber-200 uppercase text-[10px] tracking-wider">Structure Record Already Exists</p>
-                      <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300 mt-0.5 font-sans">
-                        A salary structure is already configured for <strong>{activeForm.name} ({activeForm.empId})</strong> for the year <strong>{activeForm.salaryYear}</strong>.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* SALARY TYPE & INPUT VALUE */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5 font-sans">
-                    <label className="text-[10px] font-black tracking-wider uppercase text-slate-600 dark:text-slate-300 block font-sans">
-                      {salaryInputMode === 'annum' ? 'ENTER SALARY PER ANNUM' : 'ENTER SALARY PER MONTH'}<span className="text-rose-500">*</span>
-                    </label>
-                    {/* Toggle Unit Mode */}
-                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 font-sans">
-                      <button
-                        type="button"
-                        onClick={() => handleSalaryModeChange('annum')}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold transition-all cursor-pointer font-sans ${
-                          salaryInputMode === 'annum' ? 'bg-[#084b7a] text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                        }`}
-                      >
-                        Per Annum
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSalaryModeChange('month')}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold transition-all cursor-pointer font-sans ${
-                          salaryInputMode === 'month' ? 'bg-[#084b7a] text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                        }`}
-                      >
-                        Per Month
-                      </button>
-                    </div>
-                  </div>
-                  <input
-                    type="number"
-                    placeholder={salaryInputMode === 'annum' ? 'e.g. 360000' : 'e.g. 30000'}
-                    value={salaryInputMode === 'annum' ? (activeForm.salaryPerAnnum || '') : (activeForm.salaryPerMonth || '')}
-                    onChange={e => handleSalaryValueChange(Number(e.target.value))}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-xl px-3.5 py-2.5 font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 text-xs font-sans"
-                  />
-                </div>
-
-                {/* Employee Type & DOJ Badges */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 font-sans border-t border-slate-100 dark:border-slate-800/80">
-                  <div className="flex items-center gap-2 font-sans">
-                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400 font-sans">Employee Type:</span>
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-700 text-white font-extrabold text-[10px] uppercase tracking-wider font-sans">
-                      {selectedEmpType}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 font-sans">
-                    <span className="font-sans">DOJ:</span>
-                    <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200/50 dark:border-blue-800/50 text-blue-700 dark:text-blue-300 font-extrabold text-[11px] font-sans">
-                      {activeForm.doj || 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: SALARY COMPONENTS PREVIEW */}
-              <div className="p-4 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 font-sans">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 font-sans">
-                  <div className="flex items-center gap-2 text-[#084b7a] dark:text-blue-400 font-sans">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                    </svg>
-                    <h4 className="text-xs font-black uppercase tracking-wider font-sans">SALARY COMPONENTS PREVIEW</h4>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-sans">Live Calculation</span>
-                </div>
-
-                {/* Detailed Components Table */}
-                <div className="border border-slate-200/80 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xs font-sans">
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800/80 font-sans">
-                    {/* Category: Earnings */}
-                    <div className="bg-slate-50/80 dark:bg-slate-800/50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 font-sans">
-                      Earnings & Allowances
-                    </div>
-                    {[
-                      { label: 'Basic Salary (BASIC)', value: activeForm.basic },
-                      { label: 'House Rent Allowance (HRA)', value: activeForm.hra },
-                      { label: 'Conveyance Allowance (CA)', value: activeForm.ca },
-                      { label: 'Medical Allowance (MA)', value: activeForm.ma },
-                      { label: 'Special Allowance (SA)', value: activeForm.sa }
-                    ].map((row, idx) => (
-                      <div key={idx} className="flex items-center justify-between px-3.5 py-2 text-xs font-sans text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <span className="font-sans">{row.label}</span>
-                        <span className="font-bold text-slate-900 dark:text-slate-100 font-sans">₹ {(row.value || 0).toLocaleString('en-IN')}</span>
-                      </div>
-                    ))}
-
-                    {/* Category: Statutory Deductions */}
-                    <div className="bg-slate-50/80 dark:bg-slate-800/50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-rose-600/80 dark:text-rose-400/80 font-sans">
-                      Statutory Deductions
-                    </div>
-                    {[
-                      { label: 'Employee PF (12%)', value: activeForm.employeePf },
-                      { label: 'Employee ESI (0.75%)', value: activeForm.employeeEsi },
-                      { label: 'Professional Tax (PT)', value: activeForm.professionalTax }
-                    ].map((row, idx) => (
-                      <div key={idx} className="flex items-center justify-between px-3.5 py-2 text-xs font-sans text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <span className="font-sans">{row.label}</span>
-                        <span className="font-bold text-rose-600 dark:text-rose-400 font-sans">₹ {(row.value || 0).toLocaleString('en-IN')}</span>
-                      </div>
-                    ))}
-
-                    {/* Category: Employer Contributions & Incentives */}
-                    <div className="bg-slate-50/80 dark:bg-slate-800/50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 font-sans">
-                      Employer Contributions & Variable Pay
-                    </div>
-                    {[
-                      { label: 'Employer PF', value: activeForm.employerPf },
-                      { label: 'Employer ESI', value: activeForm.employerEsi },
-                      { label: 'Variable Pay', value: activeForm.variablePay },
-                      { label: 'Retention Bonus', value: activeForm.retentionBonus }
-                    ].map((row, idx) => (
-                      <div key={idx} className="flex items-center justify-between px-3.5 py-2 text-xs font-sans text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <span className="font-sans">{row.label}</span>
-                        <span className="font-bold text-slate-900 dark:text-slate-100 font-sans">₹ {(row.value || 0).toLocaleString('en-IN')}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bottom Highlight Summary Cards */}
-                <div className="grid grid-cols-2 gap-2.5 font-sans pt-1">
-                  <div className="p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 font-sans">
-                    <span className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase block font-sans">Monthly Gross</span>
-                    <span className="text-sm font-black text-blue-900 dark:text-blue-100 font-sans">
-                      ₹ {(activeForm.salaryPerMonth || 0).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 font-sans">
-                    <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase block font-sans">Net Salary (Take-Home)</span>
-                    <span className="text-sm font-black text-emerald-900 dark:text-emerald-100 font-sans">
-                      ₹ {(activeForm.netSalary || 0).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 3: Compliance & Bonus Toggles */}
-              <div className="p-4 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3.5">
-                {/* PF Check */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">PF Check</span>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCompliance('pf')}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                      activeForm.pfCheck === 1 ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        activeForm.pfCheck === 1 ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* ESI Check */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">ESI Check</span>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCompliance('esi')}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                      activeForm.esiCheck === 1 ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        activeForm.esiCheck === 1 ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* PT Check */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">PT Check</span>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCompliance('pt')}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                      activeForm.ptCheck ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        activeForm.ptCheck ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Is Variable Pay Applicable */}
-                <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Is Variable Pay Applicable</span>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleCompliance('var', !activeForm.isVariablePayApplicable)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        activeForm.isVariablePayApplicable ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          activeForm.isVariablePayApplicable ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  {activeForm.isVariablePayApplicable && (
-                    <div className="pl-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Variable Pay (%)</label>
-                      <input
-                        type="number"
-                        value={activeForm.variablePayPercentage || 0}
-                        onChange={e => handleToggleCompliance('var', Number(e.target.value))}
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 font-bold outline-none text-xs"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Is Retention Bonus Applicable */}
-                <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Is Retention Bonus Applicable</span>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleCompliance('ret', !activeForm.isRetentionBonusApplicable)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                        activeForm.isRetentionBonusApplicable ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          activeForm.isRetentionBonusApplicable ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  {activeForm.isRetentionBonusApplicable && (
-                    <div className="pl-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Retention Bonus (%)</label>
-                      <input
-                        type="number"
-                        value={activeForm.retentionBonusPercentage || 0}
-                        onChange={e => handleToggleCompliance('ret', Number(e.target.value))}
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 font-bold outline-none text-xs"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Drawer Footer Buttons */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col gap-2.5">
-              <button
-                onClick={handleSaveDrawerForm}
-                disabled={saving || isDuplicateStructure}
-                className="w-full py-3 rounded-xl bg-[#084b7a] hover:bg-[#063b61] text-white text-xs font-black tracking-wider uppercase transition-all shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? 'Saving...' : isDuplicateStructure ? 'Structure Already Exists' : 'Save Structure'}
-              </button>
-              <button
-                onClick={() => setDrawerOpen(false)}
-                className="w-full py-2.5 rounded-xl bg-slate-500 hover:bg-slate-600 text-white text-xs font-black tracking-wider uppercase transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
 
       {/* FLOATING TOAST CONFIRMATION FOR DELETE */}
       {deleteTarget && (

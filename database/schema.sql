@@ -753,3 +753,15 @@ CREATE TABLE IF NOT EXISTS hrms.visitor_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT check_exit_time CHECK (exit_time IS NULL OR exit_time >= entry_time)
 );
+
+-- ============================================================================
+-- 17. High-Performance Composite Indexes (Step 1 Optimization)
+-- ============================================================================
+CREATE INDEX IF NOT EXISTS idx_employees_company_status ON hrms.employees (company_id, status);
+CREATE INDEX IF NOT EXISTS idx_employees_email_lower ON hrms.employees (LOWER(email));
+CREATE INDEX IF NOT EXISTS idx_raw_punches_emp_date ON hrms.attendance_raw_punches (company_id, employee_id, punch_time DESC);
+CREATE INDEX IF NOT EXISTS idx_attendance_emp_date ON hrms.attendance (employee_id, date);
+CREATE INDEX IF NOT EXISTS idx_leave_requests_company_status ON hrms.leave_requests (company_id, status);
+CREATE INDEX IF NOT EXISTS idx_leave_requests_emp ON hrms.leave_requests (employee_id, status);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_company_created ON hrms.audit_logs (company_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payroll_runs_company_status ON hrms.payroll_runs (company_id, status);

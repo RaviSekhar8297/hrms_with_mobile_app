@@ -76,9 +76,13 @@ interface Employee {
   shift_name?: string;
   emp_image?: string;
   reporting_to_id?: string;
+  allow_mobile_punch?: boolean;
+  require_punch_approval?: boolean;
   employment_type?: string;
   probation_period_months?: number;
   confirmation_date?: string;
+  resignation_date?: string;
+  exit_date?: string;
   pan_number?: string;
   aadhar_number?: string;
   esi_number?: string;
@@ -120,7 +124,7 @@ export default function DedicatedEmployeeEditPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [activeTab, setActiveTab] = useState<'PERSONAL' | 'WORK' | 'STATUTORY' | 'BANK' | 'SALARY' | 'EMERGENCY' | 'EDUCATION' | 'EXPERIENCE' | 'SKILLS'>('PERSONAL');
+  const [activeTab, setActiveTab] = useState<'PERSONAL' | 'WORK' | 'STATUS' | 'BANK' | 'SALARY' | 'EMERGENCY' | 'EDUCATION' | 'EXPERIENCE' | 'SKILLS'>('PERSONAL');
 
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
@@ -166,6 +170,11 @@ export default function DedicatedEmployeeEditPage() {
     probation_period_months: 6,
     companyId: '',
     emp_image: '',
+    confirmation_date: '',
+    resignation_date: '',
+    exit_date: '',
+    allow_mobile_punch: true,
+    require_punch_approval: true,
     pan_number: '',
     aadhar_number: '',
     esi_number: '',
@@ -571,6 +580,11 @@ export default function DedicatedEmployeeEditPage() {
           probation_period_months: emp.probation_period_months || 6,
           companyId: emp.company_id || companyId || '',
           emp_image: emp.emp_image || '',
+          confirmation_date: emp.confirmation_date ? new Date(emp.confirmation_date).toISOString().split('T')[0] : '',
+          resignation_date: emp.resignation_date ? new Date(emp.resignation_date).toISOString().split('T')[0] : '',
+          exit_date: emp.exit_date ? new Date(emp.exit_date).toISOString().split('T')[0] : '',
+          allow_mobile_punch: emp.allow_mobile_punch !== undefined ? Boolean(emp.allow_mobile_punch) : true,
+          require_punch_approval: emp.require_punch_approval !== undefined ? Boolean(emp.require_punch_approval) : true,
           pan_number: emp.pan_number || '',
           aadhar_number: emp.aadhar_number || '',
           esi_number: emp.esi_number || '',
@@ -1033,10 +1047,24 @@ export default function DedicatedEmployeeEditPage() {
                   <span className={`px-3 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-widest shadow-2xs ${
                     formData.status === 'ACTIVE'
                       ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
-                      : 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60'
+                      : 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60'
                   }`}>
                     {formData.status}
                   </span>
+
+                  {/* ⚡ 1-Click Status Quick Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, status: prev.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }))}
+                    className={`px-3 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-2xs border ${
+                      formData.status === 'ACTIVE'
+                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500 hover:text-white'
+                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500 hover:text-white'
+                    }`}
+                    title="Click to toggle status (Remember to Save Changes)"
+                  >
+                    {formData.status === 'ACTIVE' ? '🚫 Set Inactive' : '✅ Set Active'}
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 dark:text-slate-400 font-semibold">
@@ -1099,14 +1127,15 @@ export default function DedicatedEmployeeEditPage() {
           {/* 🌟 PREMIUM SEGMENTED PILL TABS BAR */}
           <div className="p-1.5 rounded-2xl bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 flex items-center gap-1.5 font-sans overflow-x-auto no-scrollbar shadow-inner">
             {[
-              { id: 'PERSONAL', label: 'Personal', icon: '👤', color: 'from-blue-600 to-indigo-600' },
-              { id: 'WORK', label: 'Organization', icon: '🏢', color: 'from-blue-600 to-cyan-600' },
-              { id: 'BANK', label: 'Bank Account & Payout', icon: '🏦', color: 'from-cyan-600 to-blue-600' },
-              { id: 'SALARY', label: 'Salary Breakups & CTC', icon: '💵', color: 'from-emerald-600 to-teal-600' },
-              { id: 'EMERGENCY', label: 'Emergency Contacts', icon: '🚨', color: 'from-rose-600 to-red-600' },
-              { id: 'EDUCATION', label: 'Education', icon: '🎓', color: 'from-violet-600 to-purple-600' },
-              { id: 'EXPERIENCE', label: 'Experience', icon: '💼', color: 'from-amber-600 to-orange-600' },
-              { id: 'SKILLS', label: 'Skills & Expertise', icon: '⚡', color: 'from-purple-600 to-pink-600' }
+              { id: 'PERSONAL', label: 'Personal', icon: '👤', color: 'from-blue-600 via-indigo-600 to-blue-700' },
+              { id: 'WORK', label: 'Organization', icon: '🏢', color: 'from-indigo-600 via-purple-600 to-indigo-700' },
+              { id: 'STATUS', label: 'Status', icon: '🚦', color: 'from-emerald-600 via-teal-600 to-emerald-700' },
+              { id: 'BANK', label: 'Bank & Payout', icon: '🏦', color: 'from-cyan-600 via-blue-600 to-cyan-700' },
+              { id: 'SALARY', label: 'Salary', icon: '💵', color: 'from-teal-600 via-emerald-600 to-teal-700' },
+              { id: 'EMERGENCY', label: 'Contacts', icon: '🚨', color: 'from-rose-600 via-red-600 to-rose-700' },
+              { id: 'EDUCATION', label: 'Education', icon: '🎓', color: 'from-purple-600 via-violet-600 to-purple-700' },
+              { id: 'EXPERIENCE', label: 'Experience', icon: '💼', color: 'from-amber-600 via-orange-600 to-amber-700' },
+              { id: 'SKILLS', label: 'Skills & Expertise', icon: '⚡', color: 'from-fuchsia-600 via-pink-600 to-fuchsia-700' }
             ].map(tab => {
               const isActive = activeTab === tab.id;
               return (
@@ -1114,10 +1143,10 @@ export default function DedicatedEmployeeEditPage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`py-2.5 px-4 rounded-xl text-xs transition-all duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+                  className={`py-2.5 px-4 rounded-xl text-xs transition-all duration-300 cursor-pointer flex items-center gap-2 whitespace-nowrap select-none ${
                     isActive
-                      ? `bg-gradient-to-r ${tab.color} text-white font-black shadow-md shadow-blue-500/20 scale-[1.02]`
-                      : 'text-slate-600 dark:text-slate-400 font-extrabold hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white dark:hover:bg-slate-800 shadow-2xs'
+                      ? `bg-gradient-to-r ${tab.color} text-white font-black shadow-md shadow-indigo-500/25 scale-[1.02] ring-1 ring-white/20`
+                      : 'text-slate-600 dark:text-slate-300 font-extrabold hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/80 shadow-2xs'
                   }`}
                 >
                   <span className="text-sm">{tab.icon}</span>
@@ -1126,6 +1155,162 @@ export default function DedicatedEmployeeEditPage() {
               );
             })}
           </div>
+
+          {/* 🚦 TAB: STATUS & LIFECYCLE MANAGEMENT */}
+          {activeTab === 'STATUS' && (
+            <div className="bg-card rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-6 font-sans">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <span>🚦</span> Employment Status & Lifecycle Timeline
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                    Manage active standing, account status, and key employment milestone dates.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-2xs ${
+                    formData.status === 'ACTIVE'
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                  }`}>
+                    Current Status: {formData.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* LIFECYCLE SUMMARY CARDS */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Date of Joining (DOJ)</div>
+                  <div className="text-sm font-black text-slate-800 dark:text-slate-100 mt-1 font-mono">
+                    {formData.joining_date || 'Not Specified'}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-medium mt-1">Official Joining Date</div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Confirmation Date</div>
+                  <div className="text-sm font-black text-slate-800 dark:text-slate-100 mt-1 font-mono">
+                    {formData.confirmation_date || 'On Probation'}
+                  </div>
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                    {formData.confirmation_date ? 'Confirmed Employee' : '⏳ Probation Active'}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Resignation Date</div>
+                  <div className="text-sm font-black text-slate-800 dark:text-slate-100 mt-1 font-mono">
+                    {formData.resignation_date || 'None'}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-medium mt-1">
+                    {formData.resignation_date ? 'Resignation Submitted' : '🟢 No Resignation Record'}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Exit / Relieving Date</div>
+                  <div className="text-sm font-black text-slate-800 dark:text-slate-100 mt-1 font-mono">
+                    {formData.exit_date || 'Active & Serving'}
+                  </div>
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+                    {formData.exit_date ? 'Exited Company' : '🟢 Active & Serving'}
+                  </div>
+                </div>
+              </div>
+
+              {/* EDITABLE LIFECYCLE FIELDS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                    Employment Status Selection
+                  </label>
+                  <SearchableSelect
+                    options={[
+                      { value: 'ACTIVE', label: 'ACTIVE - Working Employee' },
+                      { value: 'INACTIVE', label: 'INACTIVE - Deactivated Account' },
+                      { value: 'PROBATION', label: 'PROBATION - Under Evaluation' },
+                      { value: 'SUSPENDED', label: 'SUSPENDED - Temporarily Suspended' },
+                      { value: 'RESIGNED', label: 'RESIGNED - Serving Notice' },
+                      { value: 'TERMINATED', label: 'TERMINATED - Employment Ended' }
+                    ]}
+                    value={formData.status}
+                    onChange={val => setFormData({ ...formData, status: val })}
+                    placeholder="Select status..."
+                  />
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                    Date of Joining (DOJ)
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.joining_date}
+                    onChange={e => setFormData({ ...formData, joining_date: e.target.value })}
+                    className={inputStyle}
+                  />
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                    Confirmation Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.confirmation_date}
+                    onChange={e => setFormData({ ...formData, confirmation_date: e.target.value })}
+                    className={inputStyle}
+                  />
+                  <p className="text-[10px] text-slate-400 font-medium">Leave empty if employee is still under probation.</p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
+                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                    Resignation Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.resignation_date}
+                    onChange={e => setFormData({ ...formData, resignation_date: e.target.value })}
+                    className={inputStyle}
+                  />
+                  <p className="text-[10px] text-slate-400 font-medium">Date when resignation letter was submitted.</p>
+                </div>
+
+                {/* 🎯 EXIT DATE & QUICK INACTIVE ACTION BUTTON */}
+                <div className="p-4 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/30 dark:bg-rose-950/20 shadow-xs space-y-2 md:col-span-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <label className="block text-[10px] font-black text-rose-700 dark:text-rose-300 uppercase tracking-widest">
+                      Exit / Relieving Date & Status Action
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, status: prev.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }))}
+                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-md border ${
+                        formData.status === 'ACTIVE'
+                          ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-600 shadow-rose-600/20'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-emerald-600/20'
+                      }`}
+                    >
+                      {formData.status === 'ACTIVE' ? '🚫 Set Status to INACTIVE' : '✅ Set Status to ACTIVE'}
+                    </button>
+                  </div>
+                  <input
+                    type="date"
+                    value={formData.exit_date}
+                    onChange={e => setFormData({ ...formData, exit_date: e.target.value })}
+                    className={inputStyle}
+                  />
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold">
+                    Select last working day and click the button above to set status to INACTIVE. (Remember to click &quot;Save Profile Changes&quot;).
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* TAB 1: PERSONAL INFORMATION */}
           {activeTab === 'PERSONAL' && (
@@ -1512,6 +1697,53 @@ export default function DedicatedEmployeeEditPage() {
                     onChange={val => setFormData({ ...formData, employment_type: val })}
                     placeholder="Search employment type..."
                   />
+                </div>
+              </div>
+
+              {/* 📲 ATTENDANCE & PUNCH ACCESS RULES */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <h4 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                  <span>📲 Attendance & Punch Access Rules</span>
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Toggle 1: Allow Mobile Punch */}
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between shadow-xs">
+                    <div>
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-100 block">Allow Mobile Punch</label>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">Permit check-in from Mobile App / Mobile Phone</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, allow_mobile_punch: !formData.allow_mobile_punch })}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        formData.allow_mobile_punch !== false ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        formData.allow_mobile_punch !== false ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </button>
+                  </div>
+
+                  {/* Toggle 2: Require Manager Approval */}
+                  <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between shadow-xs">
+                    <div>
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-100 block">Require Manager Approval</label>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">Mobile check-ins require Reporting Manager approval</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, require_punch_approval: !formData.require_punch_approval })}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        formData.require_punch_approval !== false ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        formData.require_punch_approval !== false ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

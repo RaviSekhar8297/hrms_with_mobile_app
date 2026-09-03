@@ -25,7 +25,8 @@ import {
   Building2,
   GitBranch,
   Layers,
-  Filter
+  Filter,
+  Trash2
 } from 'lucide-react';
 
 interface Company {
@@ -75,6 +76,8 @@ interface PayrollRun {
   released_at?: string;
   created_at: string;
   company_name?: string;
+  created_by_name?: string;
+  employee_names?: string;
 }
 
 interface MonthStatusCard {
@@ -89,11 +92,11 @@ interface MonthStatusCard {
 
 export default function PayrollPage() {
   const router = useRouter();
-  const { showToast } = useDashboard();
+  const { showToast, companyId, setCompanyId } = useDashboard();
 
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -165,14 +168,18 @@ export default function PayrollPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const canView = isSuperAdmin || permissions.includes('view_payroll');
+  const canCreate = isSuperAdmin || permissions.includes('create_payroll');
+  const canEdit = isSuperAdmin || permissions.includes('edit_payroll');
+  const canDelete = isSuperAdmin || permissions.includes('delete_payroll');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
     const storedEmail = localStorage.getItem('email');
-    const storedCompanyId = localStorage.getItem('companyId');
+    const storedPermissions = localStorage.getItem('permissions');
     if (storedRoles) setRoles(JSON.parse(storedRoles));
     if (storedEmail) setEmail(storedEmail);
-    if (storedCompanyId) setCompanyId(storedCompanyId);
+    if (storedPermissions) setPermissions(JSON.parse(storedPermissions));
   }, []);
 
   useEffect(() => {
@@ -247,8 +254,39 @@ export default function PayrollPage() {
   };
 
   const handleOpenReleaseDrawer = (periodCode: string) => {
+    if (!canEdit) {
+      showToast('🔒 Edit Payroll permission is required to configure release rules.', 'error');
+      return;
+    }
     setSelectedPeriod(periodCode);
     setReleaseDrawerOpen(true);
+  };
+
+  const handleDeletePayrollRun = async (run: PayrollRun) => {
+    if (!canDelete) {
+      showToast('🔒 Delete Payroll permission is required.', 'error');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete payroll disbursement batch "${run.payroll_run_number}" (${run.pay_period})? This will remove all calculated payslips for this batch.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/v1/payroll/runs/${run.id}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`🗑️ Payroll batch run ${run.payroll_run_number} deleted successfully!`, 'success');
+        fetchPayrollRuns();
+      } else {
+        showToast(data.error || 'Failed to delete payroll run', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error deleting payroll run', 'error');
+    }
   };
 
   const toggleEmployeeSelection = (empId: string) => {
@@ -311,6 +349,20 @@ export default function PayrollPage() {
   const totalEmployeesPaid = runs.reduce((acc, r) => acc + (r.total_employees || 0), 0);
   const lockedMonthsCount = dynamicHorizonMonths.filter(m => m.isLocked).length;
 
+  if (roles.length > 0 && !canView) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn">
+        <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-3xl">
+          🔒
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Access Denied</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs mt-1.5 max-w-sm">
+          You do not have the required permissions to access the Payroll Hub module. Please contact your administrator.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }} className="payroll-hub-container space-y-4 animate-fadeIn w-full pb-16 relative text-left">
       {/* Confetti Celebration Overlay */}
@@ -339,96 +391,96 @@ export default function PayrollPage() {
         hideUserBadge={true}
       />
 
-      {/* Top Compact Stat Summary Cards Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      {/* Top High-Contrast Stat Summary Cards Bar (COMPACT SLEEK HEIGHT) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* KPI 1: Total Disbursed Net */}
-        <div className="group relative rounded-xl bg-gradient-to-br from-indigo-50/95 via-sky-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-800/60 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
+        <div className="group relative rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 border-t-4 border-t-indigo-500 p-3 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Disbursed Net</span>
-            <div className="h-7 w-7 rounded-lg bg-indigo-100/80 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center border border-indigo-200/60 dark:border-indigo-800/60 shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-              <DollarSign size={16} className="w-4 h-4 shrink-0" />
+            <span className="text-[10.5px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Disbursed Net</span>
+            <div className="h-7 w-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200/60 dark:border-indigo-800/80 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              <DollarSign size={15} className="stroke-[2.5] shrink-0" />
             </div>
           </div>
           <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-lg font-extrabold text-indigo-600 dark:text-indigo-400 font-mono tracking-tight">
+            <span className="text-xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
               ₹{totalNetPayout.toLocaleString('en-IN')}
             </span>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-              <TrendingUp size={12} className="w-3 h-3 shrink-0" />
+            <span className="text-[10.5px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800 flex items-center gap-1">
+              <TrendingUp size={11} className="shrink-0" />
               {runs.length} Batches
             </span>
           </div>
         </div>
 
         {/* KPI 2: Active Horizon */}
-        <div className="group relative rounded-xl bg-gradient-to-br from-emerald-50/95 via-teal-50/30 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-800/60 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
+        <div className="group relative rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 border-t-4 border-t-emerald-500 p-3 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Active Horizon</span>
-            <div className="h-7 w-7 rounded-lg bg-emerald-100/80 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center border border-emerald-200/60 dark:border-emerald-800/60 shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-              <Calendar size={16} className="w-4 h-4 shrink-0" />
+            <span className="text-[10.5px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Active Horizon</span>
+            <div className="h-7 w-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/60 dark:border-emerald-800/80 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              <Calendar size={15} className="stroke-[2.5] shrink-0" />
             </div>
           </div>
           <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight font-mono">
+            <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
               12 Months
             </span>
-            <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
-              <Sparkles size={12} className="w-3 h-3 text-indigo-500 shrink-0" />
+            <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Sparkles size={11} className="text-indigo-500 shrink-0" />
               {dynamicHorizonMonths[0]?.monthName} - {dynamicHorizonMonths[11]?.monthName} {dynamicHorizonMonths[11]?.year}
             </span>
           </div>
         </div>
 
         {/* KPI 3: Employees Disbursed */}
-        <div className="group relative rounded-xl bg-gradient-to-br from-amber-50/95 via-orange-50/30 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900 border border-amber-200/70 dark:border-amber-800/60 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
+        <div className="group relative rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 border-t-4 border-t-amber-500 p-3 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Employees Disbursed</span>
-            <div className="h-7 w-7 rounded-lg bg-amber-100/80 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 flex items-center justify-center border border-amber-200/60 dark:border-amber-800/60 shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-              <Users size={16} className="w-4 h-4 shrink-0" />
+            <span className="text-[10.5px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Employees Disbursed</span>
+            <div className="h-7 w-7 rounded-lg bg-amber-50 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200/60 dark:border-amber-800/80 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              <Users size={15} className="stroke-[2.5] shrink-0" />
             </div>
           </div>
           <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-lg font-extrabold text-amber-600 dark:text-amber-400 font-mono tracking-tight">
+            <span className="text-xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
               {totalEmployeesPaid}
             </span>
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
-              <CheckCircle2 size={12} className="w-3 h-3 shrink-0" />
+            <span className="text-[10.5px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800 flex items-center gap-1">
+              <CheckCircle2 size={11} className="shrink-0" />
               Cumulative
             </span>
           </div>
         </div>
 
         {/* KPI 4: Release Lock Status */}
-        <div className="group relative rounded-xl bg-gradient-to-br from-rose-50/95 via-pink-50/30 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900 border border-rose-200/70 dark:border-rose-800/60 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-xs">
+        <div className="group relative rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 border-t-4 border-t-rose-500 p-3 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Release Lock Status</span>
-            <div className="h-7 w-7 rounded-lg bg-rose-100/80 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center border border-rose-200/60 dark:border-rose-800/60 shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-              <Lock size={16} className="w-4 h-4 shrink-0" />
+            <span className="text-[10.5px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Release Lock Status</span>
+            <div className="h-7 w-7 rounded-lg bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200/60 dark:border-rose-800/80 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              <Lock size={15} className="stroke-[2.5] shrink-0" />
             </div>
           </div>
           <div className="mt-1.5 flex items-baseline justify-between">
-            <span className="text-lg font-extrabold text-rose-600 dark:text-rose-400 tracking-tight font-mono">
+            <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
               {lockedMonthsCount} / 12
             </span>
-            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
-              <ShieldCheck size={12} className="w-3 h-3 shrink-0" />
+            <span className="text-[10.5px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800 flex items-center gap-1">
+              <ShieldCheck size={11} className="shrink-0" />
               {lockedMonthsCount} Locked
             </span>
           </div>
         </div>
       </div>
 
-      {/* 12-Month Compact Horizon Cards Grid */}
-      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-slate-800/80 p-4 shadow-2xs">
-        <div className="flex items-center justify-between mb-3">
+      {/* 12-Month Professional Horizon Cards Grid (COMPACT SLEEK HEIGHT) */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 shadow-2xs">
+        <div className="flex items-center justify-between mb-2.5">
           <div>
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <Calendar size={14} className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+            <h3 className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5 tracking-tight">
+              <Calendar size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span>12-Month Disbursement Horizon</span>
             </h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">Click any month to configure release and enable payslips</p>
+            <p className="text-[10.5px] text-slate-400 mt-0.5">Click any month card to configure release rules and enable payslips</p>
           </div>
-          <span className="px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800 text-[10px] font-bold tracking-tight">
+          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[9.5px] font-black uppercase tracking-wider">
             Master Console
           </span>
         </div>
@@ -436,49 +488,34 @@ export default function PayrollPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2">
           {dynamicHorizonMonths.map((m) => {
             const isRed = m.isLocked;
-            const isSelected = selectedPeriod === m.periodCode;
 
             return (
               <div
                 key={m.periodCode}
                 onClick={() => handleOpenReleaseDrawer(m.periodCode)}
-                className={`p-2.5 rounded-xl border text-center space-y-1.5 cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-sm ${
-                  isSelected ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-slate-900' : ''
-                } ${
-                  isRed
-                    ? 'border-rose-200/80 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20 hover:border-rose-400'
-                    : 'border-emerald-200/80 bg-emerald-50/40 dark:border-emerald-900/60 dark:bg-emerald-950/20 hover:border-emerald-400'
+                className={`p-2 rounded-xl text-center space-y-1 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 group relative ${
+                  isRed 
+                    ? 'border-2 border-rose-300 dark:border-rose-800 bg-rose-50/30 dark:bg-rose-950/20' 
+                    : 'border-2 border-emerald-300 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20'
                 }`}
               >
-                {/* Month & Year Header */}
-                <div>
-                  <span className={`text-xs font-extrabold block tracking-tight ${isRed ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                {/* Month & Year Header + Lock Indicator */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black text-slate-900 dark:text-slate-100 tracking-tight uppercase leading-none">
                     {m.monthName}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-semibold block">{m.year}</span>
-                </div>
-
-                {/* Lock / Unlock Status Badge */}
-                <div className="py-0.5 flex justify-center">
                   {isRed ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800">
-                      <Lock size={10} className="w-2.5 h-2.5 text-rose-500 shrink-0" />
-                      <span>Locked</span>
-                    </span>
+                    <Lock size={10} className="text-rose-500 shrink-0" />
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
-                      <Unlock size={10} className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
-                      <span>Unlocked</span>
-                    </span>
+                    <Unlock size={10} className="text-emerald-500 shrink-0" />
                   )}
                 </div>
+                <span className="text-[9.5px] text-slate-400 font-semibold block text-left">{m.year}</span>
 
                 {/* Dynamic Ratio Display */}
-                <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-800/60">
-                  <span className="text-[11px] font-mono font-bold text-slate-800 dark:text-slate-200 block">
-                    {m.enabledPayslips} - {m.disabledPayslips}
-                  </span>
-                  <span className="text-[9px] text-slate-400 font-medium block">Enabled - Pending</span>
+                <div className="pt-1 border-t border-slate-200/60 dark:border-slate-800/80 text-[9.5px] font-bold text-left">
+                  <div className="text-emerald-600 dark:text-emerald-400">{m.enabledPayslips} Enabled</div>
+                  <div className="text-slate-400 font-medium">{m.disabledPayslips} Pending</div>
                 </div>
               </div>
             );
@@ -512,14 +549,16 @@ export default function PayrollPage() {
             </div>
 
             {/* Generate Payroll Button */}
-            <button
-              type="button"
-              onClick={() => router.push('/dashboard/payroll/generate')}
-              className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-sm hover:shadow-indigo-500/20 cursor-pointer flex items-center gap-1.5 flex-shrink-0"
-            >
-              <Plus size={14} className="w-3.5 h-3.5 stroke-[3] shrink-0" />
-              <span>+ Generate Payroll</span>
-            </button>
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard/payroll/generate')}
+                className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-sm hover:shadow-indigo-500/20 cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+              >
+                <Plus size={14} className="w-3.5 h-3.5 stroke-[3] shrink-0" />
+                <span>+ Generate Payroll</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -528,14 +567,14 @@ export default function PayrollPage() {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50/90 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                <th className="py-2.5 px-3">Run Number</th>
+                <th className="py-2.5 px-3">Name</th>
                 <th className="py-2.5 px-3">Pay Period</th>
                 <th className="py-2.5 px-3 text-center">Payroll Type</th>
-                <th className="py-2.5 px-3 text-center">Employees Paid</th>
+                <th className="py-2.5 px-3 text-center">Paid Days</th>
                 <th className="py-2.5 px-3 text-right">Gross Salary</th>
                 <th className="py-2.5 px-3 text-right">Deductions</th>
                 <th className="py-2.5 px-3 text-right">Net Pay</th>
-                <th className="py-2.5 px-3 text-center">Release Status</th>
+                <th className="py-2.5 px-3 text-center">Status</th>
                 <th className="py-2.5 px-3 text-center">Lock Status</th>
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
@@ -562,7 +601,15 @@ export default function PayrollPage() {
               ) : (
                 filteredRuns.map((run) => (
                   <tr key={run.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-slate-100">{run.payroll_run_number}</td>
+                    <td className="py-2.5 px-3">
+                      <div className="flex flex-col text-left">
+                        <span className="font-extrabold text-slate-900 dark:text-slate-100">
+                          {run.employee_names || 'Employee Payroll'}
+                          {run.total_employees > 2 ? ` (+${run.total_employees - 2} more)` : ''}
+                        </span>
+                        <span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">{run.payroll_run_number}</span>
+                      </div>
+                    </td>
                     <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-slate-100">{run.pay_period}</td>
                     <td className="py-2.5 px-3 text-center">
                       <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/80 uppercase tracking-wider">
@@ -602,13 +649,26 @@ export default function PayrollPage() {
                       )}
                     </td>
                     <td className="py-2.5 px-3 text-right">
-                      <button
-                        onClick={() => handleOpenReleaseDrawer(run.pay_period)}
-                        className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition-all shadow-2xs cursor-pointer inline-flex items-center gap-1"
-                      >
-                        <span>Release & Enable</span>
-                        <ArrowRight size={12} className="w-3 h-3 shrink-0" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {canEdit && (
+                          <button
+                            onClick={() => handleOpenReleaseDrawer(run.pay_period)}
+                            className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition-all shadow-2xs cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <span>Release & Enable</span>
+                            <ArrowRight size={12} className="w-3 h-3 shrink-0" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDeletePayrollRun(run)}
+                            title="Delete payroll batch run"
+                            className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-600 hover:text-white transition-all cursor-pointer"
+                          >
+                            <Trash2 size={13} className="w-3.5 h-3.5 shrink-0" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -626,30 +686,19 @@ export default function PayrollPage() {
       >
         <div className="space-y-4 text-left font-sans">
           
-          {/* Filter Cards Container */}
-          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
-              <Filter size={14} className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+          {/* Filter Scope Parameters Container */}
+          <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3.5">
+            <div className="flex items-center gap-2 text-xs font-black text-slate-900 dark:text-white">
+              <Filter size={15} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span>Filter Scope Parameters</span>
             </div>
 
             {/* Company Filter */}
             <div className="space-y-1">
-              <div className="flex justify-between items-center">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <Building2 size={12} className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span>Company</span>
-                </label>
-                <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectAllCompany}
-                    onChange={(e) => setSelectAllCompany(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span>Select All Company</span>
-                </label>
-              </div>
+              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Building2 size={13} className="text-slate-400 shrink-0" />
+                <span>COMPANY</span>
+              </label>
               <SearchableSelect
                 options={[{ value: 'ALL', label: 'ALL Companies' }, ...companies.map(c => ({ value: c.id, label: c.name }))]}
                 value={drawerCompanyId}
@@ -660,21 +709,10 @@ export default function PayrollPage() {
 
             {/* Branch Filter */}
             <div className="space-y-1">
-              <div className="flex justify-between items-center">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <GitBranch size={12} className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span>Branch</span>
-                </label>
-                <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectAllBranch}
-                    onChange={(e) => setSelectAllBranch(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span>Select All Branch</span>
-                </label>
-              </div>
+              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <GitBranch size={13} className="text-slate-400 shrink-0" />
+                <span>BRANCH</span>
+              </label>
               <SearchableSelect
                 options={[{ value: 'ALL', label: 'ALL Branches' }, ...branches.map(b => ({ value: b.id, label: b.name }))]}
                 value={drawerBranchId}
@@ -685,21 +723,10 @@ export default function PayrollPage() {
 
             {/* Department Filter */}
             <div className="space-y-1">
-              <div className="flex justify-between items-center">
-                <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <Layers size={12} className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span>Department</span>
-                </label>
-                <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectAllDept}
-                    onChange={(e) => setSelectAllDept(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span>Select All Dept</span>
-                </label>
-              </div>
+              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Layers size={13} className="text-slate-400 shrink-0" />
+                <span>DEPARTMENT</span>
+              </label>
               <SearchableSelect
                 options={[{ value: 'ALL', label: 'ALL Departments' }, ...departments.map(d => ({ value: d.id, label: d.name }))]}
                 value={drawerDeptId}
@@ -710,12 +737,26 @@ export default function PayrollPage() {
           </div>
 
           {/* Employees Checklist */}
-          <div className="space-y-2 pt-1">
+          <div className="space-y-2.5 pt-1">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <Users size={14} className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                <span>Employees ({enabledCountTotal} / {drawerEmployees.length} Enabled)</span>
+              <label className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                <Users size={15} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span>EMPLOYEES ({enabledCountTotal} / {drawerEmployees.length} ENABLED)</span>
               </label>
+              <button
+                type="button"
+                onClick={() => {
+                  const allSelected = drawerEmployees.every(e => selectedEmployeesState[e.id]);
+                  const updated = { ...selectedEmployeesState };
+                  drawerEmployees.forEach(e => {
+                    updated[e.id] = !allSelected;
+                  });
+                  setSelectedEmployeesState(updated);
+                }}
+                className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                {drawerEmployees.every(e => selectedEmployeesState[e.id]) ? 'Deselect All' : 'Select All'}
+              </button>
             </div>
 
             <div className="relative">
@@ -725,12 +766,12 @@ export default function PayrollPage() {
                 placeholder="Search employee by name or ID..."
                 value={employeeSearchQuery}
                 onChange={e => setEmployeeSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs outline-none focus:border-indigo-500 font-medium"
+                className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 font-medium transition-all"
               />
             </div>
 
-            {/* Employee Cards List */}
-            <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+            {/* Employee Cards List with Modern Checkboxes */}
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {drawerEmployees.map(emp => {
                 const isSelected = !!selectedEmployeesState[emp.id];
 
@@ -738,21 +779,21 @@ export default function PayrollPage() {
                   <div
                     key={emp.id}
                     onClick={() => toggleEmployeeSelection(emp.id)}
-                    className={`p-2.5 rounded-lg border cursor-pointer flex items-center justify-between transition-colors ${
+                    className={`p-3 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-150 ${
                       isSelected
-                        ? 'border-indigo-300 bg-indigo-50/70 dark:border-indigo-800 dark:bg-indigo-950/50'
-                        : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40 hover:border-slate-300'
+                        ? 'border-indigo-400 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-950/40 shadow-2xs'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <span className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                    <div className="flex items-center gap-3">
+                      <span className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
                         {(emp.first_name || 'E')[0]}
                       </span>
                       <div>
-                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block leading-tight">
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 block leading-tight">
                           {emp.first_name} {emp.last_name}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono block">
+                        <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
                           ID: {emp.emp_id || '10001'} • {emp.department_name || 'Department'}
                         </span>
                       </div>
@@ -760,11 +801,11 @@ export default function PayrollPage() {
 
                     <div className="flex items-center">
                       {isSelected ? (
-                        <span className="h-5 w-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
-                          <Check size={12} className="w-3 h-3 stroke-[3] shrink-0" />
-                        </span>
+                        <div className="h-5 w-5 rounded-md bg-indigo-600 text-white flex items-center justify-center font-black shadow-2xs shrink-0">
+                          <Check size={13} className="stroke-[3] shrink-0" />
+                        </div>
                       ) : (
-                        <span className="h-5 w-5 rounded-full border-2 border-slate-300 dark:border-slate-700 shrink-0" />
+                        <div className="h-5 w-5 rounded-md border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shrink-0" />
                       )}
                     </div>
                   </div>
@@ -778,7 +819,7 @@ export default function PayrollPage() {
             <button
               type="button"
               onClick={() => setReleaseDrawerOpen(false)}
-              className="px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all"
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer"
             >
               Cancel
             </button>
@@ -786,9 +827,9 @@ export default function PayrollPage() {
               type="button"
               onClick={handleSaveReleasePayroll}
               disabled={actionLoading === 'save_release'}
-              className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md hover:shadow-indigo-500/20 transition-all cursor-pointer flex items-center gap-1.5"
             >
-              <CheckCircle2 size={14} className="w-3.5 h-3.5 shrink-0" />
+              <CheckCircle2 size={14} className="shrink-0" />
               <span>{actionLoading === 'save_release' ? 'Saving...' : 'Save & Update Release'}</span>
             </button>
           </div>

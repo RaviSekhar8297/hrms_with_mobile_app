@@ -109,6 +109,27 @@ router.post('/checkin', requirePermission('visitors:write') as any, async (req: 
       [companyId, visitorId, host_id, purpose]
     );
 
+    // 🔔 Notify Host Employee about visitor arrival
+    if (host_id && companyId) {
+      try {
+        const { sendNotification } = require('../services/notificationService');
+        sendNotification({
+          companyId,
+          recipientId: host_id,
+          module: 'VISITORS',
+          eventCode: 'VISITOR_CHECKED_IN',
+          referenceType: 'VISITOR',
+          referenceId: logResult.rows[0].id,
+          title: 'Guest Arrived at Reception 🚪',
+          message: `${name} (${visitor_type || 'Visitor'}) has checked in to meet you. Purpose: ${purpose || 'Meeting'}`,
+          type: 'INFO',
+          actionUrl: '/dashboard/visitors',
+        });
+      } catch (notifErr) {
+        console.error('[VisitorNotification] Failed to send notification:', notifErr);
+      }
+    }
+
     enqueueActivityLog(companyId ?? null, email || '', 'VISITOR_CHECKIN', 'visitors', `Checked in visitor ${name}`, req.ip || '', (req.headers['user-agent'] as string) || '');
     
     res.status(201).json(logResult.rows[0]);

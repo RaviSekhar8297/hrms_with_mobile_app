@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
 import { usePermissions } from '../hooks/usePermissions';
+import { getDeviceIdentifier, getDeviceModel } from '../utils/deviceUtils';
 
 interface Company {
   id: string;
@@ -108,7 +109,25 @@ export default function OverviewPage() {
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
 
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditFilter, setAuditFilter] = useState('ALL');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const matchesModule = auditFilter === 'ALL' || (log.module || '').toUpperCase() === auditFilter;
+      const searchLower = auditSearch.toLowerCase();
+      const matchesSearch = !auditSearch || 
+        (log.user_email || '').toLowerCase().includes(searchLower) ||
+        (log.action || '').toLowerCase().includes(searchLower) ||
+        (log.module || '').toLowerCase().includes(searchLower) ||
+        (log.ip_address || '').toLowerCase().includes(searchLower) ||
+        formatDetails(log.details).toLowerCase().includes(searchLower);
+      return matchesModule && matchesSearch;
+    });
+  }, [logs, auditFilter, auditSearch]);
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -516,11 +535,15 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* 📜 REAL-TIME AUDIT LOGS */}
-      <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-xs flex flex-col relative overflow-hidden text-left min-h-[500px] max-h-[600px] gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0 gap-3">
+      {/* 📜 REAL-TIME AUDIT LOGS - PROFESSIONAL AUDIT TRAIL */}
+      <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-xs flex flex-col relative overflow-hidden text-left gap-5">
+        
+        {/* TOP TOOLBAR: TITLE + METRICS + SEARCH + VIEW SWITCHER + REFRESH */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-5 border-b border-slate-100 dark:border-slate-800 gap-4 shrink-0">
+          
+          {/* LEFT: TITLE & LIVE BADGE */}
           <div className="flex flex-wrap items-center gap-3">
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2.5">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2.5 font-outfit">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -528,143 +551,266 @@ export default function OverviewPage() {
               <span>Real-Time Audit Trail</span>
             </h3>
 
-            {/* METRIC COUNTERS */}
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] font-bold tracking-wide border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-1.5 shadow-2xs">
-                Total Logs: <span className="font-mono text-slate-900 dark:text-white font-extrabold">{logs.length}</span>
+            {/* STATUS COUNTERS */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[11px] font-bold tracking-wide border border-slate-200/80 dark:border-slate-700 flex items-center gap-1.5 shadow-2xs">
+                Total: <span className="font-mono text-slate-900 dark:text-white font-black">{logs.length}</span>
               </span>
 
-              <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 rounded-xl text-[11px] font-bold tracking-wide border border-emerald-200/80 dark:border-emerald-900/50 flex items-center gap-1.5 shadow-2xs">
+              <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-lg text-[11px] font-bold tracking-wide border border-emerald-200/80 dark:border-emerald-900/50 flex items-center gap-1.5 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Success: <span className="font-mono font-extrabold">{logs.filter(l => l.action.includes('SUCCESS') || l.action.includes('REGISTER') || l.action.includes('CREATE') || l.action.includes('RELEASE')).length}</span>
+                Success: <span className="font-mono font-black">{logs.filter(l => l.action.includes('SUCCESS') || l.action.includes('REGISTER') || l.action.includes('CREATE') || l.action.includes('RELEASE')).length}</span>
               </span>
 
-              <span className="px-3 py-1 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 rounded-xl text-[11px] font-bold tracking-wide border border-rose-200/80 dark:border-rose-900/50 flex items-center gap-1.5 shadow-2xs">
+              <span className="px-2.5 py-1 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 rounded-lg text-[11px] font-bold tracking-wide border border-rose-200/80 dark:border-rose-900/50 flex items-center gap-1.5 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                Failed / Warn: <span className="font-mono font-extrabold">{logs.filter(l => l.action.includes('FAILED') || l.action.includes('FAIL') || l.action.includes('ERROR') || l.action.includes('DELETE') || l.action.includes('REMOVE')).length}</span>
+                Warn / Fail: <span className="font-mono font-black">{logs.filter(l => l.action.includes('FAILED') || l.action.includes('FAIL') || l.action.includes('ERROR') || l.action.includes('DELETE') || l.action.includes('REMOVE')).length}</span>
               </span>
             </div>
           </div>
 
-          <button
-            onClick={fetchLogs}
-            disabled={isRefreshing}
-            title="Refresh Audit logs"
-            className="p-2 rounded-xl border border-slate-200/80 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50 flex items-center justify-center bg-white dark:bg-slate-800 shrink-0"
-          >
-            <svg className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-            </svg>
-          </button>
+          {/* RIGHT: SEARCH + MODULE FILTER + VIEW TOGGLE + REFRESH */}
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-56">
+              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search email, IP, action..."
+                value={auditSearch}
+                onChange={e => setAuditSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
+              />
+              {auditSearch && (
+                <button onClick={() => setAuditSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+              )}
+            </div>
+
+            {/* Module Filter Pills */}
+            <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold">
+              {['ALL', 'AUTH', 'EMPLOYEE', 'COMPANY'].map(mod => (
+                <button
+                  key={mod}
+                  onClick={() => setAuditFilter(mod)}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    auditFilter === mod
+                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-2xs'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {mod}
+                </button>
+              ))}
+            </div>
+
+            {/* View Mode Switcher (Grid vs Table) */}
+            <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold shrink-0">
+              <button
+                onClick={() => setViewMode('grid')}
+                title="Grid Cards View"
+                className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                  viewMode === 'grid'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-2xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                title="Table Stream View"
+                className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
+                  viewMode === 'table'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-2xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={fetchLogs}
+              disabled={isRefreshing}
+              title="Refresh Audit logs"
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50 flex items-center justify-center bg-white dark:bg-slate-800 shrink-0"
+            >
+              <svg className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+            </button>
+          </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto pr-1">
+        {/* LOGS DISPLAY CONTAINER */}
+        <div className="flex-1 overflow-x-auto overflow-y-auto max-h-[540px] pr-1">
           {loading && logs.length === 0 ? (
-            <div className="flex py-12 flex-col items-center justify-center space-y-3">
+            <div className="flex py-16 flex-col items-center justify-center space-y-3">
               <div className="h-7 w-7 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
               <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Syncing activity logs...</p>
             </div>
-          ) : logs.length === 0 ? (
-            <div className="flex py-12 flex-col items-center justify-center select-none text-slate-400 dark:text-slate-600">
-              <span className="text-3xl mb-2">📜</span>
-              <p className="text-xs font-bold uppercase tracking-wider">No network activity logged</p>
+          ) : filteredLogs.length === 0 ? (
+            <div className="flex py-16 flex-col items-center justify-center select-none text-slate-400 dark:text-slate-600 space-y-2">
+              <span className="text-3xl">📜</span>
+              <p className="text-xs font-bold uppercase tracking-wider">
+                {logs.length === 0 ? 'No audit trail logs recorded' : 'No logs match your filter'}
+              </p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {logs.map(log => {
+          ) : viewMode === 'grid' ? (
+            /* 1. CARDS GRID VIEW - CRISP LIGHT BORDER & SUBTLE SHADOW */
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-1">
+              {filteredLogs.map(log => {
                 const isSuccess = log.action.includes('SUCCESS') || log.action.includes('REGISTER') || log.action.includes('CREATE') || log.action.includes('RELEASE');
-                const isDelete = log.action.includes('DELETE') || log.action.includes('REMOVE');
+                const isDelete = log.action.includes('DELETE') || log.action.includes('REMOVE') || log.action.includes('FAIL') || log.action.includes('FAILED');
                 
-                let icon = (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                );
-                let iconBgClass = "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-900/40";
-                
-                if (log.module === 'AUTH') {
-                  icon = (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  );
-                  iconBgClass = "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-900/40";
-                } else if (log.module === 'BRANCH' || log.module === 'COMPANY') {
-                  icon = (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  );
-                  iconBgClass = "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-900/40";
-                } else if (log.module === 'EMPLOYEE') {
-                  icon = (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  );
-                  iconBgClass = "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/80 dark:border-amber-900/40";
-                }
-
                 const initial = (log.user_email || 'U').charAt(0).toUpperCase();
+                const detailsText = formatDetails(log.details);
+                const dateObj = new Date(log.created_at);
+                const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
                 return (
                   <div
                     key={log.id}
-                    style={{ boxShadow: 'rgba(0, 0, 0, 0.24) 0px 3px 8px' }}
-                    className="p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all duration-200 flex flex-col justify-between gap-3 text-left"
+                    className="p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700/80 transition-all duration-200 flex flex-col justify-between gap-3 text-left group"
                   >
-                    {/* Top Row: Icon + Module Pill + Action Status Pill */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
-                          {icon}
-                        </div>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 rounded-md border border-slate-200/80 dark:border-slate-700/80 uppercase tracking-wide truncate">
-                          {log.module}
-                        </span>
-                      </div>
+                    {/* Top Row: Module Badge + Action Status Badge */}
+                    <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-[10px] font-black px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md border border-slate-200 dark:border-slate-700 uppercase tracking-wide truncate">
+                        {log.module}
+                      </span>
 
-                      <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold tracking-wide border shrink-0 ${
+                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-md tracking-wide border shrink-0 ${
                         isSuccess
-                          ? 'bg-emerald-50/80 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-900/40'
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60'
                           : isDelete
-                          ? 'bg-rose-50/80 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200/60 dark:border-rose-900/40'
-                          : 'bg-amber-50/80 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200/60 dark:border-amber-900/40'
+                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-900/60'
+                          : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-900/60'
                       }`}>
                         {log.action}
                       </span>
                     </div>
 
-                    {/* Middle Row: User Email & Cleaned Details */}
-                    <div className="space-y-1.5 my-0.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px] flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700">
-                          {initial}
-                        </div>
-                        <h5 className="font-semibold text-slate-800 dark:text-slate-100 truncate text-xs" title={log.user_email}>
-                          {log.user_email}
-                        </h5>
+                    {/* User Email & Avatar */}
+                    <div className="flex items-center gap-2.5 min-w-0 my-0.5">
+                      <div className="w-6.5 h-6.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-black text-[11px] flex items-center justify-center shrink-0 border border-indigo-200 dark:border-indigo-900">
+                        {initial}
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal line-clamp-2 leading-relaxed">
-                        {formatDetails(log.details)}
+                      <h5 className="font-extrabold text-slate-800 dark:text-slate-100 truncate text-xs" title={log.user_email}>
+                        {log.user_email}
+                      </h5>
+                    </div>
+
+                    {/* Activity Message Card Box */}
+                    <div className="bg-slate-50/80 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <p className="text-[11.5px] text-slate-600 dark:text-slate-300 font-normal line-clamp-2 leading-relaxed" title={detailsText}>
+                        {detailsText || 'System Action Authenticated'}
                       </p>
                     </div>
 
                     {/* Bottom Row: Timestamp & IP Address */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-auto">
-                      <span className="flex items-center gap-1">
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10.5px] text-slate-500 dark:text-slate-400 font-medium mt-auto">
+                      <span className="flex items-center gap-1 font-bold text-slate-500">
                         <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        {new Date(log.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        {formattedTime}
                       </span>
-                      <span className="font-mono text-[9.5px] bg-slate-100/60 dark:bg-slate-800/40 px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-slate-700/50 text-slate-500 dark:text-slate-400">
-                        {log.ip_address}
+                      <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 font-bold">
+                        {log.ip_address || '127.0.0.1'}
                       </span>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          ) : (
+            /* 2. TABLE STREAM VIEW */
+            <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-900/50 overflow-hidden">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-800/60 text-[10.5px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider sticky top-0 backdrop-blur-md z-10">
+                    <th className="py-3 px-4 w-36">Time</th>
+                    <th className="py-3 px-4 w-52">Actor / User</th>
+                    <th className="py-3 px-4 w-44">Module & Action</th>
+                    <th className="py-3 px-4">Activity Description</th>
+                    <th className="py-3 px-4 w-32 text-right">IP Address</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                  {filteredLogs.map(log => {
+                    const isSuccess = log.action.includes('SUCCESS') || log.action.includes('REGISTER') || log.action.includes('CREATE') || log.action.includes('RELEASE');
+                    const isDelete = log.action.includes('DELETE') || log.action.includes('REMOVE') || log.action.includes('FAIL') || log.action.includes('FAILED');
+                    
+                    const initial = (log.user_email || 'U').charAt(0).toUpperCase();
+                    const detailsText = formatDetails(log.details);
+                    const dateObj = new Date(log.created_at);
+                    const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                    const formattedDate = dateObj.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+
+                    return (
+                      <tr 
+                        key={log.id} 
+                        className="hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-colors duration-150 group"
+                      >
+                        <td className="py-3 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                          <div className="font-semibold text-slate-700 dark:text-slate-300">{formattedTime}</div>
+                          <div className="text-[9.5px] text-slate-400 dark:text-slate-500 font-medium">{formattedDate}</div>
+                        </td>
+
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-black text-xs flex items-center justify-center shrink-0 border border-indigo-200/80 dark:border-indigo-900/60">
+                              {initial}
+                            </div>
+                            <span className="font-semibold text-slate-900 dark:text-slate-100 truncate text-xs" title={log.user_email}>
+                              {log.user_email}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md uppercase tracking-wide border border-slate-300/50 dark:border-slate-700">
+                              {log.module}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wide border ${
+                              isSuccess
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-900/50'
+                                : isDelete
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200/80 dark:border-rose-900/50'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200/80 dark:border-amber-900/50'
+                            }`}>
+                              {log.action}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <p className="text-slate-700 dark:text-slate-300 font-normal line-clamp-1 max-w-md" title={detailsText}>
+                            {detailsText || 'System Action Authenticated'}
+                          </p>
+                        </td>
+
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <span className="font-mono text-[10.5px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 inline-flex items-center gap-1">
+                            <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                            {log.ip_address || '127.0.0.1'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -697,6 +843,10 @@ function EmployeeDashboard({
 }) {
   const { hasPermission } = usePermissions();
   const canViewAttendance = hasPermission('view_attendance');
+
+  const rolesStr = typeof window !== 'undefined' ? localStorage.getItem('roles') : null;
+  const roles: string[] = rolesStr ? JSON.parse(rolesStr) : [];
+  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
 
   const [time, setTime] = useState<Date | null>(null);
   const [checkedIn, setCheckedIn] = useState(false);
@@ -755,14 +905,309 @@ function EmployeeDashboard({
     return () => clearInterval(timer);
   }, []);
 
-  const handleCheckIn = () => {
-    if (!checkedIn) {
-      setCheckedIn(true);
-      setCheckInTime(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }));
-    } else {
-      setCheckedIn(false);
-      setCheckInTime(null);
+  const [punching, setPunching] = useState(false);
+  const [punchMsg, setPunchMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [firstInTimestamp, setFirstInTimestamp] = useState<Date | null>(null);
+  const [accumulatedPastSeconds, setAccumulatedPastSeconds] = useState<number>(0);
+  const [currentInTimestamp, setCurrentInTimestamp] = useState<Date | null>(null);
+  const [elapsedWorkingSeconds, setElapsedWorkingSeconds] = useState<number>(0);
+  const [todayLocationName, setTodayLocationName] = useState<string | null>(null);
+
+  // 📸 Mark Attendance Modal State in Overview page
+  const [punchModalOpen, setPunchModalOpen] = useState(false);
+  const [punchDirection, setPunchDirection] = useState<'IN' | 'OUT'>('IN');
+  const [punchLat, setPunchLat] = useState<number | null>(null);
+  const [punchLng, setPunchLng] = useState<number | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+
+  const [cameraActive, setCameraActive] = useState(false);
+  const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isSubmittingPunch, setIsSubmittingPunch] = useState(false);
+  const [modalPunchMsg, setModalPunchMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchAddressName = async (lat: number, lng: number) => {
+    try {
+      setLocationName('Locating address...');
+      const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyCN9htaexjSDWMVybqWtlSl1ygNpZWkobg';
+      if (googleApiKey) {
+        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${googleApiKey}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.results && data.results.length > 0) {
+            setLocationName(data.results[0].formatted_address);
+            setTodayLocationName(data.results[0].formatted_address);
+            return;
+          }
+        }
+      }
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.display_name) {
+          setLocationName(data.display_name);
+          setTodayLocationName(data.display_name);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Reverse geocode error:', e);
     }
+    setLocationName(`Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`);
+  };
+
+  const startCamera = async () => {
+    try {
+      setCameraActive(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Camera access error:', err);
+      setGpsError('Could not access webcam for selfie verification.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  };
+
+  const captureSelfie = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setCapturedSelfie(dataUrl);
+        stopCamera();
+      }
+    }
+  };
+
+  const fetchIPLocationFallback = async () => {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.latitude && data.longitude) {
+          setPunchLat(data.latitude);
+          setPunchLng(data.longitude);
+          const cityState = [data.city, data.region, data.country_name].filter(Boolean).join(', ');
+          setLocationName(cityState || 'Location Detected (Network)');
+          setTodayLocationName(cityState || 'Location Detected (Network)');
+          setGpsError(null);
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  };
+
+  const getGPSLocation = () => {
+    setGpsLoading(true);
+    setGpsError(null);
+    setLocationName('Detecting live location...');
+
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setPunchLat(pos.coords.latitude);
+          setPunchLng(pos.coords.longitude);
+          fetchAddressName(pos.coords.latitude, pos.coords.longitude);
+          setGpsLoading(false);
+        },
+        async () => {
+          const success = await fetchIPLocationFallback();
+          if (!success) {
+            setGpsError('Unable to retrieve location. Please allow browser location permissions or click Re-detect GPS.');
+          }
+          setGpsLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
+      fetchIPLocationFallback().then((success) => {
+        if (!success) {
+          setGpsError('Geolocation is not supported by your browser.');
+        }
+        setGpsLoading(false);
+      });
+    }
+  };
+
+  const openMarkAttendanceModal = () => {
+    const nextDirection = checkedIn ? 'OUT' : 'IN';
+    setPunchDirection(nextDirection);
+    setPunchModalOpen(true);
+    getGPSLocation();
+    startCamera();
+  };
+
+  const submitWebPunch = async () => {
+    setIsSubmittingPunch(true);
+    setModalPunchMsg(null);
+    try {
+      const targetEmpId = me?.id || localStorage.getItem('employeeId') || '';
+      const cid = localStorage.getItem('companyId') || companyId;
+
+      const d = new Date();
+      const tzOffset = -d.getTimezoneOffset();
+      const diff = tzOffset >= 0 ? '+' : '-';
+      const pad = (num: number) => String(Math.floor(Math.abs(num))).padStart(2, '0');
+      const localIso = d.getFullYear() +
+        '-' + pad(d.getMonth() + 1) +
+        '-' + pad(d.getDate()) +
+        'T' + pad(d.getHours()) +
+        ':' + pad(d.getMinutes()) +
+        ':' + pad(d.getSeconds()) +
+        diff + pad(tzOffset / 60) + ':' + pad(tzOffset % 60);
+
+      const isMobileDevice = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const punchSource = isMobileDevice ? 'MOBILE' : 'WEB';
+
+      const body = {
+        companyId: cid,
+        employee_id: targetEmpId,
+        punch_time: localIso,
+        direction: punchDirection,
+        source: punchSource,
+        latitude: punchLat,
+        longitude: punchLng,
+        image_url: capturedSelfie,
+        location_name: locationName,
+        device_identifier: getDeviceIdentifier(),
+        device_model: getDeviceModel(),
+      };
+
+      const res = await fetch('/api/v1/attendance/punches', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setModalPunchMsg({ type: 'success', text: `Punch ${punchDirection} recorded successfully!` });
+        const nextState = punchDirection === 'IN';
+        setCheckedIn(nextState);
+        setTimeout(() => {
+          setPunchModalOpen(false);
+          stopCamera();
+          window.location.reload();
+        }, 1000);
+      } else {
+        setModalPunchMsg({ type: 'error', text: data.error || 'Failed to record punch' });
+      }
+    } catch (err: any) {
+      setModalPunchMsg({ type: 'error', text: err?.message || 'Network error submitting punch' });
+    } finally {
+      setIsSubmittingPunch(false);
+    }
+  };
+
+  // Fetch today's actual punch status and calculate interval-based working hours
+  useEffect(() => {
+    const fetchTodayPunchStatus = async () => {
+      try {
+        const headers = getHeaders();
+        const res = await fetch('/api/v1/attendance/punches', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          const punches = data.punches || [];
+          setAllPunches(punches);
+          const todayStr = new Date().toISOString().split('T')[0];
+          const todayPunches = punches.filter((p: any) => String(p.punch_time).startsWith(todayStr));
+          
+          if (todayPunches.length > 0) {
+            const sortedPunches = [...todayPunches].sort((a: any, b: any) => new Date(a.punch_time).getTime() - new Date(b.punch_time).getTime());
+            
+            let totalPastSecs = 0;
+            let activeInDate: Date | null = null;
+            let firstInDate: Date | null = null;
+
+            for (const p of sortedPunches) {
+              const pDate = new Date(p.punch_time);
+              if (p.direction === 'IN') {
+                if (!firstInDate) firstInDate = pDate;
+                activeInDate = pDate;
+              } else if (p.direction === 'OUT' && activeInDate) {
+                const durationSecs = Math.max(0, Math.floor((pDate.getTime() - activeInDate.getTime()) / 1000));
+                totalPastSecs += durationSecs;
+                activeInDate = null;
+              }
+            }
+
+            setAccumulatedPastSeconds(totalPastSecs);
+            setCurrentInTimestamp(activeInDate);
+            setCheckedIn(!!activeInDate);
+
+            if (firstInDate) {
+              setFirstInTimestamp(firstInDate);
+              setCheckInTime(firstInDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+            }
+
+            const lastPunchWithLoc = [...sortedPunches].reverse().find((p: any) => p.location_name || (p.latitude && p.longitude));
+            if (lastPunchWithLoc) {
+              if (lastPunchWithLoc.location_name) {
+                setTodayLocationName(lastPunchWithLoc.location_name);
+              } else if (lastPunchWithLoc.latitude && lastPunchWithLoc.longitude) {
+                fetchAddressName(lastPunchWithLoc.latitude, lastPunchWithLoc.longitude);
+              }
+            }
+          } else {
+            setCheckedIn(false);
+            setAccumulatedPastSeconds(0);
+            setCurrentInTimestamp(null);
+            setFirstInTimestamp(null);
+          }
+        }
+      } catch (e) {}
+    };
+    fetchTodayPunchStatus();
+  }, [companyId]);
+
+  // Live timer tick for working hours (Accumulated past sessions + current session)
+  useEffect(() => {
+    const updateElapsed = () => {
+      let currentSessionSecs = 0;
+      if (currentInTimestamp) {
+        const now = new Date();
+        currentSessionSecs = Math.max(0, Math.floor((now.getTime() - currentInTimestamp.getTime()) / 1000));
+      }
+      setElapsedWorkingSeconds(accumulatedPastSeconds + currentSessionSecs);
+    };
+
+    updateElapsed();
+
+    if (currentInTimestamp) {
+      const interval = setInterval(updateElapsed, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [accumulatedPastSeconds, currentInTimestamp]);
+
+  const formatWorkingHours = (totalSecs: number) => {
+    if (!totalSecs || totalSecs <= 0) return '00h 00m 00s';
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    return `${String(hrs).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
   };
 
   const getGreeting = () => {
@@ -826,6 +1271,8 @@ function EmployeeDashboard({
       });
   };
 
+  const [allPunches, setAllPunches] = useState<any[]>([]);
+
   // Month Calendar Days Generator
   const getCalendarDays = () => {
     const year = currentDate.getFullYear();
@@ -841,17 +1288,33 @@ function EmployeeDashboard({
       days.push({ day: prevMonthDays - i, isCurrentMonth: false, status: 'none' });
     }
 
+    const today = new Date();
+
     // Current month days
     for (let d = 1; d <= daysInMonth; d++) {
-      const dayOfWeek = new Date(year, month, d).getDay();
-      let status = 'present';
-      if (dayOfWeek === 0 || dayOfWeek === 6) status = 'weekend';
-      else if (d === 13 || d === 20) status = 'present';
-      else if (d === 17) status = 'late';
-      else if (d === 21) status = 'present';
-      else if (d === 22) status = 'leave';
-      else if (d === 5) status = 'present';
-      else if (d > 22) status = 'none';
+      const dateObj = new Date(year, month, d);
+      const dayOfWeek = dateObj.getDay();
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      
+      const dayPunches = allPunches.filter((p: any) => String(p.punch_time).startsWith(dateStr));
+      const hasInPunch = dayPunches.some((p: any) => p.direction === 'IN');
+      const isLeave = leaveRequests.some((lr: any) => {
+        const f = String(lr.start_date || lr.from_date || '').split('T')[0];
+        const t = String(lr.end_date || lr.to_date || f).split('T')[0];
+        return dateStr >= f && dateStr <= t && (lr.status === 'APPROVED' || lr.status === 'PENDING');
+      });
+
+      let status = 'none';
+
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        status = 'weekend';
+      } else if (hasInPunch) {
+        status = 'present';
+      } else if (isLeave) {
+        status = 'leave';
+      } else if (dateObj < today) {
+        status = 'absent';
+      }
 
       days.push({ day: d, isCurrentMonth: true, status });
     }
@@ -873,23 +1336,22 @@ function EmployeeDashboard({
       {/* ── ROW 1: TOP SECTION: GREETING BANNER & TODAY'S ATTENDANCE PUNCH ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
         
-        {/* Left 2 Cols: Good Morning Banner */}
-        <div className="lg:col-span-2 rounded-3xl border border-indigo-100/30 dark:border-slate-800/80 bg-gradient-to-br from-[#111036] via-[#1a174d] to-[#0f0c29] p-6 md:p-8 relative overflow-hidden flex flex-col justify-between shadow-xl shadow-indigo-950/20 text-white group transition-all duration-300">
+        {/* Left 2 Cols: Good Morning Banner (LIGHT THEME FOR NON-SUPERADMIN) */}
+        <div className="lg:col-span-2 rounded-3xl border border-indigo-100 dark:border-slate-800 bg-gradient-to-br from-indigo-50/90 via-purple-50/80 to-blue-50/70 dark:bg-slate-900 p-6 md:p-8 relative overflow-hidden flex flex-col justify-between shadow-xs text-slate-800 dark:text-slate-100 group transition-all duration-300">
           
-          {/* Glassmorphic background blur rings */}
-          <div className="absolute right-0 top-0 -mt-8 -mr-8 w-64 h-64 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700" />
-          <div className="absolute left-1/3 bottom-0 w-48 h-48 bg-gradient-to-tr from-blue-500/15 to-cyan-500/15 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-pink-500 opacity-90" />
+          {/* Background blur rings */}
+          <div className="absolute right-0 top-0 -mt-8 -mr-8 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
           
           <div className="flex justify-between items-start gap-4 z-10">
             <div className="space-y-2 text-left">
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-amber-300 text-xs font-black uppercase tracking-widest border border-white/15 backdrop-blur-md shadow-sm">
+              <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-600/10 text-indigo-700 dark:text-indigo-300 text-xs font-black uppercase tracking-widest border border-indigo-200/80 dark:border-indigo-800/50 shadow-2xs">
                 {getGreeting()} <span className="animate-float-emoji inline-block text-sm">👋</span>
               </span>
-              <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-slate-200 uppercase tracking-tight font-outfit mt-3 drop-shadow-sm">
+              <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tight font-outfit mt-3">
                 {displayName.toUpperCase()}
               </h1>
-              <p className="text-xs text-indigo-200/90 font-medium leading-relaxed max-w-md pt-1">
+              <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed max-w-md pt-1">
                 Welcome back to your workspace. Have a highly productive and successful day ahead!
               </p>
             </div>
@@ -898,26 +1360,26 @@ function EmployeeDashboard({
           {/* Bottom Branch, Department & Designation Chips */}
           <div className="flex flex-wrap items-center gap-3 mt-6 pt-2 z-10">
             {/* Branch */}
-            <span className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur-md shadow-md hover:bg-emerald-500/25 transition-all text-xs font-bold">
-              <span className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center text-sm shadow-inner">📍</span>
+            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 shadow-2xs text-xs font-bold">
+              <span className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center text-sm">📍</span>
               <span>
-                Branch: <strong className="font-extrabold uppercase text-white tracking-wider">{me?.branch_name || 'Main Branch'}</strong>
+                Branch: <strong className="font-black uppercase text-slate-900 dark:text-white tracking-wider">{me?.branch_name || 'Main Branch'}</strong>
               </span>
             </span>
 
             {/* Department */}
-            <span className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-blue-500/15 text-blue-300 border border-blue-500/30 backdrop-blur-md shadow-md hover:bg-blue-500/25 transition-all text-xs font-bold">
-              <span className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center text-sm shadow-inner">🏢</span>
+            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-blue-500/10 text-blue-800 dark:text-blue-300 border border-blue-500/20 shadow-2xs text-xs font-bold">
+              <span className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center text-sm">🏢</span>
               <span>
-                Department: <strong className="font-extrabold uppercase text-white tracking-wider">{me?.department_name || 'Pending'}</strong>
+                Department: <strong className="font-black uppercase text-slate-900 dark:text-white tracking-wider">{me?.department_name || 'Pending'}</strong>
               </span>
             </span>
 
             {/* Designation */}
-            <span className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-purple-500/15 text-purple-300 border border-purple-500/30 backdrop-blur-md shadow-md hover:bg-purple-500/25 transition-all text-xs font-bold">
-              <span className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center text-sm shadow-inner">💼</span>
+            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-purple-500/10 text-purple-800 dark:text-purple-300 border border-purple-500/20 shadow-2xs text-xs font-bold">
+              <span className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center text-sm">💼</span>
               <span>
-                Designation: <strong className="font-extrabold uppercase text-white tracking-wider">{me?.designation_name || 'Pending'}</strong>
+                Designation: <strong className="font-black uppercase text-slate-900 dark:text-white tracking-wider">{me?.designation_name || 'Pending'}</strong>
               </span>
             </span>
           </div>
@@ -947,12 +1409,17 @@ function EmployeeDashboard({
                 </p>
                 <div className="flex items-baseline gap-1 mt-1.5">
                   <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight font-mono" style={{ fontFamily: "'DM Sans', monospace" }}>
-                    {checkedIn && checkInTime ? '03h 42m 10s' : '00h 00m 00s'}
+                    {checkedIn ? formatWorkingHours(elapsedWorkingSeconds) : '00h 00m 00s'}
                   </span>
                 </div>
                 <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1">
-                  <span>Shift:</span> <strong className="font-extrabold text-slate-800 dark:text-slate-200">09:00 AM - 06:00 PM</strong>
+                  <span>Shift:</span> <strong className="font-extrabold text-slate-800 dark:text-slate-200">{me?.shift_name || 'Standard Day Shift (09:30 AM - 06:30 PM)'}</strong>
                 </p>
+                {todayLocationName && (
+                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                    <span>📍 Location:</span> <strong className="font-bold">{todayLocationName}</strong>
+                  </p>
+                )}
               </div>
 
               {/* Fingerprint Graphic */}
@@ -965,26 +1432,53 @@ function EmployeeDashboard({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              onClick={handleCheckIn}
-              className={`flex-1 py-3 px-5 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-md ${
-                checkedIn
-                  ? 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-rose-500/20'
-                  : 'bg-gradient-to-r from-indigo-600 via-indigo-650 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-indigo-500/25'
-              }`}
-            >
-              <span>{checkedIn ? 'CHECK-OUT NOW' : 'PUNCH CHECK-IN'}</span>
-            </button>
-
-            {canViewAttendance && (
-              <Link
-                href="/dashboard/attendance"
-                className="py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-center flex items-center justify-center shadow-xs"
-              >
-                TIMELINE
-              </Link>
+          <div className="space-y-2 pt-2">
+            {punchMsg && (
+              <div className={`p-2.5 rounded-xl text-[11px] font-extrabold flex items-center justify-between border shadow-2xs ${
+                punchMsg.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-rose-50 text-rose-800 border-rose-200'
+              }`}>
+                <span>{punchMsg.text}</span>
+                <button onClick={() => setPunchMsg(null)} className="text-xs font-bold px-1 cursor-pointer">&times;</button>
+              </div>
             )}
+            <div className="flex items-center gap-3">
+              {isSuperAdmin ? (
+                <div className="flex-1 py-3 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] font-extrabold flex items-center justify-center gap-2">
+                  <span>👑</span>
+                  <span>SuperAdmin Accounts Are Exempt From Attendance Punching</span>
+                </div>
+              ) : (
+                <button
+                  onClick={openMarkAttendanceModal}
+                  disabled={punching}
+                  className={`flex-1 py-3 px-5 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-md disabled:opacity-60 ${
+                    checkedIn
+                      ? 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-rose-500/20'
+                      : 'bg-gradient-to-r from-indigo-600 via-indigo-650 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-indigo-500/25'
+                  }`}
+                >
+                  {punching ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Punching...
+                    </span>
+                  ) : (
+                    <span>{checkedIn ? 'CHECK-OUT NOW' : 'PUNCH CHECK-IN'}</span>
+                  )}
+                </button>
+              )}
+
+              {canViewAttendance && (
+                <Link
+                  href="/dashboard/attendance"
+                  className="py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-center flex items-center justify-center shadow-xs"
+                >
+                  TIMELINE
+                </Link>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1313,40 +1807,58 @@ function EmployeeDashboard({
             <div className="grid grid-cols-3 gap-3 mb-5">
               <div className="p-3.5 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/30 text-center shadow-2xs">
                 <p className="text-[9.5px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">APPROVED</p>
-                <p className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5 font-outfit">4 <span className="text-xs font-bold">Days</span></p>
+                <p className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5 font-outfit">
+                  {leaveRequests.filter((l: any) => String(l.status).toUpperCase() === 'APPROVED').length} <span className="text-xs font-bold">Reqs</span>
+                </p>
               </div>
               <div className="p-3.5 rounded-2xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-500/30 text-center shadow-2xs">
                 <p className="text-[9.5px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">PENDING</p>
-                <p className="text-xl font-black text-amber-700 dark:text-amber-300 mt-0.5 font-outfit">1 <span className="text-xs font-bold">Day</span></p>
+                <p className="text-xl font-black text-amber-700 dark:text-amber-300 mt-0.5 font-outfit">
+                  {leaveRequests.filter((l: any) => String(l.status).toUpperCase() === 'PENDING').length} <span className="text-xs font-bold">Reqs</span>
+                </p>
               </div>
               <div className="p-3.5 rounded-2xl bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/30 text-center shadow-2xs">
                 <p className="text-[9.5px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">REJECTED</p>
-                <p className="text-xl font-black text-rose-700 dark:text-rose-300 mt-0.5 font-outfit">0 <span className="text-xs font-bold">Days</span></p>
+                <p className="text-xl font-black text-rose-700 dark:text-rose-300 mt-0.5 font-outfit">
+                  {leaveRequests.filter((l: any) => String(l.status).toUpperCase() === 'REJECTED').length} <span className="text-xs font-bold">Reqs</span>
+                </p>
               </div>
             </div>
 
             {/* Recent Leave Request Items */}
             <div className="space-y-3">
-              {[
-                { type: 'Casual Leave', dates: 'Jul 24 - Jul 25 (2 Days)', status: 'Approved', icon: '🌴', color: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/25 dark:text-emerald-400' },
-                { type: 'Sick Leave', dates: 'Jul 28 (1 Day)', status: 'Pending', icon: '😷', color: 'bg-amber-500/15 text-amber-600 border-amber-500/30 dark:bg-amber-500/25 dark:text-amber-400' },
-                { type: 'Annual Leave', dates: 'Aug 10 - Aug 12 (3 Days)', status: 'Approved', icon: '✈️', color: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/25 dark:text-emerald-400' },
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-800/40 hover:border-indigo-500/30 transition-all duration-200 shadow-2xs">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-lg shadow-2xs">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <h5 className="text-xs font-black text-slate-800 dark:text-slate-100">{item.type}</h5>
-                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">{item.dates}</p>
-                    </div>
-                  </div>
-                  <span className={`text-[9.5px] font-black px-3 py-1 rounded-full border uppercase tracking-wider ${item.color}`}>
-                    {item.status}
-                  </span>
+              {leaveRequests.length === 0 ? (
+                <div className="p-6 text-center text-slate-400 dark:text-slate-500 text-xs font-bold bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+                  🌴 No leave requests logged yet.
                 </div>
-              ))}
+              ) : (
+                leaveRequests.slice(0, 3).map((item: any, idx: number) => {
+                  const statusUpper = String(item.status || '').toUpperCase();
+                  const badgeColor = statusUpper === 'APPROVED' ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/25 dark:text-emerald-400' :
+                    statusUpper === 'PENDING' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30 dark:bg-amber-500/25 dark:text-amber-400' :
+                    'bg-rose-500/15 text-rose-600 border-rose-500/30 dark:bg-rose-500/25 dark:text-rose-400';
+                  
+                  const startDateStr = String(item.start_date || item.from_date || '').split('T')[0];
+                  const endDateStr = String(item.end_date || item.to_date || startDateStr).split('T')[0];
+
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-800/40 hover:border-indigo-500/30 transition-all duration-200 shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center text-lg shadow-2xs">
+                          🌴
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-black text-slate-800 dark:text-slate-100">{item.leave_type || item.leave_type_code || 'Leave'}</h5>
+                          <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">{startDateStr} - {endDateStr}</p>
+                        </div>
+                      </div>
+                      <span className={`text-[9.5px] font-black px-3 py-1 rounded-full border uppercase tracking-wider ${badgeColor}`}>
+                        {statusUpper}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -1534,28 +2046,193 @@ function EmployeeDashboard({
           </div>
         </div>
 
-        {/* 3. Need Help? */}
-        <div className="rounded-3xl border border-indigo-100 dark:border-slate-800 bg-gradient-to-br from-indigo-900/90 via-slate-900 to-indigo-950 p-6 shadow-lg text-left flex flex-col justify-between transition-all duration-300 hover:shadow-xl text-white group">
+        {/* 3. Need Help? (Light Soft Theme) */}
+        <div className="rounded-3xl border border-indigo-200/80 dark:border-slate-800 bg-gradient-to-br from-indigo-50/90 via-slate-50 to-blue-50/80 dark:from-slate-900 dark:to-slate-800 p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md text-slate-800 dark:text-white group">
           <div>
-            <div className="w-12 h-12 rounded-2xl bg-white/10 text-amber-300 border border-white/20 flex items-center justify-center text-xl mb-4 backdrop-blur-md shadow-md group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center text-xl mb-4 backdrop-blur-md shadow-2xs group-hover:scale-110 transition-transform">
               🎧
             </div>
-            <h4 className="text-base font-black uppercase tracking-wider text-white font-outfit">
+            <h4 className="text-base font-black uppercase tracking-wider text-slate-900 dark:text-white font-outfit">
               Need Help?
             </h4>
-            <p className="text-xs text-indigo-200/90 mt-1.5 leading-relaxed font-medium">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed font-medium">
               Have questions or facing issues? Raise a ticket or connect directly with our support team.
             </p>
           </div>
 
           <div className="mt-6">
-            <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-400 hover:to-blue-500 border-0 text-xs font-black text-white shadow-lg shadow-indigo-500/25 transition-all text-center cursor-pointer active:scale-98">
+            <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 border-0 text-xs font-black text-white shadow-md shadow-indigo-500/20 transition-all text-center cursor-pointer active:scale-98">
               Create Support Ticket
             </button>
           </div>
         </div>
-
       </div>
+
+      {/* 📸 Mark Attendance Center Dialog Modal */}
+      {punchModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full border border-slate-200/80 dark:border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shrink-0">
+                  📸
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white font-outfit">
+                    MARK ATTENDANCE ({punchDirection === 'IN' ? 'CHECK IN' : 'CHECK OUT'})
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                    GPS LOCATION & SELFIE VERIFICATION
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPunchModalOpen(false);
+                  stopCamera();
+                }}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center text-base font-bold transition-colors cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+              {modalPunchMsg && (
+                <div className={`p-3 rounded-2xl text-xs font-bold flex items-center justify-between border ${
+                  modalPunchMsg.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/40'
+                    : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40'
+                }`}>
+                  <span>{modalPunchMsg.text}</span>
+                  <button onClick={() => setModalPunchMsg(null)} className="text-xs font-bold px-1">&times;</button>
+                </div>
+              )}
+
+              {/* GPS Verification Card */}
+              <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    🌐 GPS Location Verification
+                  </span>
+                  <button
+                    type="button"
+                    onClick={getGPSLocation}
+                    disabled={gpsLoading}
+                    className="text-[9.5px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-0"
+                  >
+                    {gpsLoading ? 'Fetching...' : 'Re-detect GPS'}
+                  </button>
+                </div>
+
+                {punchLat && punchLng ? (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 leading-snug">
+                        📍 {locationName || 'Detecting location address...'}
+                      </p>
+                      <span className="text-[9px] bg-emerald-600 text-white px-2 py-0.5 rounded font-sans uppercase font-bold shrink-0 shadow-2xs">
+                        GPS Verified
+                      </span>
+                    </div>
+                  </div>
+                ) : gpsError ? (
+                  <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 text-xs font-bold">
+                    ⚠️ {gpsError}
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                    📍 Click "Re-detect GPS" to verify location permissions.
+                  </div>
+                )}
+              </div>
+
+              {/* Camera / Selfie Capture Card */}
+              <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                  📸 Selfie Photo Verification
+                </span>
+
+                {capturedSelfie ? (
+                  <div className="space-y-2 text-center">
+                    <img
+                      src={capturedSelfie}
+                      alt="Captured Selfie Verification"
+                      className="w-48 h-36 object-cover rounded-2xl mx-auto border-2 border-emerald-500 shadow-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCapturedSelfie(null);
+                        startCamera();
+                      }}
+                      className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-0"
+                    >
+                      Retake Selfie Photo
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-center">
+                    <div className="w-full h-44 rounded-2xl bg-black overflow-hidden relative flex items-center justify-center border border-slate-700 shadow-inner">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{ transform: 'scaleX(-1)' }}
+                        className="w-full h-full object-cover"
+                      />
+                      <canvas ref={canvasRef} className="hidden" />
+                      {!cameraActive && (
+                        <button
+                          type="button"
+                          onClick={startCamera}
+                          className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors shadow-md cursor-pointer"
+                        >
+                          📷 Enable Camera
+                        </button>
+                      )}
+                    </div>
+
+                    {cameraActive && (
+                      <button
+                        type="button"
+                        onClick={captureSelfie}
+                        className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-500/25 transition-all cursor-pointer hover:scale-105"
+                      >
+                        📸 Take Selfie Snapshot
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={submitWebPunch}
+                  disabled={isSubmittingPunch || !capturedSelfie}
+                  className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 ${
+                    isSubmittingPunch || !capturedSelfie
+                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-300/40 dark:border-slate-700/40 cursor-not-allowed shadow-none'
+                      : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 hover:scale-[1.01] cursor-pointer'
+                  }`}
+                >
+                  {isSubmittingPunch
+                    ? 'Submitting Punch...'
+                    : !capturedSelfie
+                    ? '📸 Capture Selfie Photo First to Submit'
+                    : `Submit ${punchDirection === 'IN' ? 'Check In' : 'Check Out'} Punch Now`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

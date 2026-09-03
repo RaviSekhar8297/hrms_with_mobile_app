@@ -65,20 +65,22 @@ interface Configuration {
 const FORMULA_TABS = [
   { id: 'slabs',      label: '1. Salary Slabs',                   permission: 'view_salary_slabs' },
   { id: 'components', label: '2. Salary Components',              permission: 'view_salary_components' },
-  { id: 'calctypes',  label: '3. Calculation Type Master',        permission: 'view_calculation_types' },
+  { id: 'calctypes',  label: '3. Calculation Type Master',        permission: 'view_salary_component_configurations' },
   { id: 'configs',    label: '4. Salary Component Configuration', permission: 'view_salary_component_configurations' },
 ] as const;
 
 type FormulaTabId = typeof FORMULA_TABS[number]['id'];
 
-export default function PayrollFormulaPage() {
+export default function PayrollFormulaEnginePage() {
   const router = useRouter();
-  const { showToast } = useDashboard();
+  const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
+
+  const activeCompanyId = globalCompanyId || companyId;
 
   // Engine cache states
   const [slabs, setSlabs] = useState<Slab[]>([]);
@@ -155,7 +157,28 @@ export default function PayrollFormulaPage() {
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
 
   // Filter tabs based on permissions
-  const visibleTabs = FORMULA_TABS.filter(t => hasPermission(t.permission));
+  const visibleTabs = FORMULA_TABS.filter(t => isSuperAdmin || hasPermission(t.permission));
+
+  const canCreateCurrentTab = isSuperAdmin || (
+    activeTab === 'slabs' ? hasPermission('create_salary_slabs') :
+    activeTab === 'components' ? hasPermission('create_salary_components') :
+    activeTab === 'calctypes' ? hasPermission('create_salary_component_configurations') :
+    activeTab === 'configs' ? hasPermission('create_salary_component_configurations') : false
+  );
+
+  const canEditCurrentTab = isSuperAdmin || (
+    activeTab === 'slabs' ? hasPermission('edit_salary_slabs') :
+    activeTab === 'components' ? hasPermission('edit_salary_components') :
+    activeTab === 'calctypes' ? hasPermission('edit_salary_component_configurations') :
+    activeTab === 'configs' ? hasPermission('edit_salary_component_configurations') : false
+  );
+
+  const canDeleteCurrentTab = isSuperAdmin || (
+    activeTab === 'slabs' ? hasPermission('delete_salary_slabs') :
+    activeTab === 'components' ? hasPermission('delete_salary_components') :
+    activeTab === 'calctypes' ? hasPermission('delete_salary_component_configurations') :
+    activeTab === 'configs' ? hasPermission('delete_salary_component_configurations') : false
+  );
 
   // Auto-correct activeTab if it's not visible
   useEffect(() => {
@@ -178,7 +201,8 @@ export default function PayrollFormulaPage() {
   const loadEngineData = async () => {
     setLoading(true);
     try {
-      const url = `/api/v1/payroll/sandbox-data${companyId ? `?companyId=${companyId}` : ''}`;
+      const cid = activeCompanyId || localStorage.getItem('companyId');
+      const url = `/api/v1/payroll/sandbox-data${cid && cid !== 'all' ? `?companyId=${cid}` : ''}`;
       const res = await fetch(url, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
@@ -198,7 +222,7 @@ export default function PayrollFormulaPage() {
 
   useEffect(() => {
     loadEngineData();
-  }, [companyId]);
+  }, [activeCompanyId]);
 
   const fetchCompanies = async () => {
     try {
@@ -233,20 +257,31 @@ export default function PayrollFormulaPage() {
 
   const runSandboxMath = () => {
     const gross = parseFloat(sbGross);
-    const totalDays = parseInt(sbTotalDays);
-    let payableDays = parseFloat(sbPayableDays);
+    const totalDays = isNaN(parseInt(sbTotalDays)) || parseInt(sbTotalDays) <= 0 ? 30 : parseInt(sbTotalDays);
 
-    if (isNaN(gross) || gross <= 0 || isNaN(totalDays) || totalDays <= 0 || isNaN(payableDays) || payableDays < 0) {
+    // If payable days is empty, unentered, or invalid, default automatically to totalDays in month!
+    let payableDays = parseFloat(sbPayableDays);
+    if (isNaN(payableDays) || payableDays < 0) {
+      payableDays = totalDays;
+    }
+    if (payableDays > totalDays) {
+      payableDays = totalDays;
+    }
+
+    if (isNaN(gross) || gross <= 0) {
       setSbMatchedSlab(null);
       setSbResults([]);
       setSbSummary({ gross: 0, earnedGross: 0, tds: 0, pf: 0, esi: 0, pt: 0, net: 0 });
       return;
     }
 
-    if (payableDays > totalDays) payableDays = totalDays;
-
     // 1. Slab Matching
-    const matched = slabs.find(s => s.is_active && gross >= parseFloat(s.min_gross as any) && gross <= parseFloat(s.max_gross as any));
+    const matched = slabs.find(s => {
+      const minG = parseFloat(String(s.min_gross || 0));
+      const maxG = parseFloat(String(s.max_gross || 999999999));
+      return s.is_active !== false && gross >= minG && gross <= maxG;
+    });
+
     if (!matched) {
       setSbMatchedSlab(null);
       setSbResults([]);
@@ -670,7 +705,7 @@ export default function PayrollFormulaPage() {
               </svg>
               Sync Data
             </button>
-            {activeTab !== 'calctypes' && (
+            {activeTab !== 'calctypes' && canCreateCurrentTab && (
               <button
                 onClick={() => handleOpenDrawer()}
                 className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-550 text-white text-xs font-bold shadow-md shadow-blue-500/10 transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0 border-0"
@@ -791,8 +826,11 @@ export default function PayrollFormulaPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="p-8 text-center text-slate-400 font-bold uppercase tracking-wider">
-                      Loading data from engine...
+                    <td colSpan={10} className="p-12 text-center text-slate-400 font-bold uppercase tracking-wider">
+                      <div className="flex flex-col items-center justify-center gap-2.5">
+                        <div className="w-7 h-7 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs tracking-wider">Loading salary engine data...</span>
+                      </div>
                     </td>
                   </tr>
                 ) : paginatedConfigs.length === 0 ? (
@@ -819,18 +857,22 @@ export default function PayrollFormulaPage() {
                             </span>
                           </td>
                           <td className="p-4 text-right space-x-1.5">
-                            <button
-                              onClick={() => handleOpenDrawer(item)}
-                              className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteItem(item.id)}
-                              className="px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-650 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
-                            >
-                              Delete
-                            </button>
+                            {canEditCurrentTab && (
+                              <button
+                                onClick={() => handleOpenDrawer(item)}
+                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {canDeleteCurrentTab && (
+                              <button
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-650 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            )}
                           </td>
                         </>
                       )}
@@ -855,18 +897,22 @@ export default function PayrollFormulaPage() {
                             </span>
                           </td>
                           <td className="p-4 text-right space-x-1.5">
-                            <button
-                              onClick={() => handleOpenDrawer(item)}
-                              className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteItem(item.id)}
-                              className="px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-650 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
-                            >
-                              Delete
-                            </button>
+                            {canEditCurrentTab && (
+                              <button
+                                onClick={() => handleOpenDrawer(item)}
+                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {canDeleteCurrentTab && (
+                              <button
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-650 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            )}
                           </td>
                         </>
                       )}
@@ -896,18 +942,22 @@ export default function PayrollFormulaPage() {
                             </span>
                           </td>
                           <td className="p-4 text-right space-x-1.5">
-                            <button
-                              onClick={() => handleOpenDrawer(item)}
-                              className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteItem(item.id)}
-                              className="px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 text-red-650 dark:text-red-455 hover:bg-red-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
-                            >
-                              Delete
-                            </button>
+                            {canEditCurrentTab && (
+                              <button
+                                onClick={() => handleOpenDrawer(item)}
+                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {canDeleteCurrentTab && (
+                              <button
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 text-red-650 dark:text-red-455 hover:bg-red-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            )}
                           </td>
                         </>
                       )}
@@ -1011,7 +1061,7 @@ export default function PayrollFormulaPage() {
               <strong>Matched Slab:</strong> {sbMatchedSlab.slab_name} (Range: ₹{parseFloat(sbMatchedSlab.min_gross as any).toLocaleString('en-IN')} - ₹{parseFloat(sbMatchedSlab.max_gross as any).toLocaleString('en-IN')})
             </span>
             <span>
-              Attendance Factor: {sbPayableDays} / {sbTotalDays} days ({((parseInt(sbPayableDays) / parseInt(sbTotalDays)) * 100).toFixed(1)}%)
+              Attendance Factor: {sbPayableDays || sbTotalDays} / {sbTotalDays} days ({(((parseFloat(sbPayableDays) || parseFloat(sbTotalDays)) / parseFloat(sbTotalDays)) * 100).toFixed(1)}%)
             </span>
           </div>
         ) : sbGross && parseFloat(sbGross) > 0 ? (

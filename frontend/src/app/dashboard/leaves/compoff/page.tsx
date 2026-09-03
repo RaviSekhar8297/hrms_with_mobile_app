@@ -5,9 +5,13 @@ import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function CompOffClaimsPage() {
   const { showToast } = useDashboard();
+  const { isSuperAdmin: isSuperAdminPerm, getPermissionScope } = usePermissions();
+  const compScope = getPermissionScope('view_leave_requests');
+  const canSeeTeamTab = isSuperAdminPerm || compScope !== 'SELF';
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -189,77 +193,65 @@ export default function CompOffClaimsPage() {
         hideUserBadge={true}
       />
 
-      {/* 📊 4. LIGHT GRADIENT STATS CARDS */}
+      {/* 📊 SUMMARY CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Claims */}
-        <div 
-          style={{ boxShadow: 'rgba(14, 30, 37, 0.08) 0px 2px 4px 0px, rgba(14, 30, 37, 0.16) 0px 2px 12px 0px' }}
-          className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-blue-50/90 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-blue-950/40 border border-indigo-200/80 dark:border-indigo-800/50 flex items-center justify-between transition-all duration-300 hover:-translate-y-0.5"
-        >
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 block">
               Total Claims
             </span>
-            <span className="text-3xl font-black mt-1 block tracking-tight text-slate-850 dark:text-slate-100 font-mono">
+            <span className="text-2xl font-black mt-1 block tracking-tight text-slate-800 dark:text-slate-100 font-mono">
               {compOffRequests.length}
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center font-bold text-xl shadow-xs">
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center font-bold text-xl">
             <i className="fa-solid fa-hourglass-half"></i>
           </div>
         </div>
 
         {/* Card 2: Pending Review */}
-        <div 
-          style={{ boxShadow: 'rgba(14, 30, 37, 0.08) 0px 2px 4px 0px, rgba(14, 30, 37, 0.16) 0px 2px 12px 0px' }}
-          className="p-5 rounded-2xl bg-gradient-to-br from-amber-50/90 via-orange-50/70 to-yellow-50/90 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/40 border border-amber-200/80 dark:border-amber-800/50 flex items-center justify-between transition-all duration-300 hover:-translate-y-0.5"
-        >
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-600 dark:text-amber-400 block">
               Pending Review
             </span>
-            <span className="text-3xl font-black mt-1 block tracking-tight text-slate-850 dark:text-slate-100 font-mono">
+            <span className="text-2xl font-black mt-1 block tracking-tight text-amber-600 dark:text-amber-400 font-mono">
               {compOffRequests.filter(r => r.status === 'PENDING').length}
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60 flex items-center justify-center font-bold text-xl shadow-xs">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 flex items-center justify-center font-bold text-xl">
             <i className="fa-solid fa-bell"></i>
           </div>
         </div>
 
         {/* Card 3: Approved Credits */}
-        <div 
-          style={{ boxShadow: 'rgba(14, 30, 37, 0.08) 0px 2px 4px 0px, rgba(14, 30, 37, 0.16) 0px 2px 12px 0px' }}
-          className="p-5 rounded-2xl bg-gradient-to-br from-emerald-50/90 via-teal-50/70 to-green-50/90 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-green-950/40 border border-emerald-200/80 dark:border-emerald-800/50 flex items-center justify-between transition-all duration-300 hover:-translate-y-0.5"
-        >
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 block">
               Approved Credits
             </span>
-            <span className="text-3xl font-black mt-1 block tracking-tight text-slate-850 dark:text-slate-100 font-mono">
+            <span className="text-2xl font-black mt-1 block tracking-tight text-emerald-600 dark:text-emerald-400 font-mono">
               {compOffRequests.filter(r => r.status === 'APPROVED').length}
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center font-bold text-xl shadow-xs">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center font-bold text-xl">
             <i className="fa-solid fa-award"></i>
           </div>
         </div>
 
         {/* Card 4: Rejected Claims */}
-        <div 
-          style={{ boxShadow: 'rgba(14, 30, 37, 0.08) 0px 2px 4px 0px, rgba(14, 30, 37, 0.16) 0px 2px 12px 0px' }}
-          className="p-5 rounded-2xl bg-gradient-to-br from-rose-50/90 via-red-50/70 to-pink-50/90 dark:from-rose-950/40 dark:via-red-950/30 dark:to-pink-950/40 border border-rose-200/80 dark:border-rose-800/50 flex items-center justify-between transition-all duration-300 hover:-translate-y-0.5"
-        >
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-rose-600 dark:text-rose-400 block">
               Rejected Claims
             </span>
-            <span className="text-3xl font-black mt-1 block tracking-tight text-slate-850 dark:text-slate-100 font-mono">
+            <span className="text-2xl font-black mt-1 block tracking-tight text-rose-600 dark:text-rose-400 font-mono">
               {compOffRequests.filter(r => r.status === 'REJECTED').length}
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60 flex items-center justify-center font-bold text-xl shadow-xs">
-            <i className="fa-solid fa-circle-xmark"></i>
+          <div className="w-12 h-12 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900 flex items-center justify-center font-bold text-xl">
+            <i className="fa-solid fa-xmark"></i>
           </div>
         </div>
       </div>
@@ -268,40 +260,35 @@ export default function CompOffClaimsPage() {
       <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         
         {/* SCOPE SWITCHER / BADGE (LEFT) */}
-        {isManager ? (
+        {canSeeTeamTab ? (
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
             <button
               onClick={() => setViewScope('my')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 viewScope === 'my'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
               <i className="fa-solid fa-user mr-1.5 text-xs"></i>
-              My Claims
+              My
             </button>
             <button
               onClick={() => setViewScope('team')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 viewScope === 'team'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
               <i className="fa-solid fa-users mr-1.5 text-xs"></i>
-              Team Claims Queue
+              {compScope === 'ALL' || isSuperAdmin ? 'All Employees' : 'Team'}
             </button>
-          </div>
-        ) : isSuperAdmin ? (
-          <div className="px-3.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center gap-1.5 shrink-0">
-            <i className="fa-solid fa-building text-indigo-500"></i>
-            <span>Organization Comp-Off Claims Queue</span>
           </div>
         ) : (
           <div className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 shrink-0">
             <i className="fa-solid fa-user text-slate-400"></i>
-            <span>My Comp-Off Claims</span>
+            <span>My</span>
           </div>
         )}
 

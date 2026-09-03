@@ -18,6 +18,7 @@ export interface SidebarGroup {
 }
 
 interface SidebarProps {
+  isMobile?: boolean;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
   companyName: string;
@@ -34,6 +35,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
+  isMobile = false,
   sidebarCollapsed,
   setSidebarCollapsed,
   companyName,
@@ -91,10 +93,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const getLinkClass = (tabName: string) => {
     const isActive = checkIsActive(tabName);
 
-    return `group relative flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs select-none transition-all duration-200 font-sidebar ${
+    return `group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs select-none transition-all duration-200 font-sidebar ${
       isActive
-        ? 'bg-gradient-to-r from-cyan-600 via-teal-600 to-blue-600 text-white font-bold shadow-md shadow-cyan-600/25 scale-[1.01]'
-        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold'
+        ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white font-bold shadow-md shadow-blue-600/30 scale-[1.01]'
+        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/90 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white font-semibold'
     }`;
   };
 
@@ -118,17 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       if (isCoreGroup) {
         return (
-          <div key={groupIdx} className="mb-4 space-y-1 border-b border-slate-100 dark:border-slate-800/80 pb-3">
-            {!sidebarCollapsed && (
-              <div className="flex items-center justify-between px-3 py-1 mb-1">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-xs shadow-indigo-500/50" />
-                  <h4 className="text-[10.5px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-sidebar">
-                    {group.title}
-                  </h4>
-                </div>
-              </div>
-            )}
+          <div key={groupIdx} className="mb-3 space-y-1 border-b border-slate-100 dark:border-slate-800/80 pb-3">
             <div className="space-y-1">
               {visibleItems.map((item) => {
                 const isActive = checkIsActive(item.tab);
@@ -137,7 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     key={item.tab}
                     href={`/dashboard/${item.tab}`}
                     className={getLinkClass(item.tab)}
-                    title={sidebarCollapsed ? item.label : undefined}
+                    title={sidebarCollapsed && !isMobile ? item.label : undefined}
                   >
                     <span
                       className={`flex-shrink-0 transition-transform duration-200 group-hover:scale-105 ${
@@ -149,13 +141,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       {item.icon}
                     </span>
 
-                    {!sidebarCollapsed && (
+                    {(!sidebarCollapsed || isMobile) && (
                       <span className={`truncate tracking-tight flex-1 ${isActive ? 'font-bold text-white' : 'font-semibold text-slate-700 dark:text-slate-200'}`}>
                         {item.label}
                       </span>
                     )}
 
-                    {!sidebarCollapsed && item.badge && (
+                    {(!sidebarCollapsed || isMobile) && item.badge && (
                       <span
                         className={`ml-auto text-[9.5px] font-black px-2 py-0.5 rounded-full ${
                           isActive
@@ -184,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       return (
         <div key={groupIdx} className="mb-2">
-          {!sidebarCollapsed ? (
+          {(!sidebarCollapsed || isMobile) ? (
             /* Collapsible Accordion Header */
             <button
               type="button"
@@ -220,7 +212,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Collapsible Children List */}
           <div
             className={`space-y-1 transition-all duration-300 ${
-              sidebarCollapsed || isOpen ? 'max-h-[600px] opacity-100 mt-1' : 'max-h-0 opacity-0 overflow-hidden'
+              (sidebarCollapsed && !isMobile) || isOpen ? 'max-h-[600px] opacity-100 mt-1' : 'max-h-0 opacity-0 overflow-hidden'
             }`}
           >
             {visibleItems.map((item) => {
@@ -231,7 +223,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   key={item.tab}
                   href={`/dashboard/${item.tab}`}
                   className={getLinkClass(item.tab)}
-                  title={sidebarCollapsed ? item.label : undefined}
+                  title={sidebarCollapsed && !isMobile ? item.label : undefined}
                 >
                   <span
                     className={`flex-shrink-0 transition-transform duration-200 group-hover:scale-105 ${
@@ -243,13 +235,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {item.icon}
                   </span>
 
-                  {!sidebarCollapsed && (
+                  {(!sidebarCollapsed || isMobile) && (
                     <span className={`truncate tracking-tight flex-1 ${isActive ? 'font-bold text-white' : 'font-semibold text-slate-700 dark:text-slate-200'}`}>
                       {item.label}
                     </span>
                   )}
 
-                  {!sidebarCollapsed && item.badge && (
+                  {(!sidebarCollapsed || isMobile) && item.badge && (
                     <span
                       className={`ml-auto text-[9.5px] font-black px-2 py-0.5 rounded-full ${
                         isActive
@@ -261,7 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </span>
                   )}
 
-                  {isActive && sidebarCollapsed && (
+                  {isActive && sidebarCollapsed && !isMobile && (
                     <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-8 rounded-l-md bg-cyan-500 shadow-sm" />
                   )}
                 </Link>
@@ -273,15 +265,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-full w-full font-sidebar select-none">
+        {/* 🔍 Search Bar */}
+        <div className="px-1 pb-2 flex-shrink-0 border-b border-slate-100 dark:border-slate-800/80 mb-2">
+          <div className="relative flex items-center w-full">
+            <input
+              type="text"
+              placeholder="Search menu items..."
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+              className="w-full px-3.5 py-2 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-800 dark:text-slate-100 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 transition-all"
+            />
+            {sidebarSearch && (
+              <button
+                onClick={() => setSidebarSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-0.5 cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 📜 Scrollable Tree Menu */}
+        <nav className="flex-1 overflow-y-auto py-1 space-y-1 no-scrollbar">
+          {renderNavLinks()}
+        </nav>
+      </div>
+    );
+  }
+
   return (
     <aside
-      style={{ fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif" }}
-      className={`hidden md:flex flex-col h-full border-r border-slate-200/60 dark:border-slate-800/80 bg-card/95 backdrop-blur-md shadow-sm transition-all duration-300 flex-shrink-0 z-30 font-sidebar ${
+      style={{ fontFamily: "'Inter', 'Outfit', sans-serif" }}
+      className={`hidden md:flex flex-col h-full rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm transition-all duration-300 flex-shrink-0 z-30 font-sidebar overflow-hidden ${
         sidebarCollapsed ? 'w-20' : 'w-64'
       }`}
     >
       {/* 🏢 Sidebar Brand Header */}
-      <div className="flex h-18 items-center border-b border-slate-200/50 dark:border-slate-800/80 flex-shrink-0 justify-center px-4 relative">
+      <div className="flex h-16 items-center border-b border-slate-200/80 dark:border-slate-800/80 flex-shrink-0 justify-center px-4 relative">
         {companyLogo && !logoError ? (
           sidebarCollapsed ? (
             <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs p-1">

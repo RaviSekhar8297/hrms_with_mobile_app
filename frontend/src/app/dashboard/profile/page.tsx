@@ -101,8 +101,27 @@ export default function ProfilePage() {
 
   // Edit Mode & Tab state
   const [isEditing, setIsEditing] = useState(false);
+  const [canEditProfile, setCanEditProfile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'work' | 'education' | 'skills' | 'compliance' | 'security'>('overview');
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('permissions');
+      const storedRoles = localStorage.getItem('roles');
+      if (stored) {
+        const perms = JSON.parse(stored);
+        const roles = JSON.parse(storedRoles || '[]');
+        const isSuper = roles.map((r: string) => r.toLowerCase()).includes('superadmin');
+        if (isSuper || perms.includes('*')) {
+          setCanEditProfile(true);
+        } else {
+          const hasEdit = perms.some((p: string) => p.includes('edit_employees') || p.includes('edit_profile') || p.includes('edit'));
+          setCanEditProfile(hasEdit);
+        }
+      }
+    } catch {}
+  }, []);
 
   // Skills List state
   const [skillsList, setSkillsList] = useState<string[]>([]);
@@ -118,6 +137,7 @@ export default function ProfilePage() {
   // Fields state
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [workEmail, setWorkEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [personalEmail, setPersonalEmail] = useState('');
   const [dob, setDob] = useState('');
@@ -132,6 +152,46 @@ export default function ProfilePage() {
   const [permanentAddress, setPermanentAddress] = useState('');
   const [employmentType, setEmploymentType] = useState('');
   const [empImage, setEmpImage] = useState('');
+  const [imgLoadError, setImgLoadError] = useState(false);
+
+  const compressImage = (file: File, callback: (base64: string) => void) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 500;
+        const MAX_HEIGHT = 500;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            width = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          callback(dataUrl);
+        } else {
+          callback(event.target?.result as string);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // JSONB List states
   const [bankInfoList, setBankInfoList] = useState<BankInfo[]>([]);
@@ -168,7 +228,6 @@ export default function ProfilePage() {
   // Helper trigger for custom animated toast notifications
   const triggerCustomToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setCustomToast({ message, type, visible: true });
-    defaultShowToast(message, type);
     setTimeout(() => {
       setCustomToast(prev => prev ? { ...prev, visible: false } : null);
     }, 4000);
@@ -223,11 +282,28 @@ export default function ProfilePage() {
   const fetchProfileData = async (currentEmail: string, currentCompanyId: string | null) => {
     setLoading(true);
     try {
+      // 1. Try logged-in profile endpoint first
+      const meRes = await fetch('/api/v1/employees/me', { headers: getHeaders() });
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        if (meData.employee && meData.employee.id && meData.employee.emp_id_code !== 'EMP-ME') {
+          setMyProfile(meData.employee);
+          initializeFormFields(meData.employee);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Fallback to list search by email or username
       const res = await fetch(getUrl('/api/v1/employees', currentCompanyId), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
         const list: Employee[] = data.employees || [];
-        const found = list.find((emp) => emp.email.toLowerCase() === currentEmail.toLowerCase());
+        const found = list.find((emp) => 
+          emp.email.toLowerCase() === currentEmail.toLowerCase() ||
+          emp.emp_id_code.toLowerCase() === currentEmail.toLowerCase() ||
+          emp.email.toLowerCase().startsWith(currentEmail.toLowerCase() + '@')
+        );
         if (found) {
           setMyProfile(found);
           initializeFormFields(found);
@@ -268,6 +344,7 @@ export default function ProfilePage() {
     const init = {
       first_name: emp.first_name || '',
       last_name: emp.last_name || '',
+      email: emp.email || email || '',
       phone: emp.phone || '',
       personal_email: emp.personal_email || '',
       dob: emp.dob ? emp.dob.split('T')[0] : '',
@@ -290,6 +367,7 @@ export default function ProfilePage() {
 
     setFirstName(init.first_name);
     setLastName(init.last_name);
+    setWorkEmail(init.email);
     setPhone(init.phone);
     setPersonalEmail(init.personal_email);
     setDob(init.dob);
@@ -337,6 +415,7 @@ export default function ProfilePage() {
   const currentFormValues = {
     first_name: firstName,
     last_name: lastName,
+    email: workEmail,
     phone: phone,
     personal_email: personalEmail,
     dob: dob,
@@ -394,6 +473,129 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!myProfile) return;
 
+    // 1. Phone number validation: strip whitespace, check 10 digits starting with 6,7,8,9 if entered
+    const cleanPhone = phone ? phone.replace(/\s+/g, '') : '';
+    if (phone && phone.trim() !== '') {
+      if (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+        triggerCustomToast('⚠️ Primary Phone number must be exactly 10 digits starting with 6, 7, 8, or 9 (no spaces allowed).', 'error');
+        return;
+      }
+    }
+
+    // 2. Work Email validation: if entered, valid email and length <= 30 chars
+    const emailToValidate = workEmail || myProfile.email;
+    if (emailToValidate && emailToValidate.trim() !== '') {
+      if (emailToValidate.length > 30) {
+        triggerCustomToast('⚠️ Work Email must be below 30 characters.', 'error');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToValidate.trim())) {
+        triggerCustomToast('⚠️ Please enter a valid Work Email address.', 'error');
+        return;
+      }
+    }
+
+    // 3. First Name & Last Name validation: if entered, letters only & length <= 25 chars
+    if (firstName && firstName.trim() !== '') {
+      if (firstName.length > 25) {
+        triggerCustomToast('⚠️ First Name must be below 25 characters.', 'error');
+        return;
+      }
+      if (!/^[A-Za-z\s]+$/.test(firstName.trim())) {
+        triggerCustomToast('⚠️ First Name must contain letters only.', 'error');
+        return;
+      }
+    }
+
+    if (lastName && lastName.trim() !== '') {
+      if (lastName.length > 25) {
+        triggerCustomToast('⚠️ Last Name must be below 25 characters.', 'error');
+        return;
+      }
+      if (!/^[A-Za-z\s]+$/.test(lastName.trim())) {
+        triggerCustomToast('⚠️ Last Name must contain letters only.', 'error');
+        return;
+      }
+    }
+
+    // 4. Current & Permanent Address validation: if entered, length <= 100 chars
+    if (currentAddress && currentAddress.length > 100) {
+      triggerCustomToast('⚠️ Current Address must be below 100 characters.', 'error');
+      return;
+    }
+    if (permanentAddress && permanentAddress.length > 100) {
+      triggerCustomToast('⚠️ Permanent Address must be below 100 characters.', 'error');
+      return;
+    }
+
+    // 5. Education List Validation:
+    if (Array.isArray(educationList)) {
+      for (let i = 0; i < educationList.length; i++) {
+        const edu = educationList[i];
+        const degree = edu.degree || '';
+        const inst = edu.institution || '';
+        const passYr = edu.passing_year || edu.year || '';
+        const grade = edu.percentage_gpa || edu.grade || '';
+
+        if (degree && degree.length > 25) {
+          triggerCustomToast(`⚠️ Education Degree #${i + 1} must be below 25 characters.`, 'error');
+          return;
+        }
+        if (inst && inst.length > 25) {
+          triggerCustomToast(`⚠️ Institution Name #${i + 1} must be below 25 characters.`, 'error');
+          return;
+        }
+        if (passYr && String(passYr).trim() !== '') {
+          if (!/^[12]\d{3}$/.test(String(passYr).trim())) {
+            triggerCustomToast(`⚠️ Year of Passing #${i + 1} must be 4 digits starting with 1 or 2 (e.g. 2022).`, 'error');
+            return;
+          }
+        }
+        if (grade && String(grade).trim() !== '') {
+          const gNum = parseFloat(String(grade));
+          if (isNaN(gNum) || gNum < 35 || gNum > 100) {
+            triggerCustomToast(`⚠️ Grade / Percentage #${i + 1} must be between 35 and 100.`, 'error');
+            return;
+          }
+        }
+      }
+    }
+
+    // 6. PAN Number validation: if entered, 5 capital letters + 4 digits + 1 capital letter
+    if (panNumber && panNumber.trim() !== '') {
+      const panUpper = panNumber.trim().toUpperCase();
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(panUpper)) {
+        triggerCustomToast('⚠️ PAN Number must be 5 capital letters, followed by 4 digits, and 1 capital letter (e.g. ABCDE1234F).', 'error');
+        return;
+      }
+    }
+
+    // 7. Aadhaar Number validation: if entered, exactly 12 digits
+    if (aadharNumber && aadharNumber.trim() !== '') {
+      const cleanAadhar = aadharNumber.replace(/\s+/g, '');
+      if (!/^\d{12}$/.test(cleanAadhar)) {
+        triggerCustomToast('⚠️ Aadhaar Number must be exactly 12 digits.', 'error');
+        return;
+      }
+    }
+
+    // 8. ESI & UAN validation: if entered, exactly 10 digits each
+    if (esiNumber && esiNumber.trim() !== '') {
+      const cleanEsi = esiNumber.replace(/\s+/g, '');
+      if (!/^\d{10}$/.test(cleanEsi)) {
+        triggerCustomToast('⚠️ ESI Number must be exactly 10 digits.', 'error');
+        return;
+      }
+    }
+
+    if (uanNumber && uanNumber.trim() !== '') {
+      const cleanUan = uanNumber.replace(/\s+/g, '');
+      if (!/^\d{10}$/.test(cleanUan)) {
+        triggerCustomToast('⚠️ UAN Number must be exactly 10 digits.', 'error');
+        return;
+      }
+    }
+
     if (!hasProfileChanges) {
       triggerCustomToast('ℹ️ No changes detected to save.', 'info');
       setIsEditing(false);
@@ -407,8 +609,8 @@ export default function ProfilePage() {
         emp_id_code: myProfile.emp_id_code || 'EMP-' + Math.floor(Math.random() * 9000 + 1000),
         first_name: firstName,
         last_name: lastName,
-        email: myProfile.email,
-        phone,
+        email: workEmail || myProfile.email,
+        phone: cleanPhone || phone,
         branch_id: myProfile.branch_id,
         department_id: myProfile.department_id,
         designation_id: myProfile.designation_id,
@@ -453,8 +655,13 @@ export default function ProfilePage() {
 
         if (res.ok) {
           triggerCustomToast('✨ Profile changes saved successfully to DB!', 'success');
+          const updatedEmail = workEmail || email;
+          if (workEmail && workEmail !== email) {
+            setEmail(workEmail);
+            localStorage.setItem('email', workEmail);
+          }
           setInitialFormValues(currentFormValues);
-          fetchProfileData(email, companyId);
+          fetchProfileData(updatedEmail, companyId);
           setIsEditing(false);
         } else {
           const updated = { ...payload, id: myProfile.id };
@@ -714,21 +921,25 @@ export default function ProfilePage() {
                     <div className="absolute -inset-1.5 rounded-[2.2rem] bg-gradient-to-r from-sky-400 via-indigo-400 to-pink-500 opacity-80 blur-md group-hover:opacity-100 group-hover:blur-lg transition-all duration-500" />
                     
                     <div className="h-28 w-28 sm:h-32 sm:w-32 rounded-[2rem] bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-900 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-2xl relative font-outfit overflow-hidden border-4 border-white group-hover:border-sky-300 transition-all duration-500">
-                      {(empImage || myProfile?.emp_image) ? (
+                      {(empImage || myProfile?.emp_image) && !imgLoadError ? (
                         <img 
                           src={empImage || myProfile?.emp_image} 
                           alt={firstName ? `${firstName} ${lastName}` : 'Profile'} 
                           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                          onError={(e) => {
-                            (e.currentTarget as HTMLElement).style.display = 'none';
-                          }}
+                          onError={() => setImgLoadError(true)}
                         />
-                      ) : null}
-                      {!(empImage || myProfile?.emp_image) && (
+                      ) : (
                         <span>
-                          {firstName ? `${firstName.charAt(0).toUpperCase()}${lastName ? lastName.charAt(0).toUpperCase() : ''}` : email.charAt(0).toUpperCase()}
+                          {firstName ? `${firstName.charAt(0).toUpperCase()}${lastName ? lastName.charAt(0).toUpperCase() : ''}` : (email ? email.charAt(0).toUpperCase() : 'M')}
                         </span>
                       )}
+                      
+                      {/* CAMERA HOVER OVERLAY */}
+                      <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white text-[11px] font-black uppercase tracking-wider gap-1 backdrop-blur-2xs">
+                        <Edit3 className="w-6 h-6 text-white drop-shadow-md" />
+                        <span>Upload</span>
+                      </div>
+
                       <span className="absolute top-2 right-2 h-4 w-4 rounded-full bg-emerald-400 border-2 border-white z-10 animate-pulse shadow-md shadow-emerald-400/50" title="Active Status" />
                     </div>
 
@@ -739,13 +950,12 @@ export default function ProfilePage() {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setEmpImage(reader.result as string);
+                          compressImage(file, (base64) => {
+                            setEmpImage(base64);
+                            setImgLoadError(false);
                             setIsEditing(true);
-                            triggerCustomToast('📸 Profile photo updated! Click "Save Changes" to save.', 'info');
-                          };
-                          reader.readAsDataURL(file);
+                            triggerCustomToast('📸 Profile photo selected! Click "Save Changes" to apply.', 'info');
+                          });
                         }
                       }} 
                     />
@@ -882,7 +1092,7 @@ export default function ProfilePage() {
 
             {/* Right Side: ICON-ONLY Edit Button at the end of the tabs bar */}
             <div className="shrink-0 flex items-center gap-2 pr-1">
-              {!isEditing ? (
+              {!isEditing && canEditProfile ? (
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
@@ -932,7 +1142,7 @@ export default function ProfilePage() {
             <div className="grid gap-6 lg:grid-cols-3 items-start">
               
               {/* LEFT SIDEBAR (1 col): SOCIAL MEDIA STATS & QUICK INFO CARD */}
-              <div className="lg:col-span-1 space-y-6 text-left">
+              <div className={`${activeTab === 'overview' ? 'block' : 'hidden'} lg:block lg:col-span-1 space-y-6 text-left`}>
                 
                 <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full space-y-5">
                   <div className="h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 absolute top-0 inset-x-0" />
@@ -956,7 +1166,16 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Work Email</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-100 truncate block select-all">{email}</span>
+                        {isEditing ? (
+                          <input
+                            type="email"
+                            value={workEmail || email}
+                            onChange={e => setWorkEmail(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
+                          />
+                        ) : (
+                          <span className="font-bold text-slate-800 dark:text-slate-100 truncate block select-all">{workEmail || email}</span>
+                        )}
                       </div>
                     </div>
 
@@ -966,7 +1185,17 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Primary Phone</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-100 block">{phone || 'Not Provided'}</span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            maxLength={10}
+                            value={phone}
+                            onChange={e => setPhone(e.target.value.replace(/\s+/g, ''))}
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
+                          />
+                        ) : (
+                          <span className="font-bold text-slate-800 dark:text-slate-100 block">{phone || 'Not Provided'}</span>
+                        )}
                       </div>
                     </div>
 
@@ -1017,15 +1246,19 @@ export default function ProfilePage() {
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div>
                             <label className="profile-custom-form-label">First Name</label>
-                            <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="premium-input" />
+                            <input type="text" maxLength={25} required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="premium-input" />
                           </div>
                           <div>
                             <label className="profile-custom-form-label">Last Name</label>
-                            <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} className="premium-input" />
+                            <input type="text" maxLength={25} required value={lastName} onChange={(e) => setLastName(e.target.value)} className="premium-input" />
                           </div>
                           <div>
-                            <label className="profile-custom-form-label">Phone Number</label>
-                            <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className="premium-input" />
+                            <label className="profile-custom-form-label">Official Work Email</label>
+                            <input type="email" maxLength={30} value={workEmail} onChange={(e) => setWorkEmail(e.target.value)} className="premium-input" />
+                          </div>
+                          <div>
+                            <label className="profile-custom-form-label">Primary Phone Number</label>
+                            <input type="text" maxLength={10} placeholder="e.g. 9876543210" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\s+/g, ''))} className="premium-input" />
                           </div>
                           <div>
                             <label className="profile-custom-form-label">Personal Email</label>
