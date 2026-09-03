@@ -3,10 +3,58 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import {
+  LayoutDashboard,
+  User,
+  Zap,
+  BarChart3,
+  Users,
+  Sparkles,
+  GitMerge,
+  Building2,
+  GitBranch,
+  Layers,
+  Award,
+  ShieldCheck,
+  CreditCard,
+  Calculator,
+  Percent,
+  Clock,
+  FileSpreadsheet,
+  Palmtree,
+  Briefcase,
+  Search,
+  X
+} from 'lucide-react';
 import { DashboardProvider, useDashboard, FontType } from './components/DashboardContext';
 import { Header } from './components/Header';
 import { Sidebar, SidebarGroup, SidebarItem } from './components/Sidebar';
 import { FloatingAiWidget } from './components/FloatingAiWidget';
+const getLucideIcon = (tab: string, fallback: React.ReactNode) => {
+  switch (tab) {
+    case 'overview': return <LayoutDashboard className="w-5 h-5" />;
+    case 'profile': return <User className="w-5 h-5" />;
+    case 'flow': return <Zap className="w-5 h-5 text-indigo-500" />;
+    case 'analytics': return <BarChart3 className="w-5 h-5 text-blue-500" />;
+    case 'employees': return <Users className="w-5 h-5 text-amber-500" />;
+    case 'ai-assistant': return <Sparkles className="w-5 h-5 text-purple-500 animate-pulse" />;
+    case 'org_flow': return <GitMerge className="w-5 h-5 text-purple-500" />;
+    case 'companies': return <Building2 className="w-5 h-5 text-cyan-500" />;
+    case 'branches': return <GitBranch className="w-5 h-5 text-emerald-500" />;
+    case 'departments': return <Layers className="w-5 h-5 text-indigo-500" />;
+    case 'designations': return <Award className="w-5 h-5 text-amber-500" />;
+    case 'roles': return <ShieldCheck className="w-5 h-5 text-violet-500" />;
+    case 'payroll': return <CreditCard className="w-5 h-5 text-emerald-500" />;
+    case 'payroll/generate': return <Calculator className="w-5 h-5 text-indigo-500" />;
+    case 'payroll/tds': return <Percent className="w-5 h-5 text-sky-500" />;
+    case 'structure': return <FileSpreadsheet className="w-5 h-5 text-teal-500" />;
+    case 'attendance': return <Clock className="w-5 h-5 text-blue-500" />;
+    case 'leaves': return <Palmtree className="w-5 h-5 text-green-500" />;
+    case 'performance': return <Award className="w-5 h-5 text-rose-500" />;
+    case 'recruitment': return <Briefcase className="w-5 h-5 text-pink-500" />;
+    default: return fallback;
+  }
+};
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -1084,45 +1132,65 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* 🎛️ MORE APPS POP-UP DRAWER (Bottom-Docked Orbital Universe & Alternating Revolving Arc View) */}
+      {/* 🎛️ MORE APPS POP-UP DRAWER (Light-Themed Spacious Orbital Universe with Lucide Icons & Live Search) */}
       {moreAppsOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center pb-2 sm:pb-3 pointer-events-none">
-          {/* Transparent Backdrop overlay (No blur, crisp page underneath) */}
-          <div className="fixed inset-0 bg-slate-950/25 backdrop-blur-none pointer-events-auto transition-opacity duration-300" onClick={() => setMoreAppsOpen(false)} />
+          {/* Normal clear background without heavy blur */}
+          <div className="fixed inset-0 bg-slate-900/15 backdrop-blur-none pointer-events-auto transition-opacity duration-300" onClick={() => setMoreAppsOpen(false)} />
           
-          {/* Orbital Modal Container - Bottom Center Docked */}
+          {/* Orbital Modal Container - Light Glassmorphic Card (Width increased to max-w-[820px]) */}
           <div
-            className="relative z-50 w-[96vw] max-w-[680px] sm:w-[650px] bg-slate-950/95 text-slate-100 backdrop-blur-2xl rounded-[2.5rem] border border-slate-800/90 shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-scaleUp flex flex-col overflow-hidden pointer-events-auto transition-all duration-300 ease-out font-sans select-none mb-1"
+            className="relative z-50 w-[95vw] max-w-[820px] sm:w-[800px] bg-white/95 text-slate-900 backdrop-blur-2xl rounded-[2.5rem] border border-slate-200/90 shadow-[0_25px_90px_rgba(0,0,0,0.18)] animate-scaleUp flex flex-col overflow-hidden pointer-events-auto transition-all duration-300 ease-out font-sans select-none mb-1"
             style={{
-              maxHeight: '86vh'
+              maxHeight: '88vh'
             }}
           >
-            {/* Popover Header with View Switcher */}
-            <div className="flex items-center justify-between border-b border-slate-800/80 px-6 py-3.5 flex-shrink-0 bg-slate-900/50">
+            {/* Popover Header with Search & View Switcher */}
+            <div className="flex items-center justify-between border-b border-slate-200/80 px-6 py-3.5 flex-shrink-0 bg-slate-50/80">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 shadow-md shadow-purple-500/20 text-white font-bold text-lg">
                   ✨
                 </div>
                 <div className="flex flex-col text-left">
-                  <h3 className="text-sm sm:text-base font-black tracking-tight text-white font-sans flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-black tracking-tight text-slate-900 font-sans flex items-center gap-2">
                     <span>App Universe</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono border border-indigo-500/30">ORBITAL</span>
+                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-mono font-extrabold border border-indigo-200">ORBITAL</span>
                   </h3>
-                  <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">
+                  <span className="text-[10px] text-slate-400 font-bold tracking-wider uppercase">
                     Interactive HRMS Ecosystem
                   </span>
                 </div>
               </div>
 
+              {/* Real-time Integrated Search Input Bar */}
+              <div className="relative flex-1 max-w-[280px] mx-3">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search modules..."
+                  value={appSearch}
+                  onChange={(e) => setAppSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 placeholder-slate-400 transition-all"
+                />
+                {appSearch && (
+                  <button
+                    onClick={() => setAppSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1 cursor-pointer font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
               {/* View Mode Toggle & Close Button */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center p-1 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold">
+                <div className="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200 text-[11px] font-bold">
                   <button
                     onClick={() => setLauncherMode('orbital')}
                     className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                       launcherMode === 'orbital'
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     <span>🌌 Orbital</span>
@@ -1131,8 +1199,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     onClick={() => setLauncherMode('grid')}
                     className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                       launcherMode === 'grid'
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     <span>📱 Grid</span>
@@ -1141,7 +1209,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
                 <button
                   onClick={() => setMoreAppsOpen(false)}
-                  className="w-8 h-8 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-all cursor-pointer font-black"
+                  className="w-8 h-8 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer font-black"
                 >
                   ✕
                 </button>
@@ -1150,75 +1218,79 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
             {/* Content Area */}
             {launcherMode === 'orbital' ? (
-              <div className="relative w-full h-[380px] sm:h-[420px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900/60 to-slate-950">
-                {/* SVG Concentric Arc Rings */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 600 380" preserveAspectRatio="xMidYMid meet">
-                  {/* Outer Ring 3 */}
-                  <path d="M 20 340 A 280 280 0 0 1 580 340" stroke="rgba(99, 102, 241, 0.25)" strokeDasharray="6 6" fill="none" strokeWidth="1.5" />
-                  {/* Middle Ring 2 */}
-                  <path d="M 90 340 A 210 210 0 0 1 510 340" stroke="rgba(168, 85, 247, 0.35)" fill="none" strokeWidth="1.5" />
-                  {/* Inner Ring 1 */}
-                  <path d="M 160 340 A 140 140 0 0 1 440 340" stroke="rgba(59, 130, 246, 0.25)" strokeDasharray="4 4" fill="none" strokeWidth="1.5" />
+              <div className="relative w-full h-[400px] sm:h-[440px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-slate-50/50 via-indigo-50/20 to-slate-50/80">
+                {/* SVG Concentric Arc Rings with Large Non-Overlapping Gaps */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 750 400" preserveAspectRatio="xMidYMid meet">
+                  {/* Outer Ring 3 - R = 310 */}
+                  <path d="M 65 360 A 310 310 0 0 1 685 360" stroke="rgba(99, 102, 241, 0.25)" strokeDasharray="6 6" fill="none" strokeWidth="1.5" />
+                  {/* Middle Ring 2 - R = 215 */}
+                  <path d="M 160 360 A 215 215 0 0 1 590 360" stroke="rgba(168, 85, 247, 0.35)" fill="none" strokeWidth="1.5" />
+                  {/* Inner Ring 1 - R = 125 */}
+                  <path d="M 250 360 A 125 125 0 0 1 500 360" stroke="rgba(59, 130, 246, 0.3)" strokeDasharray="4 4" fill="none" strokeWidth="1.5" />
                 </svg>
 
-                {/* Central Bottom Hub Anchor (Matching Hugging Emoji from reference image!) */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
-                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-tr from-amber-400 via-amber-300 to-yellow-200 border-4 border-slate-950 shadow-[0_0_40px_rgba(251,191,36,0.6)] flex items-center justify-center text-3xl sm:text-4xl animate-bounce">
+                {/* Central Bottom Hub Anchor (Matching Hugging Emoji!) */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
+                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-tr from-amber-400 via-amber-300 to-yellow-200 border-4 border-white shadow-[0_0_40px_rgba(251,191,36,0.5)] flex items-center justify-center text-3xl sm:text-4xl animate-bounce">
                     🤗
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 mt-1">HRMS CORE</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-950 mt-1">HRMS CORE</span>
                 </div>
 
-                {/* Orbiting App Badges / Nodes with Alternating Revolving Motion */}
+                {/* Orbiting App Badges / Nodes with Zero-Overlap & Lucide Icons */}
                 <div className="absolute inset-0">
                   {flatItems.slice(0, 15).map((item: SidebarItem, idx: number) => {
-                    let ringRadius = 140;
+                    let ringRadius = 125;
                     let angle = 90;
 
-                    // Alternating direction motion formulas per user requirement:
-                    // 1st Line (Ring 1 - Inner): Right to Left (angle decreases)
-                    // 2nd Line (Ring 2 - Middle): Left to Right (angle increases)
-                    // 3rd Line (Ring 3 - Outer): Right to Left (angle decreases)
+                    // Large Radial Gaps (125px -> 215px -> 310px) guarantee 0% overlapping!
+                    // 1st Line (Ring 1 - Inner, 4 items): Right to Left
+                    // 2nd Line (Ring 2 - Middle, 5 items): Left to Right
+                    // 3rd Line (Ring 3 - Outer, 6 items): Right to Left
                     if (idx < 4) {
-                      ringRadius = 140;
+                      ringRadius = 125;
                       const baseAngles = [160, 115, 65, 20];
-                      const speed = 12; // deg per sec (Right to Left)
+                      const speed = 10;
                       angle = (baseAngles[idx] - animTime * speed) % 180;
                       if (angle < 15) angle += 150;
                     } else if (idx < 9) {
-                      ringRadius = 210;
+                      ringRadius = 215;
                       const baseAngles = [168, 130, 90, 50, 12];
-                      const speed = 10; // deg per sec (Left to Right)
+                      const speed = 8;
                       angle = (baseAngles[idx - 4] + animTime * speed) % 180;
                       if (angle > 170) angle -= 160;
                     } else {
-                      ringRadius = 280;
+                      ringRadius = 310;
                       const baseAngles = [172, 140, 108, 72, 40, 8];
-                      const speed = 8; // deg per sec (Right to Left)
+                      const speed = 6;
                       angle = (baseAngles[idx - 9] - animTime * speed) % 180;
                       if (angle < 8) angle += 164;
                     }
 
                     const rad = (angle * Math.PI) / 180;
-                    const leftPct = 50 + (ringRadius / 300) * 50 * Math.cos(rad);
-                    const topPct = 88 - (ringRadius / 380) * 100 * Math.sin(rad);
+                    const leftPct = 50 + (ringRadius / 375) * 50 * Math.cos(rad);
+                    const topPct = 90 - (ringRadius / 400) * 100 * Math.sin(rad);
+
+                    const isMatched = !appSearch || 
+                      item.label.toLowerCase().includes(appSearch.toLowerCase()) || 
+                      item.tab.toLowerCase().includes(appSearch.toLowerCase());
 
                     const gradientStyles = [
-                      'from-blue-500 to-indigo-600 shadow-blue-500/50',
-                      'from-fuchsia-500 via-purple-500 to-pink-500 shadow-purple-500/50',
-                      'from-emerald-400 to-teal-600 shadow-emerald-500/50',
-                      'from-amber-400 to-orange-500 shadow-amber-500/50',
-                      'from-indigo-500 to-violet-600 shadow-indigo-500/50',
-                      'from-cyan-400 to-blue-600 shadow-cyan-500/50',
-                      'from-emerald-500 to-green-600 shadow-green-500/50',
-                      'from-violet-500 to-purple-600 shadow-violet-500/50',
-                      'from-rose-500 to-pink-600 shadow-rose-500/50',
-                      'from-sky-400 to-blue-600 shadow-sky-500/50',
-                      'from-purple-600 to-indigo-700 shadow-purple-500/50',
-                      'from-blue-600 to-cyan-600 shadow-blue-500/50',
-                      'from-teal-500 to-emerald-600 shadow-teal-500/50',
-                      'from-indigo-500 to-purple-600 shadow-indigo-500/50',
-                      'from-pink-500 to-rose-600 shadow-pink-500/50'
+                      'from-blue-500 to-indigo-600 shadow-blue-500/40',
+                      'from-fuchsia-500 via-purple-500 to-pink-500 shadow-purple-500/40',
+                      'from-emerald-400 to-teal-600 shadow-emerald-500/40',
+                      'from-amber-400 to-orange-500 shadow-amber-500/40',
+                      'from-indigo-500 to-violet-600 shadow-indigo-500/40',
+                      'from-cyan-400 to-blue-600 shadow-cyan-500/40',
+                      'from-emerald-500 to-green-600 shadow-green-500/40',
+                      'from-violet-500 to-purple-600 shadow-violet-500/40',
+                      'from-rose-500 to-pink-600 shadow-rose-500/40',
+                      'from-sky-400 to-blue-600 shadow-sky-500/40',
+                      'from-purple-600 to-indigo-700 shadow-purple-500/40',
+                      'from-blue-600 to-cyan-600 shadow-blue-500/40',
+                      'from-teal-500 to-emerald-600 shadow-teal-500/40',
+                      'from-indigo-500 to-purple-600 shadow-indigo-500/40',
+                      'from-pink-500 to-rose-600 shadow-pink-500/40'
                     ];
 
                     const colorStyle = gradientStyles[idx % gradientStyles.length];
@@ -1231,21 +1303,23 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           top: `${topPct}%`,
                           transform: 'translate(-50%, -50%)'
                         }}
-                        className="absolute z-30 group"
+                        className={`absolute transition-all duration-300 ${
+                          isMatched ? 'opacity-100 z-30' : 'opacity-20 scale-90 blur-[0.5px] z-10 pointer-events-none'
+                        } group`}
                         onMouseEnter={() => setHoveredApp(item)}
                         onMouseLeave={() => setHoveredApp(null)}
                       >
                         <Link
                           href={`/dashboard/${item.tab}`}
                           onClick={() => setMoreAppsOpen(false)}
-                          className={`relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${colorStyle} border-2 border-white/90 shadow-xl transition-all duration-300 group-hover:scale-125 group-hover:z-50 cursor-pointer text-white`}
+                          className={`relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${colorStyle} border-2 border-white shadow-lg transition-all duration-300 group-hover:scale-125 group-hover:z-50 cursor-pointer text-white`}
                         >
-                          <div className="text-lg sm:text-xl flex items-center justify-center">
-                            {item.icon}
+                          <div className="flex items-center justify-center">
+                            {getLucideIcon(item.tab, item.icon)}
                           </div>
 
                           {/* Hover Tooltip Badge */}
-                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 whitespace-nowrap bg-slate-900/95 text-white border border-slate-700 px-3 py-1.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-1.5">
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 whitespace-nowrap bg-slate-900 text-white border border-slate-700 px-3 py-1.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-1.5">
                             <span className="text-xs font-bold text-white">{item.label}</span>
                             <span className="text-[10px] text-indigo-400 font-mono font-bold">➜</span>
                           </div>
@@ -1257,26 +1331,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
                 {/* Bottom Active App Bar Indicator */}
                 {hoveredApp && (
-                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 text-slate-100 border border-slate-800 px-4 py-2 rounded-2xl backdrop-blur-xl shadow-2xl flex items-center gap-2 animate-fadeIn">
-                    <span className="text-base">{hoveredApp.icon}</span>
-                    <span className="text-xs font-extrabold text-white">{hoveredApp.label}</span>
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-white text-slate-900 border border-slate-200 px-4 py-2 rounded-2xl shadow-xl flex items-center gap-2 animate-fadeIn font-bold text-xs">
+                    <span className="text-indigo-600">{getLucideIcon(hoveredApp.tab, hoveredApp.icon)}</span>
+                    <span className="text-slate-900 font-extrabold">{hoveredApp.label}</span>
                   </div>
                 )}
               </div>
             ) : (
               /* Grid Launcher Mode */
               <div className="p-6 flex-1 overflow-y-auto no-scrollbar space-y-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search all apps & modules..."
-                    value={appSearch}
-                    onChange={(e) => setAppSearch(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-800 bg-slate-900 text-xs outline-none focus:border-indigo-500 text-white placeholder-slate-500 font-semibold"
-                  />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">🔍</span>
-                </div>
-
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {flatItems
                     .filter((item) =>
@@ -1288,16 +1351,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                         key={item.tab}
                         href={`/dashboard/${item.tab}`}
                         onClick={() => setMoreAppsOpen(false)}
-                        className={`group flex flex-col items-center text-center p-3 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                        className={`group flex flex-col items-center text-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer ${
                           currentTab === item.tab
-                            ? 'bg-indigo-500/20 border-indigo-500/50 shadow-md'
-                            : 'border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-900'
+                            ? 'bg-indigo-50 border-indigo-400 text-indigo-700 shadow-xs'
+                            : 'border-slate-200 bg-slate-50/70 hover:border-indigo-300 hover:bg-white text-slate-800'
                         }`}
                       >
-                        <div className="w-10 h-10 rounded-xl bg-slate-800 text-slate-200 flex items-center justify-center text-xl mb-1.5 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                          {item.icon}
+                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center text-xl mb-1.5 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-2xs">
+                          {getLucideIcon(item.tab, item.icon)}
                         </div>
-                        <span className="text-xs font-bold text-slate-200 group-hover:text-indigo-300 line-clamp-2">
+                        <span className="text-xs font-extrabold text-slate-800 group-hover:text-indigo-600 line-clamp-2">
                           {item.label}
                         </span>
                       </Link>
