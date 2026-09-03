@@ -126,13 +126,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     document.body.style.fontFamily = mappedFont;
 
     // Theme values configuration
-    if (theme === 'nordic-light') {
-      doc.classList.add('theme-nordic-light');
-      doc.style.setProperty('--background', '#f4f6f9');
-      doc.style.setProperty('--foreground', '#0f172a');
-      doc.style.setProperty('--card', '#ffffff');
-      document.body.style.backgroundColor = '#f4f6f9';
+    if (theme === 'slate-dark') {
+      doc.classList.add('dark', 'theme-slate-dark');
+      doc.style.setProperty('--background', '#090d16');
+      doc.style.setProperty('--foreground', '#f8fafc');
+      doc.style.setProperty('--card', '#0f172a');
+      document.body.style.backgroundColor = '#090d16';
     } else {
+      doc.classList.remove('dark');
       doc.classList.add('theme-nordic-light');
       doc.style.setProperty('--background', '#f4f6f9');
       doc.style.setProperty('--foreground', '#0f172a');

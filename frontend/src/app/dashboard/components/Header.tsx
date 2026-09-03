@@ -435,7 +435,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* 🌓 Quick Dark/Light Theme Switcher */}
         <button
           onClick={toggleTheme}
-          className="hidden md:flex p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
+          className="flex p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
           title={`Switch to ${theme === 'nordic-light' ? 'Slate Dark' : 'Nordic Light'} mode`}
         >
           {theme === 'nordic-light' ? (
