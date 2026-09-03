@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import SearchableSelect from '../../components/SearchableSelect';
@@ -231,32 +231,36 @@ export default function GeneratePayrollPage() {
   };
 
   // CASCADING LOGIC: Filter employees dynamically based on Branch & Department selections
-  const filteredEmployees = employees.filter(emp => {
-    if (selectedBranchId !== 'ALL') {
-      const bId = String(emp.branch_id ?? (emp as any).branchId ?? '');
-      const bName = String((emp as any).branch_name ?? (emp as any).branchName ?? '');
-      const matchedBranch = branches.find(b => String(b.id) === String(selectedBranchId));
-      const targetBranchName = matchedBranch ? matchedBranch.name : '';
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(emp => {
+      if (selectedBranchId !== 'ALL') {
+        const bId = String(emp.branch_id ?? (emp as any).branchId ?? '').trim().toLowerCase();
+        const bName = String((emp as any).branch_name ?? (emp as any).branchName ?? '').trim().toLowerCase();
+        const selBranchIdStr = String(selectedBranchId).trim().toLowerCase();
+        const matchedBranch = branches.find(b => String(b.id).trim().toLowerCase() === selBranchIdStr);
+        const targetBranchName = matchedBranch ? matchedBranch.name.trim().toLowerCase() : '';
 
-      const isBranchIdMatch = bId && bId === String(selectedBranchId);
-      const isBranchNameMatch = bName && (bName === String(selectedBranchId) || (targetBranchName && bName.toLowerCase() === targetBranchName.toLowerCase()));
+        const isBranchIdMatch = bId && (bId === selBranchIdStr || (matchedBranch && bId === String(matchedBranch.id).trim().toLowerCase()));
+        const isBranchNameMatch = bName && (bName === selBranchIdStr || (targetBranchName && bName === targetBranchName));
 
-      if (!isBranchIdMatch && !isBranchNameMatch) return false;
-    }
+        if (!isBranchIdMatch && !isBranchNameMatch) return false;
+      }
 
-    if (selectedDepartmentId !== 'ALL') {
-      const dId = String(emp.department_id ?? (emp as any).departmentId ?? '');
-      const dName = String((emp as any).department_name ?? (emp as any).departmentName ?? '');
-      const matchedDept = departments.find(d => String(d.id) === String(selectedDepartmentId));
-      const targetDeptName = matchedDept ? matchedDept.name : '';
+      if (selectedDepartmentId !== 'ALL') {
+        const dId = String(emp.department_id ?? (emp as any).departmentId ?? '').trim().toLowerCase();
+        const dName = String((emp as any).department_name ?? (emp as any).departmentName ?? '').trim().toLowerCase();
+        const selDeptIdStr = String(selectedDepartmentId).trim().toLowerCase();
+        const matchedDept = departments.find(d => String(d.id).trim().toLowerCase() === selDeptIdStr);
+        const targetDeptName = matchedDept ? matchedDept.name.trim().toLowerCase() : '';
 
-      const isDeptIdMatch = dId && dId === String(selectedDepartmentId);
-      const isDeptNameMatch = dName && (dName === String(selectedDepartmentId) || (targetDeptName && dName.toLowerCase() === targetDeptName.toLowerCase()));
+        const isDeptIdMatch = dId && (dId === selDeptIdStr || (matchedDept && dId === String(matchedDept.id).trim().toLowerCase()));
+        const isDeptNameMatch = dName && (dName === selDeptIdStr || (targetDeptName && dName === targetDeptName));
 
-      if (!isDeptIdMatch && !isDeptNameMatch) return false;
-    }
-    return true;
-  });
+        if (!isDeptIdMatch && !isDeptNameMatch) return false;
+      }
+      return true;
+    });
+  }, [employees, branches, departments, selectedBranchId, selectedDepartmentId]);
 
   const handleBranchSelect = (branchId: string) => {
     setSelectedBranchId(branchId);
@@ -379,7 +383,7 @@ export default function GeneratePayrollPage() {
 
   const employeeOptions = [
     { value: 'ALL', label: `👥 All Employees (${filteredEmployees.length})` },
-    ...filteredEmployees.map((emp, idx) => ({
+    ...filteredEmployees.map((emp: Employee, idx: number) => ({
       value: emp.id,
       label: `👤 ${emp.emp_id_code || emp.emp_id || (10001 + idx)} - ${emp.first_name || ''} ${emp.last_name || ''}`.trim()
     }))
