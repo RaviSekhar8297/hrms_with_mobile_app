@@ -97,6 +97,24 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // Draggable bottom pill & App Launcher state
   const [launcherMode, setLauncherMode] = useState<'orbital' | 'grid'>('orbital');
   const [hoveredApp, setHoveredApp] = useState<SidebarItem | null>(null);
+  const [animTime, setAnimTime] = useState(0);
+
+  useEffect(() => {
+    if (!moreAppsOpen || launcherMode !== 'orbital') return;
+    let animId: number;
+    let startTimestamp: number;
+
+    const animate = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const elapsed = (timestamp - startTimestamp) / 1000;
+      setAnimTime(elapsed);
+      animId = requestAnimationFrame(animate);
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [moreAppsOpen, launcherMode]);
+
   const [fabPos, setFabPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ startX: 0, startY: 0, posX: 0, posY: 0 });
@@ -1066,21 +1084,21 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* 🎛️ MORE APPS POP-UP DRAWER (Breathtaking Orbital Universe & Arc View Launcher) */}
+      {/* 🎛️ MORE APPS POP-UP DRAWER (Bottom-Docked Orbital Universe & Alternating Revolving Arc View) */}
       {moreAppsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-          {/* Backdrop overlay */}
-          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md pointer-events-auto transition-opacity duration-300" onClick={() => setMoreAppsOpen(false)} />
+        <div className="fixed inset-0 z-50 flex items-end justify-center pb-2 sm:pb-3 pointer-events-none">
+          {/* Transparent Backdrop overlay (No blur, crisp page underneath) */}
+          <div className="fixed inset-0 bg-slate-950/25 backdrop-blur-none pointer-events-auto transition-opacity duration-300" onClick={() => setMoreAppsOpen(false)} />
           
-          {/* Orbital Modal Container */}
+          {/* Orbital Modal Container - Bottom Center Docked */}
           <div
-            className="relative z-50 w-[96vw] max-w-[680px] sm:w-[650px] bg-slate-950/95 text-slate-100 backdrop-blur-2xl rounded-[2.5rem] border border-slate-800/90 shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-scaleUp flex flex-col overflow-hidden pointer-events-auto transition-all duration-300 ease-out font-sans select-none"
+            className="relative z-50 w-[96vw] max-w-[680px] sm:w-[650px] bg-slate-950/95 text-slate-100 backdrop-blur-2xl rounded-[2.5rem] border border-slate-800/90 shadow-[0_30px_100px_rgba(0,0,0,0.8)] animate-scaleUp flex flex-col overflow-hidden pointer-events-auto transition-all duration-300 ease-out font-sans select-none mb-1"
             style={{
-              maxHeight: '88vh'
+              maxHeight: '86vh'
             }}
           >
             {/* Popover Header with View Switcher */}
-            <div className="flex items-center justify-between border-b border-slate-800/80 px-6 py-4 flex-shrink-0 bg-slate-900/50">
+            <div className="flex items-center justify-between border-b border-slate-800/80 px-6 py-3.5 flex-shrink-0 bg-slate-900/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 shadow-md shadow-purple-500/20 text-white font-bold text-lg">
                   ✨
@@ -1132,7 +1150,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
             {/* Content Area */}
             {launcherMode === 'orbital' ? (
-              <div className="relative w-full h-[400px] sm:h-[450px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900/60 to-slate-950">
+              <div className="relative w-full h-[380px] sm:h-[420px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900/60 to-slate-950">
                 {/* SVG Concentric Arc Rings */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 600 380" preserveAspectRatio="xMidYMid meet">
                   {/* Outer Ring 3 */}
@@ -1151,24 +1169,34 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 mt-1">HRMS CORE</span>
                 </div>
 
-                {/* Orbiting App Badges / Nodes */}
+                {/* Orbiting App Badges / Nodes with Alternating Revolving Motion */}
                 <div className="absolute inset-0">
                   {flatItems.slice(0, 15).map((item: SidebarItem, idx: number) => {
                     let ringRadius = 140;
                     let angle = 90;
 
+                    // Alternating direction motion formulas per user requirement:
+                    // 1st Line (Ring 1 - Inner): Right to Left (angle decreases)
+                    // 2nd Line (Ring 2 - Middle): Left to Right (angle increases)
+                    // 3rd Line (Ring 3 - Outer): Right to Left (angle decreases)
                     if (idx < 4) {
                       ringRadius = 140;
-                      const angles = [160, 115, 65, 20];
-                      angle = angles[idx] || 90;
+                      const baseAngles = [160, 115, 65, 20];
+                      const speed = 12; // deg per sec (Right to Left)
+                      angle = (baseAngles[idx] - animTime * speed) % 180;
+                      if (angle < 15) angle += 150;
                     } else if (idx < 9) {
                       ringRadius = 210;
-                      const angles = [168, 130, 90, 50, 12];
-                      angle = angles[idx - 4] || 90;
+                      const baseAngles = [168, 130, 90, 50, 12];
+                      const speed = 10; // deg per sec (Left to Right)
+                      angle = (baseAngles[idx - 4] + animTime * speed) % 180;
+                      if (angle > 170) angle -= 160;
                     } else {
                       ringRadius = 280;
-                      const angles = [172, 140, 108, 72, 40, 8];
-                      angle = angles[idx - 9] || 90;
+                      const baseAngles = [172, 140, 108, 72, 40, 8];
+                      const speed = 8; // deg per sec (Right to Left)
+                      angle = (baseAngles[idx - 9] - animTime * speed) % 180;
+                      if (angle < 8) angle += 164;
                     }
 
                     const rad = (angle * Math.PI) / 180;
