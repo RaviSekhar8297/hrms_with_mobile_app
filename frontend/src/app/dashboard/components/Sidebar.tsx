@@ -50,9 +50,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   pathname,
 }) => {
-  // Single active open group key for exclusive accordion behavior (Opening one closes others)
   const [openGroupKey, setOpenGroupKey] = useState<string>('');
   const [userInteracted, setUserInteracted] = useState<boolean>(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleInstallPWA = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      alert('📱 To Download & Install Brihaspathi HRMS App:\n\n1. On Android / Chrome: Tap menu ⋮ -> "Install App" or "Add to Home Screen"\n2. On iPhone / Safari: Tap Share 🔗 -> "Add to Home Screen"');
+    }
+  };
 
   const allSidebarTabs = React.useMemo(() => {
     return sidebarGroups.flatMap((g) => g.items.map((i) => i.tab));
@@ -269,8 +290,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return (
       <div className="flex flex-col h-full w-full font-sidebar select-none">
         {/* 🔍 Search Bar */}
-        <div className="px-1 pb-2 flex-shrink-0 border-b border-slate-100 dark:border-slate-800/80 mb-2">
-          <div className="relative flex items-center w-full">
+        <div className="px-1 pb-2 flex-shrink-0 border-b border-slate-100 dark:border-slate-800/80 mb-2 flex items-center gap-2">
+          <div className="relative flex items-center flex-1">
             <input
               type="text"
               placeholder="Search menu items..."
@@ -287,6 +308,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
           </div>
+
+          <button
+            onClick={handleInstallPWA}
+            title="Download PWA"
+            className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center group active:scale-95"
+          >
+            <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
         </div>
 
         {/* 📜 Scrollable Tree Menu */}
@@ -350,8 +381,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* 🔍 Sidebar Search Bar */}
       {!sidebarCollapsed && (
-        <div className="px-3.5 py-3 flex-shrink-0 border-b border-slate-100 dark:border-slate-800/80">
-          <div className="relative flex items-center w-full">
+        <div className="px-3.5 py-3 flex-shrink-0 border-b border-slate-100 dark:border-slate-800/80 flex items-center gap-2">
+          <div className="relative flex items-center flex-1">
             <input
               type="text"
               placeholder="Search menu items..."
@@ -369,6 +400,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
           </div>
+
+          <button
+            onClick={handleInstallPWA}
+            title="Download PWA"
+            className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center group shadow-2xs active:scale-95"
+          >
+            <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
         </div>
       )}
 

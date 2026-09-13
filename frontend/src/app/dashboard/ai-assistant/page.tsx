@@ -25,13 +25,7 @@ export default function AiAssistantPage() {
       id: '1',
       sender: 'ai',
       text: 'Namaste! Welcome to your **100% Free Lifetime HR AI Console**.\n\nI am configured to run locally or via free tier open-source inference models. How can I assist you with HR operations today?',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      suggestedActions: [
-        'How many casual leaves are allowed per year?',
-        'What are the permission & late arrival rules?',
-        'How does salary overtime calculation work?',
-        'Parse Candidate Resume'
-      ]
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -199,7 +193,7 @@ export default function AiAssistantPage() {
 
       {/* TAB 1: AI HR AGENT CHAT */}
       {activeTab === 'chat' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden flex flex-col h-[460px]">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden flex flex-col h-[350px]">
           {/* Chat Header */}
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
