@@ -7,15 +7,7 @@ import AttendanceSubHeader from '../../components/AttendanceSubHeader';
 import { getHeaders } from '../../utils/api';
 import { usePermissions } from '../../hooks/usePermissions';
 
-// Dynamically import Leaflet map to prevent Next.js SSR window undefined errors
-const LeafletMap = dynamic(() => import('./LeafletMapComponent'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-80 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
-      Loading Leaflet Interactive Map...
-    </div>
-  )
-});
+import LeafletMapComponent from './LeafletMapComponent';
 
 interface LocationLog {
   id: string;
@@ -271,7 +263,7 @@ export default function LiveTrackingPage() {
 
                 {/* Leaflet Interactive Map */}
                 <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-                  <LeafletMap logs={activeGroup.logs} employeeName={activeGroup.name} />
+                  <LeafletMapComponent logs={activeGroup.logs} employeeName={activeGroup.name} />
                 </div>
 
                 {/* Chronological Timeline Log List */}

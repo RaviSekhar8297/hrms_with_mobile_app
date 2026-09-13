@@ -4516,22 +4516,11 @@ app.get('/api/v1/attendance/live-tracking', authenticateToken, async (req: Authe
     const eDate = endDate ? String(endDate) : todayStr;
 
     let params: any[] = [`${sDate} 00:00:00`, `${eDate} 23:59:59`];
-    let paramIdx = 3;
+    const scopeRes = buildDataScopeCondition(scopeCtx, 't', 'employee_id', 3);
 
-    let scopeCondition = '';
-    if (scopeCtx.scope === 'SELF' && scopeCtx.employeeId) {
-      scopeCondition += ` AND t.employee_id = $${paramIdx}`;
-      params.push(scopeCtx.employeeId);
-      paramIdx++;
-    } else if (scopeCtx.scope === 'TEAM' && scopeCtx.subordinateIds?.length) {
-      scopeCondition += ` AND t.employee_id = ANY($${paramIdx}::uuid[])`;
-      params.push(scopeCtx.subordinateIds);
-      paramIdx++;
-    } else if (scopeCtx.scope === 'DEPARTMENT' && scopeCtx.departmentId) {
-      scopeCondition += ` AND e.department_id = $${paramIdx}`;
-      params.push(scopeCtx.departmentId);
-      paramIdx++;
-    }
+    let scopeCondition = scopeRes.whereSql ? ` AND (${scopeRes.whereSql})` : '';
+    params.push(...scopeRes.params);
+    let paramIdx = scopeRes.nextParamIdx;
 
     if (employeeId && employeeId !== 'all') {
       scopeCondition += ` AND t.employee_id = $${paramIdx}`;
