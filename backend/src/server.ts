@@ -5875,6 +5875,9 @@ app.get('/api/v1/attendance/policies', authenticateToken, async (req: Authentica
     if (result.rows.length === 0) {
       await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS grace_period_mins INTEGER DEFAULT 15').catch(() => {});
       await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS allow_permission_carry_forward BOOLEAN DEFAULT FALSE').catch(() => {});
+      await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS half_day_min_hours NUMERIC(4,2) DEFAULT 4.0').catch(() => {});
+      await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS full_day_min_hours NUMERIC(4,2) DEFAULT 8.0').catch(() => {});
+      await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS overtime_min_mins INTEGER DEFAULT 60').catch(() => {});
       await query("ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS comp_off_display_name VARCHAR(100) DEFAULT 'Compensatory Off'").catch(() => {});
       await query("ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS comp_off_half_day_hours NUMERIC(4,2) DEFAULT 4.00").catch(() => {});
       await query("ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS comp_off_full_day_hours NUMERIC(4,2) DEFAULT 8.00").catch(() => {});
@@ -5937,6 +5940,9 @@ app.post('/api/v1/attendance/policies', authenticateToken, async (req: Authentic
 
     await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS grace_period_mins INTEGER DEFAULT 15').catch(() => {});
     await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS allow_permission_carry_forward BOOLEAN DEFAULT FALSE').catch(() => {});
+    await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS half_day_min_hours NUMERIC(4,2) DEFAULT 4.0').catch(() => {});
+    await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS full_day_min_hours NUMERIC(4,2) DEFAULT 8.0').catch(() => {});
+    await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS overtime_min_mins INTEGER DEFAULT 60').catch(() => {});
     await query("ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS comp_off_display_name VARCHAR(100) DEFAULT 'Comp-Off'").catch(() => {});
     await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS comp_off_half_day_hours NUMERIC(4,2) DEFAULT 4.0').catch(() => {});
     await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS comp_off_full_day_hours NUMERIC(4,2) DEFAULT 8.0').catch(() => {});

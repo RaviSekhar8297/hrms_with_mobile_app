@@ -12,7 +12,11 @@ router.use(authenticateToken as any);
  */
 async function resolveUserContext(req: AuthenticatedRequest) {
   const userEmail = req.user?.email || (req.user as any)?.preferred_username;
-  let companyId = req.user?.companyId || (req.user as any)?.company_id || (req.query.companyId as string);
+  let rawCompanyId = req.user?.companyId || (req.user as any)?.company_id || (req.query.companyId as string);
+  if (rawCompanyId === 'all' || rawCompanyId === 'undefined' || rawCompanyId === 'null') {
+    rawCompanyId = undefined;
+  }
+  let companyId = rawCompanyId;
   let employeeId: string | null = null;
   let empName: string = userEmail || 'Employee';
 
@@ -31,6 +35,13 @@ async function resolveUserContext(req: AuthenticatedRequest) {
     }
   }
 
+  if (!companyId) {
+    const defaultCompany = await query(`SELECT id FROM hrms.companies ORDER BY created_at ASC LIMIT 1`);
+    if (defaultCompany.rows.length > 0) {
+      companyId = defaultCompany.rows[0].id;
+    }
+  }
+
   return { userEmail, companyId, employeeId, empName };
 }
 
@@ -44,25 +55,45 @@ async function syncTodayEvents(companyId: string) {
   const mmdd = `${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
   const todayDateStr = `${currentYear}-${mmdd}`;
 
-  // 1. Insert Birthdays today directly via SQL (using TO_CHAR for exact MM-DD match)
-  await query(
-    `INSERT INTO hrms.employee_events (company_id, employee_id, event_type, event_date, event_year)
-     SELECT company_id, id, 'BIRTHDAY', $3, $4
-     FROM hrms.employees
-     WHERE company_id = $1 AND status = 'ACTIVE' AND dob IS NOT NULL AND TO_CHAR(dob, 'MM-DD') = $2
-     ON CONFLICT (company_id, employee_id, event_type, event_year) DO NOTHING`,
-    [companyId, mmdd, todayDateStr, currentYear]
-  );
+  if (companyId && companyId !== 'all') {
+    // 1. Insert Birthdays today directly via SQL (using TO_CHAR for exact MM-DD match)
+    await query(
+      `INSERT INTO hrms.employee_events (company_id, employee_id, event_type, event_date, event_year)
+       SELECT company_id, id, 'BIRTHDAY', $3, $4
+       FROM hrms.employees
+       WHERE company_id = $1 AND status = 'ACTIVE' AND dob IS NOT NULL AND TO_CHAR(dob, 'MM-DD') = $2
+       ON CONFLICT (company_id, employee_id, event_type, event_year) DO NOTHING`,
+      [companyId, mmdd, todayDateStr, currentYear]
+    );
 
-  // 2. Insert Anniversaries today directly via SQL (using TO_CHAR for exact MM-DD match)
-  await query(
-    `INSERT INTO hrms.employee_events (company_id, employee_id, event_type, event_date, event_year)
-     SELECT company_id, id, 'ANNIVERSARY', $3, $4
-     FROM hrms.employees
-     WHERE company_id = $1 AND status = 'ACTIVE' AND joining_date IS NOT NULL AND TO_CHAR(joining_date, 'MM-DD') = $2
-     ON CONFLICT (company_id, employee_id, event_type, event_year) DO NOTHING`,
-    [companyId, mmdd, todayDateStr, currentYear]
-  );
+    // 2. Insert Anniversaries today directly via SQL (using TO_CHAR for exact MM-DD match)
+    await query(
+      `INSERT INTO hrms.employee_events (company_id, employee_id, event_type, event_date, event_year)
+       SELECT company_id, id, 'ANNIVERSARY', $3, $4
+       FROM hrms.employees
+       WHERE company_id = $1 AND status = 'ACTIVE' AND joining_date IS NOT NULL AND TO_CHAR(joining_date, 'MM-DD') = $2
+       ON CONFLICT (company_id, employee_id, event_type, event_year) DO NOTHING`,
+      [companyId, mmdd, todayDateStr, currentYear]
+    );
+  } else {
+    await query(
+      `INSERT INTO hrms.employee_events (company_id, employee_id, event_type, event_date, event_year)
+       SELECT company_id, id, 'BIRTHDAY', $2, $3
+       FROM hrms.employees
+       WHERE status = 'ACTIVE' AND dob IS NOT NULL AND TO_CHAR(dob, 'MM-DD') = $1
+       ON CONFLICT (company_id, employee_id, event_type, event_year) DO NOTHING`,
+      [mmdd, todayDateStr, currentYear]
+    );
+
+    await query(
+      `INSERT INTO hrms.employee_events (company_id, employee_id, event_type, event_date, event_year)
+       SELECT company_id, id, 'ANNIVERSARY', $2, $3
+       FROM hrms.employees
+       WHERE status = 'ACTIVE' AND joining_date IS NOT NULL AND TO_CHAR(joining_date, 'MM-DD') = $1
+       ON CONFLICT (company_id, employee_id, event_type, event_year) DO NOTHING`,
+      [mmdd, todayDateStr, currentYear]
+    );
+  }
 }
 
 /**
@@ -80,7 +111,11 @@ router.get('/today', async (req: AuthenticatedRequest, res: Response): Promise<a
     // Auto-sync today's events
     await syncTodayEvents(companyId);
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const mmdd = `${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const todayStr = `${currentYear}-${mmdd}`;
 
     // Fetch today's events with employee info and aggregate reactions & wishes
     const eventsRes = await query(
@@ -102,12 +137,17 @@ router.get('/today', async (req: AuthenticatedRequest, res: Response): Promise<a
        FROM hrms.employee_events ee
        JOIN hrms.employees emp ON emp.id = ee.employee_id
        LEFT JOIN hrms.designations desg ON desg.id = emp.designation_id
-       WHERE ee.company_id = $1 AND ee.event_date = $3
+       WHERE ($1 = 'all' OR ee.company_id::text = $1)
+         AND (
+           TO_CHAR(ee.event_date, 'YYYY-MM-DD') = $3
+           OR TO_CHAR(emp.joining_date, 'MM-DD') = $4
+           OR TO_CHAR(emp.dob, 'MM-DD') = $4
+         )
        ORDER BY ee.created_at DESC`,
-      [companyId, employeeId || '00000000-0000-0000-0000-000000000000', todayStr]
+      [companyId, employeeId || '00000000-0000-0000-0000-000000000000', todayStr, mmdd]
     );
 
-    // Fetch wishes for each event
+    // Fetch wishes & reactions for each event
     const events = [];
     for (const row of eventsRes.rows) {
       const wishesRes = await query(
@@ -126,6 +166,20 @@ router.get('/today', async (req: AuthenticatedRequest, res: Response): Promise<a
         [row.event_id]
       );
 
+      const reactionsRes = await query(
+        `SELECT 
+          er.sender_employee_id,
+          er.reaction_type,
+          sender.first_name AS sender_first_name,
+          sender.last_name AS sender_last_name,
+          sender.emp_image AS sender_emp_image
+         FROM hrms.event_reactions er
+         JOIN hrms.employees sender ON sender.id = er.sender_employee_id
+         WHERE er.event_id = $1
+         ORDER BY er.created_at DESC`,
+        [row.event_id]
+      );
+
       events.push({
         eventId: String(row.event_id),
         employeeId: row.employee_id,
@@ -138,13 +192,20 @@ router.get('/today', async (req: AuthenticatedRequest, res: Response): Promise<a
         reactionCount: parseInt(row.reaction_count || '0', 10),
         userReaction: row.user_reaction || null,
         wishCount: parseInt(row.wish_count || '0', 10),
+        reactions: reactionsRes.rows.map(r => ({
+          senderId: r.sender_employee_id,
+          senderName: `${r.sender_first_name || ''} ${r.sender_last_name || ''}`.trim(),
+          senderEmpImage: r.sender_emp_image || null,
+          reactionType: r.reaction_type
+        })),
         wishes: wishesRes.rows.map(w => ({
           id: String(w.id),
           senderId: w.sender_employee_id,
           senderName: `${w.sender_first_name || ''} ${w.sender_last_name || ''}`.trim(),
           senderEmpImage: w.sender_emp_image || null,
           message: w.message,
-          createdAt: w.created_at
+          createdAt: w.created_at,
+          isCelebrantReply: w.sender_employee_id === row.employee_id
         }))
       });
     }

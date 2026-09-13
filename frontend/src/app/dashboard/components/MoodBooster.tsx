@@ -266,7 +266,7 @@ export default function MoodBooster({ userName }: MoodBoosterProps) {
       >
         <span className="text-sm animate-bounce">🎈</span>
         <span className="hidden sm:inline font-black tracking-tight bg-gradient-to-r from-amber-600 to-rose-600 dark:from-amber-400 dark:to-rose-400 bg-clip-text text-transparent">
-          Cheer Up
+          Cheer
         </span>
       </button>
 

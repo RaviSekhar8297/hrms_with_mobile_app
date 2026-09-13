@@ -3,18 +3,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useDashboard } from '../../components/DashboardContext';
-import AttendanceSubHeader from '../../components/AttendanceSubHeader';
 import { getHeaders } from '../../utils/api';
 import { usePermissions } from '../../hooks/usePermissions';
+import {
+  MapPin,
+  Search,
+  Calendar,
+  Building2,
+  ChevronRight,
+  X,
+  RefreshCw,
+  Eye,
+  Clock
+} from 'lucide-react';
 
 const LeafletMapComponent = dynamic<any>(
-  // @ts-ignore
   () => import('./LeafletMapComponent').then((mod) => mod.LeafletMapComponent || mod.default),
   {
     ssr: false,
     loading: () => (
-      <div className="w-full h-80 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
-        Loading Leaflet Interactive Map...
+      <div className="w-full h-80 rounded-2xl bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center text-xs font-bold text-slate-400 gap-2">
+        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <span>Loading Interactive Tracking Map...</span>
       </div>
     )
   }
@@ -58,7 +68,10 @@ export default function LiveTrackingPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [logs, setLogs] = useState<LocationLog[]>([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+
+  // Modal state for active employee popup
+  const [modalEmployee, setModalEmployee] = useState<EmployeeGroup | null>(null);
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
 
   const fetchTrackingLogs = async () => {
     setLoading(true);
@@ -84,6 +97,17 @@ export default function LiveTrackingPage() {
     fetchTrackingLogs();
   }, [selectedDate]);
 
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setModalEmployee(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Group logs by Employee
   const employeeGroups = useMemo(() => {
     const map = new Map<string, LocationLog[]>();
@@ -104,7 +128,7 @@ export default function LiveTrackingPage() {
 
       const empName = `${firstLog.first_name || ''} ${firstLog.last_name || ''}`.trim() || 'Employee';
       const empCode = firstLog.emp_id_code || empId.slice(0, 6);
-      const dept = firstLog.department_name || 'General';
+      const dept = firstLog.department_name || 'Field Ops';
 
       groups.push({
         employee_id: empId,
@@ -132,34 +156,40 @@ export default function LiveTrackingPage() {
     });
   }, [employeeGroups, searchQuery]);
 
-  const activeGroup = useMemo(() => {
-    if (!selectedEmployeeId) return filteredGroups[0] || null;
-    return employeeGroups.find((g) => g.employee_id === selectedEmployeeId) || filteredGroups[0] || null;
-  }, [employeeGroups, filteredGroups, selectedEmployeeId]);
+  const handleOpenModal = (group: EmployeeGroup) => {
+    setModalEmployee(group);
+    if (group.logs && group.logs.length > 0) {
+      setSelectedLogId(group.logs[0].id);
+    }
+  };
 
   return (
-    <div className="p-3 space-y-3.5 max-w-[100vw] overflow-x-hidden font-sans">
-      {/* Main Banner & Date Filter */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-lg md:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-            <span>📍</span> ATTENDANCE LOCATION TRACKING
+    <div className="p-2 md:p-3 space-y-2 max-w-[1600px] mx-auto font-sans">
+      {/* 1. Top Header Card (Light theme, ONLY Title + Search & Controls, NO description content) */}
+      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center font-black">
+            <MapPin className="w-4.5 h-4.5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h1 className="text-base md:text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+            ATTENDANCE LOCATION TRACKING
           </h1>
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
-            Automatic 10-minute silent GPS breadcrumb tracking & route timeline for field staff
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="text"
-            placeholder="Search employee..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
-          />
+        {/* Search & Date Controls */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search employee..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 pl-10 pr-4 py-1.5 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+            />
+          </div>
 
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl">
             <input
               type="date"
               max={todayStr}
@@ -168,145 +198,260 @@ export default function LiveTrackingPage() {
               className="bg-transparent text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
             />
           </div>
+
+          <button
+            onClick={fetchTrackingLogs}
+            title="Refresh tracking data"
+            className="p-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white transition-all cursor-pointer shadow-xs"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
+      {/* Main Staff Cards Section */}
       {loading ? (
-        <div className="bg-white dark:bg-slate-900 p-16 text-center rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+        <div className="bg-white dark:bg-slate-900 p-16 text-center rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
             Loading Field Staff Location Logs...
           </p>
         </div>
       ) : filteredGroups.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 p-16 text-center rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-          <span className="text-4xl">📍</span>
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No Location Logs Found for {selectedDate}</p>
-          <p className="text-xs text-slate-500">Location logs will automatically register every 10 minutes when field staff punch attendance.</p>
+        <div className="bg-white dark:bg-slate-900 p-16 text-center rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
+          <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto text-2xl">
+            📍
+          </div>
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No Location Tracking Logs Found</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            No breadcrumb pings found for date <strong className="text-slate-700 dark:text-slate-300">{selectedDate}</strong>.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Left Column: Summary Cards List (1 card per employee) */}
-          <div className="lg:col-span-5 space-y-2.5 max-h-[720px] overflow-y-auto pr-1 no-scrollbar">
-            <div className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1 flex items-center justify-between">
-              <span>Field Staff ({filteredGroups.length})</span>
-              <span className="text-[10px] text-blue-500">Select to View Route</span>
-            </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Field Staff ({filteredGroups.length})
+            </h2>
+            <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+              Click to view route
+            </span>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredGroups.map((group) => {
-              const isSelected = activeGroup?.employee_id === group.employee_id;
               const initial = group.name.charAt(0).toUpperCase();
 
               return (
                 <div
                   key={group.employee_id}
-                  onClick={() => setSelectedEmployeeId(group.employee_id)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer space-y-2.5 ${
-                    isSelected
-                      ? 'bg-gradient-to-r from-blue-50/90 to-indigo-50/80 dark:from-blue-950/60 dark:to-indigo-950/40 border-blue-500 ring-2 ring-blue-500/20 shadow-md'
-                      : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850'
-                  }`}
+                  onClick={() => handleOpenModal(group)}
+                  className="group bg-white dark:bg-slate-900 p-4.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-3.5"
                 >
-                  <div className="flex items-center justify-between gap-3">
+                  {/* Header Row */}
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0">
                         {initial}
                       </div>
                       <div className="truncate">
-                        <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight truncate">
+                        <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                           {group.name}
-                        </h4>
-                        <p className="text-[10.5px] font-semibold text-slate-400 dark:text-slate-500 truncate">
-                          {group.code} • {group.department}
+                        </h3>
+                        <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                          <span>{group.code}</span>
+                          <span>•</span>
+                          <span>{group.department}</span>
                         </p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 shrink-0">
+
+                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/80 shrink-0">
                       {group.totalPings} Pings
                     </span>
                   </div>
 
-                  {/* Initial Punch Info & Last Active */}
-                  <div className="grid grid-cols-2 gap-2 text-[11px] font-bold pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                  {/* Punch & Active Times (ONLY English Time - NO Address!) */}
+                  <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-700/60 grid grid-cols-2 gap-2 text-[11px] font-bold">
                     <div className="space-y-0.5">
                       <span className="text-[9.5px] text-slate-400 uppercase tracking-wider block">First Punch</span>
-                      <span className="text-slate-800 dark:text-slate-200 block">{group.initialPunchTime}</span>
-                      <span className="text-[10px] font-medium text-slate-500 truncate block">{group.initialLocation}</span>
+                      <span className="text-slate-800 dark:text-slate-200 block text-xs">{group.initialPunchTime}</span>
                     </div>
+
                     <div className="space-y-0.5 text-right">
-                      <span className="text-[9.5px] text-slate-400 uppercase tracking-wider block">Last Ping</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 block">{group.lastActiveTime}</span>
-                      <span className="text-[10px] font-medium text-slate-500 truncate block">{group.lastLocation}</span>
+                      <span className="text-[9.5px] text-slate-400 uppercase tracking-wider block">Last Active</span>
+                      <span className="text-blue-600 dark:text-blue-400 block text-xs">{group.lastActiveTime}</span>
                     </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="pt-0.5 flex items-center justify-between text-xs font-bold">
+                    <span className="text-emerald-600 dark:text-emerald-400 text-[11px] flex items-center gap-1.5 font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      Live Route Ready
+                    </span>
+
+                    <button
+                      type="button"
+                      className="px-3.5 py-1.5 rounded-xl bg-blue-600 group-hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs transition-all"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>View Movement Map</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
+        </div>
+      )}
 
-          {/* Right Column: Interactive Leaflet Map & Timeline */}
-          <div className="lg:col-span-7 space-y-3">
-            {activeGroup && (
-              <>
-                {/* Active Employee Banner Header */}
-                <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0">
-                      {activeGroup.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">
-                        {activeGroup.name}
-                      </h3>
-                      <p className="text-xs font-semibold text-slate-500">
-                        {activeGroup.code} • Route Timeline ({activeGroup.totalPings} GPS Points)
-                      </p>
-                    </div>
+      {/* POPUP MODAL DIALOG: LIVE TRACKING & ANIMATED ROUTE */}
+      {modalEmployee && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+          <div
+            className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header (Clean Light Theme) */}
+            <div className="p-4 sm:p-5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white flex items-center justify-between border-b border-slate-200 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-base flex items-center justify-center shadow-xs shrink-0">
+                  {modalEmployee.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="truncate">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black tracking-tight uppercase truncate">
+                      {modalEmployee.name}
+                    </h3>
+                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                      Live Active
+                    </span>
                   </div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                    {modalEmployee.code} • {modalEmployee.department} • Total Pings: <strong className="text-blue-600 dark:text-blue-400">{modalEmployee.totalPings}</strong>
+                  </p>
+                </div>
+              </div>
 
-                  <span className="px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800/60">
-                    Live Active
-                  </span>
+              <button
+                type="button"
+                onClick={() => setModalEmployee(null)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all cursor-pointer shrink-0 ml-2"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
+              {/* Quick Times Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold">
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">First Punch Time</span>
+                  <p className="text-slate-900 dark:text-slate-100 font-extrabold text-sm mt-0.5">{modalEmployee.initialPunchTime}</p>
+                  <span className="text-[10.5px] font-medium text-slate-500 truncate block mt-0.5">{modalEmployee.initialLocation}</span>
                 </div>
 
-                {/* Leaflet Interactive Map */}
-                <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-                  <LeafletMapComponent logs={activeGroup.logs} employeeName={activeGroup.name} />
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Last Active Time</span>
+                  <p className="text-blue-600 dark:text-blue-400 font-extrabold text-sm mt-0.5">{modalEmployee.lastActiveTime}</p>
+                  <span className="text-[10.5px] font-medium text-slate-500 truncate block mt-0.5">{modalEmployee.lastLocation}</span>
                 </div>
 
-                {/* Chronological Timeline Log List */}
-                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
-                  <h4 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
-                    Detailed 10-Minute Ping History ({activeGroup.logs.length} Entries)
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Tracking Date</span>
+                    <p className="text-slate-900 dark:text-slate-100 font-extrabold text-sm mt-0.5">{selectedDate}</p>
+                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Animated Leaflet Map Container */}
+              <div className="rounded-xl overflow-hidden shadow-xs">
+                <LeafletMapComponent
+                  logs={modalEmployee.logs}
+                  employeeName={modalEmployee.name}
+                  selectedLogId={selectedLogId}
+                  onSelectLog={(id: string) => setSelectedLogId(id)}
+                />
+              </div>
+
+              {/* Ping History Log Table / Timeline */}
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-500" />
+                    <span>GPS Breadcrumb Timeline ({modalEmployee.logs.length} Pings)</span>
                   </h4>
-                  <div className="max-h-[220px] overflow-y-auto space-y-2 no-scrollbar pr-1">
-                    {activeGroup.logs.map((log, idx) => (
+                  <span className="text-[10.5px] font-semibold text-slate-400">Click any row to jump on map</span>
+                </div>
+
+                <div className="max-h-[180px] overflow-y-auto space-y-2 pr-1 no-scrollbar">
+                  {modalEmployee.logs.map((log, idx) => {
+                    const isSelected = selectedLogId === log.id;
+                    const timeStr = new Date(log.recorded_at).toLocaleTimeString('en-IN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      hour12: true
+                    });
+
+                    return (
                       <div
                         key={log.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold text-slate-700 dark:text-slate-300"
+                        onClick={() => setSelectedLogId(log.id)}
+                        className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-50 dark:bg-blue-950/70 border-blue-500 ring-1 ring-blue-500 text-blue-950 dark:text-blue-100 font-bold'
+                            : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black flex items-center justify-center shrink-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span
+                            className={`w-5 h-5 rounded-md text-[10px] font-black flex items-center justify-center shrink-0 ${
+                              idx === 0
+                                ? 'bg-emerald-500 text-white'
+                                : idx === modalEmployee.logs.length - 1
+                                ? 'bg-red-500 text-white'
+                                : 'bg-blue-600 text-white'
+                            }`}
+                          >
                             {idx + 1}
                           </span>
-                          <div>
-                            <p className="font-extrabold text-slate-900 dark:text-slate-100">
+
+                          <div className="truncate">
+                            <p className="font-extrabold text-slate-900 dark:text-slate-100 truncate">
                               {log.location_name || `${log.latitude.toFixed(6)}, ${log.longitude.toFixed(6)}`}
-                            </p>
-                            <p className="text-[10px] font-mono text-slate-400">
-                              Lat: {log.latitude.toFixed(6)}, Lon: {log.longitude.toFixed(6)}
                             </p>
                           </div>
                         </div>
-                        <span className="text-[10.5px] font-mono font-black text-slate-500 shrink-0">
-                          {new Date(log.recorded_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-                        </span>
+
+                        <div className="text-right shrink-0 ml-3">
+                          <span className="text-xs font-mono font-black text-blue-600 dark:text-blue-400 block">{timeStr}</span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              </>
-            )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs font-bold shrink-0">
+              <span className="text-slate-400">Press ESC or click close to exit map</span>
+              <button
+                type="button"
+                onClick={() => setModalEmployee(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold transition-all cursor-pointer"
+              >
+                Close Tracking Popup
+              </button>
+            </div>
           </div>
         </div>
       )}

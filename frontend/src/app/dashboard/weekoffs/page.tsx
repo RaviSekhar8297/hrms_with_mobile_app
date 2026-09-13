@@ -579,62 +579,96 @@ export default function WeekOffsPage() {
   const activeCoName = companyName || (companyId && companies.find(c => c.id === companyId)?.name) || '';
 
   // Render Day Cards in Policy View
-  const renderDayViewCard = (day: string, pOffDays: string[], pAltRules: any) => {
+  const renderDayViewCard = (day: string, pOffDays: string[], pAltRules: any, index: number = 0) => {
     const isOff = pOffDays && pOffDays.includes(day);
     const weeks = (pAltRules && pAltRules[day]) || [];
     const isFullOff = isOff && weeks.length === 5;
     const isPartialOff = isOff && weeks.length > 0 && weeks.length < 5;
 
+    const dayMeta: Record<string, { short: string; bgLight: string; bgDark: string; borderLight: string; textLight: string }> = {
+      Monday: { short: 'MO', bgLight: 'bg-indigo-50/80', bgDark: 'dark:bg-indigo-950/60', borderLight: 'border-indigo-200/80', textLight: 'text-indigo-600 dark:text-indigo-400' },
+      Tuesday: { short: 'TU', bgLight: 'bg-blue-50/80', bgDark: 'dark:bg-blue-950/60', borderLight: 'border-blue-200/80', textLight: 'text-blue-600 dark:text-blue-400' },
+      Wednesday: { short: 'WE', bgLight: 'bg-cyan-50/80', bgDark: 'dark:bg-cyan-950/60', borderLight: 'border-cyan-200/80', textLight: 'text-cyan-600 dark:text-cyan-400' },
+      Thursday: { short: 'TH', bgLight: 'bg-teal-50/80', bgDark: 'dark:bg-teal-950/60', borderLight: 'border-teal-200/80', textLight: 'text-teal-600 dark:text-teal-400' },
+      Friday: { short: 'FR', bgLight: 'bg-emerald-50/80', bgDark: 'dark:bg-emerald-950/60', borderLight: 'border-emerald-200/80', textLight: 'text-emerald-600 dark:text-emerald-400' },
+      Saturday: { short: 'SA', bgLight: 'bg-amber-50/80', bgDark: 'dark:bg-amber-950/60', borderLight: 'border-amber-200/80', textLight: 'text-amber-600 dark:text-amber-400' },
+      Sunday: { short: 'SU', bgLight: 'bg-rose-50/80', bgDark: 'dark:bg-rose-950/60', borderLight: 'border-rose-200/80', textLight: 'text-rose-600 dark:text-rose-400' },
+    };
+
+    const meta = dayMeta[day] || { short: day.substring(0, 2).toUpperCase(), bgLight: 'bg-slate-50', bgDark: 'dark:bg-slate-900', borderLight: 'border-slate-200', textLight: 'text-slate-600' };
+
     return (
       <div 
         key={day} 
-        className={`p-4 rounded-2xl border transition-all duration-300 flex flex-col justify-between min-h-[125px] shadow-xs hover:shadow-md ${
+        style={{ animationDelay: `${index * 50}ms` }}
+        className={`group relative p-4.5 rounded-2xl border transition-all duration-300 flex flex-col justify-between min-h-[145px] animate-fade-up overflow-hidden backdrop-blur-xs ${
           isFullOff
-            ? 'bg-gradient-to-br from-indigo-500/10 via-blue-500/5 to-purple-500/10 dark:from-indigo-950/40 dark:via-blue-950/30 dark:to-purple-950/40 border-indigo-400 dark:border-indigo-800 shadow-indigo-500/5'
+            ? 'bg-gradient-to-br from-indigo-500/15 via-purple-500/10 to-blue-600/15 dark:from-indigo-950/70 dark:via-purple-950/50 dark:to-blue-950/70 border-2 border-indigo-500/80 dark:border-indigo-400/80 shadow-lg shadow-indigo-500/10 hover:shadow-xl hover:shadow-indigo-500/25 hover:-translate-y-1.5'
             : isPartialOff
-            ? 'bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-yellow-500/10 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/40 border-amber-400 dark:border-amber-800'
-            : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'
+            ? 'bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-yellow-500/15 dark:from-amber-950/70 dark:via-orange-950/50 dark:to-yellow-950/70 border-2 border-amber-500/80 dark:border-amber-400/80 shadow-lg shadow-amber-500/10 hover:shadow-xl hover:shadow-amber-500/25 hover:-translate-y-1.5'
+            : 'bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800/90 hover:border-indigo-300 dark:hover:border-indigo-700/70 shadow-xs hover:shadow-xl hover:shadow-slate-500/10 hover:-translate-y-1.5'
         }`}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider font-sans flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${
-              isFullOff ? 'bg-indigo-500 animate-pulse' : isPartialOff ? 'bg-amber-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-700'
-            }`} />
-            {day}
-          </span>
-          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+        {/* Subtle Ambient Hover Glow */}
+        <div className="absolute -top-16 -right-16 w-32 h-32 rounded-full bg-gradient-to-br from-white/25 dark:from-white/5 to-transparent pointer-events-none group-hover:scale-150 transition-transform duration-500" />
+
+        {/* Card Header: Initial Avatar + Day Name + Status Badge */}
+        <div className="flex items-center justify-between gap-2 z-10">
+          <div className="flex items-center gap-2">
+            <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-[10px] tracking-wider transition-transform duration-300 group-hover:scale-110 shadow-2xs ${meta.bgLight} ${meta.bgDark} ${meta.textLight} border ${meta.borderLight} dark:border-slate-800`}>
+              {meta.short}
+            </div>
+            <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider font-sans">
+              {day}
+            </span>
+          </div>
+
+          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 shadow-2xs ${
             isFullOff
-              ? 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-300/60 dark:border-indigo-800'
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xs shadow-indigo-500/30'
               : isPartialOff
-              ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700/60'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs shadow-amber-500/30'
+              : 'bg-slate-100 dark:bg-slate-800/90 text-slate-500 dark:text-slate-400 border border-slate-200/80 dark:border-slate-700/80'
           }`}>
-            {isFullOff ? 'Full Off-Day' : isPartialOff ? 'Alternate Off' : 'Working Day'}
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              isFullOff ? 'bg-white animate-pulse' : isPartialOff ? 'bg-white animate-pulse' : 'bg-slate-400 dark:bg-slate-600'
+            }`} />
+            {isFullOff ? 'Full Off' : isPartialOff ? 'Alternate Off' : 'Working Day'}
           </span>
         </div>
 
-        <div className="mt-2.5">
-          <p className="text-[10.5px] font-bold text-slate-600 dark:text-slate-400 font-sans">
-            {isFullOff
-              ? 'All 5 weeks off'
-              : isPartialOff
-              ? `Weeks: ${weeks.join(', ')} Off`
-              : 'Regular Full Working Day'
-            }
+        {/* Middle Text / Badge details */}
+        <div className="my-3 z-10">
+          <p className="text-[11px] font-bold font-sans flex items-center gap-1">
+            {isFullOff ? (
+              <span className="text-indigo-700 dark:text-indigo-300 font-extrabold flex items-center gap-1">
+                <span>✨</span> All 5 weeks off
+              </span>
+            ) : isPartialOff ? (
+              <span className="text-amber-700 dark:text-amber-300 font-extrabold flex items-center gap-1">
+                <span>🗓️</span> Weeks: {weeks.join(', ')} Off
+              </span>
+            ) : (
+              <span className="text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1">
+                <span>💼</span> Full Working Day
+              </span>
+            )}
           </p>
         </div>
 
-        <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5">
+        {/* Bottom Week Indicator Pills (1, 2, 3, 4, 5) */}
+        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-1 z-10">
           {[1, 2, 3, 4, 5].map(weekNum => {
             const isWeekOff = weeks.includes(weekNum);
             return (
               <span
                 key={weekNum}
-                className={`w-6 h-6 rounded-lg text-[9.5px] flex items-center justify-center transition-all font-black border ${
+                className={`flex-1 h-6.5 rounded-lg text-[9.5px] flex items-center justify-center transition-all duration-300 font-black border ${
                   isWeekOff
-                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs scale-105'
-                    : 'bg-slate-50 dark:bg-slate-850 border-slate-200/60 dark:border-slate-800 text-slate-400 dark:text-slate-600'
+                    ? isFullOff
+                      ? 'bg-gradient-to-tr from-indigo-600 to-violet-600 border-indigo-400 text-white shadow-xs shadow-indigo-500/30 scale-105'
+                      : 'bg-gradient-to-tr from-amber-500 to-orange-500 border-amber-400 text-white shadow-xs shadow-amber-500/30 scale-105'
+                    : 'bg-slate-50/90 dark:bg-slate-850/80 border-slate-200/60 dark:border-slate-800/80 text-slate-400 dark:text-slate-600 group-hover:border-slate-300 dark:group-hover:border-slate-700'
                 }`}
                 title={isWeekOff ? `Week ${weekNum}: Off-day` : `Week ${weekNum}: Working day`}
               >
@@ -926,37 +960,57 @@ export default function WeekOffsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => {
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, dayIdx) => {
                   const isChecked = policyType === 'seasonal' ? (currentPeriod?.off_days.includes(day) || false) : weekoffForm.off_days.includes(day);
                   const activeWeeks = policyType === 'seasonal' ? (currentPeriod?.alternate_rules[day] || []) : (alternateRules[day] || []);
+
+                  const dayMeta: Record<string, { short: string; bgLight: string; bgDark: string; borderLight: string; textLight: string }> = {
+                    Monday: { short: 'MO', bgLight: 'bg-indigo-50/80', bgDark: 'dark:bg-indigo-950/60', borderLight: 'border-indigo-200/80', textLight: 'text-indigo-600 dark:text-indigo-400' },
+                    Tuesday: { short: 'TU', bgLight: 'bg-blue-50/80', bgDark: 'dark:bg-blue-950/60', borderLight: 'border-blue-200/80', textLight: 'text-blue-600 dark:text-blue-400' },
+                    Wednesday: { short: 'WE', bgLight: 'bg-cyan-50/80', bgDark: 'dark:bg-cyan-950/60', borderLight: 'border-cyan-200/80', textLight: 'text-cyan-600 dark:text-cyan-400' },
+                    Thursday: { short: 'TH', bgLight: 'bg-teal-50/80', bgDark: 'dark:bg-teal-950/60', borderLight: 'border-teal-200/80', textLight: 'text-teal-600 dark:text-teal-400' },
+                    Friday: { short: 'FR', bgLight: 'bg-emerald-50/80', bgDark: 'dark:bg-emerald-950/60', borderLight: 'border-emerald-200/80', textLight: 'text-emerald-600 dark:text-emerald-400' },
+                    Saturday: { short: 'SA', bgLight: 'bg-amber-50/80', bgDark: 'dark:bg-amber-950/60', borderLight: 'border-amber-200/80', textLight: 'text-amber-600 dark:text-amber-400' },
+                    Sunday: { short: 'SU', bgLight: 'bg-rose-50/80', bgDark: 'dark:bg-rose-950/60', borderLight: 'border-rose-200/80', textLight: 'text-rose-600 dark:text-rose-400' },
+                  };
+
+                  const meta = dayMeta[day] || { short: day.substring(0, 2).toUpperCase(), bgLight: 'bg-slate-50', bgDark: 'dark:bg-slate-900', borderLight: 'border-slate-200', textLight: 'text-slate-600' };
 
                   return (
                     <div 
                       key={day} 
-                      className={`p-5 rounded-2xl transition-all duration-300 flex flex-col justify-between space-y-4 ${
+                      style={{ animationDelay: `${dayIdx * 40}ms` }}
+                      className={`group p-5 rounded-2xl transition-all duration-300 flex flex-col justify-between space-y-4 animate-fade-up relative overflow-hidden backdrop-blur-xs ${
                         isChecked 
-                          ? 'bg-gradient-to-br from-indigo-500/10 via-blue-500/5 to-purple-500/10 dark:from-indigo-950/40 dark:via-blue-950/30 dark:to-purple-950/40 border-2 border-indigo-500/80 dark:border-indigo-500/80 shadow-md shadow-indigo-500/10'
-                          : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
+                          ? 'bg-gradient-to-br from-indigo-500/15 via-blue-500/10 to-purple-500/15 dark:from-indigo-950/70 dark:via-blue-950/50 dark:to-purple-950/70 border-2 border-indigo-500/80 dark:border-indigo-400/80 shadow-lg shadow-indigo-500/15 hover:shadow-xl hover:-translate-y-1'
+                          : 'bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-slate-700 shadow-xs hover:shadow-lg hover:-translate-y-1'
                       }`}
                     >
                       {/* Day Card Header */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <span className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider font-sans block">{day}</span>
-                          <span className={`inline-block text-[10px] font-black uppercase tracking-widest mt-1 px-2.5 py-0.5 rounded-full border ${
-                            isChecked 
-                              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' 
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200/50 dark:border-slate-700/50'
-                          }`}>
-                            {isChecked 
-                              ? activeWeeks.length === 0
-                                ? 'No weeks selected'
-                                : activeWeeks.length === 5
-                                  ? 'All weeks off'
-                                  : `Weeks: ${activeWeeks.join(', ')}`
-                              : 'Working Day'
-                            }
-                          </span>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs tracking-wider transition-transform duration-300 group-hover:scale-110 shadow-2xs ${meta.bgLight} ${meta.bgDark} ${meta.textLight} border ${meta.borderLight} dark:border-slate-800`}>
+                            {meta.short}
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider font-sans block">{day}</span>
+                            <span className={`inline-block text-[9.5px] font-black uppercase tracking-wider mt-1 px-2.5 py-0.5 rounded-full border ${
+                              isChecked 
+                                ? activeWeeks.length === 5 
+                                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                                  : 'bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200/50 dark:border-slate-700/50'
+                            }`}>
+                              {isChecked 
+                                ? activeWeeks.length === 0
+                                  ? 'No weeks selected'
+                                  : activeWeeks.length === 5
+                                    ? 'All weeks off'
+                                    : `Weeks: ${activeWeeks.join(', ')}`
+                                : 'Working Day'
+                              }
+                            </span>
+                          </div>
                         </div>
 
                         {/* Toggle Switch */}
@@ -985,13 +1039,13 @@ export default function WeekOffsPage() {
                               setAlternateRules(updatedAltRules);
                             }
                           }}
-                          className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-300 ease-in-out outline-none shadow-xs ${
-                            isChecked ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                          className={`relative inline-flex h-6.5 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-300 ease-in-out outline-none shadow-xs ${
+                            isChecked ? 'bg-indigo-600 shadow-indigo-500/40' : 'bg-slate-300 dark:bg-slate-700'
                           }`}
                         >
                           <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-300 ease-in-out ${
-                              isChecked ? 'translate-x-5' : 'translate-x-0'
+                            className={`pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full bg-white shadow-md transition duration-300 ease-in-out ${
+                              isChecked ? 'translate-x-4.5' : 'translate-x-0'
                             }`}
                           />
                         </button>
@@ -1000,7 +1054,7 @@ export default function WeekOffsPage() {
                       {/* Weeks Selection Row */}
                       <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-center min-h-[44px]">
                         {isChecked ? (
-                          <div className="flex items-center gap-1.5 animate-fadeIn">
+                          <div className="flex items-center justify-between w-full gap-1 animate-fadeIn">
                             {[1, 2, 3, 4, 5].map(weekNum => {
                               const isWeekChecked = activeWeeks.includes(weekNum);
                               return (
@@ -1026,10 +1080,10 @@ export default function WeekOffsPage() {
                                       setAlternateRules(updatedAltRules);
                                     }
                                   }}
-                                  className={`w-7.5 h-7.5 rounded-xl text-xs flex items-center justify-center transition-all cursor-pointer font-black ${
+                                  className={`flex-1 h-7 rounded-xl text-xs flex items-center justify-center transition-all duration-200 cursor-pointer font-black ${
                                     isWeekChecked
-                                      ? 'bg-indigo-600 text-white shadow-sm scale-105 border border-indigo-400'
-                                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:border-indigo-300 dark:hover:border-indigo-700'
+                                      ? 'bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/30 scale-105 border border-indigo-400/60'
+                                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400'
                                   }`}
                                   title={`Toggle Week ${weekNum}`}
                                 >
@@ -1039,7 +1093,7 @@ export default function WeekOffsPage() {
                             })}
                           </div>
                         ) : (
-                          <div className="w-full py-1.5 text-center rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-dashed border-slate-200 dark:border-slate-800">
+                          <div className="w-full py-1.5 text-center rounded-xl bg-slate-50/80 dark:bg-slate-950/40 border border-dashed border-slate-200 dark:border-slate-800">
                             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest font-sans">Full Working Day</span>
                           </div>
                         )}
@@ -1181,10 +1235,12 @@ export default function WeekOffsPage() {
 
                       {pPolicyType === 'year-round' ? (
                         <div className="space-y-3">
-                          <h5 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest font-sans">Weekly Off-Days Summary</h5>
+                          <h5 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest font-sans flex items-center gap-2">
+                            <span>🗓️</span> Weekly Off-Days Summary
+                          </h5>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3.5">
-                            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => 
-                              renderDayViewCard(day, pOffDays, pAltRules)
+                            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, idx) => 
+                              renderDayViewCard(day, pOffDays, pAltRules, idx)
                             )}
                           </div>
                         </div>
@@ -1287,10 +1343,12 @@ export default function WeekOffsPage() {
 
               {savedPolicyType === 'year-round' ? (
                 <div className="space-y-3">
-                  <h5 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest font-sans">Weekly Off-Days Summary</h5>
+                  <h5 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest font-sans flex items-center gap-2">
+                    <span>🗓️</span> Weekly Off-Days Summary
+                  </h5>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3.5">
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => 
-                      renderDayViewCard(day, savedOffDays, savedAltRules)
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, idx) => 
+                      renderDayViewCard(day, savedOffDays, savedAltRules, idx)
                     )}
                   </div>
                 </div>
@@ -1300,20 +1358,30 @@ export default function WeekOffsPage() {
                   <h5 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest font-sans">Seasonal Cycles & Periods</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {savedSeasonalPeriods.map((period, index) => (
-                      <div key={period.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
-                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider font-sans">
-                            Period {index + 1}: {getMonthName(period.startMonth)} - {getMonthName(period.endMonth)}
+                      <div 
+                        key={period.id} 
+                        style={{ animationDelay: `${index * 60}ms` }}
+                        className="group p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 hover:border-indigo-400 dark:hover:border-indigo-600 transition-all duration-300 shadow-xs hover:shadow-xl hover:-translate-y-1 animate-fade-up space-y-3 relative overflow-hidden"
+                      >
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider font-sans flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-[10px] font-black">
+                              P{index + 1}
+                            </span>
+                            {getMonthName(period.startMonth)} → {getMonthName(period.endMonth)}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 text-[9.5px] font-bold">
+                            Period {index + 1}
                           </span>
                         </div>
-                        <div className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                        <div className="text-xs font-medium text-slate-600 dark:text-slate-400 pt-1">
                           {period.off_days.length === 0 ? (
-                            <span className="italic text-slate-400">No off-days</span>
+                            <span className="italic text-slate-400 font-semibold">No off-days configured</span>
                           ) : (
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-2">
                               {period.off_days.map(day => (
-                                <span key={day} className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 text-xs font-bold border border-indigo-200 dark:border-indigo-800">
-                                  {day.substring(0, 3)}
+                                <span key={day} className="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 text-xs font-black border border-indigo-200/70 dark:border-indigo-800/80 shadow-2xs">
+                                  {day}
                                 </span>
                               ))}
                             </div>

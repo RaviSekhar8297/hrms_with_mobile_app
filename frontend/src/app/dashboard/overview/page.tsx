@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   Users,
@@ -111,6 +112,12 @@ export default function OverviewPage() {
   const [wishMessages, setWishMessages] = useState<Record<string, string>>({});
   const [submittingWishId, setSubmittingWishId] = useState<string | null>(null);
   const [expandedWishesEventId, setExpandedWishesEventId] = useState<string | null>(null);
+  const [celebrantModalEvent, setCelebrantModalEvent] = useState<any | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Auto-advance celebration cards every 5s if > 2 items
   useEffect(() => {
@@ -750,14 +757,14 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        {/* CARD 2: DYNAMIC EVENTS & CELEBRATIONS (EXPANDED WITH AVATARS & ANIMATIONS) */}
+        {/* CARD 2: DYNAMIC EVENTS & CELEBRATIONS (SEPARATE BIRTHDAYS & WORK ANNIVERSARIES CARDS WITH LIKE, WISH & POPUP MODAL) */}
         <div className="lg:col-span-8 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin-slow" />
                 <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-2">
-                  <span>Events & Celebrations</span>
+                  <span>Today's Events & Celebrations</span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-100 dark:bg-pink-900/60 text-pink-700 dark:text-pink-300">
                     Live 🎉
                   </span>
@@ -769,242 +776,282 @@ export default function OverviewPage() {
               </Link>
             </div>
 
-            {/* Today's Birthdays & Anniversaries (Interactive Carousel + Loader) */}
-            <div className="space-y-3 my-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <PartyPopper className="w-3.5 h-3.5 text-pink-500 animate-bounce" />
-                  Today's Celebrations ({todayEvents.length})
-                </span>
+            {/* 2 Separate Cards Grid for Birthdays & Work Anniversaries */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-3">
+              
+              {/* 1. Today's Birthdays Card */}
+              <div className="p-4 rounded-2xl border border-pink-200/80 dark:border-pink-900/50 bg-gradient-to-br from-pink-50/90 via-purple-50/40 to-pink-100/50 dark:from-pink-950/40 dark:via-purple-950/20 dark:to-pink-900/30 shadow-2xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between border-b border-pink-200/60 dark:border-pink-900/40 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🎂</span>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-pink-700 dark:text-pink-300 font-outfit">
+                      Today's Birthdays
+                    </h4>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-pink-500 text-white">
+                    {todayEvents.filter(e => e.eventType === 'BIRTHDAY').length} Today
+                  </span>
+                </div>
 
-                {/* Carousel Controls (when > 2 cards) */}
-                {todayEvents.length > 2 && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setCurrentEventIndex(prev => (prev - 2 < 0 ? Math.max(0, todayEvents.length - 2) : prev - 2))}
-                      className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-all cursor-pointer"
-                      title="Previous Celebrations"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 px-1">
-                      {Math.floor(currentEventIndex / 2) + 1} / {Math.ceil(todayEvents.length / 2)}
-                    </span>
-                    <button
-                      onClick={() => setCurrentEventIndex(prev => (prev + 2 >= todayEvents.length ? 0 : prev + 2))}
-                      className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-all cursor-pointer"
-                      title="Next Celebrations"
-                    >
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+                {/* Content */}
+                {eventsLoading ? (
+                  <div className="p-3 bg-white/60 dark:bg-slate-800/40 rounded-xl animate-pulse h-20" />
+                ) : todayEvents.filter(e => e.eventType === 'BIRTHDAY').length > 0 ? (
+                  <div className="space-y-3">
+                    {todayEvents.filter(e => e.eventType === 'BIRTHDAY').map(event => {
+                      const isMyEvent = (myProfile?.id && myProfile.id === event.employeeId) || 
+                                       (email && event.employeeName?.toLowerCase().includes(email.split('@')[0].toLowerCase()));
+
+                      return (
+                        <div key={event.eventId} className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {event.empImage ? (
+                                <img src={event.empImage} alt={event.employeeName} className="w-10 h-10 rounded-full object-cover ring-2 ring-pink-400 shrink-0" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                  {event.employeeName ? event.employeeName.charAt(0) : 'E'}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-xs font-black text-slate-900 dark:text-white truncate font-outfit">{event.employeeName}</p>
+                                <p className="text-[10px] text-slate-500 truncate">{event.designation}</p>
+                              </div>
+                            </div>
+
+                            {/* Wishers Modal Trigger Button */}
+                            {(event.wishCount > 0 || event.reactionCount > 0 || isMyEvent) && (
+                              <button
+                                onClick={() => setCelebrantModalEvent(event)}
+                                className="px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-pink-600 hover:bg-pink-700 text-white shadow-2xs flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                              >
+                                <span>👥 Wishers ({event.wishCount + event.reactionCount})</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center justify-between pt-2 border-t border-pink-200/50 dark:border-pink-900/30">
+                            <div className="flex items-center gap-2">
+                              <div className="relative inline-block">
+                                <button
+                                  onClick={() => handleToggleReaction(event.eventId, 'LIKE')}
+                                  className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold transition-all duration-200 active:scale-125 flex items-center gap-1 cursor-pointer ${
+                                    event.userReaction === 'LIKE'
+                                      ? 'bg-rose-500 text-white shadow-xs'
+                                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-50 border border-slate-200 dark:border-slate-700'
+                                  }`}
+                                >
+                                  <Heart className={`w-3 h-3 ${event.userReaction === 'LIKE' ? 'fill-current animate-bounce' : ''}`} />
+                                  <span>{event.reactionCount > 0 ? event.reactionCount : 'Like'}</span>
+                                </button>
+
+                                {flowerBurstEventId === event.eventId && (
+                                  <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center">
+                                    {['🌸', '🌺', '💖', '✨'].map((emoji, idx) => (
+                                      <span key={idx} className="absolute text-lg animate-ping">{emoji}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <button
+                                onClick={() => setOpenWishInputEventId(openWishInputEventId === event.eventId ? null : event.eventId)}
+                                className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 transition-all"
+                              >
+                                <span>Wish 🎉</span>
+                              </button>
+                            </div>
+
+                            {event.wishCount > 0 && (
+                              <button
+                                onClick={() => setExpandedWishesEventId(expandedWishesEventId === event.eventId ? null : event.eventId)}
+                                className="text-[10px] font-extrabold text-indigo-600 hover:underline"
+                              >
+                                {event.wishCount} Wishes
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Wish Input */}
+                          {openWishInputEventId === event.eventId && (
+                            <div className="pt-2 flex items-center gap-1.5 animate-fadeIn">
+                              <input
+                                type="text"
+                                placeholder="Write a happy birthday message..."
+                                value={wishMessages[event.eventId] || ''}
+                                onChange={(e) => setWishMessages({ ...wishMessages, [event.eventId]: e.target.value })}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSendWish(event.eventId)}
+                                className="flex-1 px-3 py-1 rounded-xl text-xs bg-white dark:bg-slate-900 border border-pink-300 dark:border-pink-800 text-slate-900 dark:text-white"
+                              />
+                              <button
+                                onClick={() => handleSendWish(event.eventId)}
+                                disabled={submittingWishId === event.eventId || !wishMessages[event.eventId]?.trim()}
+                                className="px-3 py-1 rounded-xl text-xs font-bold bg-pink-600 text-white shadow-xs"
+                              >
+                                Send
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Wishes List */}
+                          {expandedWishesEventId === event.eventId && event.wishes && event.wishes.length > 0 && (
+                            <div className="pt-2 border-t border-pink-200/50 space-y-1 max-h-28 overflow-y-auto custom-scrollbar">
+                              {event.wishes.map((w: any) => (
+                                <div key={w.id} className="p-1.5 rounded-lg bg-white/90 dark:bg-slate-800 text-[11px]">
+                                  <span className="font-bold text-slate-800 dark:text-slate-200">{w.senderName}: </span>
+                                  <span className="text-slate-600 dark:text-slate-300">{w.message}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-xs font-semibold text-slate-400">
+                    🎂 No birthdays today
                   </div>
                 )}
               </div>
 
-              {/* Loader State */}
-              {eventsLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[1, 2].map(i => (
-                    <div key={i} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 animate-pulse flex flex-col justify-between space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
-                        <div className="space-y-1.5 flex-1">
-                          <div className="h-3.5 bg-slate-200 dark:bg-slate-700 rounded-md w-3/4" />
-                          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-md w-1/2" />
-                        </div>
-                      </div>
-                      <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-xl w-full" />
-                    </div>
-                  ))}
+              {/* 2. Today's Work Anniversaries Card */}
+              <div className="p-4 rounded-2xl border border-purple-200/80 dark:border-purple-900/50 bg-gradient-to-br from-purple-50/90 via-amber-50/40 to-purple-100/50 dark:from-purple-950/40 dark:via-amber-950/20 dark:to-purple-900/30 shadow-2xs flex flex-col justify-between space-y-3">
+                <div className="flex items-center justify-between border-b border-purple-200/60 dark:border-purple-900/40 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🏆</span>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-purple-700 dark:text-purple-300 font-outfit">
+                      Work Anniversaries
+                    </h4>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-purple-600 text-white">
+                    {todayEvents.filter(e => e.eventType === 'ANNIVERSARY').length} Today
+                  </span>
                 </div>
-              ) : todayEvents.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 transition-all duration-500">
-                  {todayEvents.slice(currentEventIndex, currentEventIndex + 2).map(event => (
-                    <div 
-                      key={event.eventId}
-                      className={`p-3.5 rounded-2xl border transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between ${
-                        event.eventType === 'BIRTHDAY'
-                          ? 'bg-gradient-to-br from-pink-50/90 via-purple-50/50 to-pink-100/60 dark:from-pink-950/40 dark:via-purple-950/20 dark:to-pink-900/30 border-pink-200/90 dark:border-pink-900/60 shadow-pink-100/50 dark:shadow-none'
-                          : 'bg-gradient-to-br from-amber-50/90 via-yellow-50/50 to-amber-100/60 dark:from-amber-950/40 dark:via-yellow-950/20 dark:to-amber-900/30 border-amber-200/90 dark:border-amber-900/60 shadow-amber-100/50 dark:shadow-none'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {/* Employee Avatar Image / First Letter Initial */}
-                            {event.empImage ? (
-                              <img 
-                                src={event.empImage} 
-                                alt={event.employeeName}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-pink-400 dark:border-pink-500 shadow-md ring-2 ring-pink-100 dark:ring-pink-900/50 shrink-0" 
-                              />
-                            ) : (
-                              <div className="relative shrink-0">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-lg text-white shadow-md ${
-                                  event.eventType === 'BIRTHDAY'
-                                    ? 'bg-gradient-to-tr from-pink-500 via-rose-500 to-purple-600 shadow-pink-200 dark:shadow-none'
-                                    : 'bg-gradient-to-tr from-amber-500 via-yellow-500 to-orange-600 shadow-amber-200 dark:shadow-none'
-                                }`}>
-                                  {event.employeeName ? event.employeeName.trim().charAt(0).toUpperCase() : 'E'}
-                                </div>
-                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white border-2 border-white dark:border-slate-900 shadow-xs ${
-                                  event.eventType === 'BIRTHDAY' ? 'bg-pink-600' : 'bg-amber-600'
-                                }`}>
-                                  {event.eventType === 'BIRTHDAY' ? '🎂' : '🏆'}
-                                </div>
-                              </div>
-                            )}
 
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white truncate font-outfit">
-                                {event.employeeName}
-                              </h4>
-                              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold truncate mt-0.5">
-                                {event.eventType === 'BIRTHDAY' ? 'Birthday Today 🎉' : 'Work Anniversary Today 🏆'}
-                              </p>
-                              <p className="text-[10px] text-slate-400 dark:text-slate-400 font-medium truncate">
-                                {event.designation}
-                              </p>
-                            </div>
-                          </div>
+                {/* Content */}
+                {eventsLoading ? (
+                  <div className="p-3 bg-white/60 dark:bg-slate-800/40 rounded-xl animate-pulse h-20" />
+                ) : todayEvents.filter(e => e.eventType === 'ANNIVERSARY').length > 0 ? (
+                  <div className="space-y-3">
+                    {todayEvents.filter(e => e.eventType === 'ANNIVERSARY').map(event => {
+                      const isMyEvent = (myProfile?.id && myProfile.id === event.employeeId) || 
+                                       (email && event.employeeName?.toLowerCase().includes(email.split('@')[0].toLowerCase()));
 
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black shrink-0 animate-pulse shadow-xs ${
-                            event.eventType === 'BIRTHDAY'
-                              ? 'bg-pink-500 text-white dark:bg-pink-600'
-                              : 'bg-amber-500 text-white dark:bg-amber-600'
-                          }`}>
-                            Today 🎉
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Interactive Actions Bar */}
-                      <div>
-                        <div className="flex items-center justify-between pt-2.5 mt-3 border-t border-slate-200/70 dark:border-slate-800">
-                          <div className="flex items-center gap-2">
-                            {/* Like Button with Flower Burst */}
-                            <div className="relative inline-block">
-                              <button
-                                onClick={() => handleToggleReaction(event.eventId, 'LIKE')}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all duration-200 active:scale-125 flex items-center gap-1.5 cursor-pointer ${
-                                  event.userReaction === 'LIKE'
-                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-200 dark:shadow-none ring-2 ring-rose-300'
-                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 dark:border-slate-700'
-                                }`}
-                              >
-                                <Heart className={`w-3.5 h-3.5 ${event.userReaction === 'LIKE' ? 'fill-current animate-bounce' : ''}`} />
-                                <span>{event.reactionCount > 0 ? event.reactionCount : 'Like'}</span>
-                              </button>
-
-                              {/* Animated Flower Burst Particle Overlay */}
-                              {flowerBurstEventId === event.eventId && (
-                                <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center overflow-visible">
-                                  {[
-                                    { emoji: '🌸', style: { '--tx': '-35px', '--ty': '-65px', '--rot': '-25deg', animationDelay: '0ms' } },
-                                    { emoji: '🌺', style: { '--tx': '35px', '--ty': '-70px', '--rot': '30deg', animationDelay: '50ms' } },
-                                    { emoji: '💐', style: { '--tx': '-55px', '--ty': '-40px', '--rot': '-45deg', animationDelay: '100ms' } },
-                                    { emoji: '🌷', style: { '--tx': '55px', '--ty': '-45px', '--rot': '40deg', animationDelay: '80ms' } },
-                                    { emoji: '❤️', style: { '--tx': '0px', '--ty': '-80px', '--rot': '0deg', animationDelay: '20ms' } },
-                                    { emoji: '✨', style: { '--tx': '-25px', '--ty': '-85px', '--rot': '-15deg', animationDelay: '120ms' } },
-                                    { emoji: '🌸', style: { '--tx': '25px', '--ty': '-90px', '--rot': '20deg', animationDelay: '150ms' } },
-                                    { emoji: '💖', style: { '--tx': '-45px', '--ty': '-25px', '--rot': '-35deg', animationDelay: '60ms' } }
-                                  ].map((p, idx) => (
-                                    <span
-                                      key={idx}
-                                      className="absolute text-xl font-bold pointer-events-none select-none"
-                                      style={{
-                                        ...p.style,
-                                        animation: 'flowerParticleBurst 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
-                                      } as React.CSSProperties}
-                                    >
-                                      {p.emoji}
-                                    </span>
-                                  ))}
+                      return (
+                        <div key={event.eventId} className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {event.empImage ? (
+                                <img src={event.empImage} alt={event.employeeName} className="w-10 h-10 rounded-full object-cover ring-2 ring-purple-400 shrink-0" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-amber-500 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                  {event.employeeName ? event.employeeName.charAt(0) : 'E'}
                                 </div>
                               )}
+                              <div className="min-w-0">
+                                <p className="text-xs font-black text-slate-900 dark:text-white truncate font-outfit">{event.employeeName}</p>
+                                <p className="text-[10px] text-slate-500 truncate">{event.designation}</p>
+                              </div>
                             </div>
 
-                            {/* Wish Button */}
-                            <button
-                              onClick={() => setOpenWishInputEventId(openWishInputEventId === event.eventId ? null : event.eventId)}
-                              className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 transition-all duration-200 active:scale-95 flex items-center gap-1.5"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5" />
-                              <span>Say Congrats</span>
-                            </button>
+                            {/* Wishers Modal Trigger Button */}
+                            {(event.wishCount > 0 || event.reactionCount > 0 || isMyEvent) && (
+                              <button
+                                onClick={() => setCelebrantModalEvent(event)}
+                                className="px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-purple-600 hover:bg-purple-700 text-white shadow-2xs flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                              >
+                                <span>👥 Wishers ({event.wishCount + event.reactionCount})</span>
+                              </button>
+                            )}
                           </div>
 
-                          {/* Wishes Counter / Toggle */}
-                          {event.wishCount > 0 && (
-                            <button
-                              onClick={() => setExpandedWishesEventId(expandedWishesEventId === event.eventId ? null : event.eventId)}
-                              className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 bg-indigo-50/70 dark:bg-indigo-950/50 px-2 py-1 rounded-lg"
-                            >
-                              <span>{event.wishCount} {event.wishCount === 1 ? 'Wish' : 'Wishes'}</span>
-                            </button>
+                          {/* Action Buttons */}
+                          <div className="flex items-center justify-between pt-2 border-t border-purple-200/50 dark:border-purple-900/30">
+                            <div className="flex items-center gap-2">
+                              <div className="relative inline-block">
+                                <button
+                                  onClick={() => handleToggleReaction(event.eventId, 'LIKE')}
+                                  className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold transition-all duration-200 active:scale-125 flex items-center gap-1 cursor-pointer ${
+                                    event.userReaction === 'LIKE'
+                                      ? 'bg-rose-500 text-white shadow-xs'
+                                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-50 border border-slate-200 dark:border-slate-700'
+                                  }`}
+                                >
+                                  <Heart className={`w-3 h-3 ${event.userReaction === 'LIKE' ? 'fill-current animate-bounce' : ''}`} />
+                                  <span>{event.reactionCount > 0 ? event.reactionCount : 'Like'}</span>
+                                </button>
+
+                                {flowerBurstEventId === event.eventId && (
+                                  <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center">
+                                    {['🌸', '💐', '🏆', '✨'].map((emoji, idx) => (
+                                      <span key={idx} className="absolute text-lg animate-ping">{emoji}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <button
+                                onClick={() => setOpenWishInputEventId(openWishInputEventId === event.eventId ? null : event.eventId)}
+                                className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 border border-slate-200 dark:border-slate-700 transition-all"
+                              >
+                                <span>Congrats 🏆</span>
+                              </button>
+                            </div>
+
+                            {event.wishCount > 0 && (
+                              <button
+                                onClick={() => setExpandedWishesEventId(expandedWishesEventId === event.eventId ? null : event.eventId)}
+                                className="text-[10px] font-extrabold text-purple-600 hover:underline"
+                              >
+                                {event.wishCount} Wishes
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Wish Input */}
+                          {openWishInputEventId === event.eventId && (
+                            <div className="pt-2 flex items-center gap-1.5 animate-fadeIn">
+                              <input
+                                type="text"
+                                placeholder="Write congratulations message..."
+                                value={wishMessages[event.eventId] || ''}
+                                onChange={(e) => setWishMessages({ ...wishMessages, [event.eventId]: e.target.value })}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSendWish(event.eventId)}
+                                className="flex-1 px-3 py-1 rounded-xl text-xs bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 text-slate-900 dark:text-white"
+                              />
+                              <button
+                                onClick={() => handleSendWish(event.eventId)}
+                                disabled={submittingWishId === event.eventId || !wishMessages[event.eventId]?.trim()}
+                                className="px-3 py-1 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-xs"
+                              >
+                                Send
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Wishes List */}
+                          {expandedWishesEventId === event.eventId && event.wishes && event.wishes.length > 0 && (
+                            <div className="pt-2 border-t border-purple-200/50 space-y-1 max-h-28 overflow-y-auto custom-scrollbar">
+                              {event.wishes.map((w: any) => (
+                                <div key={w.id} className="p-1.5 rounded-lg bg-white/90 dark:bg-slate-800 text-[11px]">
+                                  <span className="font-bold text-slate-800 dark:text-slate-200">{w.senderName}: </span>
+                                  <span className="text-slate-600 dark:text-slate-300">{w.message}</span>
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
-
-                        {/* Inline Wish Input Form */}
-                        {openWishInputEventId === event.eventId && (
-                          <div className="mt-2.5 pt-2 flex items-center gap-2 animate-fadeIn">
-                            <input
-                              type="text"
-                              placeholder={event.eventType === 'BIRTHDAY' ? 'Write a happy birthday message...' : 'Write congratulations message...'}
-                              value={wishMessages[event.eventId] || ''}
-                              onChange={(e) => setWishMessages({ ...wishMessages, [event.eventId]: e.target.value })}
-                              onKeyDown={(e) => e.key === 'Enter' && handleSendWish(event.eventId)}
-                              className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
-                            />
-                            <button
-                              onClick={() => handleSendWish(event.eventId)}
-                              disabled={submittingWishId === event.eventId || !wishMessages[event.eventId]?.trim()}
-                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white transition-all flex items-center gap-1 shadow-xs"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              <span>Send</span>
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Expandable Wishes List */}
-                        {expandedWishesEventId === event.eventId && event.wishes && event.wishes.length > 0 && (
-                          <div className="mt-2.5 pt-2 border-t border-dashed border-slate-200/80 dark:border-slate-800 space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
-                            {event.wishes.map((w: any) => (
-                              <div key={w.id} className="p-2 rounded-xl bg-white/80 dark:bg-slate-800/90 border border-slate-100 dark:border-slate-700/60 text-xs shadow-2xs">
-                                <div className="flex items-center justify-between gap-1 text-[10.5px] font-bold text-slate-800 dark:text-slate-200">
-                                  <div className="flex items-center gap-1.5">
-                                    {w.senderEmpImage ? (
-                                      <img src={w.senderEmpImage} alt={w.senderName} className="w-4 h-4 rounded-full object-cover" />
-                                    ) : (
-                                      <div className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[9px] flex items-center justify-center font-bold">
-                                        {w.senderName ? w.senderName.charAt(0) : 'U'}
-                                      </div>
-                                    )}
-                                    <span>{w.senderName}</span>
-                                  </div>
-                                  <span className="text-[9.5px] text-slate-400 font-normal">
-                                    {new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                </div>
-                                <p className="text-[11.5px] text-slate-700 dark:text-slate-300 font-medium mt-1 pl-5">
-                                  {w.message}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center bg-slate-50/50 dark:bg-slate-900/50">
-                  <Cake className="w-8 h-8 text-pink-400 mx-auto mb-2 opacity-70 animate-bounce" />
-                  <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300">No birthdays or anniversaries today</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Check back tomorrow for upcoming employee celebrations!</p>
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-xs font-semibold text-slate-400">
+                    🎖️ No work anniversaries today
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Dynamic Upcoming Company Holidays */}
@@ -1422,6 +1469,23 @@ function EmployeeDashboard({
   const [_permissions, setPermissions] = useState<any[]>([]);
   const [_dataLoading, setDataLoading] = useState(false);
 
+  // Events (Birthdays & Anniversaries) state for Employee Dashboard
+  const [empTodayEvents, setEmpTodayEvents] = useState<any[]>([]);
+  const [empEventsLoading, setEmpEventsLoading] = useState<boolean>(true);
+  const [empEmployees, setEmpEmployees] = useState<Employee[]>(employees || []);
+  const [empMyProfile, setEmpMyProfile] = useState<Employee | null>(myProfile || null);
+  const [empFlowerBurstEventId, setEmpFlowerBurstEventId] = useState<string | null>(null);
+  const [empOpenWishInputEventId, setEmpOpenWishInputEventId] = useState<string | null>(null);
+  const [empWishMessages, setEmpWishMessages] = useState<Record<string, string>>({});
+  const [empSubmittingWishId, setEmpSubmittingWishId] = useState<string | null>(null);
+  const [empExpandedWishesEventId, setEmpExpandedWishesEventId] = useState<string | null>(null);
+  const [celebrantModalEvent, setCelebrantModalEvent] = useState<any | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Calendar state for My Attendance Calendar
   const [currentDate, setCurrentDate] = useState(new Date(2026, 6, 1)); // Default July 2026
 
@@ -1430,6 +1494,25 @@ function EmployeeDashboard({
       setDataLoading(true);
       try {
         const headers = getHeaders();
+
+        // Fetch Employees for local birthday/anniversary calculation & team matching
+        try {
+          const empRes = await fetch(getUrl('/api/v1/employees', companyId), { headers });
+          if (empRes.ok && empRes.headers.get('content-type')?.includes('application/json')) {
+            const d = await empRes.json();
+            if (d.employees) setEmpEmployees(d.employees);
+          }
+        } catch (e) {}
+
+        // Fetch My Profile
+        try {
+          const meRes = await fetch(getUrl('/api/v1/employees/me'), { headers });
+          if (meRes.ok && meRes.headers.get('content-type')?.includes('application/json')) {
+            const d = await meRes.json();
+            if (d.employee || d.id) setEmpMyProfile(d.employee || d);
+          }
+        } catch (e) {}
+
         const holRes = await fetch(getUrl('/api/v1/holidays', companyId), { headers });
         if (holRes.ok) {
           const d = await holRes.json();
@@ -1453,6 +1536,19 @@ function EmployeeDashboard({
           const d = await permRes.json();
           setPermissions(d.permissions || []);
         }
+
+        // Fetch Today's Events (Birthdays & Anniversaries)
+        try {
+          setEmpEventsLoading(true);
+          const evRes = await fetch(getUrl('/api/v1/events/today', companyId), { headers });
+          if (evRes.ok && evRes.headers.get('content-type')?.includes('application/json')) {
+            const d = await evRes.json();
+            setEmpTodayEvents(d.events || []);
+          }
+        } catch (e) {
+        } finally {
+          setEmpEventsLoading(false);
+        }
       } catch (e) {
         console.error('Error fetching employee dashboard stats:', e);
       } finally {
@@ -1462,6 +1558,82 @@ function EmployeeDashboard({
 
     fetchData();
   }, [companyId]);
+
+  // Action: Flower burst animation trigger
+  const triggerEmpFlowerBurst = (eventId: string) => {
+    setEmpFlowerBurstEventId(eventId);
+    setTimeout(() => setEmpFlowerBurstEventId(null), 1400);
+  };
+
+  // Action: Toggle Like Reaction
+  const handleEmpToggleReaction = async (eventId: string, reactionType = 'LIKE') => {
+    if (reactionType === 'LIKE') triggerEmpFlowerBurst(eventId);
+    setEmpTodayEvents(prev => prev.map(ev => {
+      if (ev.eventId === eventId) {
+        const isCurrentlyReacted = ev.userReaction === reactionType;
+        return {
+          ...ev,
+          userReaction: isCurrentlyReacted ? null : reactionType,
+          reactionCount: isCurrentlyReacted ? Math.max(0, ev.reactionCount - 1) : ev.reactionCount + (ev.userReaction ? 0 : 1)
+        };
+      }
+      return ev;
+    }));
+
+    try {
+      const headers = getHeaders();
+      const res = await fetch(getUrl(`/api/v1/events/${eventId}/react`), {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reactionType })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEmpTodayEvents(prev => prev.map(ev => {
+          if (ev.eventId === eventId) {
+            return { ...ev, reactionCount: data.reactionCount, userReaction: data.userReaction };
+          }
+          return ev;
+        }));
+      }
+    } catch (e) {}
+  };
+
+  // Action: Send Wish or Celebrant Thank You Reply
+  const handleEmpSendWish = async (eventId: string, customMsg?: string) => {
+    const msg = customMsg || empWishMessages[eventId]?.trim();
+    if (!msg) return;
+
+    setEmpSubmittingWishId(eventId);
+    try {
+      const headers = getHeaders();
+      const res = await fetch(getUrl(`/api/v1/events/${eventId}/wish`), {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEmpTodayEvents(prev => prev.map(ev => {
+          if (ev.eventId === eventId) {
+            return {
+              ...ev,
+              wishCount: ev.wishCount + 1,
+              wishes: [data.wish, ...(ev.wishes || [])]
+            };
+          }
+          return ev;
+        }));
+        setEmpWishMessages(prev => ({ ...prev, [eventId]: '' }));
+        setEmpOpenWishInputEventId(null);
+        setEmpExpandedWishesEventId(eventId);
+      }
+    } catch (e) {
+      console.error('Error sending wish:', e);
+    } finally {
+      setEmpSubmittingWishId(null);
+    }
+  };
 
   useEffect(() => {
     setTime(new Date());
@@ -1782,7 +1954,8 @@ function EmployeeDashboard({
     return 'Good Evening,';
   };
 
-  const me = myProfile || employees.find(emp => emp.email?.toLowerCase() === email.toLowerCase());
+  const allEmps = empEmployees.length > 0 ? empEmployees : employees;
+  const me = empMyProfile || myProfile || allEmps.find(emp => emp.email?.toLowerCase() === email.toLowerCase()) || (typeof window !== 'undefined' && localStorage.getItem('myProfile') ? JSON.parse(localStorage.getItem('myProfile') || 'null') : null);
   const displayName = me ? `${me.first_name} ${me.last_name}` : email.split('@')[0];
 
   const getBirthdaysToday = () => {
@@ -1790,7 +1963,7 @@ function EmployeeDashboard({
     const currentMonth = today.getMonth(); // 0-indexed
     const currentDate = today.getDate(); // 1-indexed
     
-    return employees
+    return allEmps
       .filter(emp => {
         if (!emp.dob) return false;
         const parts = emp.dob.split('T')[0].split('-');
@@ -1811,7 +1984,7 @@ function EmployeeDashboard({
     const currentMonth = today.getMonth();
     const currentDate = today.getDate();
     
-    return employees
+    return allEmps
       .filter(emp => {
         if (!emp.joining_date) return false;
         const parts = emp.joining_date.split('T')[0].split('-');
@@ -1908,16 +2081,32 @@ function EmployeeDashboard({
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
           
           <div className="flex justify-between items-start gap-4 z-10">
-            <div className="space-y-2 text-left">
-              <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-600/10 text-indigo-700 dark:text-indigo-300 text-xs font-black uppercase tracking-widest border border-indigo-200/80 dark:border-indigo-800/50 shadow-2xs">
+            <div className="space-y-3 text-left w-full">
+              <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-600/10 text-indigo-800 dark:text-indigo-300 text-xs font-black uppercase tracking-widest border border-indigo-200/90 dark:border-indigo-800/50 shadow-2xs">
                 {getGreeting()} <span className="animate-float-emoji inline-block text-sm">👋</span>
               </span>
-              <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tight font-outfit mt-3">
-                {displayName.toUpperCase()}
-              </h1>
-              <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed max-w-md pt-1">
-                Welcome back to your workspace. Have a highly productive and successful day ahead!
-              </p>
+              
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 pt-1">
+                {me?.emp_image ? (
+                  <img
+                    src={me.emp_image}
+                    alt={displayName}
+                    className="w-14 h-14 md:w-16 md:h-16 rounded-2xl object-cover ring-4 ring-indigo-500/20 shadow-md shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-indigo-700 via-purple-700 to-pink-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0 ring-4 ring-indigo-500/20">
+                    {displayName ? displayName.charAt(0) : 'U'}
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-2xl md:text-3xl lg:text-4xl font-black uppercase tracking-tight font-outfit text-slate-950 dark:text-white drop-shadow-xs">
+                    {displayName.toUpperCase()}
+                  </h1>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold leading-relaxed max-w-md mt-0.5">
+                    Welcome back to your workspace. Have a highly productive and successful day ahead!
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2429,116 +2618,679 @@ function EmployeeDashboard({
 
       </div>
 
-      {/* ── ROW 5: TODAY'S BIRTHDAYS & TODAY'S WORK ANNIVERSARIES (2 CARDS ROW) ── */}
+      {/* ── ROW 5: TODAY'S BIRTHDAYS & TODAY'S WORK ANNIVERSARIES (INTERACTIVE WITH WISH, LIKE, FLOWER BURST & CELEBRANT REPLIES) ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
         
-        {/* 1. Today's Birthdays */}
-        <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm text-left flex flex-col justify-between overflow-hidden min-h-[220px] transition-all duration-300 hover:shadow-md">
+        {/* 1. Today's Birthdays Card Container */}
+        <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm text-left flex flex-col justify-between overflow-hidden min-h-[220px] transition-all duration-300 hover:shadow-md">
           <div>
-            <div className="flex items-center gap-3.5 mb-5 pb-3.5 border-b border-slate-100 dark:border-slate-800">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center text-xl font-bold shadow-2xs">
-                🎂
-              </div>
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 font-outfit">
-                  TODAY'S BIRTHDAYS
-                </h4>
-                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Celebrate team milestones</p>
-              </div>
-            </div>
-
-            {/* Today's Birthdays List/Marquee */}
-            {getBirthdaysToday().length > 0 ? (
-              <div className="overflow-hidden w-full py-2">
-                <div className="animate-marquee gap-3.5 flex">
-                  {[...getBirthdaysToday(), ...getBirthdaysToday(), ...getBirthdaysToday()].map((item, idx) => (
-                    <div key={idx} className="w-[270px] shrink-0 flex items-center justify-between gap-3 p-4 rounded-2xl bg-indigo-500/5 dark:bg-slate-800/60 border border-indigo-500/20 dark:border-slate-800 shadow-2xs hover:shadow-xs transition-all">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        {item.image ? (
-                          <img src={item.image} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-indigo-500/30 shadow-xs" alt="avatar" />
-                        ) : (
-                          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-indigo-500/30">
-                            {item.name.charAt(0)}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{item.name}</p>
-                          <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">{item.designation}</p>
-                          <span className="inline-block text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 mt-1">
-                            🎂 Today
-                          </span>
-                        </div>
-                      </div>
-
-                      <button className="text-[10px] font-black px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border-0 shadow-md transition-all cursor-pointer shrink-0 active:scale-95">
-                        Wish 🎉
-                      </button>
-                    </div>
-                  ))}
+            <div className="flex items-center justify-between mb-4 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-pink-500/10 text-pink-600 dark:bg-pink-500/20 dark:text-pink-400 border border-pink-500/20 flex items-center justify-center text-xl font-bold shadow-2xs">
+                  🎂
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 font-outfit">
+                    TODAY'S BIRTHDAYS
+                  </h4>
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Celebrate team milestones</p>
                 </div>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <span className="text-4xl mb-2.5">🎂</span>
-                <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">No birthdays today</p>
-                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Celebrate team milestones when they arrive!</p>
-              </div>
-            )}
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-pink-50 dark:bg-pink-950/60 text-pink-600 dark:text-pink-400 border border-pink-200 dark:border-pink-900/50">
+                Live 🎉
+              </span>
+            </div>
+
+            {/* Birthdays List Content */}
+            {(() => {
+              const bdayEvents = empTodayEvents.filter(e => e.eventType === 'BIRTHDAY');
+              const hasEvents = bdayEvents.length > 0;
+              const localBirthdays = getBirthdaysToday();
+
+              if (empEventsLoading) {
+                return (
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 animate-pulse space-y-3">
+                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                    <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-xl w-full" />
+                  </div>
+                );
+              }
+
+              if (!hasEvents && localBirthdays.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <span className="text-4xl mb-2.5">🎂</span>
+                    <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">No birthdays today</p>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Celebrate team milestones when they arrive!</p>
+                  </div>
+                );
+              }
+
+              // Combine backend events or construct cards from localBirthdays
+              const eventsToRender = hasEvents ? bdayEvents : localBirthdays.map((lb, idx) => ({
+                eventId: `local-bday-${idx}`,
+                employeeId: `emp-bday-${idx}`,
+                employeeName: lb.name,
+                designation: lb.designation,
+                empImage: lb.image,
+                eventType: 'BIRTHDAY',
+                reactionCount: 0,
+                wishCount: 0,
+                wishes: [],
+                reactions: []
+              }));
+
+              return (
+                <div className="space-y-4">
+                  {eventsToRender.map((event: any) => {
+                    const isMyEvent = (me?.id && me.id === event.employeeId) || 
+                                     (me?.email && event.employeeName?.toLowerCase().includes(me.first_name?.toLowerCase()));
+
+                    return isMyEvent ? (
+                      /* 🌟 CELEBRANT SPECIAL HERO BANNER FOR LOGGED-IN BIRTHDAY PERSON */
+                      <div key={event.eventId} className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/15 via-purple-500/10 to-indigo-500/15 border-2 border-pink-500/50 shadow-md shadow-pink-500/10 animate-fade-up space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 text-white font-extrabold text-lg flex items-center justify-center shadow-md animate-bounce">
+                              🎂
+                            </div>
+                            <div>
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-pink-600 text-white shadow-xs">
+                                ✨ IT'S YOUR BIRTHDAY TODAY! 🎉
+                              </span>
+                              <h4 className="text-xs font-black text-slate-900 dark:text-white font-outfit mt-1">
+                                Happy Birthday, {event.employeeName}!
+                              </h4>
+                              <p className="text-[10.5px] font-semibold text-slate-600 dark:text-slate-300">
+                                Received <span className="font-extrabold text-pink-600 dark:text-pink-400">{event.wishCount} wishes</span> & <span className="font-extrabold text-rose-600 dark:text-rose-400">{event.reactionCount} likes</span> ❤️
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setCelebrantModalEvent(event)}
+                            className="px-3 py-1.5 rounded-xl text-[10.5px] font-black bg-pink-600 hover:bg-pink-700 text-white shadow-xs flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                          >
+                            <span>👥 View Wishers ({event.wishCount + event.reactionCount})</span>
+                          </button>
+                        </div>
+
+                        {/* Quick Thank-You Reply Block */}
+                        <div className="p-3 rounded-xl bg-white/95 dark:bg-slate-900/95 border border-pink-200/80 dark:border-pink-900/50 space-y-2">
+                          <p className="text-[10.5px] font-extrabold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                            <span>💌</span> Send a Thank You reply to your team:
+                          </p>
+
+                          {/* Quick Presets */}
+                          <div className="flex flex-wrap gap-1">
+                            {[
+                              "Thank you so much everyone for the wonderful wishes! ❤️",
+                              "Grateful to work with such an amazing team! 🙏✨",
+                              "Thanks a lot for making my day special! 🎂🎉"
+                            ].map((preset, pIdx) => (
+                              <button
+                                key={pIdx}
+                                type="button"
+                                onClick={() => handleEmpSendWish(event.eventId, preset)}
+                                className="text-[9.5px] font-bold px-2 py-0.5 rounded-lg bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 border border-pink-200/70 hover:bg-pink-100 transition-all cursor-pointer"
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Custom Input */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <input
+                              type="text"
+                              placeholder="Write a thank you message..."
+                              value={empWishMessages[event.eventId] || ''}
+                              onChange={(e) => setEmpWishMessages({ ...empWishMessages, [event.eventId]: e.target.value })}
+                              onKeyDown={(e) => e.key === 'Enter' && handleEmpSendWish(event.eventId)}
+                              className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-950 border border-pink-300 dark:border-pink-800 text-slate-900 dark:text-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEmpSendWish(event.eventId)}
+                              disabled={empSubmittingWishId === event.eventId || !empWishMessages[event.eventId]?.trim()}
+                              className="px-3 py-1.5 rounded-xl text-xs font-black bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>Reply 💌</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Celebrant Wishes Feed - Shows latest 1 wish with Left/Right Chat Bubble & You Label */}
+                        {event.wishes && event.wishes.length > 0 && (() => {
+                          const latestWish = event.wishes[0]; // event.wishes comes newest-first from API
+                          const isLoggedUser = latestWish.isCelebrantReply || 
+                                               (me?.id && latestWish.senderEmpId === me.id) || 
+                                               (me?.email && latestWish.senderEmail?.toLowerCase() === me.email?.toLowerCase()) ||
+                                               (me?.first_name && latestWish.senderName?.toLowerCase().includes(me.first_name?.toLowerCase()));
+
+                          return (
+                            <div className="pt-2 border-t border-pink-200/60 dark:border-pink-950 space-y-1.5">
+                              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-pink-600 dark:text-pink-400">
+                                <span>Recent Team Wish ({event.wishes.length}):</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setCelebrantModalEvent(event)}
+                                  className="text-[9.5px] font-extrabold text-pink-600 hover:underline cursor-pointer"
+                                >
+                                  View All ({event.wishes.length}) ➔
+                                </button>
+                              </div>
+                              <div className={`flex ${isLoggedUser ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[90%] p-2.5 rounded-xl text-xs space-y-0.5 border ${
+                                  isLoggedUser 
+                                    ? 'bg-gradient-to-r from-pink-500/15 to-purple-500/15 border-pink-400/60 dark:border-pink-800 text-right' 
+                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-left shadow-2xs'
+                                }`}>
+                                  <div className={`flex items-center gap-1.5 text-[10px] font-black ${isLoggedUser ? 'justify-end' : 'justify-start'}`}>
+                                    {isLoggedUser ? (
+                                      <span className="px-1.5 py-0.2 rounded bg-pink-600 text-white text-[8.5px] uppercase font-black">You 🌟</span>
+                                    ) : (
+                                      <span className="text-slate-800 dark:text-slate-100">{latestWish.senderName}</span>
+                                    )}
+                                    <span className="text-[9px] text-slate-400 font-normal">
+                                      • {new Date(latestWish.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium">
+                                    {latestWish.message}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      /* 🎈 COLLEAGUE INTERACTIVE BIRTHDAY CARD */
+                      <div key={event.eventId} className="p-4 rounded-2xl border border-pink-100 dark:border-slate-800 bg-gradient-to-br from-pink-50/70 via-purple-50/30 to-indigo-50/30 dark:from-slate-800/80 dark:via-slate-850 dark:to-slate-900 shadow-2xs hover:shadow-md transition-all duration-300 space-y-3 relative overflow-hidden">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {event.empImage ? (
+                              <img src={event.empImage} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-pink-500/30 shadow-xs" alt="avatar" />
+                            ) : (
+                              <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-pink-500/30">
+                                {event.employeeName ? event.employeeName.charAt(0) : 'E'}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{event.employeeName}</p>
+                              <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">{event.designation}</p>
+                              <span className="inline-block text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 mt-1">
+                                🎂 Birthday Today
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Interactive Actions Bar */}
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                          <div className="flex items-center gap-2">
+                            {/* Like Button */}
+                            <div className="relative inline-block">
+                              <button
+                                type="button"
+                                onClick={() => handleEmpToggleReaction(event.eventId, 'LIKE')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all duration-200 active:scale-125 flex items-center gap-1.5 cursor-pointer ${
+                                  event.userReaction === 'LIKE'
+                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-200 dark:shadow-none ring-2 ring-rose-300'
+                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 dark:border-slate-700'
+                                }`}
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${event.userReaction === 'LIKE' ? 'fill-current animate-bounce' : ''}`} />
+                                <span>{event.reactionCount > 0 ? event.reactionCount : 'Like'}</span>
+                              </button>
+
+                              {/* Flower Burst Particles */}
+                              {empFlowerBurstEventId === event.eventId && (
+                                <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center overflow-visible">
+                                  {[
+                                    { emoji: '🌸', style: { '--tx': '-35px', '--ty': '-65px', '--rot': '-25deg', animationDelay: '0ms' } },
+                                    { emoji: '🌺', style: { '--tx': '35px', '--ty': '-70px', '--rot': '30deg', animationDelay: '50ms' } },
+                                    { emoji: '💐', style: { '--tx': '-55px', '--ty': '-40px', '--rot': '-45deg', animationDelay: '100ms' } },
+                                    { emoji: '🌷', style: { '--tx': '55px', '--ty': '-45px', '--rot': '40deg', animationDelay: '80ms' } },
+                                    { emoji: '❤️', style: { '--tx': '0px', '--ty': '-80px', '--rot': '0deg', animationDelay: '20ms' } },
+                                    { emoji: '✨', style: { '--tx': '-25px', '--ty': '-85px', '--rot': '-15deg', animationDelay: '120ms' } },
+                                    { emoji: '💖', style: { '--tx': '25px', '--ty': '-90px', '--rot': '20deg', animationDelay: '150ms' } }
+                                  ].map((p, pIdx) => (
+                                    <span
+                                      key={pIdx}
+                                      className="absolute text-xl font-bold pointer-events-none select-none"
+                                      style={{ ...p.style, animation: 'flowerParticleBurst 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' } as React.CSSProperties}
+                                    >
+                                      {p.emoji}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Wish Button */}
+                            <button
+                              type="button"
+                              onClick={() => setEmpOpenWishInputEventId(empOpenWishInputEventId === event.eventId ? null : event.eventId)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>Wish 🎉</span>
+                            </button>
+                          </div>
+
+                          {/* Wish Count Toggle */}
+                          {event.wishCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setEmpExpandedWishesEventId(empExpandedWishesEventId === event.eventId ? null : event.eventId)}
+                              className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 bg-indigo-50/70 dark:bg-indigo-950/50 px-2.5 py-1 rounded-lg cursor-pointer"
+                            >
+                              <span>{event.wishCount} {event.wishCount === 1 ? 'Wish' : 'Wishes'}</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Inline Wish Input */}
+                        {empOpenWishInputEventId === event.eventId && (
+                          <div className="pt-2 flex items-center gap-2 animate-fadeIn">
+                            <input
+                              type="text"
+                              placeholder="Write a happy birthday message..."
+                              value={empWishMessages[event.eventId] || ''}
+                              onChange={(e) => setEmpWishMessages({ ...empWishMessages, [event.eventId]: e.target.value })}
+                              onKeyDown={(e) => e.key === 'Enter' && handleEmpSendWish(event.eventId)}
+                              className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEmpSendWish(event.eventId)}
+                              disabled={empSubmittingWishId === event.eventId || !empWishMessages[event.eventId]?.trim()}
+                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white transition-all flex items-center gap-1 shadow-xs cursor-pointer"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Send</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Expandable Wishes List */}
+                        {empExpandedWishesEventId === event.eventId && event.wishes && event.wishes.length > 0 && (
+                          <div className="pt-2 border-t border-dashed border-slate-200/80 dark:border-slate-800 space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                            {event.wishes.map((w: any) => (
+                              <div key={w.id} className={`p-2 rounded-xl text-xs shadow-2xs ${w.isCelebrantReply ? 'bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800' : 'bg-white/80 dark:bg-slate-800/90 border border-slate-100 dark:border-slate-700/60'}`}>
+                                <div className="flex items-center justify-between gap-1 text-[10.5px] font-bold text-slate-800 dark:text-slate-200">
+                                  <div className="flex items-center gap-1.5">
+                                    {w.senderEmpImage ? (
+                                      <img src={w.senderEmpImage} alt={w.senderName} className="w-4 h-4 rounded-full object-cover" />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[9px] flex items-center justify-center font-bold">
+                                        {w.senderName ? w.senderName.charAt(0) : 'U'}
+                                      </div>
+                                    )}
+                                    <span>{w.senderName}</span>
+                                    {w.isCelebrantReply && (
+                                      <span className="px-1.5 py-0.2 text-[8px] font-black bg-amber-500 text-white rounded-md">
+                                        🌟 Thank You Note
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[9.5px] text-slate-400 font-normal">
+                                    {new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <p className="text-[11.5px] text-slate-700 dark:text-slate-300 font-medium mt-1 pl-5">
+                                  {w.message}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
-        {/* 2. Today's Work Anniversaries */}
-        <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-7 shadow-sm text-left flex flex-col justify-between overflow-hidden min-h-[220px] transition-all duration-300 hover:shadow-md">
+        {/* 2. Today's Work Anniversaries Card Container */}
+        <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm text-left flex flex-col justify-between overflow-hidden min-h-[220px] transition-all duration-300 hover:shadow-md">
           <div>
-            <div className="flex items-center gap-3.5 mb-5 pb-3.5 border-b border-slate-100 dark:border-slate-800">
-              <div className="w-11 h-11 rounded-2xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center text-xl font-bold shadow-2xs">
-                🎖️
-              </div>
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 font-outfit">
-                  TODAY'S WORK ANNIVERSARIES
-                </h4>
-                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Recognize dedication & loyalty</p>
-              </div>
-            </div>
-
-            {/* Today's Anniversaries List/Marquee */}
-            {getAnniversariesToday().length > 0 ? (
-              <div className="overflow-hidden w-full py-2">
-                <div className="animate-marquee gap-3.5 flex">
-                  {[...getAnniversariesToday(), ...getAnniversariesToday(), ...getAnniversariesToday()].map((item, idx) => (
-                    <div key={idx} className="w-[270px] shrink-0 flex items-center justify-between gap-3 p-4 rounded-2xl bg-purple-500/5 dark:bg-slate-800/60 border border-purple-500/20 dark:border-slate-800 shadow-2xs hover:shadow-xs transition-all">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        {item.image ? (
-                          <img src={item.image} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-purple-500/30 shadow-xs" alt="avatar" />
-                        ) : (
-                          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-purple-500/30">
-                            {item.name.charAt(0)}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{item.name}</p>
-                          <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">{item.designation}</p>
-                          <span className="inline-block text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 mt-1">
-                            🎖️ {item.years} Yrs Today
-                          </span>
-                        </div>
-                      </div>
-
-                      <button className="text-[10px] font-black px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border-0 shadow-md transition-all cursor-pointer shrink-0 active:scale-95">
-                        Wish 👏
-                      </button>
-                    </div>
-                  ))}
+            <div className="flex items-center justify-between mb-4 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center text-xl font-bold shadow-2xs">
+                  🎖️
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 font-outfit">
+                    TODAY'S WORK ANNIVERSARIES
+                  </h4>
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Recognize dedication & loyalty</p>
                 </div>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <span className="text-4xl mb-2.5">🎖️</span>
-                <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">No work anniversaries today</p>
-                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Recognizing team dedication and loyalty!</p>
-              </div>
-            )}
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-900/50">
+                Milestones 🏆
+              </span>
+            </div>
+
+            {/* Anniversaries List Content */}
+            {(() => {
+              const annivEvents = empTodayEvents.filter(e => e.eventType === 'ANNIVERSARY');
+              const hasEvents = annivEvents.length > 0;
+              const localAnniversaries = getAnniversariesToday();
+
+              if (empEventsLoading) {
+                return (
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 animate-pulse space-y-3">
+                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                    <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-xl w-full" />
+                  </div>
+                );
+              }
+
+              if (!hasEvents && localAnniversaries.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <span className="text-4xl mb-2.5">🎖️</span>
+                    <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">No work anniversaries today</p>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold mt-1">Recognizing team dedication and loyalty!</p>
+                  </div>
+                );
+              }
+
+              // Combine backend events or construct cards from localAnniversaries
+              const eventsToRender = hasEvents ? annivEvents : localAnniversaries.map((la, idx) => ({
+                eventId: `local-anniv-${idx}`,
+                employeeId: `emp-anniv-${idx}`,
+                employeeName: la.name,
+                designation: la.designation,
+                empImage: la.image,
+                eventType: 'ANNIVERSARY',
+                reactionCount: 0,
+                wishCount: 0,
+                wishes: [],
+                reactions: [],
+                years: la.years
+              }));
+
+              return (
+                <div className="space-y-4">
+                  {eventsToRender.map((event: any) => {
+                    const isMyEvent = (me?.id && me.id === event.employeeId) || 
+                                     (me?.email && event.employeeName?.toLowerCase().includes(me.first_name?.toLowerCase()));
+
+                    return isMyEvent ? (
+                      /* 🏆 CELEBRANT SPECIAL HERO BANNER FOR WORK ANNIVERSARY PERSON */
+                      <div key={event.eventId} className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/15 via-purple-500/10 to-indigo-500/15 border-2 border-amber-500/50 shadow-md shadow-amber-500/10 animate-fade-up space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 to-purple-600 text-white font-extrabold text-lg flex items-center justify-center shadow-md animate-bounce">
+                              🏆
+                            </div>
+                            <div>
+                              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-600 text-white shadow-xs">
+                                🎖️ HAPPY WORK ANNIVERSARY! 🏆
+                              </span>
+                              <h4 className="text-xs font-black text-slate-900 dark:text-white font-outfit mt-1">
+                                Congratulations, {event.employeeName}!
+                              </h4>
+                              <p className="text-[10.5px] font-semibold text-slate-600 dark:text-slate-300">
+                                Received <span className="font-extrabold text-purple-600 dark:text-purple-400">{event.wishCount} wishes</span> & <span className="font-extrabold text-amber-600 dark:text-amber-400">{event.reactionCount} likes</span> ❤️
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setCelebrantModalEvent(event)}
+                            className="px-3 py-1.5 rounded-xl text-[10.5px] font-black bg-amber-600 hover:bg-amber-700 text-white shadow-xs flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                          >
+                            <span>👥 View Wishers ({event.wishCount + event.reactionCount})</span>
+                          </button>
+                        </div>
+
+                        {/* Quick Thank-You Reply Block */}
+                        <div className="p-3 rounded-xl bg-white/95 dark:bg-slate-900/95 border border-amber-200/80 dark:border-amber-900/50 space-y-2">
+                          <p className="text-[10.5px] font-extrabold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                            <span>💌</span> Send a Thank You reply to your team:
+                          </p>
+
+                          {/* Quick Presets */}
+                          <div className="flex flex-wrap gap-1">
+                            {[
+                              "Thank you team for celebrating my work anniversary! ❤️",
+                              "Proud & grateful to be part of Brihaspathi family! 🙏✨",
+                              "Thanks a lot for all the encouragement! 🏆"
+                            ].map((preset, pIdx) => (
+                              <button
+                                key={pIdx}
+                                type="button"
+                                onClick={() => handleEmpSendWish(event.eventId, preset)}
+                                className="text-[9.5px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/70 hover:bg-amber-100 transition-all cursor-pointer"
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Custom Input */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <input
+                              type="text"
+                              placeholder="Write a thank you message..."
+                              value={empWishMessages[event.eventId] || ''}
+                              onChange={(e) => setEmpWishMessages({ ...empWishMessages, [event.eventId]: e.target.value })}
+                              onKeyDown={(e) => e.key === 'Enter' && handleEmpSendWish(event.eventId)}
+                              className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-800 text-slate-900 dark:text-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEmpSendWish(event.eventId)}
+                              disabled={empSubmittingWishId === event.eventId || !empWishMessages[event.eventId]?.trim()}
+                              className="px-3 py-1.5 rounded-xl text-xs font-black bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>Reply 💌</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Celebrant Wishes Feed - Shows latest 1 wish with Left/Right Chat Bubble & You Label */}
+                        {event.wishes && event.wishes.length > 0 && (() => {
+                          const latestWish = event.wishes[0];
+                          const isLoggedUser = latestWish.isCelebrantReply || 
+                                               (me?.id && latestWish.senderEmpId === me.id) || 
+                                               (me?.email && latestWish.senderEmail?.toLowerCase() === me.email?.toLowerCase()) ||
+                                               (me?.first_name && latestWish.senderName?.toLowerCase().includes(me.first_name?.toLowerCase()));
+
+                          return (
+                            <div className="pt-2 border-t border-amber-200/60 dark:border-amber-950 space-y-1.5">
+                              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                                <span>Recent Team Wish ({event.wishes.length}):</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setCelebrantModalEvent(event)}
+                                  className="text-[9.5px] font-extrabold text-amber-600 hover:underline cursor-pointer"
+                                >
+                                  View All ({event.wishes.length}) ➔
+                                </button>
+                              </div>
+                              <div className={`flex ${isLoggedUser ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[90%] p-2.5 rounded-xl text-xs space-y-0.5 border ${
+                                  isLoggedUser 
+                                    ? 'bg-gradient-to-r from-amber-500/15 to-purple-500/15 border-amber-400/60 dark:border-amber-800 text-right' 
+                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-left shadow-2xs'
+                                }`}>
+                                  <div className={`flex items-center gap-1.5 text-[10px] font-black ${isLoggedUser ? 'justify-end' : 'justify-start'}`}>
+                                    {isLoggedUser ? (
+                                      <span className="px-1.5 py-0.2 rounded bg-amber-600 text-white text-[8.5px] uppercase font-black">You 🌟</span>
+                                    ) : (
+                                      <span className="text-slate-800 dark:text-slate-100">{latestWish.senderName}</span>
+                                    )}
+                                    <span className="text-[9px] text-slate-400 font-normal">
+                                      • {new Date(latestWish.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium">
+                                    {latestWish.message}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      /* 🎖️ COLLEAGUE INTERACTIVE WORK ANNIVERSARY CARD */
+                      <div key={event.eventId} className="p-4 rounded-2xl border border-purple-100 dark:border-slate-800 bg-gradient-to-br from-purple-50/70 via-indigo-50/30 to-amber-50/30 dark:from-slate-800/80 dark:via-slate-850 dark:to-slate-900 shadow-2xs hover:shadow-md transition-all duration-300 space-y-3 relative overflow-hidden">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {event.empImage ? (
+                              <img src={event.empImage} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-purple-500/30 shadow-xs" alt="avatar" />
+                            ) : (
+                              <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-purple-500/30">
+                                {event.employeeName ? event.employeeName.charAt(0) : 'E'}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{event.employeeName}</p>
+                              <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">{event.designation}</p>
+                              <span className="inline-block text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 mt-1">
+                                🎖️ {event.years ? `${event.years} Yrs` : ''} Work Anniversary Today
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Interactive Actions Bar */}
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                          <div className="flex items-center gap-2">
+                            {/* Like Button */}
+                            <div className="relative inline-block">
+                              <button
+                                type="button"
+                                onClick={() => handleEmpToggleReaction(event.eventId, 'LIKE')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all duration-200 active:scale-125 flex items-center gap-1.5 cursor-pointer ${
+                                  event.userReaction === 'LIKE'
+                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-200 dark:shadow-none ring-2 ring-rose-300'
+                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 dark:border-slate-700'
+                                }`}
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${event.userReaction === 'LIKE' ? 'fill-current animate-bounce' : ''}`} />
+                                <span>{event.reactionCount > 0 ? event.reactionCount : 'Like'}</span>
+                              </button>
+
+                              {/* Flower Burst Particles */}
+                              {empFlowerBurstEventId === event.eventId && (
+                                <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center overflow-visible">
+                                  {[
+                                    { emoji: '🌸', style: { '--tx': '-35px', '--ty': '-65px', '--rot': '-25deg', animationDelay: '0ms' } },
+                                    { emoji: '🌺', style: { '--tx': '35px', '--ty': '-70px', '--rot': '30deg', animationDelay: '50ms' } },
+                                    { emoji: '💐', style: { '--tx': '-55px', '--ty': '-40px', '--rot': '-45deg', animationDelay: '100ms' } },
+                                    { emoji: '🌷', style: { '--tx': '55px', '--ty': '-45px', '--rot': '40deg', animationDelay: '80ms' } },
+                                    { emoji: '❤️', style: { '--tx': '0px', '--ty': '-80px', '--rot': '0deg', animationDelay: '20ms' } },
+                                    { emoji: '✨', style: { '--tx': '-25px', '--ty': '-85px', '--rot': '-15deg', animationDelay: '120ms' } },
+                                    { emoji: '💖', style: { '--tx': '25px', '--ty': '-90px', '--rot': '20deg', animationDelay: '150ms' } }
+                                  ].map((p, pIdx) => (
+                                    <span
+                                      key={pIdx}
+                                      className="absolute text-xl font-bold pointer-events-none select-none"
+                                      style={{ ...p.style, animation: 'flowerParticleBurst 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' } as React.CSSProperties}
+                                    >
+                                      {p.emoji}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Wish Button */}
+                            <button
+                              type="button"
+                              onClick={() => setEmpOpenWishInputEventId(empOpenWishInputEventId === event.eventId ? null : event.eventId)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>Wish 👏</span>
+                            </button>
+                          </div>
+
+                          {/* Wish Count Toggle */}
+                          {event.wishCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setEmpExpandedWishesEventId(empExpandedWishesEventId === event.eventId ? null : event.eventId)}
+                              className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 bg-indigo-50/70 dark:bg-indigo-950/50 px-2.5 py-1 rounded-lg cursor-pointer"
+                            >
+                              <span>{event.wishCount} {event.wishCount === 1 ? 'Wish' : 'Wishes'}</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Inline Wish Input */}
+                        {empOpenWishInputEventId === event.eventId && (
+                          <div className="pt-2 flex items-center gap-2 animate-fadeIn">
+                            <input
+                              type="text"
+                              placeholder="Write congratulations message..."
+                              value={empWishMessages[event.eventId] || ''}
+                              onChange={(e) => setEmpWishMessages({ ...empWishMessages, [event.eventId]: e.target.value })}
+                              onKeyDown={(e) => e.key === 'Enter' && handleEmpSendWish(event.eventId)}
+                              className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEmpSendWish(event.eventId)}
+                              disabled={empSubmittingWishId === event.eventId || !empWishMessages[event.eventId]?.trim()}
+                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white transition-all flex items-center gap-1 shadow-xs cursor-pointer"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Send</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Expandable Wishes List */}
+                        {empExpandedWishesEventId === event.eventId && event.wishes && event.wishes.length > 0 && (
+                          <div className="pt-2 border-t border-dashed border-slate-200/80 dark:border-slate-800 space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                            {event.wishes.map((w: any) => (
+                              <div key={w.id} className={`p-2 rounded-xl text-xs shadow-2xs ${w.isCelebrantReply ? 'bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800' : 'bg-white/80 dark:bg-slate-800/90 border border-slate-100 dark:border-slate-700/60'}`}>
+                                <div className="flex items-center justify-between gap-1 text-[10.5px] font-bold text-slate-800 dark:text-slate-200">
+                                  <div className="flex items-center gap-1.5">
+                                    {w.senderEmpImage ? (
+                                      <img src={w.senderEmpImage} alt={w.senderName} className="w-4 h-4 rounded-full object-cover" />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[9px] flex items-center justify-center font-bold">
+                                        {w.senderName ? w.senderName.charAt(0) : 'U'}
+                                      </div>
+                                    )}
+                                    <span>{w.senderName}</span>
+                                    {w.isCelebrantReply && (
+                                      <span className="px-1.5 py-0.2 text-[8px] font-black bg-amber-500 text-white rounded-md">
+                                        🌟 Thank You Note
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[9.5px] text-slate-400 font-normal">
+                                    {new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <p className="text-[11.5px] text-slate-700 dark:text-slate-300 font-medium mt-1 pl-5">
+                                  {w.message}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -2796,6 +3548,213 @@ function EmployeeDashboard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* 🎁 CELEBRANT WISHERS & LIKES POPUP MODAL FOR EMPLOYEE DASHBOARD (PORTAL TO BODY TO COVER SIDEBAR & HEADER 100%) */}
+      {celebrantModalEvent && mounted && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 relative overflow-hidden max-h-[90vh] flex flex-col justify-between z-[1000000]">
+            
+            {/* Modal Header */}
+            <div>
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-600 text-white flex items-center justify-center text-2xl font-bold shadow-md animate-bounce">
+                    {celebrantModalEvent.eventType === 'BIRTHDAY' ? '🎂' : '🏆'}
+                  </div>
+                  <div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20">
+                      ✨ {celebrantModalEvent.eventType === 'BIRTHDAY' ? 'BIRTHDAY CELEBRATION' : 'WORK ANNIVERSARY'}
+                    </span>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white font-outfit mt-1">
+                      Colleagues Who Wished {celebrantModalEvent.employeeName}
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCelebrantModalEvent(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-500 dark:text-slate-400 flex items-center justify-center font-black text-xs transition-all cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Stats Row */}
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="p-3 rounded-2xl bg-pink-50 dark:bg-pink-950/40 border border-pink-200 dark:border-pink-900/50 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-pink-500 text-white flex items-center justify-center text-base shadow-xs">
+                    💌
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-pink-600 dark:text-pink-400 uppercase tracking-wider">Total Wishes</p>
+                    <p className="text-lg font-black text-pink-700 dark:text-pink-300 font-outfit">{celebrantModalEvent.wishCount || 0}</p>
+                  </div>
+                </div>
+                <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-500 text-white flex items-center justify-center text-base shadow-xs">
+                    ❤️
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">Total Likes</p>
+                    <p className="text-lg font-black text-rose-700 dark:text-rose-300 font-outfit">{celebrantModalEvent.reactionCount || 0}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Scrollable Content */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar min-h-[200px]">
+              {/* Section 1: Wishes & Conversation */}
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                  <span>💬</span> Wishes & Conversation ({celebrantModalEvent.wishes?.length || 0})
+                </h4>
+                {celebrantModalEvent.wishes && celebrantModalEvent.wishes.length > 0 ? (
+                  <div className="space-y-3.5">
+                    {[...celebrantModalEvent.wishes]
+                      .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                      .map((w: any) => {
+                      const isLoggedUser = w.isCelebrantReply || 
+                                           (me?.id && w.senderEmpId === me.id) || 
+                                           (me?.email && w.senderEmail?.toLowerCase() === me.email?.toLowerCase()) ||
+                                           (me?.first_name && w.senderName?.toLowerCase().includes(me.first_name?.toLowerCase()));
+
+                      return isLoggedUser ? (
+                        /* 🌟 RIGHT ALIGNED CHAT BUBBLE FOR LOGGED IN USER (YOU) */
+                        <div key={w.id} className="flex flex-col items-end animate-fadeIn">
+                          <div className="max-w-[85%] p-3 rounded-2xl rounded-tr-xs bg-gradient-to-br from-pink-500/15 via-purple-500/10 to-indigo-500/15 dark:from-pink-950/60 dark:to-indigo-950/60 border-2 border-pink-400/60 dark:border-pink-800/80 shadow-xs text-xs space-y-1">
+                            <div className="flex items-center justify-end gap-2 border-b border-pink-200/50 dark:border-pink-900/40 pb-1.5">
+                              <span className="text-[10px] text-slate-400 dark:text-slate-400 font-semibold">
+                                {new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <span className="px-2 py-0.5 text-[8.5px] font-black bg-pink-600 text-white rounded-full uppercase shadow-2xs">
+                                You 🌟
+                              </span>
+                              {w.senderEmpImage ? (
+                                <img src={w.senderEmpImage} alt="You" className="w-6 h-6 rounded-full object-cover ring-2 ring-pink-400" />
+                              ) : (
+                                <div className="w-6 h-6 rounded-full bg-pink-600 text-white text-[10px] flex items-center justify-center font-bold">
+                                  Y
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-[12px] text-slate-800 dark:text-slate-100 font-medium pt-1 text-right leading-relaxed">
+                              {w.message?.split(' ').map((word: string, i: number) => {
+                                if (word.startsWith('@')) {
+                                  return (
+                                    <span key={i} className="inline-block px-1.5 py-0.5 rounded-md bg-pink-500/20 text-pink-700 dark:text-pink-300 font-black text-[11px] mr-1">
+                                      {word}{' '}
+                                    </span>
+                                  );
+                                }
+                                return word + ' ';
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        /* 💬 LEFT ALIGNED CHAT BUBBLE FOR COLLEAGUES */
+                        <div key={w.id} className="flex flex-col items-start animate-fadeIn">
+                          <div className="max-w-[85%] p-3 rounded-2xl rounded-tl-xs bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-xs text-xs space-y-1">
+                            <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                              <div className="flex items-center gap-2">
+                                {w.senderEmpImage ? (
+                                  <img src={w.senderEmpImage} alt={w.senderName} className="w-6 h-6 rounded-full object-cover ring-1 ring-slate-300" />
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-bold">
+                                    {w.senderName ? w.senderName.charAt(0) : 'U'}
+                                  </div>
+                                )}
+                                <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11.5px]">{w.senderName}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-slate-400 dark:text-slate-400 font-semibold">
+                                  {new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentText = empWishMessages[celebrantModalEvent.eventId] || '';
+                                    const mentionTag = `@${w.senderName} `;
+                                    if (!currentText.includes(mentionTag)) {
+                                      setEmpWishMessages({ ...empWishMessages, [celebrantModalEvent.eventId]: mentionTag + currentText });
+                                    }
+                                  }}
+                                  className="px-2.5 py-0.5 rounded-full text-[9.5px] font-black bg-pink-500/10 text-pink-600 dark:text-pink-400 hover:bg-pink-500/20 border border-pink-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                                >
+                                  Reply ↩️
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-[12px] text-slate-700 dark:text-slate-300 font-medium pt-1 leading-relaxed">
+                              {w.message}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-xs font-semibold text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+                    No wish messages received yet. Be the first to send a wish!
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Reactions & Likes */}
+              {celebrantModalEvent.reactions && celebrantModalEvent.reactions.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                    <span>❤️</span> People Who Liked ({celebrantModalEvent.reactions.length})
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {celebrantModalEvent.reactions.map((r: any, rIdx: number) => (
+                      <div key={rIdx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 flex items-center gap-2 text-xs">
+                        {r.senderEmpImage ? (
+                          <img src={r.senderEmpImage} alt={r.senderName} className="w-6 h-6 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center font-bold">
+                            {r.senderName ? r.senderName.charAt(0) : 'U'}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-extrabold text-slate-800 dark:text-slate-200 text-[11px] truncate">{r.senderName}</p>
+                        </div>
+                        <span className="text-sm">❤️</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Broadcast Thank-You Footer */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+              <p className="text-[10.5px] font-extrabold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <span>💌</span> Reply to your team:
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Send a thank you note..."
+                  value={empWishMessages[celebrantModalEvent.eventId] || ''}
+                  onChange={(e) => setEmpWishMessages({ ...empWishMessages, [celebrantModalEvent.eventId]: e.target.value })}
+                  onKeyDown={(e) => e.key === 'Enter' && handleEmpSendWish(celebrantModalEvent.eventId)}
+                  className="flex-1 px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-950 border border-pink-300 dark:border-pink-800 text-slate-900 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleEmpSendWish(celebrantModalEvent.eventId)}
+                  className="px-4 py-2 rounded-xl text-xs font-black bg-pink-600 hover:bg-pink-700 text-white shadow-xs transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <span>Send 💌</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>

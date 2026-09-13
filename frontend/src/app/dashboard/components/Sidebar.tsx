@@ -53,25 +53,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [openGroupKey, setOpenGroupKey] = useState<string>('');
   const [userInteracted, setUserInteracted] = useState<boolean>(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallModal, setShowInstallModal] = useState<boolean>(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).deferredPwaPrompt) {
+      setDeferredPrompt((window as any).deferredPwaPrompt);
+    }
+
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
+      if (typeof window !== 'undefined') {
+        (window as any).deferredPwaPrompt = e;
+      }
       setDeferredPrompt(e);
     };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
   }, []);
 
   const handleInstallPWA = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
+    const activePrompt = deferredPrompt || (typeof window !== 'undefined' ? (window as any).deferredPwaPrompt : null);
+    if (activePrompt) {
+      try {
+        activePrompt.prompt();
+        const choice = await activePrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          setDeferredPrompt(null);
+          if (typeof window !== 'undefined') (window as any).deferredPwaPrompt = null;
+        }
+      } catch (err) {
+        console.error('PWA prompt error:', err);
+        setShowInstallModal(true);
       }
     } else {
-      alert('📱 To Download & Install Brihaspathi HRMS App:\n\n1. On Android / Chrome: Tap menu ⋮ -> "Install App" or "Add to Home Screen"\n2. On iPhone / Safari: Tap Share 🔗 -> "Add to Home Screen"');
+      setShowInstallModal(true);
     }
   };
 
@@ -439,6 +455,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!sidebarCollapsed && <span className="text-xs font-bold font-sidebar">Collapse Menu</span>}
         </button>
       </div>
+
+      {/* 📱 PWA Install Guide Modal (Fallback for devices/browsers where auto prompt is restricted) */}
+      {showInstallModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-800 dark:text-slate-100 relative">
+            <button
+              onClick={() => setShowInstallModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 transition-colors"
+            >
+              ✕
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-blue-600/10 text-blue-600 flex items-center justify-center text-2xl font-black">
+                📱
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Install HRMS App</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Add Brihaspathi HRMS to your home screen</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs">
+              <div className="flex items-start gap-2.5">
+                <span className="font-bold text-blue-600 dark:text-blue-400">1.</span>
+                <span><strong>Android / Chrome:</strong> Tap browser menu <strong className="font-mono">⋮</strong> → Select <strong>"Install App"</strong> or <strong>"Add to Home Screen"</strong>.</span>
+              </div>
+              <div className="flex items-start gap-2.5 border-t border-slate-200/60 dark:border-slate-700/60 pt-2.5">
+                <span className="font-bold text-blue-600 dark:text-blue-400">2.</span>
+                <span><strong>iPhone / Safari:</strong> Tap Share button <strong className="font-mono">🔗</strong> → Select <strong>"Add to Home Screen"</strong>.</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowInstallModal(false)}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md shadow-blue-600/20"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </aside>
   );
 };

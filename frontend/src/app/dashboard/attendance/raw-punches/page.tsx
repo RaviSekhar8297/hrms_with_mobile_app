@@ -306,7 +306,7 @@ export default function RawPunchLogsPage() {
       />
 
       {/* HEADER & SEARCH CONTROLS */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3.5 bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
         <div>
           <h2 className="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <span>🔌</span> Biometric & Device Raw Punch Logs
@@ -316,9 +316,9 @@ export default function RawPunchLogsPage() {
           </p>
         </div>
 
-        {/* CONTROLS: 1. Search Box (First) -> 2. Dates -> 3. Mark Attendance (If permission) -> 4. Scope Dropdown */}
+        {/* CONTROLS: 1. Search Box -> 2. Dates -> 3. Upload -> 4. Mark */}
         <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-          {/* 1. SEARCH BOX (First as requested) */}
+          {/* 1. SEARCH BOX */}
           <div className="relative w-full sm:w-52">
             <input
               type="text"
@@ -346,7 +346,7 @@ export default function RawPunchLogsPage() {
             />
           </div>
 
-          {/* 3. UPLOAD CSV BUTTON (Only if canCreate is true) */}
+          {/* 3. UPLOAD BUTTON */}
           {canCreate && (
             <button
               type="button"
@@ -354,18 +354,18 @@ export default function RawPunchLogsPage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5" />
-              <span>Upload CSV</span>
+              <span>Upload</span>
             </button>
           )}
 
-          {/* 4. MARK ATTENDANCE BUTTON */}
+          {/* 4. MARK BUTTON */}
           {canCreate && (
             <Link
               href="/dashboard/attendance"
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
             >
               <span>⏱️</span>
-              <span>Mark Attendance</span>
+              <span>Mark</span>
             </Link>
           )}
         </div>
