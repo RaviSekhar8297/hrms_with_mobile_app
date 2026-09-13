@@ -1,0 +1,18 @@
+{
+  "name": "Brihaspathi Enterprise HRMS",
+  "short_name": "Brihaspathi HRMS",
+  "description": "Brihaspathi Technologies Enterprise HRMS Platform with Live Attendance & Location Tracking",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/globe.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
