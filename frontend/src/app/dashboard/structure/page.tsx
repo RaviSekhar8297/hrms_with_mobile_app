@@ -107,7 +107,11 @@ export default function PayrollStructurePage() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(25);
+
+  const formatAmount = (val: number) => {
+    return (val || 0).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  };
 
   // Off-Canvas Drawer states for Create / Edit
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1027,43 +1031,43 @@ export default function PayrollStructurePage() {
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider text-[9.5px] bg-slate-100 dark:bg-slate-900 sticky top-0 z-20">
                   {/* STICKY ACTIONS COLUMN */}
                   {canPerformActions && (
-                    <th className="py-3.5 px-3.5 sticky left-0 z-30 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-[95px] min-w-[95px]">Actions</th>
+                    <th className="py-3.5 px-3.5 sticky top-0 left-0 z-40 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-[95px] min-w-[95px]">Actions</th>
                   )}
                   {/* STICKY EMPLOYEE COLUMN (Name on top, Emp ID underneath) */}
-                  <th className={`py-3.5 px-3.5 sticky z-30 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 min-w-[180px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>Employee</th>
-                  <th className="py-3.5 px-3.5">DOJ</th>
-                  <th className="py-3.5 px-3.5 text-right">Annual Salary (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Monthly Salary (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Basic (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">HRA (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">CA (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">MA (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">SA (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Other Allowance (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Meal Coupons (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Reimbursements (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Employee PF (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Employee ESI (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Prof. Tax (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Employer PF (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Employer ESI (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Variable Pay (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Retention Bonus (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Net Salary (₹)</th>
-                  <th className="py-3.5 px-3.5 text-right">Monthly CTC (₹)</th>
-                  <th className="py-3.5 px-3.5 text-center">PF Check</th>
-                  <th className="py-3.5 px-3.5 text-center">ESI Check</th>
-                  <th className="py-3.5 px-3.5 text-center">PT Check</th>
-                  <th className="py-3.5 px-3.5 text-center">Retention Bonus</th>
-                  <th className="py-3.5 px-3.5 text-center">Variable Pay</th>
-                  <th className="py-3.5 px-3.5 text-right">Retention %</th>
-                  <th className="py-3.5 px-3.5 text-right">Variable %</th>
-                  <th className="py-3.5 px-3.5 text-center">Year</th>
-                  <th className="py-3.5 px-3.5">Effective From</th>
-                  <th className="py-3.5 px-3.5">Effective To</th>
-                  <th className="py-3.5 px-3.5">Tax Regime</th>
-                  <th className="py-3.5 px-3.5">Created At</th>
-                  <th className="py-3.5 px-3.5 text-center">Status</th>
+                  <th className={`py-3.5 px-3.5 sticky top-0 z-40 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 min-w-[180px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>Employee</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900">DOJ</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Annual Salary (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Monthly Salary (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Basic (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">HRA (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">CA (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">MA (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">SA (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Other Allowance (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Meal Coupons (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Reimbursements (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Employee PF (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Employee ESI (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Prof. Tax (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Employer PF (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Employer ESI (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Variable Pay (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Retention Bonus (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Net Salary (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Monthly CTC (₹)</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-center">PF Check</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-center">ESI Check</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-center">PT Check</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-center">Retention Bonus</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-center">Variable Pay</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Retention %</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-right">Variable %</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-center">Year</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900">Effective From</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900">Effective To</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900">Tax Regime</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900">Created At</th>
+                  <th className="py-3.5 px-3.5 sticky top-0 z-20 bg-slate-100 dark:bg-slate-900 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs font-medium">
@@ -1144,25 +1148,25 @@ export default function PayrollStructurePage() {
                       </div>
                     </td>
                     <td className="py-2.5 px-3.5 font-medium text-slate-500 dark:text-slate-400">{s.doj || '-'}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-800 dark:text-slate-200">₹{s.salaryPerAnnum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400">₹{s.salaryPerMonth.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.basic.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.hra.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.ca.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.ma.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.sa.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.otherAllowance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.mealFoodCoupons.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.telephoneInternetReimbursement.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-rose-600 dark:text-rose-400">₹{s.employeePf.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-rose-600 dark:text-rose-400">₹{s.employeeEsi.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-rose-600 dark:text-rose-400">₹{s.professionalTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.employerPf.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.employerEsi.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.variablePay.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{s.retentionBonus.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-bold text-indigo-600 dark:text-indigo-400">₹{s.netSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-2.5 px-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400">₹{s.monthlyCtc.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-800 dark:text-slate-200">₹{formatAmount(s.salaryPerAnnum)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400">₹{formatAmount(s.salaryPerMonth)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.basic)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.hra)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.ca)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.ma)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.sa)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.otherAllowance)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.mealFoodCoupons)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.telephoneInternetReimbursement)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-rose-600 dark:text-rose-400">₹{formatAmount(s.employeePf)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-rose-600 dark:text-rose-400">₹{formatAmount(s.employeeEsi)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-rose-600 dark:text-rose-400">₹{formatAmount(s.professionalTax)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.employerPf)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.employerEsi)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.variablePay)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.retentionBonus)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-bold text-indigo-600 dark:text-indigo-400">₹{formatAmount(s.netSalary)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400">₹{formatAmount(s.monthlyCtc)}</td>
 
                     
                     {/* PFCheck Toggle */}

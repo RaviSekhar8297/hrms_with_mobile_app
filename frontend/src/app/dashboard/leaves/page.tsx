@@ -5,10 +5,11 @@ import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
+import SearchableSelect from '../components/SearchableSelect';
+import { Edit3, Trash2 } from 'lucide-react';
 
 export default function LeaveTypesAndLogsPage() {
-  const { showToast } = useDashboard();
-  const [companyId, setCompanyId] = useState<string | null>(null);
+  const { showToast, companyId } = useDashboard();
 
   const [activeTab, setActiveTab] = useState<'types' | 'transactions'>('types');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,9 +19,13 @@ export default function LeaveTypesAndLogsPage() {
   const [transactionLogs, setTransactionLogs] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
 
-  // Drawers
+  // Drawers & Modals
   const [typeDrawerOpen, setTypeDrawerOpen] = useState(false);
   const [transactionDrawerOpen, setTransactionDrawerOpen] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ open: boolean; item: any | null }>({
+    open: false,
+    item: null
+  });
 
   const [editingType, setEditingType] = useState<any | null>(null);
 
@@ -32,21 +37,34 @@ export default function LeaveTypesAndLogsPage() {
     carry_forward_type: 'NONE',
     max_carry_forward: '0',
     is_paid: true,
-    is_wfh: false
+    is_wfh: false,
+    is_active: true
   });
 
   const [transactionForm, setTransactionForm] = useState({
     employee_id: '',
     leave_type_id: '',
+    adjustment_type: 'CREDIT',
     amount: '1',
     transaction_type: 'MANUAL_ADJUSTMENT',
     remarks: ''
   });
 
-  useEffect(() => {
-    const storedCompanyId = localStorage.getItem('companyId');
-    if (storedCompanyId) setCompanyId(storedCompanyId);
-  }, []);
+  const employeeOptions = employees.map(emp => {
+    const fullName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 'Staff Member';
+    const code = emp.emp_id_code || emp.employee_id || emp.emp_code || '';
+    return {
+      value: emp.id,
+      label: code ? `${fullName} (${code})` : fullName
+    };
+  });
+
+  const leaveTypeOptions = leaveTypes
+    .filter(lt => lt.is_active !== false)
+    .map(lt => ({
+      value: lt.id,
+      label: `${lt.name} (${lt.code})`
+    }));
 
   useEffect(() => {
     fetchLeaveTypes();
@@ -58,7 +76,7 @@ export default function LeaveTypesAndLogsPage() {
     setIsLoading(true);
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`/api/v1/leave-types?companyId=${cid}`, {
+      const res = await fetch(`/api/v1/leave-types?companyId=${cid}&includeInactive=true`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -67,6 +85,25 @@ export default function LeaveTypesAndLogsPage() {
       showToast('Error loading leave types', 'error');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (id: string, currentStatus: boolean, name?: string) => {
+    try {
+      const res = await fetch(`/api/v1/leave-types/${id}/toggle-status`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify({ is_active: !currentStatus, companyId: companyId || undefined })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Leave type ${name ? `'${name}' ` : ''}${!currentStatus ? 'activated' : 'deactivated'} successfully`, 'success');
+        fetchLeaveTypes();
+      } else {
+        showToast(data.error || 'Failed to update status', 'error');
+      }
+    } catch (e) {
+      showToast('Connection error', 'error');
     }
   };
 
@@ -110,6 +147,7 @@ export default function LeaveTypesAndLogsPage() {
         headers: getHeaders(),
         body: JSON.stringify({
           ...typeForm,
+          companyId: companyId || undefined,
           allotted_per_year: Number(typeForm.allotted_per_year),
           max_carry_forward: Number(typeForm.max_carry_forward)
         })
@@ -131,7 +169,6 @@ export default function LeaveTypesAndLogsPage() {
   };
 
   const handleDeleteLeaveType = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this leave type?')) return;
     try {
       const res = await fetch(`/api/v1/leave-types/${id}`, {
         method: 'DELETE',
@@ -139,7 +176,8 @@ export default function LeaveTypesAndLogsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast('Leave type deleted', 'success');
+        showToast('Leave type deleted successfully', 'success');
+        setDeleteConfirmModal({ open: false, item: null });
         fetchLeaveTypes();
       } else {
         showToast(data.error || 'Failed to delete leave type', 'error');
@@ -155,20 +193,38 @@ export default function LeaveTypesAndLogsPage() {
       showToast('Please select employee and leave category', 'error');
       return;
     }
+    const numAmount = Math.abs(Number(transactionForm.amount) || 0);
+    if (numAmount <= 0) {
+      showToast('Please enter a valid adjustment amount greater than 0', 'error');
+      return;
+    }
+    const finalAmount = transactionForm.adjustment_type === 'DEBIT' ? -numAmount : numAmount;
+
     setIsSaving(true);
     try {
       const res = await fetch(getUrl('/api/v1/leave-requests'), {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
-          ...transactionForm,
-          amount: Number(transactionForm.amount)
+          employee_id: transactionForm.employee_id,
+          leave_type_id: transactionForm.leave_type_id,
+          amount: finalAmount,
+          transaction_type: transactionForm.transaction_type,
+          remarks: transactionForm.remarks
         })
       });
       const data = await res.json();
       if (res.ok) {
         showToast('Leave transaction posted successfully', 'success');
         setTransactionDrawerOpen(false);
+        setTransactionForm({
+          employee_id: '',
+          leave_type_id: '',
+          adjustment_type: 'CREDIT',
+          amount: '1',
+          transaction_type: 'MANUAL_ADJUSTMENT',
+          remarks: ''
+        });
         fetchTransactionLogs();
       } else {
         showToast(data.error || 'Failed to post transaction', 'error');
@@ -190,7 +246,8 @@ export default function LeaveTypesAndLogsPage() {
       carry_forward_type: lt.carry_forward_type || 'NONE',
       max_carry_forward: String(lt.max_carry_forward || 0),
       is_paid: lt.is_paid !== false,
-      is_wfh: lt.is_wfh === true
+      is_wfh: lt.is_wfh === true,
+      is_active: lt.is_active !== false
     });
     setTypeDrawerOpen(true);
   };
@@ -205,7 +262,8 @@ export default function LeaveTypesAndLogsPage() {
       carry_forward_type: 'NONE',
       max_carry_forward: '0',
       is_paid: true,
-      is_wfh: false
+      is_wfh: false,
+      is_active: true
     });
     setTypeDrawerOpen(true);
   };
@@ -274,7 +332,9 @@ export default function LeaveTypesAndLogsPage() {
               {leaveTypes.map(lt => (
                 <div
                   key={lt.id}
-                  className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                  className={`p-6 rounded-2xl bg-white dark:bg-slate-900 border ${
+                    lt.is_active ? 'border-slate-200 dark:border-slate-800' : 'border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 opacity-90'
+                  } shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -287,20 +347,18 @@ export default function LeaveTypesAndLogsPage() {
                       <span className="text-xs text-slate-400 mt-0.5 block">Accrual: {lt.accrual_type}</span>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={() => openEditType(lt)}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        title="Edit Leave Type"
+                        onClick={() => handleToggleStatus(lt.id, lt.is_active, lt.name)}
+                        className={`px-3 py-1 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                          lt.is_active
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
+                        }`}
+                        title={lt.is_active ? "Click to Deactivate" : "Click to Activate"}
                       >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleDeleteLeaveType(lt.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        title="Delete Leave Type"
-                      >
-                        🗑️
+                        <span className={`w-2 h-2 rounded-full ${lt.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                        <span>{lt.is_active ? 'Active' : 'Inactive'}</span>
                       </button>
                     </div>
                   </div>
@@ -318,17 +376,36 @@ export default function LeaveTypesAndLogsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                      lt.is_paid ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {lt.is_paid ? 'Paid Leave' : 'Unpaid Leave'}
-                    </span>
-                    {lt.is_wfh && (
-                      <span className="px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold">
-                        Work From Home
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                        lt.is_paid ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {lt.is_paid ? 'Paid Leave' : 'Unpaid Leave'}
                       </span>
-                    )}
+                      {lt.is_wfh && (
+                        <span className="px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold">
+                          Work From Home
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => openEditType(lt)}
+                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950 dark:hover:text-indigo-400 transition-all flex items-center justify-center shadow-2xs"
+                        title="Edit Policy"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmModal({ open: true, item: lt })}
+                        className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-all flex items-center justify-center shadow-2xs"
+                        title="Delete Leave Type"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -496,6 +573,25 @@ export default function LeaveTypesAndLogsPage() {
             />
           </div>
 
+          <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+            <div>
+              <span className="text-xs font-extrabold text-slate-800 dark:text-slate-100 block">Policy Status</span>
+              <span className="text-[11px] text-slate-400 block">Enable or disable this leave category</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTypeForm(prev => ({ ...prev, is_active: !prev.is_active }))}
+              className={`px-3 py-1.5 rounded-full text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                typeForm.is_active
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
+                  : 'bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-400 border border-rose-300 dark:border-rose-700'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${typeForm.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+              <span>{typeForm.is_active ? 'Active' : 'Inactive'}</span>
+            </button>
+          </div>
+
           <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="submit"
@@ -524,48 +620,69 @@ export default function LeaveTypesAndLogsPage() {
         <form onSubmit={handlePostTransaction} className="space-y-4 p-4">
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Select Employee *</label>
-            <select
+            <SearchableSelect
+              options={employeeOptions}
               value={transactionForm.employee_id}
-              onChange={e => setTransactionForm(prev => ({ ...prev, employee_id: e.target.value }))}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs"
+              onChange={val => setTransactionForm(prev => ({ ...prev, employee_id: val }))}
+              placeholder="-- Search & Choose Employee --"
               required
-            >
-              <option value="">-- Choose Employee --</option>
-              {employees.map(emp => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.first_name} {emp.last_name} ({emp.email})
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Select Leave Category *</label>
-            <select
+            <SearchableSelect
+              options={leaveTypeOptions}
               value={transactionForm.leave_type_id}
-              onChange={e => setTransactionForm(prev => ({ ...prev, leave_type_id: e.target.value }))}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs"
+              onChange={val => setTransactionForm(prev => ({ ...prev, leave_type_id: val }))}
+              placeholder="-- Search & Choose Category --"
               required
-            >
-              <option value="">-- Choose Category --</option>
-              {leaveTypes.map(lt => (
-                <option key={lt.id} value={lt.id}>
-                  {lt.name} ({lt.code})
-                </option>
-              ))}
-            </select>
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Adjustment Action *</label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setTransactionForm(prev => ({ ...prev, adjustment_type: 'CREDIT' }))}
+                className={`py-2 px-3 text-xs font-extrabold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  transactionForm.adjustment_type === 'CREDIT'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                <span>➕ Add Balance (Credit)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTransactionForm(prev => ({ ...prev, adjustment_type: 'DEBIT' }))}
+                className={`py-2 px-3 text-xs font-extrabold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  transactionForm.adjustment_type === 'DEBIT'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+              >
+                <span>➖ Deduct Balance (Debit)</span>
+              </button>
+            </div>
           </div>
 
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-              Adjustment Amount (Use + for credit, - for debit)
+              Adjustment Days (Amount) *
             </label>
             <input
               type="number"
               step="0.5"
+              min="0.5"
+              placeholder="e.g. 1 or 0.5"
               value={transactionForm.amount}
-              onChange={e => setTransactionForm(prev => ({ ...prev, amount: e.target.value }))}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs"
+              onChange={e => {
+                const val = e.target.value.replace('-', '');
+                setTransactionForm(prev => ({ ...prev, amount: val }));
+              }}
+              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
               required
             />
           </div>
@@ -577,7 +694,7 @@ export default function LeaveTypesAndLogsPage() {
               placeholder="State reason for manual adjustment..."
               value={transactionForm.remarks}
               onChange={e => setTransactionForm(prev => ({ ...prev, remarks: e.target.value }))}
-              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs"
+              className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs"
               required
             />
           </div>
@@ -600,6 +717,42 @@ export default function LeaveTypesAndLogsPage() {
           </div>
         </form>
       </SlideDrawer>
+
+      {/* ⚠️ DELETE CONFIRMATION MODAL */}
+      {deleteConfirmModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center text-lg flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Confirm Deactivation</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Are you sure you want to delete / deactivate <strong className="text-slate-800 dark:text-slate-200">"{deleteConfirmModal.item?.name}"</strong>?
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmModal({ open: false, item: null })}
+                className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteLeaveType(deleteConfirmModal.item?.id)}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-500 shadow-sm transition-colors"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

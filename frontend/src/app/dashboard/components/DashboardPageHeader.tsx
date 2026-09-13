@@ -14,6 +14,7 @@ interface Company {
 interface DashboardPageHeaderProps {
   title: string;
   subtitle?: string;
+  statusBadge?: React.ReactNode;
   actionMessage?: string;
   actionError?: string;
   companies?: Company[];
@@ -30,6 +31,7 @@ interface DashboardPageHeaderProps {
 export default function DashboardPageHeader({
   title,
   subtitle,
+  statusBadge,
   actionMessage,
   actionError,
   companies = [],
@@ -47,11 +49,14 @@ export default function DashboardPageHeader({
       {/* 🚀 HEADER DETAILS CARD */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center rounded-2xl border border-slate-200/60 dark:border-slate-800/80 border-l-4 border-l-blue-600 dark:border-l-blue-500 bg-card p-5 shadow-xs gap-4 transition-all duration-200">
         <div className="text-left">
-          <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 md:text-xl tracking-tight uppercase">{title}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 md:text-xl tracking-tight uppercase">{title}</h2>
+            {statusBadge}
+          </div>
           {subtitle ? (
             <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{subtitle}</p>
           ) : (
-            <p className="mt-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+            <p className="mt-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5 flex-wrap">
               Active Scope: 
               <span className="font-extrabold text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded text-[9px] uppercase tracking-wider">
                 {isSuperAdmin ? 'Master Multi-Tenant Console' : 'Isolated Tenant'}

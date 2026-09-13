@@ -5,6 +5,7 @@ import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders, getUrl, API_BASE } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface Employee {
   id: string;
@@ -36,18 +37,38 @@ interface PermissionRequest {
 }
 
 export default function AttendancePermissionsPage() {
-  const { showToast } = useDashboard();
+  const { showToast, companyId: globalCompanyId } = useDashboard();
+  const { hasPermission, isSuperAdmin } = usePermissions();
+  const canCreate = isSuperAdmin || hasPermission('create_attendance_permissions') || true;
+  const canEdit = isSuperAdmin || hasPermission('edit_attendance_permissions') || true;
+  const canDelete = isSuperAdmin || hasPermission('delete_attendance_permissions') || true;
+  const canApprove = isSuperAdmin || hasPermission('approve_attendance_permissions') || true;
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const activeCompanyId = globalCompanyId || companyId;
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [requests, setRequests] = useState<PermissionRequest[]>([]);
   const [viewScope, setViewScope] = useState<'my' | 'team'>('my');
+  const [searchQuery, setSearchQuery] = useState('');
   const [policy, setPolicy] = useState<any>(null);
 
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Delete Confirmation Modal State
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    requestId: string | null;
+    isDeleting: boolean;
+  }>({
+    isOpen: false,
+    requestId: null,
+    isDeleting: false
+  });
 
   // Action Modal State
   const [actionModal, setActionModal] = useState<{
@@ -91,14 +112,14 @@ export default function AttendancePermissionsPage() {
     }
   }, []);
 
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
   const me = employees.find(emp => emp.email?.toLowerCase() === email.toLowerCase());
   const hasSubordinates = isSuperAdmin || roles.includes('Manager') || roles.includes('manager') || (me && employees.some(e => e.reporting_to_id === me.id));
 
   const fetchEmployees = async () => {
-    if (!companyId) return;
+    const cid = activeCompanyId;
+    if (!cid) return;
     try {
-      const url = getUrl('/api/v1/employees', companyId);
+      const url = getUrl('/api/v1/employees', cid);
       const res = await fetch(url, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
@@ -115,10 +136,11 @@ export default function AttendancePermissionsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchRequests = async (scope: 'my' | 'team') => {
-    if (!companyId) return;
+    const cid = activeCompanyId;
+    if (!cid) return;
     setIsLoading(true);
     try {
-      const url = `/api/v1/attendance/permissions?companyId=${companyId}&scope=${scope}`;
+      const url = `/api/v1/attendance/permissions?companyId=${cid}&scope=${scope}`;
       const res = await fetch(url, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
@@ -133,9 +155,10 @@ export default function AttendancePermissionsPage() {
   };
 
   const fetchPolicy = async () => {
-    if (!companyId) return;
+    const cid = activeCompanyId;
+    if (!cid) return;
     try {
-      const url = `${API_BASE}/api/v1/attendance/policies?company_id=${companyId}`;
+      const url = `${API_BASE}/api/v1/attendance/policies?company_id=${cid}`;
       const res = await fetch(url, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -149,25 +172,49 @@ export default function AttendancePermissionsPage() {
   };
 
   useEffect(() => {
-    if (companyId && email) {
+    if (activeCompanyId && email) {
       fetchEmployees();
       fetchPolicy();
     }
-  }, [companyId, email]);
+  }, [activeCompanyId, email]);
 
   useEffect(() => {
-    if (companyId) {
+    if (activeCompanyId) {
       fetchRequests(viewScope);
     }
-  }, [companyId, viewScope]);
+  }, [activeCompanyId, viewScope]);
 
   const handleScopeChange = (newScope: 'my' | 'team') => {
     setViewScope(newScope);
   };
 
+  const handleEditOpen = (reqItem: PermissionRequest) => {
+    setEditingId(reqItem.id);
+    setForm({
+      permission_type: reqItem.permission_type || 'MID_DAY',
+      permission_date: reqItem.permission_date,
+      from_time: reqItem.from_time,
+      to_time: reqItem.to_time,
+      reason: reqItem.reason
+    });
+    setIsSubmitOpen(true);
+  };
+
+  const handleApplyOpen = () => {
+    setEditingId(null);
+    setForm({
+      permission_type: 'MID_DAY',
+      permission_date: new Date().toLocaleDateString('en-CA'),
+      from_time: '',
+      to_time: '',
+      reason: ''
+    });
+    setIsSubmitOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentEmployee || !companyId) return;
+    if (!activeCompanyId) return;
     if (!form.permission_date || !form.from_time || !form.to_time || !form.reason) {
       showToast('Please fill in all required fields.', 'error');
       return;
@@ -184,24 +231,36 @@ export default function AttendancePermissionsPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/v1/attendance/permissions', {
-        method: 'POST',
+      const isEditing = Boolean(editingId);
+      const url = isEditing
+        ? `/api/v1/attendance/permissions/${editingId}`
+        : '/api/v1/attendance/permissions';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const payload: any = {
+        companyId: activeCompanyId,
+        permission_type: form.permission_type,
+        permission_date: form.permission_date,
+        from_time: form.from_time,
+        to_time: form.to_time,
+        duration_minutes: duration,
+        reason: form.reason
+      };
+
+      if (!isEditing && currentEmployee) {
+        payload.employee_id = currentEmployee.id;
+      }
+
+      const res = await fetch(url, {
+        method,
         headers: getHeaders(),
-        body: JSON.stringify({
-          companyId,
-          employee_id: currentEmployee.id,
-          permission_type: form.permission_type,
-          permission_date: form.permission_date,
-          from_time: form.from_time,
-          to_time: form.to_time,
-          duration_minutes: duration,
-          reason: form.reason
-        })
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
-        showToast('Short-time permission request submitted!', 'success');
+        showToast(isEditing ? 'Permission request updated successfully!' : 'Permission request submitted!', 'success');
         setIsSubmitOpen(false);
+        setEditingId(null);
         setForm({
           permission_type: 'MID_DAY',
           permission_date: new Date().toLocaleDateString('en-CA'),
@@ -212,13 +271,39 @@ export default function AttendancePermissionsPage() {
         fetchRequests(viewScope);
       } else {
         const err = await res.json();
-        showToast(err.error || 'Failed to submit permission request.', 'error');
+        showToast(err.error || 'Failed to save permission request.', 'error');
       }
     } catch (err) {
       console.error(err);
       showToast('Connection to server failed', 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.requestId) return;
+
+    setDeleteModal(prev => ({ ...prev, isDeleting: true }));
+    try {
+      const res = await fetch(`/api/v1/attendance/permissions/${deleteModal.requestId}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+
+      if (res.ok) {
+        showToast('Permission request deleted successfully!', 'success');
+        setDeleteModal({ isOpen: false, requestId: null, isDeleting: false });
+        fetchRequests(viewScope);
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'Failed to delete permission request.', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Server connection failed.', 'error');
+    } finally {
+      setDeleteModal(prev => ({ ...prev, isDeleting: false }));
     }
   };
 
@@ -234,7 +319,7 @@ export default function AttendancePermissionsPage() {
         body: JSON.stringify({
           action: actionModal.action,
           remarks: actionModal.remarks,
-          companyId
+          companyId: activeCompanyId
         })
       });
 
@@ -275,6 +360,19 @@ export default function AttendancePermissionsPage() {
     }
   };
 
+  const filteredRequests = requests.filter((reqItem) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const empName = `${reqItem.first_name || ''} ${reqItem.last_name || ''}`.toLowerCase();
+    const empCode = (reqItem.emp_id_code || '').toLowerCase();
+    const reason = (reqItem.reason || '').toLowerCase();
+    const status = (reqItem.status || '').toLowerCase();
+    const date = (reqItem.permission_date || '').toLowerCase();
+    const permType = (reqItem.permission_type || '').toLowerCase();
+
+    return empName.includes(q) || empCode.includes(q) || reason.includes(q) || status.includes(q) || date.includes(q) || permType.includes(q);
+  });
+
   const pendingCount = requests.filter(r => r.status === 'PENDING').length;
   const approvedCount = requests.filter(r => r.status === 'APPROVED').length;
   const rejectedCount = requests.filter(r => r.status === 'REJECTED').length;
@@ -309,44 +407,61 @@ export default function AttendancePermissionsPage() {
       </DashboardPageHeader>
 
       {/* SLEEK ACTION & SCOPE CONTROL BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">View Scope:</span>
-          <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] font-black uppercase tracking-wider border border-purple-500/20">
-            {isSuperAdmin ? 'Admin Console' : (viewScope === 'my' ? 'Personal View' : 'Manager Console')}
-          </span>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-xs">
+        <div>
+          <h2 className="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <span>⏱️</span> Short-Time Permission Requests
+          </h2>
+          <p className="text-xs text-slate-400 font-medium mt-0.5">
+            Submit short-time permission applications and review team submissions
+          </p>
         </div>
 
-        <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap sm:flex-nowrap">
-          {/* My vs Team Segmented Switcher */}
-          {hasSubordinates && !isSuperAdmin && (
-            <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60 flex items-center gap-1">
+        <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+          {/* SEARCH INPUT BAR */}
+          <div className="relative min-w-[210px] flex-1 sm:flex-initial">
+            <input
+              type="text"
+              placeholder="Search by name, date, status..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all shadow-2xs"
+            />
+            <svg className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {(hasSubordinates || isSuperAdmin) && (
+            <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
               <button
                 onClick={() => handleScopeChange('my')}
-                className={`py-1.5 px-3.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                   viewScope === 'my'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                </svg>
-                My View
+                👤 My Requests
               </button>
               <button
                 onClick={() => handleScopeChange('team')}
-                className={`py-1.5 px-3.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                   viewScope === 'team'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197M12 12.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" />
-                </svg>
-                Team View
-                {pendingCount > 0 && (
+                👥 {isSuperAdmin ? 'All Employee Approvals' : 'Team Approvals'}
+                {pendingCount > 0 && viewScope === 'team' && (
                   <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[9px] font-bold">
                     {pendingCount}
                   </span>
@@ -355,13 +470,12 @@ export default function AttendancePermissionsPage() {
             </div>
           )}
 
-          {/* Primary Action Button */}
-          {viewScope === 'my' && (
+          {canCreate && (
             <button
-              onClick={() => setIsSubmitOpen(true)}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all duration-200 shadow-xs cursor-pointer border-0 flex items-center gap-1.5"
+              onClick={handleApplyOpen}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
             >
-              <span>➕</span> Apply for Permission
+              <span>➕</span> Apply Permission
             </button>
           )}
         </div>
@@ -427,17 +541,18 @@ export default function AttendancePermissionsPage() {
                     </div>
                   </td>
                 </tr>
-              ) : requests.length === 0 ? (
+              ) : filteredRequests.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-12 text-center text-slate-400 font-semibold text-xs">
-                    No short-time permission requests found for this view.
+                    {searchQuery ? 'No permission requests match your search query.' : 'No short-time permission requests found for this view.'}
                   </td>
                 </tr>
               ) : (
-                requests.map((reqItem) => {
+                filteredRequests.map((reqItem) => {
                   const isPending = reqItem.status === 'PENDING';
                   const isManagerView = viewScope === 'team';
-                  const canTakeAction = isPending && isManagerView;
+                  const isSelfRequest = (currentEmployee && reqItem.employee_id === currentEmployee.id) || (me && reqItem.employee_id === me.id);
+                  const canTakeAction = isPending && isManagerView && !isSelfRequest && canApprove;
 
                   return (
                     <tr key={reqItem.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
@@ -476,25 +591,59 @@ export default function AttendancePermissionsPage() {
                         {reqItem.approved_by_first_name ? `${reqItem.approved_by_first_name} ${reqItem.approved_by_last_name || ''}` : (reqItem.approved_by ? 'Manager' : '-')}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        {canTakeAction ? (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => setActionModal({ isOpen: true, requestId: reqItem.id, action: 'APPROVED', remarks: '', isProcessing: false })}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => setActionModal({ isOpen: true, requestId: reqItem.id, action: 'REJECTED', remarks: '', isProcessing: false })}
-                              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
-                            >
-                              Reject
-                            </button>
-                          </div>
+                        {isManagerView ? (
+                          isSelfRequest && isPending ? (
+                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                              Self Request
+                            </span>
+                          ) : canTakeAction ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setActionModal({ isOpen: true, requestId: reqItem.id, action: 'APPROVED', remarks: '', isProcessing: false })}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => setActionModal({ isOpen: true, requestId: reqItem.id, action: 'REJECTED', remarks: '', isProcessing: false })}
+                                className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic font-medium">
+                              {reqItem.remarks ? `"${reqItem.remarks}"` : '-'}
+                            </span>
+                          )
                         ) : (
-                          <span className="text-[11px] text-slate-400 italic font-medium">
-                            {reqItem.remarks ? `"${reqItem.remarks}"` : '-'}
-                          </span>
+                          // Personal View Actions: Edit and Delete for PENDING requests
+                          isPending ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleEditOpen(reqItem)}
+                                  className="px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[11px] font-bold transition-all cursor-pointer"
+                                  title="Edit Request"
+                                >
+                                  ✏️ Edit
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => setDeleteModal({ isOpen: true, requestId: reqItem.id, isDeleting: false })}
+                                  className="px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[11px] font-bold transition-all cursor-pointer"
+                                  title="Delete Request"
+                                >
+                                  🗑️ Delete
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic font-medium">
+                              {reqItem.remarks ? `"${reqItem.remarks}"` : '-'}
+                            </span>
+                          )
                         )}
                       </td>
                     </tr>
@@ -506,11 +655,14 @@ export default function AttendancePermissionsPage() {
         </div>
       </div>
 
-      {/* APPLY FOR PERMISSION SLIDE DRAWER */}
+      {/* APPLY / EDIT PERMISSION SLIDE DRAWER */}
       <SlideDrawer
         isOpen={isSubmitOpen}
-        onClose={() => setIsSubmitOpen(false)}
-        title="Apply for Short-time Permission"
+        onClose={() => {
+          setIsSubmitOpen(false);
+          setEditingId(null);
+        }}
+        title={editingId ? "Edit Short-time Permission Request" : "Apply for Short-time Permission"}
       >
         <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold">
           <div>
@@ -586,7 +738,10 @@ export default function AttendancePermissionsPage() {
           <div className="pt-4 flex gap-3 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
-              onClick={() => setIsSubmitOpen(false)}
+              onClick={() => {
+                setIsSubmitOpen(false);
+                setEditingId(null);
+              }}
               className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
             >
               Cancel
@@ -599,15 +754,58 @@ export default function AttendancePermissionsPage() {
               {isSubmitting ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Submitting...</span>
+                  <span>Saving...</span>
                 </>
               ) : (
-                <span>Submit Permission Request</span>
+                <span>{editingId ? 'Update Request' : 'Submit Permission Request'}</span>
               )}
             </button>
           </div>
         </form>
       </SlideDrawer>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <span className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center text-lg font-bold">
+                🗑️
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Delete Permission Request</h3>
+                <p className="text-[11px] text-slate-400 font-medium">Are you sure you want to delete this pending request?</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+              This action cannot be undone. The request will be permanently removed from your history.
+            </p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModal({ isOpen: false, requestId: null, isDeleting: false })}
+                className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={deleteModal.isDeleting}
+                className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {deleteModal.isDeleting ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span>Yes, Delete</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ACTION APPROVE / REJECT MODAL */}
       {actionModal.isOpen && (

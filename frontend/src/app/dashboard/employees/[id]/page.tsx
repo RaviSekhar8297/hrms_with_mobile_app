@@ -564,8 +564,8 @@ export default function DedicatedEmployeeEditPage() {
           email: emp.email || '',
           phone: emp.phone || '',
           personal_email: emp.personal_email || '',
-          joining_date: emp.joining_date ? new Date(emp.joining_date).toISOString().split('T')[0] : '',
-          dob: emp.dob ? new Date(emp.dob).toISOString().split('T')[0] : '',
+          joining_date: emp.joining_date ? String(emp.joining_date).split('T')[0] : '',
+          dob: emp.dob ? String(emp.dob).split('T')[0] : '',
           gender: emp.gender || 'MALE',
           marital_status: emp.marital_status || 'SINGLE',
           blood_group: emp.blood_group || 'A+',
@@ -580,9 +580,9 @@ export default function DedicatedEmployeeEditPage() {
           probation_period_months: emp.probation_period_months || 6,
           companyId: emp.company_id || companyId || '',
           emp_image: emp.emp_image || '',
-          confirmation_date: emp.confirmation_date ? new Date(emp.confirmation_date).toISOString().split('T')[0] : '',
-          resignation_date: emp.resignation_date ? new Date(emp.resignation_date).toISOString().split('T')[0] : '',
-          exit_date: emp.exit_date ? new Date(emp.exit_date).toISOString().split('T')[0] : '',
+          confirmation_date: emp.confirmation_date ? String(emp.confirmation_date).split('T')[0] : '',
+          resignation_date: emp.resignation_date ? String(emp.resignation_date).split('T')[0] : '',
+          exit_date: emp.exit_date ? String(emp.exit_date).split('T')[0] : '',
           allow_mobile_punch: emp.allow_mobile_punch !== undefined ? Boolean(emp.allow_mobile_punch) : true,
           require_punch_approval: emp.require_punch_approval !== undefined ? Boolean(emp.require_punch_approval) : true,
           pan_number: emp.pan_number || '',
@@ -2878,7 +2878,9 @@ export default function DedicatedEmployeeEditPage() {
               type="submit"
               disabled={saving || !hasEmployeeChanges}
               className={`px-8 py-3 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 ${
-                hasEmployeeChanges && !saving
+                saving
+                  ? 'bg-indigo-600 text-white cursor-wait shadow-md opacity-90'
+                  : hasEmployeeChanges
                   ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white cursor-pointer shadow-md hover:shadow-lg active:scale-95'
                   : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none opacity-60'
               }`}

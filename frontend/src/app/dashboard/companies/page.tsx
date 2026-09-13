@@ -535,7 +535,7 @@ export default function CompaniesPage() {
                         src={companyForm.branding_logo}
                         alt="Logo dark preview"
                         onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                        className="max-h-full max-w-full object-contain"
+                        className="max-h-full max-w-full object-contain brightness-0 invert opacity-95"
                       />
                     </div>
                   </div>

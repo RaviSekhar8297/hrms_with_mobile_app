@@ -6,6 +6,7 @@ import { User, LogOut } from 'lucide-react';
 import { getHeaders, getUrl } from '../utils/api';
 import NotificationBell from './NotificationBell';
 import { useDashboard } from './DashboardContext';
+import MoodBooster from './MoodBooster';
 
 interface HeaderProps {
   companyName: string;
@@ -48,7 +49,7 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
   if (!isSuperAdmin) {
     return (
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-blue-950/60 dark:to-indigo-950/50 border border-blue-200/80 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 shadow-2xs">
-        <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[11px] font-extrabold shadow-xs flex-shrink-0">
+        <div className="hidden sm:flex w-5 h-5 rounded-md bg-blue-600 text-white items-center justify-center text-[11px] font-extrabold shadow-xs flex-shrink-0">
           🏢
         </div>
         <span className="text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase truncate max-w-[85px] xs:max-w-[120px] sm:max-w-[210px] md:max-w-[280px]">
@@ -60,7 +61,7 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
 
   return (
     <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-blue-950/60 dark:to-indigo-950/50 border border-blue-300/80 dark:border-blue-700/60 text-blue-700 dark:text-blue-300 shadow-2xs">
-      <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[11px] font-extrabold shadow-xs flex-shrink-0">
+      <div className="hidden sm:flex w-5 h-5 rounded-md bg-blue-600 text-white items-center justify-center text-[11px] font-extrabold shadow-xs flex-shrink-0">
         🏢
       </div>
       <select
@@ -84,7 +85,7 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
 const GLOBAL_NAV_ITEMS = [
   { label: 'Overview / Dashboard', path: '/dashboard/overview', category: 'Module', icon: '📊' },
   { label: 'Employees Directory', path: '/dashboard/employees', category: 'Module', icon: '👥' },
-  { label: 'Requests', path: '/dashboard/attendance_requests', category: 'Module', icon: '⏱️' },
+  { label: 'Comp-Offs', path: '/dashboard/leaves/compoff', category: 'Module', icon: '⏱️' },
   { label: 'Permissions', path: '/dashboard/attendance/permissions', category: 'Module', icon: '📝' },
   { label: 'Attendance Policies & Logs', path: '/dashboard/attendance', category: 'Module', icon: '📅' },
   { label: 'Leave Requests & Balances', path: '/dashboard/leaves', category: 'Module', icon: '🌴' },
@@ -251,13 +252,13 @@ export const Header: React.FC<HeaderProps> = ({
         <HeaderCompanySelector companyName={companyName} isSuperAdmin={isSuperAdmin} />
 
         {/* Live Date & Clock Display Badge */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200/90 dark:border-slate-700/70 text-slate-700 dark:text-slate-200 select-none shadow-2xs">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" title="System Clock Active" />
+        <div className="hidden lg:flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/70 text-slate-700 dark:text-slate-200 select-none shadow-2xs">
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" title="System Clock Active" />
           <div className="flex flex-col text-left leading-tight">
-            <span className="text-[11px] font-mono font-bold tracking-tight tabular-nums text-slate-800 dark:text-slate-100">
+            <span className="text-xs sm:text-sm font-black font-mono tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
               {currentTime ? currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : ''}
             </span>
-            <span className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 tracking-tight">
+            <span className="text-[10.5px] font-extrabold text-slate-500 dark:text-slate-400 tracking-tight">
               {currentTime ? currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : ''}
             </span>
           </div>
@@ -326,36 +327,32 @@ export const Header: React.FC<HeaderProps> = ({
           {showSearchDropdown && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-              <div className="absolute left-0 sm:-left-12 right-0 sm:-right-12 mt-3 max-h-[440px] overflow-y-auto rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl p-4 shadow-2xl shadow-blue-900/20 z-50 animate-in fade-in slide-in-from-top-2 duration-200 no-scrollbar space-y-4">
+              <div className="absolute left-1/2 -translate-x-1/2 mt-2.5 w-[92vw] sm:w-[500px] max-h-[480px] overflow-y-auto rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl p-4 shadow-2xl shadow-slate-900/15 z-50 animate-in fade-in slide-in-from-top-2 duration-200 no-scrollbar space-y-4 font-sans">
                 
                 {/* Modules & Pages Section */}
                 {filteredNav.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between px-2 pb-1 border-b border-slate-100 dark:border-slate-800">
                       <span className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5">
-                        <span>📑</span> Modules & Pages
+                        <span>⚡</span> Modules & Pages
                       </span>
                       <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
                         {filteredNav.length} FOUND
                       </span>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       {filteredNav.slice(0, 8).map((nav) => (
                         <Link
                           key={nav.path}
                           href={nav.path}
                           onClick={() => setShowSearchDropdown(false)}
-                          className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-blue-50/80 hover:to-indigo-50/50 dark:hover:from-blue-950/40 dark:hover:to-indigo-950/30 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-150 group shadow-2xs hover:shadow-xs border border-transparent hover:border-blue-100 dark:hover:border-blue-900/30"
+                          className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-blue-50/80 dark:hover:bg-slate-800/80 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-150 group"
                         >
-                          <div className="flex items-center gap-3">
-                            <span className="text-base p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
-                              {nav.icon}
-                            </span>
-                            <span className="font-extrabold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">{nav.label}</span>
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm shrink-0">{nav.icon || '📄'}</span>
+                            <span className="truncate max-w-[320px]">{nav.label}</span>
                           </div>
-                          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg group-hover:bg-white dark:group-hover:bg-slate-900 transition-colors hidden sm:inline-block">
-                            {nav.path}
-                          </span>
+                          <span className="text-[10px] text-slate-300 dark:text-slate-600 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all">➜</span>
                         </Link>
                       ))}
                     </div>
@@ -364,7 +361,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                 {/* Employees Section */}
                 {filteredEmployees.length > 0 && (
-                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center justify-between px-2 pb-1">
                       <span className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5">
                         <span>👥</span> Employees Directory
@@ -379,18 +376,22 @@ export const Header: React.FC<HeaderProps> = ({
                           key={emp.id}
                           href={`/dashboard/employees/${emp.id}`}
                           onClick={() => setShowSearchDropdown(false)}
-                          className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-indigo-50/80 hover:to-purple-50/50 dark:hover:from-indigo-950/40 dark:hover:to-purple-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-150 group shadow-2xs hover:shadow-xs border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/30"
+                          className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-indigo-50/80 hover:to-purple-50/50 dark:hover:from-indigo-950/40 dark:hover:to-purple-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-150 group shadow-2xs hover:shadow-xs border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/30"
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
                               {emp.first_name ? emp.first_name.charAt(0).toUpperCase() : 'E'}
                             </div>
-                            <div className="text-left">
-                              <p className="leading-tight font-black text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{emp.first_name} {emp.last_name}</p>
-                              <p className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500">{emp.email || emp.emp_id_code}</p>
+                            <div className="text-left min-w-0 flex-1">
+                              <p className="leading-tight font-black text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                                {emp.first_name} {emp.last_name}
+                              </p>
+                              <p className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 truncate">
+                                {emp.email || emp.emp_id_code}
+                              </p>
                             </div>
                           </div>
-                          <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800/60 shadow-2xs">
+                          <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800/60 shadow-2xs shrink-0 whitespace-nowrap truncate max-w-[170px]">
                             {emp.designation_name || 'Employee'}
                           </span>
                         </Link>
@@ -412,7 +413,7 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
 
                 {/* Dropdown Footer Shortcuts */}
-                <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2">
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2">
                   <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1">
                       <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 font-mono">↵</kbd> Select
@@ -430,7 +431,10 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-
+        {/* 🎈 MOOD BOOSTER / INSTANT CHEER WIDGET */}
+        <div className="hidden sm:block">
+          <MoodBooster userName={userFullName || (email ? email.split('@')[0] : '')} />
+        </div>
 
         {/* 🌓 Quick Dark/Light Theme Switcher */}
         <button
@@ -452,7 +456,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* ⚙️ Personalization Settings Cog */}
         <button
           onClick={() => setSettingsOpen(true)}
-          className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-850 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
+          className="hidden sm:flex p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-850 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
           title="UI Personalization & Aesthetic Settings"
         >
           <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">

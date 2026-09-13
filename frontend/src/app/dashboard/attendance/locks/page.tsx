@@ -6,7 +6,7 @@ import { getHeaders, API_BASE } from '../../utils/api';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import SlideDrawer from '../../components/SlideDrawer';
-import { Lock, Unlock, Plus, Search, ShieldCheck, AlertTriangle, Calendar, Info, RefreshCw, UserCheck } from 'lucide-react';
+import { Lock, Unlock, Plus, Search, ShieldCheck, AlertTriangle, Calendar, Info, RefreshCw, UserCheck, Trash2 } from 'lucide-react';
 
 interface AttendanceLock {
   id: string;
@@ -32,6 +32,7 @@ export default function AttendanceLocksPage() {
   const canView = isSuperAdmin || hasPermission('view_attendance_locks') || hasPermission('view_attendance_policies') || hasPermission('view_attendance_rules');
   const canCreate = isSuperAdmin || hasPermission('create_attendance_locks') || hasPermission('create_attendance_policies') || hasPermission('create_attendance_rules');
   const canEdit = isSuperAdmin || hasPermission('edit_attendance_locks') || hasPermission('edit_attendance_policies') || hasPermission('edit_attendance_rules');
+  const canDelete = isSuperAdmin || hasPermission('delete_attendance_locks') || hasPermission('delete_attendance_policies') || hasPermission('delete_attendance_rules');
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -48,6 +49,42 @@ export default function AttendanceLocksPage() {
     lock_month: new Date().getMonth() + 1,
     is_locked: true,
   });
+
+  // 🗑️ Lock Delete Confirmation Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [lockToDelete, setLockToDelete] = useState<AttendanceLock | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const confirmDeleteLock = (lock: AttendanceLock) => {
+    setLockToDelete(lock);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteLock = async () => {
+    if (!lockToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/attendance/locks/${lockToDelete.id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('🗑️ Attendance month lock record deleted successfully!', 'success');
+        setDeleteModalOpen(false);
+        setLockToDelete(null);
+        fetchLocks();
+      } else {
+        showToast(data.error || 'Failed to delete lock record', 'error');
+      }
+    } catch (e: any) {
+      console.error(e);
+      showToast('Connection error deleting lock record', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const activeCompanyId = globalCompanyId || companyId;
 
@@ -388,13 +425,13 @@ export default function AttendanceLocksPage() {
                       </div>
                     </div>
 
-                    {/* Bottom Action Button */}
-                    <div>
+                    {/* Bottom Action Buttons */}
+                    <div className="flex items-center gap-2">
                       {canEdit ? (
                         <button
                           type="button"
                           onClick={() => handleToggleLockStatus(lock)}
-                          className={`w-full py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-sm flex items-center justify-center gap-2 border ${
+                          className={`flex-1 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-sm flex items-center justify-center gap-2 border ${
                             isLocked
                               ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-emerald-500/30 shadow-emerald-600/20'
                               : 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white border-rose-500/30 shadow-rose-600/20'
@@ -413,9 +450,20 @@ export default function AttendanceLocksPage() {
                           )}
                         </button>
                       ) : (
-                        <div className="text-center py-1 text-[11px] font-bold text-slate-400 italic">
+                        <div className="flex-1 text-center py-1 text-[11px] font-bold text-slate-400 italic">
                           Read-only View
                         </div>
+                      )}
+
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => confirmDeleteLock(lock)}
+                          className="p-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white dark:hover:text-white border border-rose-200/80 dark:border-rose-800/80 transition-all duration-200 cursor-pointer shadow-2xs shrink-0 active:scale-95 flex items-center justify-center"
+                          title="Delete Lock Record"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -423,6 +471,71 @@ export default function AttendanceLocksPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* 🗑️ DELETE LOCK CONFIRMATION MODAL */}
+      {deleteModalOpen && lockToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 max-w-md w-full shadow-2xl space-y-5 animate-scaleUp">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 flex-shrink-0 shadow-xs">
+                <AlertTriangle size={24} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">
+                    Delete Lock Record
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                    {MONTH_NAMES[lockToDelete.lock_month - 1]} {lockToDelete.lock_year}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                  Are you sure you want to delete this period lock entry?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/80 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-900/60 rounded-2xl p-4 text-xs font-medium text-rose-900 dark:text-rose-200 space-y-1.5">
+              <div className="font-extrabold flex items-center gap-1.5 text-rose-700 dark:text-rose-400 uppercase tracking-wider text-[11px]">
+                <span>⚠️ Warning</span>
+              </div>
+              <p className="leading-relaxed">
+                Removing this lock will unfreeze the attendance records for <strong>{MONTH_NAMES[lockToDelete.lock_month - 1]} {lockToDelete.lock_year}</strong>. Employees and managers will be allowed to submit backdated attendance regularizations for this period.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteLock}
+                disabled={isDeleting}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-rose-600/30 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 active:scale-98"
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={15} />
+                    <span>Yes, Delete Lock</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

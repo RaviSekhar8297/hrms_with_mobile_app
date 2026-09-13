@@ -6,6 +6,7 @@ import { getHeaders } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { Calendar, Building2, Plus, Search, Edit3, Trash2, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface Company {
   id: string;
@@ -25,19 +26,19 @@ interface Branch {
 }
 
 const HOLIDAY_TABS = [
-  { id: 'list', label: '📅 Holidays Calendar', permission: 'view_holiday_masters' },
-  { id: 'matrix', label: '🏢 Branch Restrictions Matrix', permission: 'view_holiday_masters' },
+  { id: 'list', label: 'Holidays Calendar', permission: 'view_holiday_masters', icon: Calendar },
+  { id: 'matrix', label: 'Branch Restrictions Matrix', permission: 'view_holiday_masters', icon: Building2 },
 ] as const;
 type HolidayTabId = typeof HOLIDAY_TABS[number]['id'];
 
 export default function HolidaysPage() {
-  const { showToast } = useDashboard();
+  const { showToast, companyId } = useDashboard();
   const { hasPermission } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Holidays state
   const [holidays, setHolidays] = useState<any[]>([]);
@@ -73,41 +74,20 @@ export default function HolidaysPage() {
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
     const storedEmail = localStorage.getItem('email');
-    const storedCompanyId = localStorage.getItem('companyId');
-
-    let initialRoles: string[] = [];
     if (storedRoles) {
-      const parsed = JSON.parse(storedRoles);
-      setRoles(parsed);
-      initialRoles = parsed;
+      try {
+        setRoles(JSON.parse(storedRoles));
+      } catch (e) {}
     }
     if (storedEmail) setEmail(storedEmail);
-
-    const isSuper = initialRoles.includes('SuperAdmin') || initialRoles.includes('superadmin');
-    if (isSuper) {
-      const activeCo = storedCompanyId || 'all';
-      setCompanyId(activeCo);
-      if (!storedCompanyId) {
-        localStorage.setItem('companyId', 'all');
-      }
-    } else {
-      if (storedCompanyId && storedCompanyId !== 'all') {
-        setCompanyId(storedCompanyId);
-      } else {
-        setCompanyId(null);
-      }
-    }
   }, []);
 
   const fetchHolidays = async () => {
+    setIsLoading(true);
     try {
       const isSuper = roles.includes('SuperAdmin') || roles.includes('superadmin');
-      let queryParam = '';
-      if (isSuper && companyId) {
-        queryParam = `?companyId=${companyId}`;
-      } else if (!isSuper && companyId && companyId !== 'all') {
-        queryParam = `?companyId=${companyId}`;
-      }
+      const cid = companyId || 'all';
+      const queryParam = `?companyId=${cid}`;
       const res = await fetch(`/api/v1/holidays${queryParam}`, {
         headers: getHeaders()
       });
@@ -118,15 +98,15 @@ export default function HolidaysPage() {
     } catch (e) {
       console.error(e);
       showToast('Failed to fetch holidays calendar.', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchBranches = async () => {
     try {
-      const isSuper = roles.includes('SuperAdmin') || roles.includes('superadmin');
-      const targetCo = (isSuper && companyId && companyId !== 'all') ? companyId : (!isSuper ? (companyId || '') : '');
-      if (!targetCo) return;
-      const res = await fetch(`/api/v1/branches?companyId=${targetCo}`, {
+      const cid = companyId || 'all';
+      const res = await fetch(`/api/v1/branches?companyId=${cid}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -160,9 +140,7 @@ export default function HolidaysPage() {
   }, [companyId, roles]);
 
   const handleCompanyChange = (id: string) => {
-    const val = id || 'all';
-    setCompanyId(val);
-    localStorage.setItem('companyId', val);
+    // Handled globally by DashboardContext
   };
 
   const handleCreateHoliday = async (e: React.FormEvent) => {
@@ -346,11 +324,27 @@ export default function HolidaysPage() {
 
   const availableYears = React.useMemo(() => {
     const years: number[] = [];
-    for (let i = 0; i <= 10; i++) {
+    for (let i = 0; i <= 5; i++) {
       years.push(currentYear - i);
     }
     return years;
   }, [currentYear]);
+
+  const MONTH_FILTERS = [
+    { key: 'ALL', label: 'All' },
+    { key: 'JAN', label: 'Jan' },
+    { key: 'FEB', label: 'Feb' },
+    { key: 'MAR', label: 'Mar' },
+    { key: 'APR', label: 'Apr' },
+    { key: 'MAY', label: 'May' },
+    { key: 'JUN', label: 'Jun' },
+    { key: 'JUL', label: 'Jul' },
+    { key: 'AUG', label: 'Aug' },
+    { key: 'SEP', label: 'Sep' },
+    { key: 'OCT', label: 'Oct' },
+    { key: 'NOV', label: 'Nov' },
+    { key: 'DEC', label: 'Dec' },
+  ];
 
   const filteredHolidays = React.useMemo(() => {
     let list = sortedHolidays;
@@ -391,7 +385,7 @@ export default function HolidaysPage() {
   }, [branches, holidays, searchQuery, selectedYearFilter]);
 
   return (
-    <div className="space-y-6 animate-fadeIn w-full text-left" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="space-y-6 animate-fadeIn w-full text-left font-sans">
       <DashboardPageHeader
         title="Holidays Calendar Configuration"
         actionMessage=""
@@ -406,49 +400,6 @@ export default function HolidaysPage() {
         noneLabel="All"
       />
 
-      {/* 📊 KPI STATS OVERVIEW CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center text-lg shrink-0">
-            📅
-          </div>
-          <div>
-            <p className="text-[10.5px] font-extrabold uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">Total Holidays</p>
-            <p className="text-xl font-black text-slate-800 dark:text-slate-100 font-mono mt-0.5">{holidays.length}</p>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 flex items-center justify-center text-lg shrink-0">
-            🏢
-          </div>
-          <div>
-            <p className="text-[10.5px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">Active Branches</p>
-            <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">{branches.length}</p>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 flex items-center justify-center text-lg shrink-0">
-            ✨
-          </div>
-          <div>
-            <p className="text-[10.5px] font-extrabold uppercase text-amber-600 dark:text-amber-400 tracking-wider">General Holidays</p>
-            <p className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono mt-0.5">{holidays.filter(h => !h.is_restricted).length}</p>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900 flex items-center justify-center text-lg shrink-0">
-            📜
-          </div>
-          <div>
-            <p className="text-[10.5px] font-extrabold uppercase text-rose-600 dark:text-rose-400 tracking-wider">Restricted (RH)</p>
-            <p className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono mt-0.5">{holidays.filter(h => h.is_restricted).length}</p>
-          </div>
-        </div>
-      </div>
-
       <div className="space-y-5">
         {/* Navigation Tabs Bar & Create Button */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -460,17 +411,18 @@ export default function HolidaysPage() {
             <div className="p-1.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-800 flex items-center gap-1 font-sans overflow-x-auto no-scrollbar shadow-inner">
               {visibleTabs.map(tab => {
                 const isActive = activeTab === tab.id;
+                const IconComponent = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`py-2 px-4.5 rounded-xl text-xs transition-all duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap ${
                       isActive
-                        ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 font-black shadow-sm border border-slate-200/80 dark:border-slate-700/80 scale-[1.01]'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 font-black shadow-xs border border-slate-200/80 dark:border-slate-700/80'
                         : 'text-slate-600 dark:text-slate-400 font-bold hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-slate-800/60'
                     }`}
                   >
-                    <span className="text-sm">{tab.id === 'list' ? '📅' : '🏢'}</span>
+                    <IconComponent className="w-4 h-4" />
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -480,8 +432,8 @@ export default function HolidaysPage() {
 
           <div className="flex items-center gap-3 self-end sm:self-auto">
             {isSuperAdmin && (
-              <span className="px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-[10.5px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="px-3.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 text-[10.5px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                 {companyId === 'all' ? 'All Companies View' : 'Single Company View'}
               </span>
             )}
@@ -499,11 +451,9 @@ export default function HolidaysPage() {
                   });
                   setAddHolidayDrawerOpen(true);
                 }}
-                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 text-white text-xs font-black shadow-lg shadow-blue-500/20 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer flex items-center gap-2 border-0"
+                className="px-4.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex items-center gap-2 border-0"
               >
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
+                <Plus className="w-4 h-4 text-white" />
                 <span>Create Holiday</span>
               </button>
             )}
@@ -511,15 +461,16 @@ export default function HolidaysPage() {
         </div>
 
         {/* 🔍 SEARCH BAR & QUICK FILTERS */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3.5">
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3.5">
           {/* Search Input Bar */}
           <div className="relative w-full">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search holidays by name, date, year, month, or branch..."
-              className="w-full px-4 pr-10 py-2.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 text-xs font-medium text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 transition-all shadow-inner"
+              className="w-full pl-10 pr-10 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all"
             />
             {searchQuery && (
               <button
@@ -534,18 +485,13 @@ export default function HolidaysPage() {
           {/* Year & Month Quick Filter Bar (Under Search Bar) */}
           {activeTab === 'list' && (
             <div className="pt-1 flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
-              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider shrink-0">
-                Filter:
-              </span>
-
-              {/* Year Select Pill Dropdown before ALL */}
+              {/* Year Select Pill Dropdown */}
               <div className="shrink-0">
                 <select
                   value={selectedYearFilter}
                   onChange={e => setSelectedYearFilter(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl text-[10.5px] font-black uppercase bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 outline-none cursor-pointer shadow-2xs font-sans"
+                  className="px-3 py-1 rounded-xl text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 outline-none cursor-pointer font-sans shadow-2xs hover:bg-indigo-100/70 dark:hover:bg-indigo-900/60 transition-colors"
                 >
-                  <option value="ALL">ALL YEARS</option>
                   {availableYears.map(yr => (
                     <option key={yr} value={String(yr)}>{yr}</option>
                   ))}
@@ -554,19 +500,19 @@ export default function HolidaysPage() {
 
               <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
 
-              {/* Month Pills: ALL, JAN, FEB, ... DEC */}
-              {['ALL', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].map(m => (
+              {/* Month Pills */}
+              {MONTH_FILTERS.map(m => (
                 <button
-                  key={m}
+                  key={m.key}
                   type="button"
-                  onClick={() => setSelectedMonthFilter(m)}
-                  className={`px-3.5 py-1.5 rounded-xl text-[10.5px] font-black uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
-                    selectedMonthFilter === m
-                      ? 'bg-blue-600 text-white shadow-xs scale-105'
-                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 font-bold border border-slate-200/60 dark:border-slate-800'
+                  onClick={() => setSelectedMonthFilter(m.key)}
+                  className={`px-3 py-1 rounded-xl text-xs transition-all duration-150 cursor-pointer whitespace-nowrap ${
+                    selectedMonthFilter === m.key
+                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 font-semibold border border-slate-200/70 dark:border-slate-800'
                   }`}
                 >
-                  {m}
+                  {m.label}
                 </button>
               ))}
             </div>
@@ -574,109 +520,106 @@ export default function HolidaysPage() {
         </div>
 
         {/* ALL HOLIDAYS DIRECT UNIFIED DISPLAY GRID */}
-        {activeTab === 'list' ? (
+        {isLoading ? (
+          <div className="p-12 flex flex-col items-center justify-center gap-3 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
+            <span className="text-xs font-bold text-slate-400">Loading holiday data...</span>
+          </div>
+        ) : activeTab === 'list' ? (
           <div>
             {filteredHolidays.length === 0 ? (
-              <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center shadow-sm space-y-3">
-                <span className="text-3xl">📅</span>
+              <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center shadow-xs space-y-3">
+                <Calendar className="w-8 h-8 text-slate-300 mx-auto" />
                 <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">No Holiday Entries Found</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                   {searchQuery ? `No holidays match "${searchQuery}"` : 'Try creating a holiday or check the selected company filter'}
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredHolidays.map((h) => (
                   <div
                     key={h.id}
-                    className="group relative overflow-hidden rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-xl hover:border-blue-500/40 dark:hover:border-blue-500/40 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
+                    className="group relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between"
                   >
-                    {/* Top Accent Gradient Bar */}
-                    <div className={`h-1.5 w-full bg-gradient-to-r ${
-                      h.is_restricted ? 'from-amber-500 to-orange-500' : 'from-blue-600 via-indigo-600 to-violet-600'
-                    }`} />
+                    <div className="p-4 space-y-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          h.is_restricted
+                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60'
+                            : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60'
+                        }`}>
+                          {h.is_restricted ? 'Restricted (RH)' : 'General Holiday'}
+                        </span>
 
-                    <div className="p-5 space-y-4">
-                      <div className="flex gap-4 items-start">
-                        {/* MODERN MINIMALIST DATE BADGE WITH YEAR */}
-                        <div className="px-3 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/70 flex flex-col items-center justify-center shrink-0 w-16 text-center shadow-2xs group-hover:border-blue-500/40 transition-colors">
-                          <span className={`text-[10px] font-black uppercase tracking-wider ${
-                            h.is_restricted ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'
+                        {h.company_name && (
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9.5px] font-bold truncate max-w-[120px] border border-slate-200/60 dark:border-slate-700/60" title={h.company_name}>
+                            🏢 {h.company_name}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex gap-3 items-center">
+                        {/* DATE BADGE */}
+                        <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center shrink-0 w-14 text-center">
+                          <span className={`text-[9.5px] font-black uppercase tracking-wider ${
+                            h.is_restricted ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-600 dark:text-indigo-400'
                           }`}>
                             {h.monthShort}
                           </span>
-                          <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none my-0.5">
+                          <span className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none my-0.5 font-mono">
                             {h.dayNum}
                           </span>
-                          <span className="text-[9.5px] font-extrabold text-slate-500 dark:text-slate-400">
+                          <span className="text-[9px] font-bold text-slate-400">
                             {h.year}
                           </span>
                         </div>
 
                         {/* HOLIDAY DETAILS */}
-                        <div className="flex-1 min-w-0 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                              h.is_restricted
-                                ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60'
-                                : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
-                            }`}>
-                              {h.is_restricted ? 'Restricted (RH)' : 'General Holiday'}
-                            </span>
-
-                            {h.company_name && (
-                              <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold truncate max-w-[130px] border border-slate-200/60 dark:border-slate-700/60" title={h.company_name}>
-                                🏢 {h.company_name}
-                              </span>
-                            )}
-                          </div>
-
-                          <h4 className="text-sm font-black text-slate-900 dark:text-white tracking-tight leading-snug truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title={h.name}>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 truncate" title={h.name}>
                             {h.name}
                           </h4>
-
-                          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed line-clamp-2">
-                            {h.description || 'Official company holiday observance.'}
+                          <p className="text-[11px] text-slate-400 dark:text-slate-400 font-medium line-clamp-2 mt-0.5">
+                            {h.description || 'Official holiday observance.'}
                           </p>
                         </div>
                       </div>
                     </div>
 
                     {/* CARD ACTIONS */}
-                    <div className="px-5 py-3 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex justify-end items-center gap-2">
-                      {hasPermission('edit_holiday_masters') && (
-                        <button
-                          onClick={() => {
-                            setNewHolidayForm({
-                              id: String(h.id),
-                              name: h.name,
-                              holiday_date: h.formattedYMD || (h.holiday_date ? String(h.holiday_date).match(/^(\d{4}-\d{2}-\d{2})/)?.[1] || '' : ''),
-                              description: h.description,
-                              is_restricted: h.is_restricted,
-                              company_id: h.company_id
-                            });
-                            setAddHolidayDrawerOpen(true);
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
-                        >
-                          <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                          </svg>
-                          <span>Edit</span>
-                        </button>
-                      )}
-                      {hasPermission('delete_holiday_masters') && (
-                        <button
-                          onClick={() => handleDeleteHoliday(h.id, h.name, h.company_id)}
-                          className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-200/80 dark:border-rose-800/80 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
-                        >
-                          <svg className="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                          <span>Delete</span>
-                        </button>
-                      )}
-                    </div>
+                    {(hasPermission('edit_holiday_masters') || hasPermission('delete_holiday_masters')) && (
+                      <div className="px-4 py-2.5 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex justify-end items-center gap-1.5">
+                        {hasPermission('edit_holiday_masters') && (
+                          <button
+                            onClick={() => {
+                              setNewHolidayForm({
+                                id: String(h.id),
+                                name: h.name,
+                                holiday_date: h.formattedYMD || (h.holiday_date ? String(h.holiday_date).match(/^(\d{4}-\d{2}-\d{2})/)?.[1] || '' : ''),
+                                description: h.description,
+                                is_restricted: h.is_restricted,
+                                company_id: h.company_id
+                              });
+                              setAddHolidayDrawerOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-bold border border-slate-200 dark:border-slate-700 cursor-pointer"
+                            title="Edit Holiday"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {hasPermission('delete_holiday_masters') && (
+                          <button
+                            onClick={() => handleDeleteHoliday(h.id, h.name, h.company_id)}
+                            className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-200/80 dark:border-rose-800/80 cursor-pointer"
+                            title="Delete Holiday"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -685,19 +628,19 @@ export default function HolidaysPage() {
         ) : (
           <div className="space-y-6">
             {holidays.length === 0 ? (
-              <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center shadow-sm">
+              <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center shadow-xs">
                 <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">No Holidays Available</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Please define holidays in the Holidays Calendar tab first.</p>
               </div>
             ) : filteredBranches.length === 0 ? (
-              <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center shadow-sm">
+              <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center shadow-xs">
                 <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">No Matching Branches</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
                   {searchQuery ? `No branches match "${searchQuery}"` : 'No branches configured. All holidays apply globally.'}
                 </p>
               </div>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {filteredBranches.map(branch => {
                   const companyHolidays = holidays.filter(h => h.company_id === branch.company_id);
                   let observedCount = 0;
@@ -722,26 +665,26 @@ export default function HolidaysPage() {
                   return (
                     <div
                       key={branch.id}
-                      className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
+                      className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden"
                     >
                       {/* Full Width Branch Row Header */}
-                      <div className="p-4 sm:px-6 bg-gradient-to-r from-slate-50 via-slate-50 to-blue-50/20 dark:from-slate-800/60 dark:via-slate-800/40 dark:to-blue-950/20 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="p-4 bg-slate-50/70 dark:bg-slate-950/40 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg font-black shrink-0 border border-blue-500/20 shadow-2xs">
-                            🏢
+                          <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-900">
+                            <Building2 className="w-4 h-4" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">
+                              <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">
                                 {branch.name}
                               </h3>
                               {branch.company_name && (
-                                <span className="px-2.5 py-0.5 rounded-full bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold border border-slate-300/50 dark:border-slate-700/60">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9.5px] font-bold border border-slate-300/50 dark:border-slate-700/60">
                                   {branch.company_name}
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
                               Branch Holiday Restriction & Observance Rules
                             </p>
                           </div>
@@ -749,88 +692,82 @@ export default function HolidaysPage() {
 
                         {/* Counts Badge Pills */}
                         <div className="flex items-center gap-2">
-                          <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 text-[10.5px] font-black uppercase tracking-wider shadow-2xs">
+                          <span className="px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 text-[10px] font-black uppercase">
                             ✓ {observedCount} Observed
                           </span>
                           {restrictedCount > 0 && (
-                            <span className="px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 text-[10.5px] font-black uppercase tracking-wider shadow-2xs">
-                              ✕ {restrictedCount} Restricted
+                            <span className="px-3 py-1 rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60 text-[10px] font-black uppercase">
+                              🚫 {restrictedCount} Restricted
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {/* Branch Holidays Row Grid */}
-                      <div className="p-4 sm:p-5 bg-slate-50/30 dark:bg-slate-900/30">
-                        {companyHolidays.length === 0 ? (
-                          <div className="py-6 text-center text-xs text-slate-400 font-medium">
-                            No holidays configured for this company.
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-                            {companyHolidays.map(holiday => {
-                              let isRestricted = false;
-                              try {
-                                const restrictedArr = Array.isArray(holiday.restricted_branches)
-                                  ? holiday.restricted_branches
-                                  : (typeof holiday.restricted_branches === 'string'
-                                    ? JSON.parse(holiday.restricted_branches || '[]')
-                                    : []);
-                                isRestricted = restrictedArr.includes(branch.id);
-                              } catch (e) {
-                                isRestricted = false;
-                              }
-                              const isObserved = !isRestricted;
-                              const hInfo = parseHolidayFullInfo(holiday.holiday_date);
+                      {/* Holidays grid for this branch */}
+                      <div className="p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {companyHolidays.map(h => {
+                            let isRestricted = false;
+                            try {
+                              const restrictedArr = Array.isArray(h.restricted_branches)
+                                ? h.restricted_branches
+                                : (typeof h.restricted_branches === 'string'
+                                  ? JSON.parse(h.restricted_branches || '[]')
+                                  : []);
+                              isRestricted = restrictedArr.includes(branch.id);
+                            } catch (e) {
+                              isRestricted = false;
+                            }
+                            const isObserved = !isRestricted;
 
-                              return (
-                                <div
-                                  key={holiday.id}
-                                  className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs hover:border-blue-400/40 transition-all duration-200"
-                                >
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    {/* Date Badge */}
-                                    <div className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono text-[10.5px] font-black text-center shrink-0 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs">
-                                      {hInfo.monthShort} {hInfo.dayNum}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="text-xs font-black text-slate-900 dark:text-slate-100 truncate" title={holiday.name}>
-                                        {holiday.name}
-                                      </p>
-                                      <span className="text-[9.5px] font-semibold text-slate-400 dark:text-slate-500 block truncate">
-                                        {holiday.is_restricted ? 'Restricted (RH)' : 'General Holiday'}
-                                      </span>
-                                    </div>
+                            const info = parseHolidayFullInfo(h.holiday_date);
+
+                            return (
+                              <div
+                                key={h.id}
+                                className={`p-3 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                                  isObserved
+                                    ? 'bg-emerald-50/40 dark:bg-emerald-950/10 border-emerald-200/60 dark:border-emerald-900/40'
+                                    : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 opacity-60'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center shrink-0 font-mono text-[9px] font-bold text-slate-700 dark:text-slate-300">
+                                    {info.monthShort} {info.dayNum}
                                   </div>
-
-                                  {/* Toggle Switch */}
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                      disabled={!hasPermission('edit_holiday_masters')}
-                                      onClick={() => toggleHolidayBranch(holiday.id, branch.id, isObserved)}
-                                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shadow-2xs ${
-                                        !hasPermission('edit_holiday_masters')
-                                          ? 'opacity-40 cursor-not-allowed'
-                                          : 'cursor-pointer'
-                                      } ${isObserved ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
-                                    >
-                                      <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${
-                                          isObserved ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
-                                      />
-                                    </button>
-                                    <span className={`text-[10px] font-black tracking-wider uppercase w-8 text-center ${
-                                      isObserved ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'
-                                    }`}>
-                                      {isObserved ? 'YES' : 'NO'}
+                                  <div className="min-w-0">
+                                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 truncate" title={h.name}>
+                                      {h.name}
+                                    </span>
+                                    <span className="block text-[9.5px] text-slate-400 font-medium truncate">
+                                      {h.is_restricted ? 'Restricted (RH)' : 'General Holiday'}
                                     </span>
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
+
+                                {hasPermission('edit_holiday_masters') ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleHolidayBranch(h.id, branch.id, isObserved)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                      isObserved ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                                        isObserved ? 'translate-x-4' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </button>
+                                ) : (
+                                  <span className={`text-[10px] font-extrabold ${isObserved ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                    {isObserved ? 'YES' : 'NO'}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   );
@@ -841,68 +778,35 @@ export default function HolidaysPage() {
         )}
       </div>
 
-      {/* Custom Delete Confirmation Modal */}
-      {deleteConfirmHolidayId && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center animate-fadeIn p-4">
-          <div className="bg-white dark:bg-slate-950 border border-slate-200/60 dark:border-slate-850/80 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-455 flex items-center justify-center mx-auto border border-rose-500/20">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-              </svg>
-            </div>
-
-            <div className="space-y-1.5">
-              <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Delete Holiday</h4>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold leading-relaxed">
-                Are you sure you want to delete the holiday <span className="text-rose-600 dark:text-rose-400">"{deleteConfirmHolidayName}"</span>? This action cannot be undone.
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteConfirmHolidayId(null);
-                  setDeleteConfirmCompanyId(null);
-                  setDeleteConfirmHolidayName(null);
-                }}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-xs font-bold text-slate-500 dark:text-slate-400 transition-colors cursor-pointer bg-transparent"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (deleteConfirmHolidayId && deleteConfirmCompanyId) {
-                    confirmDeleteHoliday(deleteConfirmHolidayId, deleteConfirmCompanyId);
-                  }
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-bold text-white transition-colors cursor-pointer"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Holiday Drawer */}
+      {/* ➕ ADD / EDIT HOLIDAY SLIDE DRAWER */}
       <SlideDrawer
         isOpen={addHolidayDrawerOpen}
-        onClose={() => setAddHolidayDrawerOpen(false)}
-        title={newHolidayForm.id ? 'Edit Holiday Calendar Entry' : 'Create Holiday Calendar Entry'}
+        onClose={() => {
+          setAddHolidayDrawerOpen(false);
+          setNewHolidayForm({
+            id: '',
+            name: '',
+            holiday_date: '',
+            description: '',
+            is_restricted: false,
+            company_id: ''
+          });
+        }}
+        title={newHolidayForm.id ? 'Edit Holiday Master Entry' : 'Create New Holiday Entry'}
       >
-        <form onSubmit={handleCreateHoliday} className="space-y-6 text-left p-2">
-          {companyId === 'all' && !newHolidayForm.id && (
+        <form onSubmit={handleCreateHoliday} className="space-y-4 text-xs font-sans">
+          {isSuperAdmin && (
             <div>
-              <label className="block text-[9.5px] font-black text-slate-500 dark:text-slate-450 uppercase tracking-widest mb-1.5">Target Company</label>
+              <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">
+                Target Company <span className="text-rose-500">*</span>
+              </label>
               <select
+                value={newHolidayForm.company_id || (companyId !== 'all' ? (companyId || '') : '')}
+                onChange={e => setNewHolidayForm(prev => ({ ...prev, company_id: e.target.value }))}
                 required
-                value={newHolidayForm.company_id}
-                onChange={e => setNewHolidayForm({ ...newHolidayForm, company_id: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-950 transition-colors text-slate-800 dark:text-slate-200"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
               >
-                <option value="">-- Select Company --</option>
+                <option value="">-- Select Target Company --</option>
                 {companies.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -911,68 +815,122 @@ export default function HolidaysPage() {
           )}
 
           <div>
-            <label className="block text-[9.5px] font-black text-slate-500 dark:text-slate-455 uppercase tracking-widest mb-1.5">Holiday Name</label>
+            <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">
+              Holiday Name / Title <span className="text-rose-500">*</span>
+            </label>
             <input
               type="text"
-              required
-              placeholder="e.g. Independence Day"
               value={newHolidayForm.name}
-              onChange={e => setNewHolidayForm({ ...newHolidayForm, name: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-950 transition-colors text-slate-800 dark:text-slate-200"
+              onChange={e => setNewHolidayForm(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="e.g. Independence Day or Republic Day"
+              required
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
             />
           </div>
 
           <div>
-            <label className="block text-[9.5px] font-black text-slate-500 dark:text-slate-455 uppercase tracking-widest mb-1.5">Holiday Date</label>
+            <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">
+              Holiday Observance Date <span className="text-rose-500">*</span>
+            </label>
             <input
               type="date"
-              required
               value={newHolidayForm.holiday_date}
-              onChange={e => setNewHolidayForm({ ...newHolidayForm, holiday_date: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-950 transition-colors text-slate-800 dark:text-slate-200 font-mono"
+              onChange={e => setNewHolidayForm(prev => ({ ...prev, holiday_date: e.target.value }))}
+              required
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 font-mono"
             />
           </div>
 
           <div>
-            <label className="block text-[9.5px] font-black text-slate-500 dark:text-slate-455 uppercase tracking-widest mb-1.5">Description</label>
+            <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">
+              Description / Observance Notes
+            </label>
             <textarea
-              placeholder="Short description of the holiday..."
+              rows={3}
               value={newHolidayForm.description}
-              onChange={e => setNewHolidayForm({ ...newHolidayForm, description: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-950 transition-colors text-slate-800 dark:text-slate-200 h-20 resize-none"
+              onChange={e => setNewHolidayForm(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Optional notes or details about this holiday..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
             />
           </div>
 
-          <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={newHolidayForm.is_restricted}
-              onChange={e => setNewHolidayForm({ ...newHolidayForm, is_restricted: e.target.checked })}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
-            />
+          <div className="p-3.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-between">
             <div>
-              <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Restricted Holiday (RH)</span>
-              <p className="text-[10px] text-slate-400 dark:text-slate-550 mt-0.5">Check this if the holiday is optional / restricted to specific categories</p>
+              <span className="block font-bold text-slate-800 dark:text-slate-200 text-xs">Restricted Holiday (RH)</span>
+              <span className="block text-[10px] text-slate-400 font-medium">Optional holiday for specific employees</span>
             </div>
-          </label>
+            <button
+              type="button"
+              onClick={() => setNewHolidayForm(prev => ({ ...prev, is_restricted: !prev.is_restricted }))}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                newHolidayForm.is_restricted ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                  newHolidayForm.is_restricted ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
 
-          <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setAddHolidayDrawerOpen(false)}
-              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-855 hover:bg-slate-550/10 text-xs font-bold text-slate-500 dark:text-slate-455 transition-all cursor-pointer bg-transparent"
+              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-sm transition-all cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer shadow-xs"
             >
-              {newHolidayForm.id ? 'Update Holiday' : 'Create Holiday'}
+              {newHolidayForm.id ? 'Save Changes' : 'Create Entry'}
             </button>
           </div>
         </form>
       </SlideDrawer>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteConfirmHolidayId && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center text-xl mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-800 dark:text-slate-100">
+                Delete Holiday Entry?
+              </h3>
+              <p className="text-xs text-slate-400 font-medium mt-1">
+                Are you sure you want to delete <strong className="text-slate-700 dark:text-slate-200">{deleteConfirmHolidayName}</strong>? This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteConfirmHolidayId(null);
+                  setDeleteConfirmCompanyId(null);
+                  setDeleteConfirmHolidayName(null);
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmDeleteHoliday(deleteConfirmHolidayId, deleteConfirmCompanyId || '')}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -32,7 +32,7 @@ interface OnboardingRecord {
 
 export default function OnboardingDashboard() {
   const router = useRouter();
-  const { showToast } = useDashboard();
+  const { showToast, companyId: globalCompanyId } = useDashboard();
   const [activeTab, setActiveTab] = useState<Tab>('pipeline');
   const [records, setRecords] = useState<OnboardingRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +45,8 @@ export default function OnboardingDashboard() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  const activeCompanyId = globalCompanyId || selectedCompanyId || (typeof window !== 'undefined' ? localStorage.getItem('companyId') : '');
 
   // Direct Candidate Invite Modal States
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -88,8 +90,8 @@ export default function OnboardingDashboard() {
     if (isInviteModalOpen) {
       const token = localStorage.getItem('access_token');
       let url = '/api/v1/onboarding/smtp-info';
-      if (selectedCompanyId) {
-        url += `?company_id=${selectedCompanyId}`;
+      if (activeCompanyId && activeCompanyId !== 'all') {
+        url += `?company_id=${activeCompanyId}`;
       }
       fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -104,7 +106,7 @@ export default function OnboardingDashboard() {
         })
         .catch(() => {});
     }
-  }, [isInviteModalOpen, selectedCompanyId]);
+  }, [isInviteModalOpen, activeCompanyId]);
 
   const handleDirectInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +117,7 @@ export default function OnboardingDashboard() {
     setSubmittingInvite(true);
     try {
       const token = localStorage.getItem('access_token');
-      const companyId = localStorage.getItem('selectedCompanyId');
+      const companyId = activeCompanyId || localStorage.getItem('selectedCompanyId');
       const res = await fetch('/api/v1/onboarding/direct-invite', {
         method: 'POST',
         headers: {
@@ -162,8 +164,8 @@ export default function OnboardingDashboard() {
       setLoading(true);
       const token = localStorage.getItem('access_token');
       let url = '/api/v1/onboarding';
-      if (selectedCompanyId) {
-        url += `?company_id=${selectedCompanyId}`;
+      if (activeCompanyId && activeCompanyId !== 'all') {
+        url += `?company_id=${activeCompanyId}`;
       }
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -181,7 +183,7 @@ export default function OnboardingDashboard() {
 
   useEffect(() => {
     fetchRecords();
-  }, [selectedCompanyId]);
+  }, [activeCompanyId]);
 
   const handleSendOfferLetter = async (rec: OnboardingRecord) => {
     setProcessingAction(rec.id);
@@ -333,21 +335,8 @@ export default function OnboardingDashboard() {
             </p>
           </div>
 
-          {/* Direct Candidate Invite Action & Company Selector */}
+          {/* Direct Candidate Invite Action */}
           <div className="flex items-center gap-3">
-            {companies.length > 0 && (
-              <select
-                value={selectedCompanyId || 'all'}
-                onChange={(e) => setSelectedCompanyId(e.target.value)}
-                className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer shadow-2xs"
-              >
-                <option value="all">🌐 All Companies</option>
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            )}
-
             <button
               type="button"
               onClick={() => setIsInviteModalOpen(true)}

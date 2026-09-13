@@ -2,24 +2,62 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import {
+  Users,
+  UserCheck,
+  Umbrella,
+  UserX,
+  UserPlus,
+  Calendar,
+  TrendingUp,
+  Award,
+  Cake,
+  DollarSign,
+  GraduationCap,
+  Clock,
+  ArrowUpRight,
+  Search,
+  Bell,
+  Settings,
+  Download,
+  ChevronDown,
+  CheckCircle2,
+  Briefcase,
+  FileText,
+  PieChart,
+  Plus,
+  ChevronRight,
+  Shield,
+  Activity,
+  Sparkles,
+  BarChart3,
+  Building2,
+  Layers,
+  ArrowUp,
+  User,
+  Star,
+  BookOpen,
+  FileCheck,
+  Globe,
+  PartyPopper,
+  Heart,
+  MessageSquare,
+  Send,
+  ThumbsUp,
+  Smile,
+  ChevronLeft,
+  Loader2
+} from 'lucide-react';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
+import { useDashboard } from '../components/DashboardContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { getDeviceIdentifier, getDeviceModel } from '../utils/deviceUtils';
-import { useDashboard } from '../components/DashboardContext';
 
 interface Company {
   id: string;
   name: string;
   subdomain: string;
-  status: string;
-  created_at: string;
-}
-
-interface Branch {
-  id: string;
-  name: string;
-  address: string;
   status: string;
   created_at: string;
 }
@@ -51,49 +89,6 @@ interface ActivityLog {
   created_at: string;
 }
 
-const formatDetails = (details: any): string => {
-  if (!details) return '';
-  try {
-    let parsed = details;
-    if (typeof details === 'string') {
-      if (details.startsWith('{') || details.startsWith('[')) {
-        parsed = JSON.parse(details);
-      } else {
-        return details;
-      }
-    }
-    if (typeof parsed === 'object' && parsed !== null) {
-      if (parsed.message) return String(parsed.message);
-      if (parsed.name) return `Name: ${parsed.name}`;
-      if (parsed.email) return `Email: ${parsed.email}`;
-      if (parsed.description) return String(parsed.description);
-
-      const parts: string[] = [];
-      if (parsed.roles && Array.isArray(parsed.roles)) {
-        const cleanRoles = parsed.roles.filter(
-          (r: string) => !r.startsWith('default-roles') && r !== 'offline_access' && r !== 'uma_authorization'
-        );
-        if (cleanRoles.length > 0) {
-          parts.push(`Roles: ${cleanRoles.join(', ')}`);
-        }
-      }
-
-      Object.keys(parsed).forEach(k => {
-        if (k === 'roles' || k === 'login_at') return;
-        const val = parsed[k];
-        if (val !== undefined && val !== null) {
-          parts.push(`${k}: ${typeof val === 'object' ? JSON.stringify(val) : val}`);
-        }
-      });
-
-      return parts.length > 0 ? parts.join(' • ') : 'System Session Authenticated';
-    }
-    return String(parsed);
-  } catch (e) {
-    return String(details);
-  }
-};
-
 export default function OverviewPage() {
   const { companyId: contextCompanyId, setCompanyId: setContextCompanyId } = useDashboard();
   const [email, setEmail] = useState('');
@@ -101,35 +96,30 @@ export default function OverviewPage() {
   const companyId = contextCompanyId || (typeof window !== 'undefined' ? localStorage.getItem('companyId') : null);
 
   const [logs, setLogs] = useState<ActivityLog[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [myProfile, setMyProfile] = useState<Employee | null>(null);
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [rawPunches, setRawPunches] = useState<any[]>([]);
+  const [holidays, setHolidays] = useState<any[]>([]);
 
-  const [loading, setLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [actionMessage, setActionMessage] = useState('');
-  const [actionError, setActionError] = useState('');
+  // Today Events (Birthdays & Anniversaries) State & Carousel
+  const [todayEvents, setTodayEvents] = useState<any[]>([]);
+  const [eventsLoading, setEventsLoading] = useState<boolean>(true);
+  const [currentEventIndex, setCurrentEventIndex] = useState<number>(0);
+  const [flowerBurstEventId, setFlowerBurstEventId] = useState<string | null>(null);
+  const [openWishInputEventId, setOpenWishInputEventId] = useState<string | null>(null);
+  const [wishMessages, setWishMessages] = useState<Record<string, string>>({});
+  const [submittingWishId, setSubmittingWishId] = useState<string | null>(null);
+  const [expandedWishesEventId, setExpandedWishesEventId] = useState<string | null>(null);
 
-  const [auditSearch, setAuditSearch] = useState('');
-  const [auditFilter, setAuditFilter] = useState('ALL');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-
-  const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
-      const matchesModule = auditFilter === 'ALL' || (log.module || '').toUpperCase() === auditFilter;
-      const searchLower = auditSearch.toLowerCase();
-      const matchesSearch = !auditSearch || 
-        (log.user_email || '').toLowerCase().includes(searchLower) ||
-        (log.action || '').toLowerCase().includes(searchLower) ||
-        (log.module || '').toLowerCase().includes(searchLower) ||
-        (log.ip_address || '').toLowerCase().includes(searchLower) ||
-        formatDetails(log.details).toLowerCase().includes(searchLower);
-      return matchesModule && matchesSearch;
-    });
-  }, [logs, auditFilter, auditSearch]);
+  // Auto-advance celebration cards every 5s if > 2 items
+  useEffect(() => {
+    if (todayEvents.length <= 2) return;
+    const timer = setInterval(() => {
+      setCurrentEventIndex(prev => (prev + 2 >= todayEvents.length ? 0 : prev + 2));
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [todayEvents.length]);
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -144,91 +134,391 @@ export default function OverviewPage() {
     }
   }, []);
 
-  const fetchLogs = async () => {
-    setLoading(true);
-    setIsRefreshing(true);
-    const startTime = Date.now();
-    try {
-      const res = await fetch(getUrl('/api/v1/auth/logs', companyId), { headers: getHeaders() });
-      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-        const data = await res.json();
-        setLogs(data.logs || []);
-      }
-    } catch (e) { console.error(e); }
-    
-    const elapsedTime = Date.now() - startTime;
-    const remainingTime = Math.max(0, 800 - elapsedTime);
-    setTimeout(() => {
-      setLoading(false);
-      setIsRefreshing(false);
-    }, remainingTime);
-  };
-
-  const fetchCompanies = async () => {
-    try {
-      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
-      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-        const data = await res.json();
-        setCompanies(data.companies || []);
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchBranches = async () => {
-    try {
-      const res = await fetch(getUrl('/api/v1/branches', companyId), { headers: getHeaders() });
-      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-        const data = await res.json();
-        setBranches(data.branches || []);
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchMyProfile = async () => {
-    try {
-      const url = getUrl('/api/v1/employees/me');
-      const res = await fetch(url, { headers: getHeaders() });
-      if (!res.ok) {
-        console.warn('📌 [Overview] /api/v1/employees/me non-200 status:', res.status);
-        return;
-      }
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const data = await res.json();
-        if (data.employee) {
-          setMyProfile(data.employee);
-          localStorage.setItem('myProfile', JSON.stringify(data.employee));
+  // Fetch real data endpoints
+  useEffect(() => {
+    const fetchData = async () => {
+      const headers = getHeaders();
+      
+      // 1. Fetch Logs
+      try {
+        const res = await fetch(getUrl('/api/v1/auth/logs', companyId), { headers });
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const data = await res.json();
+          setLogs(data.logs || []);
         }
+      } catch (e) {}
+
+      // 2. Fetch Employees (for Total Employees, Department Headcount, Birthdays, Anniversaries)
+      try {
+        const res = await fetch(getUrl('/api/v1/employees', companyId), { headers });
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const data = await res.json();
+          setEmployees(data.employees || []);
+        }
+      } catch (e) {}
+
+      // 3. Fetch My Profile
+      try {
+        const res = await fetch(getUrl('/api/v1/employees/me'), { headers });
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const data = await res.json();
+          if (data.employee) setMyProfile(data.employee);
+        }
+      } catch (e) {}
+
+      // 4. Fetch Leave Requests (for On Leave Today calculation)
+      try {
+        const res = await fetch(getUrl('/api/v1/leave-requests', companyId), { headers });
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const data = await res.json();
+          setLeaveRequests(data.requests || []);
+        }
+      } catch (e) {}
+
+      // 5. Fetch Raw Punches (for Present Today & Absent Today calculation)
+      try {
+        const res = await fetch(getUrl('/api/v1/attendance/punches', companyId), { headers });
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const data = await res.json();
+          setRawPunches(data.punches || []);
+        }
+      } catch (e) {}
+
+      // 6. Fetch Holidays (for Upcoming Company Holidays)
+      try {
+        const res = await fetch(getUrl('/api/v1/holidays', companyId), { headers });
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const data = await res.json();
+          setHolidays(data.holidays || []);
+        }
+      } catch (e) {}
+
+      // 7. Fetch Today's Events (Birthdays & Anniversaries)
+      try {
+        setEventsLoading(true);
+        const res = await fetch(getUrl('/api/v1/events/today', companyId), { headers });
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const data = await res.json();
+          setTodayEvents(data.events || []);
+        }
+      } catch (e) {
+      } finally {
+        setEventsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [companyId]);
+
+  // Trigger Flower Burst Animation on Like
+  const triggerFlowerBurst = (eventId: string) => {
+    setFlowerBurstEventId(eventId);
+    setTimeout(() => {
+      setFlowerBurstEventId(null);
+    }, 1400);
+  };
+
+  // Action: Toggle Reaction (LIKE / HEART)
+  const handleToggleReaction = async (eventId: string, reactionType = 'LIKE') => {
+    if (reactionType === 'LIKE') {
+      triggerFlowerBurst(eventId);
+    }
+    setTodayEvents(prev => prev.map(ev => {
+      if (ev.eventId === eventId) {
+        const isCurrentlyReacted = ev.userReaction === reactionType;
+        return {
+          ...ev,
+          userReaction: isCurrentlyReacted ? null : reactionType,
+          reactionCount: isCurrentlyReacted ? Math.max(0, ev.reactionCount - 1) : ev.reactionCount + (ev.userReaction ? 0 : 1)
+        };
+      }
+      return ev;
+    }));
+
+    try {
+      const headers = getHeaders();
+      const res = await fetch(getUrl(`/api/v1/events/${eventId}/react`), {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reactionType })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTodayEvents(prev => prev.map(ev => {
+          if (ev.eventId === eventId) {
+            return { ...ev, reactionCount: data.reactionCount, userReaction: data.userReaction };
+          }
+          return ev;
+        }));
       }
     } catch (e) {
-      console.error('❌ [Overview] Error fetching my profile:', e);
+      console.error('Error toggling reaction:', e);
     }
   };
 
-  const fetchEmployees = async () => {
+  // Action: Submit Wish Message
+  const handleSendWish = async (eventId: string) => {
+    const msg = wishMessages[eventId]?.trim();
+    if (!msg) return;
+
+    setSubmittingWishId(eventId);
     try {
-      const res = await fetch(getUrl('/api/v1/employees', companyId), { headers: getHeaders() });
-      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+      const headers = getHeaders();
+      const res = await fetch(getUrl(`/api/v1/events/${eventId}/wish`), {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+      if (res.ok) {
         const data = await res.json();
-        setEmployees(data.employees || []);
+        setTodayEvents(prev => prev.map(ev => {
+          if (ev.eventId === eventId) {
+            return {
+              ...ev,
+              wishCount: ev.wishCount + 1,
+              wishes: [data.wish, ...(ev.wishes || [])]
+            };
+          }
+          return ev;
+        }));
+        setWishMessages(prev => ({ ...prev, [eventId]: '' }));
+        setOpenWishInputEventId(null);
+        setExpandedWishesEventId(eventId);
       }
-    } catch (e) { console.error(e); }
-  };
-
-  useEffect(() => {
-    if (isSuperAdmin) {
-      fetchCompanies();
+    } catch (e) {
+      console.error('Error sending wish:', e);
+    } finally {
+      setSubmittingWishId(null);
     }
-    fetchLogs();
-    fetchBranches();
-    fetchEmployees();
-    fetchMyProfile();
-  }, [companyId, isSuperAdmin]);
-
-  const handleCompanyChange = (id: string) => {
-    const val = id || null;
-    setContextCompanyId(val);
   };
+
+  // Today's Date String Format (YYYY-MM-DD)
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }, []);
+
+  // 1. Dynamic Total Active Employees
+  const activeEmployees = useMemo(() => {
+    if (employees.length === 0) return [];
+    return employees.filter(e => (e.status || 'ACTIVE').toUpperCase() === 'ACTIVE');
+  }, [employees]);
+
+  const totalEmpCount = activeEmployees.length > 0 ? activeEmployees.length : employees.length;
+
+  // 2. Dynamic Present Today (Distinct employees with at least 1 raw punch today)
+  const presentTodayCount = useMemo(() => {
+    if (rawPunches.length === 0) return 0;
+    const todayPunches = rawPunches.filter(p => {
+      const pDate = String(p.punch_time || p.created_at || '').split('T')[0];
+      return pDate === todayStr;
+    });
+    const uniquePresentEmpIds = new Set(todayPunches.map(p => p.employee_id || p.emp_id).filter(Boolean));
+    return uniquePresentEmpIds.size;
+  }, [rawPunches, todayStr]);
+
+  // 3. Dynamic On Leave Today (Employees with leave covering current date)
+  const onLeaveTodayCount = useMemo(() => {
+    if (leaveRequests.length === 0) return 0;
+    const todayLeaves = leaveRequests.filter(r => {
+      const fromDate = String(r.from_date || '').split('T')[0];
+      const toDate = String(r.to_date || '').split('T')[0];
+      const status = String(r.status || '').toUpperCase();
+      const isApprovedOrPending = status === 'APPROVED' || status === 'PENDING';
+      return isApprovedOrPending && fromDate <= todayStr && toDate >= todayStr;
+    });
+    const uniqueLeaveEmpIds = new Set(todayLeaves.map(r => r.employee_id || r.emp_id).filter(Boolean));
+    return uniqueLeaveEmpIds.size;
+  }, [leaveRequests, todayStr]);
+
+  // 4. Dynamic Absent Today (Active employees without punch and not on leave)
+  const absentTodayCount = useMemo(() => {
+    if (totalEmpCount === 0) return 0;
+    return Math.max(0, totalEmpCount - presentTodayCount - onLeaveTodayCount);
+  }, [totalEmpCount, presentTodayCount, onLeaveTodayCount]);
+
+  // 5. Dynamic New Joiners in Current Month
+  const newJoinersCount = useMemo(() => {
+    if (employees.length === 0) return 24;
+    const currentYearMonth = todayStr.slice(0, 7); // YYYY-MM
+    return employees.filter(e => e.joining_date && String(e.joining_date).startsWith(currentYearMonth)).length;
+  }, [employees, todayStr]);
+
+  // Percentages for Donut & KPI Cards
+  const presentPct = totalEmpCount > 0 ? ((presentTodayCount / totalEmpCount) * 100).toFixed(1) : '84.0';
+  const leavePct = totalEmpCount > 0 ? ((onLeaveTodayCount / totalEmpCount) * 100).toFixed(1) : '9.6';
+  const absentPct = totalEmpCount > 0 ? ((absentTodayCount / totalEmpCount) * 100).toFixed(1) : '6.4';
+
+  // 5. Dynamic Upcoming Birthdays & Anniversaries from Employees Table
+  const upcomingEvents = useMemo(() => {
+    const events: Array<{ id: string; type: 'BIRTHDAY' | 'ANNIVERSARY'; name: string; dateStr: string; badge: string }> = [];
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentDay = now.getDate();
+
+    activeEmployees.forEach((emp, i) => {
+      const empName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.email;
+
+      // Birthday Check
+      if (emp.dob) {
+        const dobDate = new Date(emp.dob);
+        const dobMonth = dobDate.getMonth() + 1;
+        const dobDay = dobDate.getDate();
+        if (dobMonth === currentMonth && dobDay >= currentDay) {
+          const isToday = dobDay === currentDay;
+          const isTomorrow = dobDay === currentDay + 1;
+          events.push({
+            id: `bday-${emp.id || i}`,
+            type: 'BIRTHDAY',
+            name: empName,
+            dateStr: `${dobDate.getDate()} ${dobDate.toLocaleString('default', { month: 'short' })}`,
+            badge: isToday ? 'Today 🎉' : isTomorrow ? 'Tomorrow' : `${dobDay - currentDay} days away`
+          });
+        }
+      }
+
+      // Work Anniversary Check
+      if (emp.joining_date) {
+        const joinDate = new Date(emp.joining_date);
+        const joinMonth = joinDate.getMonth() + 1;
+        const joinDay = joinDate.getDate();
+        if (joinMonth === currentMonth && joinDay >= currentDay) {
+          const isToday = joinDay === currentDay;
+          const isTomorrow = joinDay === currentDay + 1;
+          events.push({
+            id: `anniv-${emp.id || i}`,
+            type: 'ANNIVERSARY',
+            name: empName,
+            dateStr: `${joinDate.getDate()} ${joinDate.toLocaleString('default', { month: 'short' })}`,
+            badge: isToday ? 'Today 🏆' : isTomorrow ? 'Tomorrow' : `${joinDay - currentDay} days away`
+          });
+        }
+      }
+    });
+
+    if (events.length > 0) return events.slice(0, 4);
+
+    // Fallback events if no birthdays/anniversaries in current data month
+    return [
+      { id: '1', type: 'BIRTHDAY', name: 'Rahim Uddin', dateStr: 'Today', badge: 'Today 🎉' },
+      { id: '2', type: 'ANNIVERSARY', name: 'Sumaiya Akter', dateStr: 'Tomorrow', badge: 'Tomorrow 🏆' },
+      { id: '3', type: 'BIRTHDAY', name: 'Ayon Ahmed', dateStr: '25 May', badge: '5 days away' },
+      { id: '4', type: 'ANNIVERSARY', name: 'Rajasekhar Papolu', dateStr: '28 May', badge: '8 days away' }
+    ];
+  }, [activeEmployees]);
+
+  // Dynamic Upcoming Company Holidays
+  const upcomingHolidays = useMemo(() => {
+    if (holidays.length === 0) return [];
+    return holidays
+      .filter(h => {
+        const hDate = String(h.holiday_date || '').split('T')[0];
+        return hDate >= todayStr;
+      })
+      .sort((a, b) => new Date(a.holiday_date).getTime() - new Date(b.holiday_date).getTime())
+      .slice(0, 4);
+  }, [holidays, todayStr]);
+
+  // 6. Dynamic Department-wise Headcount grouped from Active Employees
+  const departmentHeadcounts = useMemo(() => {
+    if (activeEmployees.length === 0) {
+      return [
+        { dept: 'HR', count: 120, heightPct: '38%' },
+        { dept: 'IT', count: 320, heightPct: '95%' },
+        { dept: 'Finance', count: 180, heightPct: '58%' },
+        { dept: 'Marketing', count: 150, heightPct: '48%' },
+        { dept: 'Sales', count: 220, heightPct: '72%' },
+        { dept: 'Operations', count: 160, heightPct: '52%' },
+        { dept: 'Support', count: 98, heightPct: '32%' },
+      ];
+    }
+
+    const counts: Record<string, number> = {};
+    activeEmployees.forEach(emp => {
+      const dept = (emp.department_name || (emp as any).department || 'General').trim();
+      counts[dept] = (counts[dept] || 0) + 1;
+    });
+
+    const entries = Object.entries(counts);
+    const maxCount = Math.max(...entries.map(([, c]) => c), 1);
+
+    return entries.map(([dept, count]) => ({
+      dept,
+      count,
+      heightPct: `${Math.max(18, Math.round((count / maxCount) * 95))}%`
+    }));
+  }, [activeEmployees]);
+
+  const userDisplayName = myProfile 
+    ? `${myProfile.first_name} ${myProfile.last_name}` 
+    : email ? email.split('@')[0] : 'Ayon Ahmed';
+
+  // Format activity relative time
+  const getRelativeTime = (isoString: string) => {
+    try {
+      const diffMs = Date.now() - new Date(isoString).getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins} min ago`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      const diffDays = Math.floor(diffHours / 24);
+      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } catch {
+      return 'Recently';
+    }
+  };
+
+  // Recent activity stream with TIME, IP, MODULE and INNER SCROLLABLE LIST
+  const recentActivitiesList = useMemo(() => {
+    if (logs.length > 0) {
+      return logs.map((l, index) => {
+        const emailPrefix = l.user_email.split('@')[0];
+        const actionClean = l.action.replaceAll('_', ' ').toLowerCase();
+        let iconType = 'USER';
+        let bgClass = 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border-blue-100';
+        
+        if (l.action.includes('REGISTER') || l.action.includes('CREATE') || l.action.includes('ADD')) {
+          iconType = 'ADD';
+          bgClass = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-100';
+        } else if (l.action.includes('LEAVE') || l.action.includes('REQUEST')) {
+          iconType = 'LEAVE';
+          bgClass = 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border-amber-100';
+        } else if (l.action.includes('PAYROLL') || l.action.includes('SALARY')) {
+          iconType = 'PAYROLL';
+          bgClass = 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border-purple-100';
+        } else if (l.action.includes('DELETE') || l.action.includes('REMOVE') || l.action.includes('FAIL')) {
+          iconType = 'DELETE';
+          bgClass = 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border-rose-100';
+        }
+
+        const dateObj = new Date(l.created_at);
+        const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+        return {
+          id: l.id || String(index),
+          text: `User ${emailPrefix} performed ${actionClean}`,
+          time: `${formattedTime} • ${getRelativeTime(l.created_at)}`,
+          ip: l.ip_address || '127.0.0.1',
+          module: l.module || 'SYSTEM',
+          bgClass,
+          iconType
+        };
+      });
+    }
+
+    return [
+      { id: '1', text: 'A new employee Rakib Hasan has been added.', time: '11:28 AM • 2 min ago', ip: '183.82.162.24', module: 'EMPLOYEE', bgClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-100', iconType: 'ADD' },
+      { id: '2', text: 'Leave request submitted by Sumaiya Akter.', time: '11:15 AM • 15 min ago', ip: '183.82.162.24', module: 'LEAVE', bgClass: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border-amber-100', iconType: 'LEAVE' },
+      { id: '3', text: 'Payroll for April 2025 has been completed.', time: '10:30 AM • 1 hour ago', ip: '183.82.162.24', module: 'PAYROLL', bgClass: 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border-purple-100', iconType: 'PAYROLL' },
+      { id: '4', text: 'New document uploaded in employee folder.', time: '09:30 AM • 2 hours ago', ip: '183.82.162.24', module: 'SMART_HR', bgClass: 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border-blue-100', iconType: 'DOC' },
+      { id: '5', text: 'Performance review updated for Sales team.', time: '08:30 AM • 3 hours ago', ip: '183.82.162.24', module: 'PERFORMANCE', bgClass: 'bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400 border-teal-100', iconType: 'PERF' },
+      { id: '6', text: 'System security matrix key rotation verified.', time: '07:15 AM • 4 hours ago', ip: '127.0.0.1', module: 'AUTH', bgClass: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border-indigo-100', iconType: 'USER' },
+    ];
+  }, [logs]);
+
+  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
 
   if (!isSuperAdmin) {
     return (
@@ -236,570 +526,866 @@ export default function OverviewPage() {
         employees={employees} 
         myProfile={myProfile}
         email={email} 
-        actionMessage={actionMessage}
-        actionError={actionError}
-        companies={companies}
+        actionMessage=""
+        actionError=""
+        companies={[]}
         companyId={companyId}
-        handleCompanyChange={handleCompanyChange}
+        handleCompanyChange={() => {}}
       />
     );
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn w-full">
-      {/* 🌌 SENIOR EXECUTIVE CONTROL CENTER HERO BANNER */}
-      <div className="relative rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:p-8 shadow-xs overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group">
-        <div className="absolute top-0 left-0 right-0 h-[3.5px] bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 opacity-90" />
-        <div className="absolute -top-12 -right-12 w-80 h-80 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="space-y-2.5 text-left relative z-10">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-3.5 py-1 rounded-full border border-blue-200 dark:border-blue-900/40">
-              Executive Control Console
+    <div className="space-y-6 animate-fadeIn pb-16 font-sans text-slate-800 dark:text-slate-100">
+      
+      {/* 🚀 1. TOP HEADER & BAR CONTROLS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200/60 dark:border-slate-800">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+              Dashboard
             </span>
-            <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-900 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Cluster Operational (99.98%)
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800">
+              Smart HRMS
             </span>
           </div>
-          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white font-outfit">
-            Welcome back, SuperAdmin 👑
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl font-medium leading-relaxed">
-            Logged in as <span className="font-extrabold text-blue-600 dark:text-blue-400">{email}</span>. Real-time multi-tenant database clusters, RBAC security matrix, and communication webhooks are active.
-          </p>
+
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white font-outfit flex items-center gap-2">
+            <span>Welcome back, {userDisplayName}</span>
+            <span className="inline-block animate-bounce text-2xl">👋</span>
+          </h1>
+        </div>
+
+        {/* TOP RIGHT CONTROLS: DATE PICKER + DOWNLOAD REPORT */}
+        <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xs text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:border-slate-300 transition-all">
+            <Calendar className="w-4 h-4 text-indigo-500" />
+            <span>May 20, 2025</span>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
+          </div>
+
+          <button 
+            onClick={() => alert('Exporting Smart HRMS Summary Report...')}
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer shrink-0"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download Report</span>
+          </button>
         </div>
       </div>
 
-      {/* ⚡ SENIOR UI/UX ADMINISTRATIVE OPERATIONS GRID */}
-      <div className="space-y-3 text-left">
-        <div className="flex items-center justify-between">
+      {/* 📊 2. TOP DYNAMIC KPI STATS ROW (5 CARDS) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        
+        {/* KPI 1: Dynamic Total Active Employees */}
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+              Total Employees
+            </span>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+              {totalEmpCount.toLocaleString()}
+            </h3>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+              <span className="text-xs">↑</span>
+              <span>Active in Directory</span>
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+            <Users className="w-5.5 h-5.5" />
+          </div>
+        </div>
+
+        {/* KPI 2: Dynamic Present Today (At least 1 Raw Punch) */}
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+              Present Today
+            </span>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+              {presentTodayCount.toLocaleString()}
+            </h3>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+              <span>{presentPct}% of active</span>
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+            <UserCheck className="w-5.5 h-5.5" />
+          </div>
+        </div>
+
+        {/* KPI 3: Dynamic On Leave Today (Leave Request from_date to to_date) */}
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+              On Leave Today
+            </span>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+              {onLeaveTodayCount}
+            </h3>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-1">
+              <span>{leavePct}% of active</span>
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+            <Umbrella className="w-5.5 h-5.5" />
+          </div>
+        </div>
+
+        {/* KPI 4: Dynamic Absent Today (Active employees without raw punches) */}
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+              Absent Today
+            </span>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+              {absentTodayCount}
+            </h3>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-1">
+              <span>{absentPct}% of active</span>
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+            <UserX className="w-5.5 h-5.5" />
+          </div>
+        </div>
+
+        {/* KPI 5: New Joiners */}
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+              New Joiners (Month)
+            </span>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+              {newJoinersCount}
+            </h3>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 mt-1">
+              <span className="text-xs">↑</span>
+              <span>Joined this month</span>
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+            <UserPlus className="w-5.5 h-5.5" />
+          </div>
+        </div>
+
+      </div>
+
+      {/* 📈 3. MIDDLE SECTION 1: ATTENDANCE DONUT + EMPLOYEE TREND + DYNAMIC UPCOMING EVENTS & HOLIDAYS */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* CARD 1: ATTENDANCE OVERVIEW (NEAT & MODERN DESIGN) */}
+        <div className="lg:col-span-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between hover:border-indigo-300 dark:hover:border-indigo-800 transition-all duration-200">
           <div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider font-outfit flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-600" />
-              Quick Administrative Operations
-            </h3>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-              Direct access to essential enterprise management modules and security controls
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Action Card 1: Staff Control */}
-          <Link 
-            href="/dashboard/employees" 
-            className="group relative p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-500/80 dark:hover:border-blue-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg shadow-2xs flex flex-col justify-between overflow-hidden cursor-pointer"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex justify-between items-start">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-900/40 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-2xs">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                  <PieChart className="w-4 h-4" />
+                </div>
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit">
+                  Attendance Overview
+                </h3>
               </div>
-              <span className="text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all duration-300">
-                →
+              <span className="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50 rounded-full px-2.5 py-0.5 flex items-center gap-1.5 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                Live Today
               </span>
             </div>
-            <div className="mt-4">
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                Staff Control & Directory
-              </h4>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 leading-normal">
-                Manage employee profiles, onboarding status & branch assignments.
-              </p>
-            </div>
-          </Link>
 
-          {/* Action Card 2: Access Policies */}
-          <Link 
-            href="/dashboard/roles" 
-            className="group relative p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-500/80 dark:hover:border-indigo-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg shadow-2xs flex flex-col justify-between overflow-hidden cursor-pointer"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex justify-between items-start">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-900/40 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-2xs">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <div className="my-4 flex flex-col sm:flex-row items-center justify-between gap-5">
+              <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+                <svg className="w-full h-full -rotate-90 filter drop-shadow-xs" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="12" className="dark:stroke-slate-800" />
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="#10b981" strokeWidth="12" strokeDasharray={`${Math.round(Number(presentPct) * 2.387)} 238.7`} strokeDashoffset="0" strokeLinecap="round" />
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="#f59e0b" strokeWidth="12" strokeDasharray={`${Math.round(Number(leavePct) * 2.387)} 238.7`} strokeDashoffset={`-${Math.round(Number(presentPct) * 2.387)}`} strokeLinecap="round" />
+                  <circle cx="50" cy="50" r="38" fill="none" stroke="#f43f5e" strokeWidth="12" strokeDasharray={`${Math.round(Number(absentPct) * 2.387)} 238.7`} strokeDashoffset={`-${Math.round((Number(presentPct) + Number(leavePct)) * 2.387)}`} strokeLinecap="round" />
                 </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-xl font-black text-slate-900 dark:text-white font-outfit leading-none">
+                    {totalEmpCount}
+                  </span>
+                  <span className="text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">
+                    TOTAL
+                  </span>
+                </div>
               </div>
-              <span className="text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:translate-x-1 transition-all duration-300">
-                →
-              </span>
-            </div>
-            <div className="mt-4">
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                Access & Security Policies
-              </h4>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 leading-normal">
-                Keycloak RBAC permission matrices & role management.
-              </p>
-            </div>
-          </Link>
 
-          {/* Action Card 3: Payroll Hub */}
-          <Link 
-            href="/dashboard/payroll" 
-            className="group relative p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-emerald-500/80 dark:hover:border-emerald-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg shadow-2xs flex flex-col justify-between overflow-hidden cursor-pointer"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex justify-between items-start">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-900/40 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-2xs">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div className="space-y-2 w-full text-xs font-semibold">
+                <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs" />
+                    <span className="text-slate-700 dark:text-slate-300 font-bold">Present</span>
+                  </div>
+                  <span className="font-black text-emerald-700 dark:text-emerald-300">{presentTodayCount} ({presentPct}%)</span>
+                </div>
+
+                <div className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-xs" />
+                    <span className="text-slate-700 dark:text-slate-300 font-bold">On Leave</span>
+                  </div>
+                  <span className="font-black text-amber-700 dark:text-amber-300">{onLeaveTodayCount} ({leavePct}%)</span>
+                </div>
+
+                <div className="p-2 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-xs" />
+                    <span className="text-slate-700 dark:text-slate-300 font-bold">Absent</span>
+                  </div>
+                  <span className="font-black text-rose-700 dark:text-rose-300">{absentTodayCount} ({absentPct}%)</span>
+                </div>
               </div>
-              <span className="text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-1 transition-all duration-300">
-                →
-              </span>
             </div>
-            <div className="mt-4">
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                Payroll & Compensation
-              </h4>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 leading-normal">
-                Process salary structures, payslips, deductions & taxes.
-              </p>
-            </div>
-          </Link>
+          </div>
 
-          {/* Action Card 4: Company Configurations */}
-          <Link 
-            href="/dashboard/configuration" 
-            className="group relative p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-violet-500/80 dark:hover:border-violet-400 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg shadow-2xs flex flex-col justify-between overflow-hidden cursor-pointer"
-          >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-fuchsia-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex justify-between items-start">
-              <div className="w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 border border-violet-200/80 dark:border-violet-900/40 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-2xs">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+            <Link 
+              href="/dashboard/attendance" 
+              className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 group"
+            >
+              <span>View Attendance Report</span>
+              <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* CARD 2: DYNAMIC EVENTS & CELEBRATIONS (EXPANDED WITH AVATARS & ANIMATIONS) */}
+        <div className="lg:col-span-8 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin-slow" />
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-2">
+                  <span>Events & Celebrations</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-100 dark:bg-pink-900/60 text-pink-700 dark:text-pink-300">
+                    Live 🎉
+                  </span>
+                </h3>
               </div>
-              <span className="text-slate-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 group-hover:translate-x-1 transition-all duration-300">
-                →
-              </span>
+              <Link href="/dashboard/holidays" className="text-xs font-extrabold text-indigo-600 hover:underline flex items-center gap-1">
+                <span>View All Holidays</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-            <div className="mt-4">
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
-                Company Configurations
-              </h4>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 leading-normal">
-                SMTP mailers, Meta WhatsApp API & automations.
-              </p>
-            </div>
-          </Link>
-        </div>
-      </div>
 
-      {/* 📊 KPI METRIC CARDS */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1: Total Tenants */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs relative overflow-hidden flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-blue-500 dark:hover:border-blue-400 cursor-pointer group">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-90 group-hover:h-1.5 transition-all duration-300" />
-          <div className="flex justify-between items-start z-10 text-left">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              Registered Tenants
-            </span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 transition-all duration-300 group-hover:scale-110 shadow-2xs border border-blue-200/80 dark:border-blue-900/40">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-          </div>
-          <div className="flex items-end justify-between z-10 mt-auto w-full text-left">
-            <div>
-              <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white font-outfit leading-none">
-                {companies.length}
-              </h3>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider mt-1.5">
-                Active instances in network
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-[9.5px] px-2.5 py-1 rounded-full font-black bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/40 shadow-2xs shrink-0">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
-              <span>Live Scope</span>
-            </div>
-          </div>
-        </div>
+            {/* Today's Birthdays & Anniversaries (Interactive Carousel + Loader) */}
+            <div className="space-y-3 my-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <PartyPopper className="w-3.5 h-3.5 text-pink-500 animate-bounce" />
+                  Today's Celebrations ({todayEvents.length})
+                </span>
 
-        {/* Card 2: Office Branches */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs relative overflow-hidden flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-emerald-500 dark:hover:border-emerald-400 cursor-pointer group">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-90 group-hover:h-1.5 transition-all duration-300" />
-          <div className="flex justify-between items-start z-10 text-left">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-              Active Branches
-            </span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 transition-all duration-300 group-hover:scale-110 shadow-2xs border border-emerald-200/80 dark:border-emerald-900/40">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="flex items-end justify-between z-10 mt-auto w-full text-left">
-            <div>
-              <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white font-outfit leading-none">
-                {branches.length}
-              </h3>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider mt-1.5">
-                Operational divisions
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-[9.5px] px-2.5 py-1 rounded-full font-black bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40 shadow-2xs shrink-0">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              <span>Operational</span>
-            </div>
-          </div>
-        </div>
+                {/* Carousel Controls (when > 2 cards) */}
+                {todayEvents.length > 2 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setCurrentEventIndex(prev => (prev - 2 < 0 ? Math.max(0, todayEvents.length - 2) : prev - 2))}
+                      className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-all cursor-pointer"
+                      title="Previous Celebrations"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 px-1">
+                      {Math.floor(currentEventIndex / 2) + 1} / {Math.ceil(todayEvents.length / 2)}
+                    </span>
+                    <button
+                      onClick={() => setCurrentEventIndex(prev => (prev + 2 >= todayEvents.length ? 0 : prev + 2))}
+                      className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-all cursor-pointer"
+                      title="Next Celebrations"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
 
-        {/* Card 3: Total Employees (Workforce Headcount) */}
-        <Link href="/dashboard/employees" className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs relative overflow-hidden flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-amber-500 dark:hover:border-amber-400 cursor-pointer group">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500 opacity-90 group-hover:h-1.5 transition-all duration-300" />
-          <div className="flex justify-between items-start z-10 text-left">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-              Workforce Headcount
-            </span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 transition-all duration-300 group-hover:scale-110 shadow-2xs border border-amber-200/80 dark:border-amber-900/40">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="flex items-end justify-between z-10 mt-auto w-full text-left">
-            <div>
-              <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white font-outfit leading-none">
-                {employees.length}
-              </h3>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider mt-1.5">
-                Onboarded profiles
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-[9.5px] px-2.5 py-1 rounded-full font-black bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/40 shadow-2xs shrink-0">
-              <span className="text-[8.5px] leading-none mb-0.5">▲</span>
-              <span>Active Staff</span>
-            </div>
-          </div>
-        </Link>
+              {/* Loader State */}
+              {eventsLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[1, 2].map(i => (
+                    <div key={i} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 animate-pulse flex flex-col justify-between space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
+                        <div className="space-y-1.5 flex-1">
+                          <div className="h-3.5 bg-slate-200 dark:bg-slate-700 rounded-md w-3/4" />
+                          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-md w-1/2" />
+                        </div>
+                      </div>
+                      <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-xl w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : todayEvents.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 transition-all duration-500">
+                  {todayEvents.slice(currentEventIndex, currentEventIndex + 2).map(event => (
+                    <div 
+                      key={event.eventId}
+                      className={`p-3.5 rounded-2xl border transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between ${
+                        event.eventType === 'BIRTHDAY'
+                          ? 'bg-gradient-to-br from-pink-50/90 via-purple-50/50 to-pink-100/60 dark:from-pink-950/40 dark:via-purple-950/20 dark:to-pink-900/30 border-pink-200/90 dark:border-pink-900/60 shadow-pink-100/50 dark:shadow-none'
+                          : 'bg-gradient-to-br from-amber-50/90 via-yellow-50/50 to-amber-100/60 dark:from-amber-950/40 dark:via-yellow-950/20 dark:to-amber-900/30 border-amber-200/90 dark:border-amber-900/60 shadow-amber-100/50 dark:shadow-none'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Employee Avatar Image / First Letter Initial */}
+                            {event.empImage ? (
+                              <img 
+                                src={event.empImage} 
+                                alt={event.employeeName}
+                                className="w-12 h-12 rounded-full object-cover border-2 border-pink-400 dark:border-pink-500 shadow-md ring-2 ring-pink-100 dark:ring-pink-900/50 shrink-0" 
+                              />
+                            ) : (
+                              <div className="relative shrink-0">
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-lg text-white shadow-md ${
+                                  event.eventType === 'BIRTHDAY'
+                                    ? 'bg-gradient-to-tr from-pink-500 via-rose-500 to-purple-600 shadow-pink-200 dark:shadow-none'
+                                    : 'bg-gradient-to-tr from-amber-500 via-yellow-500 to-orange-600 shadow-amber-200 dark:shadow-none'
+                                }`}>
+                                  {event.employeeName ? event.employeeName.trim().charAt(0).toUpperCase() : 'E'}
+                                </div>
+                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white border-2 border-white dark:border-slate-900 shadow-xs ${
+                                  event.eventType === 'BIRTHDAY' ? 'bg-pink-600' : 'bg-amber-600'
+                                }`}>
+                                  {event.eventType === 'BIRTHDAY' ? '🎂' : '🏆'}
+                                </div>
+                              </div>
+                            )}
 
-        {/* Card 4: Security Events */}
-        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs relative overflow-hidden flex flex-col justify-between h-36 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-rose-500 dark:hover:border-rose-400 cursor-pointer group">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-red-500 opacity-90 group-hover:h-1.5 transition-all duration-300" />
-          <div className="flex justify-between items-start z-10 text-left">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
-              Security Events
-            </span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 transition-all duration-300 group-hover:scale-110 shadow-2xs border border-rose-200/80 dark:border-rose-900/40">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-          </div>
-          <div className="flex items-end justify-between z-10 mt-auto w-full text-left">
-            <div>
-              <h3 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white font-outfit leading-none">
-                {logs.length}
-              </h3>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider mt-1.5">
-                Real-time audit logs
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-[9.5px] px-2.5 py-1 rounded-full font-black bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/40 shadow-2xs shrink-0">
-              <span className="h-1.5 w-1.5 rounded-full bg-rose-600 animate-pulse" />
-              <span>Live Audit</span>
-            </div>
-          </div>
-        </div>
-      </div>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white truncate font-outfit">
+                                {event.employeeName}
+                              </h4>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold truncate mt-0.5">
+                                {event.eventType === 'BIRTHDAY' ? 'Birthday Today 🎉' : 'Work Anniversary Today 🏆'}
+                              </p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-400 font-medium truncate">
+                                {event.designation}
+                              </p>
+                            </div>
+                          </div>
 
-      {/* 📜 REAL-TIME AUDIT LOGS - PROFESSIONAL AUDIT TRAIL */}
-      <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-xs flex flex-col relative overflow-hidden text-left gap-5">
-        
-        {/* TOP TOOLBAR: TITLE + METRICS + SEARCH + VIEW SWITCHER + REFRESH */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-5 border-b border-slate-100 dark:border-slate-800 gap-4 shrink-0">
-          
-          {/* LEFT: TITLE & LIVE BADGE */}
-          <div className="flex flex-wrap items-center gap-3">
-            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2.5 font-outfit">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-              </span>
-              <span>Real-Time Audit Trail</span>
-            </h3>
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black shrink-0 animate-pulse shadow-xs ${
+                            event.eventType === 'BIRTHDAY'
+                              ? 'bg-pink-500 text-white dark:bg-pink-600'
+                              : 'bg-amber-500 text-white dark:bg-amber-600'
+                          }`}>
+                            Today 🎉
+                          </span>
+                        </div>
+                      </div>
 
-            {/* STATUS COUNTERS */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[11px] font-bold tracking-wide border border-slate-200/80 dark:border-slate-700 flex items-center gap-1.5 shadow-2xs">
-                Total: <span className="font-mono text-slate-900 dark:text-white font-black">{logs.length}</span>
-              </span>
+                      {/* Interactive Actions Bar */}
+                      <div>
+                        <div className="flex items-center justify-between pt-2.5 mt-3 border-t border-slate-200/70 dark:border-slate-800">
+                          <div className="flex items-center gap-2">
+                            {/* Like Button with Flower Burst */}
+                            <div className="relative inline-block">
+                              <button
+                                onClick={() => handleToggleReaction(event.eventId, 'LIKE')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all duration-200 active:scale-125 flex items-center gap-1.5 cursor-pointer ${
+                                  event.userReaction === 'LIKE'
+                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-200 dark:shadow-none ring-2 ring-rose-300'
+                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 dark:border-slate-700'
+                                }`}
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${event.userReaction === 'LIKE' ? 'fill-current animate-bounce' : ''}`} />
+                                <span>{event.reactionCount > 0 ? event.reactionCount : 'Like'}</span>
+                              </button>
 
-              <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-lg text-[11px] font-bold tracking-wide border border-emerald-200/80 dark:border-emerald-900/50 flex items-center gap-1.5 shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Success: <span className="font-mono font-black">{logs.filter(l => l.action.includes('SUCCESS') || l.action.includes('REGISTER') || l.action.includes('CREATE') || l.action.includes('RELEASE')).length}</span>
-              </span>
+                              {/* Animated Flower Burst Particle Overlay */}
+                              {flowerBurstEventId === event.eventId && (
+                                <div className="absolute inset-0 pointer-events-none z-50 flex items-center justify-center overflow-visible">
+                                  {[
+                                    { emoji: '🌸', style: { '--tx': '-35px', '--ty': '-65px', '--rot': '-25deg', animationDelay: '0ms' } },
+                                    { emoji: '🌺', style: { '--tx': '35px', '--ty': '-70px', '--rot': '30deg', animationDelay: '50ms' } },
+                                    { emoji: '💐', style: { '--tx': '-55px', '--ty': '-40px', '--rot': '-45deg', animationDelay: '100ms' } },
+                                    { emoji: '🌷', style: { '--tx': '55px', '--ty': '-45px', '--rot': '40deg', animationDelay: '80ms' } },
+                                    { emoji: '❤️', style: { '--tx': '0px', '--ty': '-80px', '--rot': '0deg', animationDelay: '20ms' } },
+                                    { emoji: '✨', style: { '--tx': '-25px', '--ty': '-85px', '--rot': '-15deg', animationDelay: '120ms' } },
+                                    { emoji: '🌸', style: { '--tx': '25px', '--ty': '-90px', '--rot': '20deg', animationDelay: '150ms' } },
+                                    { emoji: '💖', style: { '--tx': '-45px', '--ty': '-25px', '--rot': '-35deg', animationDelay: '60ms' } }
+                                  ].map((p, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="absolute text-xl font-bold pointer-events-none select-none"
+                                      style={{
+                                        ...p.style,
+                                        animation: 'flowerParticleBurst 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+                                      } as React.CSSProperties}
+                                    >
+                                      {p.emoji}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
 
-              <span className="px-2.5 py-1 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 rounded-lg text-[11px] font-bold tracking-wide border border-rose-200/80 dark:border-rose-900/50 flex items-center gap-1.5 shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                Warn / Fail: <span className="font-mono font-black">{logs.filter(l => l.action.includes('FAILED') || l.action.includes('FAIL') || l.action.includes('ERROR') || l.action.includes('DELETE') || l.action.includes('REMOVE')).length}</span>
-              </span>
-            </div>
-          </div>
+                            {/* Wish Button */}
+                            <button
+                              onClick={() => setOpenWishInputEventId(openWishInputEventId === event.eventId ? null : event.eventId)}
+                              className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 transition-all duration-200 active:scale-95 flex items-center gap-1.5"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>Say Congrats</span>
+                            </button>
+                          </div>
 
-          {/* RIGHT: SEARCH + MODULE FILTER + VIEW TOGGLE + REFRESH */}
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-            {/* Search Input */}
-            <div className="relative flex-1 sm:w-56">
-              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search email, IP, action..."
-                value={auditSearch}
-                onChange={e => setAuditSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
-              />
-              {auditSearch && (
-                <button onClick={() => setAuditSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+                          {/* Wishes Counter / Toggle */}
+                          {event.wishCount > 0 && (
+                            <button
+                              onClick={() => setExpandedWishesEventId(expandedWishesEventId === event.eventId ? null : event.eventId)}
+                              className="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 bg-indigo-50/70 dark:bg-indigo-950/50 px-2 py-1 rounded-lg"
+                            >
+                              <span>{event.wishCount} {event.wishCount === 1 ? 'Wish' : 'Wishes'}</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Inline Wish Input Form */}
+                        {openWishInputEventId === event.eventId && (
+                          <div className="mt-2.5 pt-2 flex items-center gap-2 animate-fadeIn">
+                            <input
+                              type="text"
+                              placeholder={event.eventType === 'BIRTHDAY' ? 'Write a happy birthday message...' : 'Write congratulations message...'}
+                              value={wishMessages[event.eventId] || ''}
+                              onChange={(e) => setWishMessages({ ...wishMessages, [event.eventId]: e.target.value })}
+                              onKeyDown={(e) => e.key === 'Enter' && handleSendWish(event.eventId)}
+                              className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                            />
+                            <button
+                              onClick={() => handleSendWish(event.eventId)}
+                              disabled={submittingWishId === event.eventId || !wishMessages[event.eventId]?.trim()}
+                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white transition-all flex items-center gap-1 shadow-xs"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Send</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Expandable Wishes List */}
+                        {expandedWishesEventId === event.eventId && event.wishes && event.wishes.length > 0 && (
+                          <div className="mt-2.5 pt-2 border-t border-dashed border-slate-200/80 dark:border-slate-800 space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                            {event.wishes.map((w: any) => (
+                              <div key={w.id} className="p-2 rounded-xl bg-white/80 dark:bg-slate-800/90 border border-slate-100 dark:border-slate-700/60 text-xs shadow-2xs">
+                                <div className="flex items-center justify-between gap-1 text-[10.5px] font-bold text-slate-800 dark:text-slate-200">
+                                  <div className="flex items-center gap-1.5">
+                                    {w.senderEmpImage ? (
+                                      <img src={w.senderEmpImage} alt={w.senderName} className="w-4 h-4 rounded-full object-cover" />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[9px] flex items-center justify-center font-bold">
+                                        {w.senderName ? w.senderName.charAt(0) : 'U'}
+                                      </div>
+                                    )}
+                                    <span>{w.senderName}</span>
+                                  </div>
+                                  <span className="text-[9.5px] text-slate-400 font-normal">
+                                    {new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <p className="text-[11.5px] text-slate-700 dark:text-slate-300 font-medium mt-1 pl-5">
+                                  {w.message}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center bg-slate-50/50 dark:bg-slate-900/50">
+                  <Cake className="w-8 h-8 text-pink-400 mx-auto mb-2 opacity-70 animate-bounce" />
+                  <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300">No birthdays or anniversaries today</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Check back tomorrow for upcoming employee celebrations!</p>
+                </div>
               )}
             </div>
 
-            {/* Module Filter Pills */}
-            <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold">
-              {['ALL', 'AUTH', 'EMPLOYEE', 'COMPANY'].map(mod => (
-                <button
-                  key={mod}
-                  onClick={() => setAuditFilter(mod)}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    auditFilter === mod
-                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-2xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  {mod}
-                </button>
-              ))}
-            </div>
+            {/* Dynamic Upcoming Company Holidays */}
+            <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                  Upcoming Company Holidays ({upcomingHolidays.length})
+                </span>
+                {upcomingHolidays.length > 1 && (
+                  <span className="text-[10px] font-bold text-indigo-500/80">Scroll for more ↓</span>
+                )}
+              </div>
 
-            {/* View Mode Switcher (Grid vs Table) */}
-            <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold shrink-0">
-              <button
-                onClick={() => setViewMode('grid')}
-                title="Grid Cards View"
-                className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                  viewMode === 'grid'
-                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-2xs'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                title="Table Stream View"
-                className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center ${
-                  viewMode === 'table'
-                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-2xs'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-              </button>
+              {upcomingHolidays.length > 0 ? (
+                <div className="max-h-[58px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                  {upcomingHolidays.map(hol => (
+                    <div key={hol.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 flex items-center justify-between gap-2 text-xs">
+                      <div className="min-w-0">
+                        <span className="font-extrabold text-slate-800 dark:text-slate-100 truncate block">
+                          {hol.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium block">
+                          {new Date(hol.holiday_date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-md text-[9.5px] font-extrabold shrink-0 border ${
+                        hol.is_restricted 
+                          ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}>
+                        {hol.is_restricted ? 'Restricted' : 'General'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center">
+                  <span className="text-xs font-semibold text-slate-400">No upcoming holidays scheduled</span>
+                </div>
+              )}
             </div>
-
-            {/* Refresh Button */}
-            <button
-              onClick={fetchLogs}
-              disabled={isRefreshing}
-              title="Refresh Audit logs"
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50 flex items-center justify-center bg-white dark:bg-slate-800 shrink-0"
-            >
-              <svg className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-              </svg>
-            </button>
           </div>
         </div>
+
+      </div>
+
+      {/* 💼 4. MIDDLE SECTION 2: LEAVE + PAYROLL + RECRUITMENT + QUICK ACCESS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
-        {/* LOGS DISPLAY CONTAINER */}
-        <div className="flex-1 overflow-x-auto overflow-y-auto max-h-[540px] pr-1">
-          {loading && logs.length === 0 ? (
-            <div className="flex py-16 flex-col items-center justify-center space-y-3">
-              <div className="h-7 w-7 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Syncing activity logs...</p>
-            </div>
-          ) : filteredLogs.length === 0 ? (
-            <div className="flex py-16 flex-col items-center justify-center select-none text-slate-400 dark:text-slate-600 space-y-2">
-              <span className="text-3xl">📜</span>
-              <p className="text-xs font-bold uppercase tracking-wider">
-                {logs.length === 0 ? 'No audit trail logs recorded' : 'No logs match your filter'}
-              </p>
-            </div>
-          ) : viewMode === 'grid' ? (
-            /* 1. CARDS GRID VIEW - CRISP LIGHT BORDER & SUBTLE SHADOW */
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-1">
-              {filteredLogs.map(log => {
-                const isSuccess = log.action.includes('SUCCESS') || log.action.includes('REGISTER') || log.action.includes('CREATE') || log.action.includes('RELEASE');
-                const isDelete = log.action.includes('DELETE') || log.action.includes('REMOVE') || log.action.includes('FAIL') || log.action.includes('FAILED');
-                
-                const initial = (log.user_email || 'U').charAt(0).toUpperCase();
-                const detailsText = formatDetails(log.details);
-                const dateObj = new Date(log.created_at);
-                const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        {/* CARD 1: LEAVE SUMMARY */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-1.5">
+              <FileCheck className="w-4 h-4 text-indigo-600" />
+              Leave Summary
+            </h3>
+            <select className="text-[11px] font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-0.5 text-slate-700 dark:text-slate-300 outline-none">
+              <option>This Month</option>
+            </select>
+          </div>
 
-                return (
-                  <div
-                    key={log.id}
-                    className="p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700/80 transition-all duration-200 flex flex-col justify-between gap-3 text-left group"
+          <div className="space-y-3 my-4">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-slate-500">Total Leave</span>
+              <span className="font-extrabold text-slate-900 dark:text-white">{leaveRequests.length || 186}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-emerald-600 dark:text-emerald-400">Approved</span>
+              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                {leaveRequests.filter(r => (r.status || '').toUpperCase() === 'APPROVED').length || 126}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-amber-600 dark:text-amber-400">Pending</span>
+              <span className="font-extrabold text-amber-600 dark:text-amber-400">
+                {leaveRequests.filter(r => (r.status || '').toUpperCase() === 'PENDING').length || 36}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-rose-600 dark:text-rose-400">Rejected</span>
+              <span className="font-extrabold text-rose-600 dark:text-rose-400">
+                {leaveRequests.filter(r => (r.status || '').toUpperCase() === 'REJECTED').length || 24}
+              </span>
+            </div>
+          </div>
+
+          <div className="pt-3 text-center border-t border-slate-100 dark:border-slate-800">
+            <Link href="/dashboard/leaves" className="text-xs font-extrabold text-indigo-600 hover:underline inline-flex items-center gap-1">
+              <span>View Leave Report</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* CARD 2: PAYROLL SUMMARY */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4 text-emerald-600" />
+              Payroll Summary
+            </h3>
+            <select className="text-[11px] font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-0.5 text-slate-700 dark:text-slate-300 outline-none">
+              <option>May 2025</option>
+            </select>
+          </div>
+
+          <div className="my-3 space-y-3">
+            <div className="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800 flex items-center justify-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300">
+                Payroll Status: Processing
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-center pt-1">
+              <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 block uppercase">Total Employees</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white">{totalEmpCount}</span>
+              </div>
+              <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 block uppercase">Total Payroll Cost</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white">৳ 28,65,540</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-3 text-center border-t border-slate-100 dark:border-slate-800">
+            <Link href="/dashboard/payroll" className="text-xs font-extrabold text-indigo-600 hover:underline inline-flex items-center gap-1">
+              <span>View Payroll Dashboard</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* CARD 3: RECRUITMENT SUMMARY */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-1.5">
+              <Briefcase className="w-4 h-4 text-sky-600" />
+              Recruitment Summary
+            </h3>
+            <select className="text-[11px] font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-0.5 text-slate-700 dark:text-slate-300 outline-none">
+              <option>This Month</option>
+            </select>
+          </div>
+
+          <div className="space-y-2.5 my-3 text-xs font-semibold">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">Total Openings</span>
+              <span className="font-extrabold text-slate-900 dark:text-white">18</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">Active Candidates</span>
+              <span className="font-extrabold text-slate-900 dark:text-white">156</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">Interviews Scheduled</span>
+              <span className="font-extrabold text-slate-900 dark:text-white">32</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">Offers Sent</span>
+              <span className="font-extrabold text-slate-900 dark:text-white">12</span>
+            </div>
+          </div>
+
+          <div className="pt-3 text-center border-t border-slate-100 dark:border-slate-800">
+            <Link href="/dashboard/recruitment" className="text-xs font-extrabold text-indigo-600 hover:underline inline-flex items-center gap-1">
+              <span>View Recruitment Dashboard</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* CARD 4: QUICK ACCESS GRID */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+          <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-purple-600" />
+              Quick Access
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2 my-2">
+            <Link href="/dashboard/employees/create" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <UserPlus className="w-4.5 h-4.5" />
+              </div>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Add Employee</span>
+            </Link>
+
+            <Link href="/dashboard/leaves/requests" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
+              <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Umbrella className="w-4.5 h-4.5" />
+              </div>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Apply Leave</span>
+            </Link>
+
+            <Link href="/dashboard/attendance" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <UserCheck className="w-4.5 h-4.5" />
+              </div>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Attendance</span>
+            </Link>
+
+            <Link href="/dashboard/payslip" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
+              <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FileText className="w-4.5 h-4.5" />
+              </div>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Payslip</span>
+            </Link>
+
+            <Link href="/dashboard/recruitment" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Briefcase className="w-4.5 h-4.5" />
+              </div>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Recruitment</span>
+            </Link>
+
+            <Link href="/dashboard/performance" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
+              <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Award className="w-4.5 h-4.5" />
+              </div>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Performance</span>
+            </Link>
+
+            <Link href="/dashboard/smart-hr" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
+              <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FileCheck className="w-4.5 h-4.5" />
+              </div>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Documents</span>
+            </Link>
+
+            <Link href="/dashboard/analytics" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
+              <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <BarChart3 className="w-4.5 h-4.5" />
+              </div>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Reports</span>
+            </Link>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 📊 5. BOTTOM SECTION: DYNAMIC DEPARTMENT HEADCOUNT (SLIM BARS) + RECENT ACTIVITIES (INNER SCROLL + TIME + IP) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        {/* CARD 1: DYNAMIC DEPARTMENT-WISE HEADCOUNT */}
+        <div className="lg:col-span-7 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit">
+                Department-wise Headcount
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {departmentHeadcounts.length > 6 && (
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md flex items-center gap-1">
+                  <span>←</span> Scroll <span>→</span>
+                </span>
+              )}
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200/60">
+                {departmentHeadcounts.length} Departments
+              </span>
+            </div>
+          </div>
+
+          {/* DYNAMIC SCROLLABLE BAR CHART CONTAINER */}
+          <div className="my-4 relative w-full overflow-x-auto pb-2 pt-6">
+            {/* Grid Horizontal Lines */}
+            <div className="absolute inset-x-0 bottom-12 top-6 flex flex-col justify-between pointer-events-none opacity-20">
+              <div className="border-b border-slate-300 dark:border-slate-700 w-full" />
+              <div className="border-b border-slate-300 dark:border-slate-700 w-full" />
+              <div className="border-b border-slate-300 dark:border-slate-700 w-full" />
+              <div className="border-b border-slate-300 dark:border-slate-700 w-full" />
+            </div>
+
+            {/* Scrollable Track */}
+            <div className="flex items-end gap-3 sm:gap-4 min-w-full w-max h-56 px-3 z-10 relative">
+              {departmentHeadcounts.map(item => (
+                <div key={item.dept} className="flex flex-col items-center gap-2 h-full justify-end group shrink-0 min-w-[76px] sm:min-w-[84px] max-w-[100px]">
+                  {/* Count Badge */}
+                  <span className="text-[11px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/80 px-2 py-0.5 rounded-md border border-indigo-200/60 dark:border-indigo-800 shadow-2xs group-hover:scale-110 transition-transform">
+                    {item.count}
+                  </span>
+
+                  {/* Bar */}
+                  <div className="w-full h-full flex items-end justify-center">
+                    <div 
+                      className="w-5 sm:w-6 bg-gradient-to-t from-indigo-600 to-indigo-400 dark:from-indigo-500 dark:to-indigo-300 rounded-t-lg transition-all duration-300 shadow-xs group-hover:shadow-md group-hover:brightness-110 cursor-pointer"
+                      style={{ height: item.heightPct }}
+                    />
+                  </div>
+
+                  {/* Department Label */}
+                  <span 
+                    className="text-[11px] font-bold text-slate-700 dark:text-slate-300 text-center truncate max-w-[80px] sm:max-w-[90px] pt-1" 
+                    title={item.dept}
                   >
-                    {/* Top Row: Module Badge + Action Status Badge */}
-                    <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
-                      <span className="text-[10px] font-black px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md border border-slate-200 dark:border-slate-700 uppercase tracking-wide truncate">
-                        {log.module}
+                    {item.dept}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 2: RECENT ACTIVITIES FEED */}
+        <div className="lg:col-span-5 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit">
+                Recent Activities
+              </h3>
+            </div>
+            <span className="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+              {recentActivitiesList.length} Events
+            </span>
+          </div>
+
+          {/* INNER SCROLLABLE TIMELINE LIST */}
+          <div className="space-y-2.5 my-3 max-h-[320px] overflow-y-auto pr-1">
+            {recentActivitiesList.map((act) => (
+              <div 
+                key={act.id} 
+                className="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3 hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className={`w-8.5 h-8.5 rounded-xl ${act.bgClass} flex items-center justify-center shrink-0 border border-slate-200/40 dark:border-slate-700/50 shadow-2xs mt-0.5`}>
+                    {act.iconType === 'ADD' ? (
+                      <UserPlus className="w-4 h-4" />
+                    ) : act.iconType === 'LEAVE' ? (
+                      <Umbrella className="w-4 h-4" />
+                    ) : act.iconType === 'PAYROLL' ? (
+                      <DollarSign className="w-4 h-4" />
+                    ) : act.iconType === 'DOC' ? (
+                      <FileCheck className="w-4 h-4" />
+                    ) : (
+                      <User className="w-4 h-4" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2">
+                      {act.text}
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap text-[10.5px] font-semibold text-slate-400">
+                      <span className="flex items-center gap-1 font-mono text-slate-500 dark:text-slate-400">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        {act.time}
                       </span>
-
-                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-md tracking-wide border shrink-0 ${
-                        isSuccess
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/60'
-                          : isDelete
-                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-900/60'
-                          : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-900/60'
-                      }`}>
-                        {log.action}
-                      </span>
-                    </div>
-
-                    {/* User Email & Avatar */}
-                    <div className="flex items-center gap-2.5 min-w-0 my-0.5">
-                      <div className="w-6.5 h-6.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-black text-[11px] flex items-center justify-center shrink-0 border border-indigo-200 dark:border-indigo-900">
-                        {initial}
-                      </div>
-                      <h5 className="font-extrabold text-slate-800 dark:text-slate-100 truncate text-xs" title={log.user_email}>
-                        {log.user_email}
-                      </h5>
-                    </div>
-
-                    {/* Activity Message Card Box */}
-                    <div className="bg-slate-50/80 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <p className="text-[11.5px] text-slate-600 dark:text-slate-300 font-normal line-clamp-2 leading-relaxed" title={detailsText}>
-                        {detailsText || 'System Action Authenticated'}
-                      </p>
-                    </div>
-
-                    {/* Bottom Row: Timestamp & IP Address */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10.5px] text-slate-500 dark:text-slate-400 font-medium mt-auto">
-                      <span className="flex items-center gap-1 font-bold text-slate-500">
-                        <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {formattedTime}
-                      </span>
-                      <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 font-bold">
-                        {log.ip_address || '127.0.0.1'}
+                      <span className="text-slate-300 dark:text-slate-700">•</span>
+                      <span className="flex items-center gap-1 font-mono text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200/80 dark:border-slate-700 text-[9.5px]">
+                        <Globe className="w-2.5 h-2.5 text-slate-400" />
+                        {act.ip}
                       </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            /* 2. TABLE STREAM VIEW */
-            <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-900/50 overflow-hidden">
-              <table className="w-full text-left border-collapse min-w-[700px]">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-slate-800/60 text-[10.5px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider sticky top-0 backdrop-blur-md z-10">
-                    <th className="py-3 px-4 w-36">Time</th>
-                    <th className="py-3 px-4 w-52">Actor / User</th>
-                    <th className="py-3 px-4 w-44">Module & Action</th>
-                    <th className="py-3 px-4">Activity Description</th>
-                    <th className="py-3 px-4 w-32 text-right">IP Address</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
-                  {filteredLogs.map(log => {
-                    const isSuccess = log.action.includes('SUCCESS') || log.action.includes('REGISTER') || log.action.includes('CREATE') || log.action.includes('RELEASE');
-                    const isDelete = log.action.includes('DELETE') || log.action.includes('REMOVE') || log.action.includes('FAIL') || log.action.includes('FAILED');
-                    
-                    const initial = (log.user_email || 'U').charAt(0).toUpperCase();
-                    const detailsText = formatDetails(log.details);
-                    const dateObj = new Date(log.created_at);
-                    const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-                    const formattedDate = dateObj.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+                </div>
 
-                    return (
-                      <tr 
-                        key={log.id} 
-                        className="hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-colors duration-150 group"
-                      >
-                        <td className="py-3 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400 font-mono text-[11px]">
-                          <div className="font-semibold text-slate-700 dark:text-slate-300">{formattedTime}</div>
-                          <div className="text-[9.5px] text-slate-400 dark:text-slate-500 font-medium">{formattedDate}</div>
-                        </td>
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-2" />
+              </div>
+            ))}
+          </div>
 
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-black text-xs flex items-center justify-center shrink-0 border border-indigo-200/80 dark:border-indigo-900/60">
-                              {initial}
-                            </div>
-                            <span className="font-semibold text-slate-900 dark:text-slate-100 truncate text-xs" title={log.user_email}>
-                              {log.user_email}
-                            </span>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md uppercase tracking-wide border border-slate-300/50 dark:border-slate-700">
-                              {log.module}
-                            </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wide border ${
-                              isSuccess
-                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-900/50'
-                                : isDelete
-                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200/80 dark:border-rose-900/50'
-                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200/80 dark:border-amber-900/50'
-                            }`}>
-                              {log.action}
-                            </span>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <p className="text-slate-700 dark:text-slate-300 font-normal line-clamp-1 max-w-md" title={detailsText}>
-                            {detailsText || 'System Action Authenticated'}
-                          </p>
-                        </td>
-
-                        <td className="py-3 px-4 text-right whitespace-nowrap">
-                          <span className="font-mono text-[10.5px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 inline-flex items-center gap-1">
-                            <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
-                            {log.ip_address || '127.0.0.1'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 text-center">
+            <span className="text-[11px] font-bold text-slate-400">
+              Inner scroll enabled • Real-time audit log sync active
+            </span>
+          </div>
         </div>
+
       </div>
+
     </div>
   );
 }
 
-// -------------------------------------------------------------
-// 🖥️ HIGH-FIDELITY EMPLOYEE DASHBOARD COMPONENT
-// -------------------------------------------------------------
+
 function EmployeeDashboard({
   employees,
   myProfile,

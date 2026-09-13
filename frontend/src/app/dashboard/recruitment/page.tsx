@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDashboard } from '../components/DashboardContext';
 
 type Tab = 'overview' | 'jobs' | 'ats' | 'offers' | 'rounds';
 
 export default function RecruitmentDashboard() {
   const router = useRouter();
+  const { companyId: globalCompanyId } = useDashboard();
   const [activeTab, setActiveTab] = useState<Tab>('ats');
   const [showCreateJobModal, setShowCreateJobModal] = useState(false);
   const [showSmtpModal, setShowSmtpModal] = useState(false);
@@ -38,6 +40,8 @@ export default function RecruitmentDashboard() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  const activeCompanyId = globalCompanyId || selectedCompanyId || (typeof window !== 'undefined' ? localStorage.getItem('companyId') : '');
 
   const [selectedAtsJobId, setSelectedAtsJobId] = useState<string>('all');
   const [stageFilter, setStageFilter] = useState<'APPLIED' | 'SCREENING' | 'INTERVIEWING' | 'SELECTED'>('APPLIED');
@@ -119,7 +123,7 @@ export default function RecruitmentDashboard() {
       setLoadingApps(true);
       const token = localStorage.getItem('access_token');
       let url = `/api/v1/recruitment/applications?job_id=${jobId || 'all'}`;
-      if (selectedCompanyId) url += `&company_id=${selectedCompanyId}`;
+      if (activeCompanyId && activeCompanyId !== 'all') url += `&company_id=${activeCompanyId}`;
       const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
         setApplications(await res.json());
@@ -135,7 +139,7 @@ export default function RecruitmentDashboard() {
     try {
       const token = localStorage.getItem('access_token');
       let url = `/api/v1/recruitment/employees`;
-      if (selectedCompanyId) url += `?company_id=${selectedCompanyId}`;
+      if (activeCompanyId && activeCompanyId !== 'all') url += `?company_id=${activeCompanyId}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -147,7 +151,7 @@ export default function RecruitmentDashboard() {
 
   useEffect(() => {
     fetchEmployees();
-  }, [selectedCompanyId]);
+  }, [activeCompanyId]);
 
   useEffect(() => {
     if (activeTab === 'ats') {
@@ -174,7 +178,7 @@ export default function RecruitmentDashboard() {
       submitData.append('last_name', newCandidate.last_name);
       submitData.append('email', newCandidate.email);
       submitData.append('phone', newCandidate.phone);
-      if (selectedCompanyId) submitData.append('company_id', selectedCompanyId);
+      if (activeCompanyId) submitData.append('company_id', activeCompanyId);
       if (newCandidateResume) submitData.append('resume', newCandidateResume);
 
       const res = await fetch(`/api/v1/recruitment/applications`, {
@@ -212,7 +216,7 @@ export default function RecruitmentDashboard() {
     try {
       const token = localStorage.getItem('access_token');
       let url = `/api/v1/recruitment/rounds`;
-      if (selectedCompanyId) url += `?company_id=${selectedCompanyId}`;
+      if (activeCompanyId && activeCompanyId !== 'all') url += `?company_id=${activeCompanyId}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -502,7 +506,7 @@ export default function RecruitmentDashboard() {
       setLoading(true);
       const token = localStorage.getItem('access_token');
       let url = '/api/v1/recruitment/jobs';
-      if (selectedCompanyId) url += `?company_id=${selectedCompanyId}`;
+      if (activeCompanyId && activeCompanyId !== 'all') url += `?company_id=${activeCompanyId}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -521,13 +525,13 @@ export default function RecruitmentDashboard() {
     try {
       const token = localStorage.getItem('access_token');
       let url = '/api/v1/departments';
-      if (selectedCompanyId) url += `?company_id=${selectedCompanyId}`;
+      if (activeCompanyId && activeCompanyId !== 'all') url += `?company_id=${activeCompanyId}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setDepartments(data.departments || []);
+        setDepartments(Array.isArray(data) ? data : (data.departments || []));
       }
     } catch (err) {
       console.error(err);
@@ -538,7 +542,7 @@ export default function RecruitmentDashboard() {
     try {
       const token = localStorage.getItem('access_token');
       const headers = { 'Authorization': `Bearer ${token}` };
-      let q = selectedCompanyId ? `?company_id=${selectedCompanyId}` : '';
+      let q = activeCompanyId && activeCompanyId !== 'all' ? `?company_id=${activeCompanyId}` : '';
       
       const [emailRes, whatsappRes, campRes, rulesRes] = await Promise.all([
         fetch(`/api/v1/recruitment/settings/email${q}`, { headers }),
@@ -613,7 +617,7 @@ export default function RecruitmentDashboard() {
     }
     // Fetch departments for the "Create Job" modal
     fetchDepartments();
-  }, [activeTab, selectedCompanyId]);
+  }, [activeTab, activeCompanyId]);
 
   useEffect(() => {
     if (showCreateJobModal) {
@@ -628,7 +632,7 @@ export default function RecruitmentDashboard() {
       const url = editingJobId ? `/api/v1/recruitment/jobs/${editingJobId}` : '/api/v1/recruitment/jobs';
       
       const payload: any = { ...newJob };
-      if (selectedCompanyId) payload.company_id = selectedCompanyId;
+      if (activeCompanyId) payload.company_id = activeCompanyId;
 
       const res = await fetch(url, {
         method,
@@ -866,22 +870,6 @@ export default function RecruitmentDashboard() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap w-full md:w-auto justify-end">
-          {isSuperAdmin && companies.length > 0 && (
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Company:</span>
-              <select 
-                value={selectedCompanyId} 
-                onChange={e => setSelectedCompanyId(e.target.value)}
-                className="bg-transparent text-xs font-extrabold text-slate-800 dark:text-slate-100 outline-none cursor-pointer"
-              >
-                {companies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {activeTab === 'jobs' && (
             <button 
               onClick={() => {

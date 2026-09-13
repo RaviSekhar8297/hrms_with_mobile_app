@@ -156,9 +156,16 @@ export default function NotificationBell() {
     }
   };
 
-  // Filtered notifications list
-  const filteredNotifications =
-    activeFilter === 'unread' ? notifications.filter((n) => !n.is_read) : notifications;
+  // Filter notifications to last 3 days only
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  threeDaysAgo.setHours(0, 0, 0, 0);
+
+  const recentNotifications = notifications.filter((n) => {
+    if (!n.created_at) return true;
+    const itemDate = new Date(n.created_at);
+    return itemDate >= threeDaysAgo;
+  });
 
   // Icon selector by type
   const renderBadgeIcon = (type: NotificationItem['type']) => {
@@ -238,53 +245,29 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex border-b border-slate-100 dark:border-slate-800 text-xs font-extrabold px-4 pt-2 gap-4">
-            <button
-              onClick={() => setActiveFilter('all')}
-              className={`pb-2.5 transition-colors border-b-2 cursor-pointer ${
-                activeFilter === 'all'
-                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
-              All ({notifications.length})
-            </button>
-            <button
-              onClick={() => setActiveFilter('unread')}
-              className={`pb-2.5 transition-colors border-b-2 cursor-pointer ${
-                activeFilter === 'unread'
-                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
-              Unread ({unreadCount})
-            </button>
-          </div>
-
-          {/* Notifications List */}
+          {/* Notifications List (Last 3 Days) */}
           <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
-            {filteredNotifications.length === 0 ? (
+            {recentNotifications.length === 0 ? (
               <div className="p-8 text-center space-y-2">
                 <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto text-xl">
                   🔔
                 </div>
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                  {activeFilter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+                  No notifications in the last 3 days
                 </p>
                 <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                  System alerts, approvals and updates will appear here.
+                  Recent system alerts, approvals and updates will appear here.
                 </p>
               </div>
             ) : (
-              filteredNotifications.map((item) => (
+              recentNotifications.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => handleItemClick(item)}
-                  className={`p-4 transition-colors flex items-start gap-3.5 cursor-pointer relative group ${
+                  className={`p-4 transition-all flex items-start gap-3.5 cursor-pointer relative group ${
                     !item.is_read
-                      ? 'bg-indigo-50/40 dark:bg-indigo-950/20 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/40'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      ? 'bg-indigo-50/60 dark:bg-indigo-950/30 hover:bg-indigo-50 dark:hover:bg-indigo-950/50'
+                      : 'opacity-50 hover:opacity-90 hover:bg-slate-50 dark:hover:bg-slate-800/40'
                   }`}
                 >
                   {/* Icon */}
@@ -297,22 +280,40 @@ export default function NotificationBell() {
                         className={`text-xs truncate ${
                           !item.is_read
                             ? 'font-black text-slate-900 dark:text-white'
-                            : 'font-bold text-slate-700 dark:text-slate-300'
+                            : 'font-normal text-slate-400 dark:text-slate-500'
                         }`}
                       >
                         {item.title}
                       </h4>
-                      <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                      <span
+                        className={`text-[10px] shrink-0 ${
+                          !item.is_read
+                            ? 'font-bold text-indigo-600 dark:text-indigo-400'
+                            : 'font-normal text-slate-400 dark:text-slate-500'
+                        }`}
+                      >
                         {formatTimeAgo(item.created_at)}
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug line-clamp-2">
+                    <p
+                      className={`text-[11px] leading-snug line-clamp-2 ${
+                        !item.is_read
+                          ? 'font-bold text-slate-800 dark:text-slate-100'
+                          : 'font-normal text-slate-400 dark:text-slate-500'
+                      }`}
+                    >
                       {item.message}
                     </p>
 
                     {item.sender_name && (
-                      <p className="text-[10px] text-indigo-500 dark:text-indigo-400 font-semibold mt-1">
+                      <p
+                        className={`text-[10px] mt-1 ${
+                          !item.is_read
+                            ? 'font-extrabold text-indigo-600 dark:text-indigo-400'
+                            : 'font-normal text-slate-400 dark:text-slate-500'
+                        }`}
+                      >
                         By: {item.sender_name}
                       </p>
                     )}

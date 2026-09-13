@@ -5,12 +5,15 @@ import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function LeaveBalancesPage() {
-  const { showToast } = useDashboard();
+  const { showToast, companyId } = useDashboard();
+  const { isSuperAdmin, hasPermission } = usePermissions();
+  const canEdit = isSuperAdmin || hasPermission('edit_leave_balances') || hasPermission('manage_leave_balances') || hasPermission('edit_leaves');
+
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -25,6 +28,10 @@ export default function LeaveBalancesPage() {
   const [empDropdownOpen, setEmpDropdownOpen] = useState(false);
   const [balanceDrawerOpen, setBalanceDrawerOpen] = useState(false);
   const [editingBalance, setEditingBalance] = useState<any | null>(null);
+
+  // Pagination State (50 items per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
 
   const [balanceForm, setBalanceForm] = useState({
     employee_id: '',
@@ -46,12 +53,10 @@ export default function LeaveBalancesPage() {
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
     const storedEmail = localStorage.getItem('email');
-    const storedCompanyId = localStorage.getItem('companyId');
     if (storedRoles) {
       try { setRoles(JSON.parse(storedRoles)); } catch (e) {}
     }
     if (storedEmail) setEmail(storedEmail);
-    if (storedCompanyId) setCompanyId(storedCompanyId);
   }, []);
 
   useEffect(() => {
@@ -65,6 +70,11 @@ export default function LeaveBalancesPage() {
       setActiveTab('all');
     }
   }, [balances, myBalances.length, roles]);
+
+  // Reset pagination on search or tab change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeTab, selectedYear, companyId]);
 
   const fetchBalances = async () => {
     setIsLoading(true);
@@ -103,8 +113,6 @@ export default function LeaveBalancesPage() {
       if (res.ok) setEmployees(data.employees || []);
     } catch (e) {}
   };
-
-
 
   const handleSaveBalance = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,6 +178,12 @@ export default function LeaveBalancesPage() {
            b.leave_type_name?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  // Pagination Math
+  const totalItems = filteredBalances.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedBalances = filteredBalances.slice(startIndex, startIndex + pageSize);
+
   const selectedEmpObj = employees.find(e => e.id === balanceForm.employee_id);
   const filteredSearchEmployees = employees.filter(e => {
     const fullName = `${e.first_name || ''} ${e.last_name || ''}`.toLowerCase();
@@ -177,7 +191,12 @@ export default function LeaveBalancesPage() {
     return fullName.includes(empSearch.toLowerCase()) || code.includes(empSearch.toLowerCase());
   });
 
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  // Format numbers to 1 decimal place without "Days" suffix (e.g. 12.0, 5.0, 7.0)
+  const formatDaysVal = (val: any) => {
+    const num = parseFloat(val);
+    if (isNaN(num)) return '0.0';
+    return num.toFixed(1);
+  };
 
   return (
     <div className="space-y-6 pb-12">
@@ -259,15 +278,17 @@ export default function LeaveBalancesPage() {
           </select>
 
           {/* ADJUST QUOTA BUTTON */}
-          <button
-            onClick={openNewBalance}
-            className="px-4 py-2 bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            <span>Adjust / Assign Quota</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={openNewBalance}
+              className="px-4 py-2 bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span>Adjust / Assign Quota</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -310,10 +331,10 @@ export default function LeaveBalancesPage() {
                     <div>
                       <div className="flex items-baseline justify-between mb-1.5">
                         <span className="text-3xl font-black text-slate-900 dark:text-white font-mono">
-                          {remaining}
+                          {formatDaysVal(remaining)}
                         </span>
                         <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                          / {allotted} Days
+                          / {formatDaysVal(allotted)}
                         </span>
                       </div>
 
@@ -327,7 +348,7 @@ export default function LeaveBalancesPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-indigo-100 dark:border-indigo-900/30 font-medium">
-                      <span>Used: <strong className="text-slate-800 dark:text-slate-200">{used} Days</strong></span>
+                      <span>Used: <strong className="text-slate-800 dark:text-slate-200">{formatDaysVal(used)}</strong></span>
                       <span>Year: <strong className="text-slate-800 dark:text-slate-200">{b.balance_year}</strong></span>
                     </div>
                   </div>
@@ -352,97 +373,129 @@ export default function LeaveBalancesPage() {
                 No leave balance records found matching your search.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="p-4 w-14 text-center">SL. NO</th>
-                      <th className="p-4">Employee</th>
-                      <th className="p-4">Tenant / Company</th>
-                      <th className="p-4">Leave Category</th>
-                      <th className="p-4">Year</th>
-                      <th className="p-4">Allotted</th>
-                      <th className="p-4">Used</th>
-                      <th className="p-4">Remaining</th>
-                      <th className="p-4">Quota Usage</th>
-                      <th className="p-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                    {filteredBalances.map((b, idx) => {
-                      const allotted = Number(b.allotted) || 1;
-                      const remaining = Number(b.remaining) || 0;
-                      const used = Number(b.used) || 0;
-                      const pct = Math.min(100, Math.max(0, Math.round((used / allotted) * 100)));
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="p-4 w-14 text-center">SL. NO</th>
+                        <th className="p-4">Employee</th>
+                        <th className="p-4">Tenant / Company</th>
+                        <th className="p-4">Leave Category</th>
+                        <th className="p-4">Year</th>
+                        <th className="p-4">Allotted</th>
+                        <th className="p-4">Used</th>
+                        <th className="p-4">Remaining</th>
+                        <th className="p-4">Quota Usage</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                      {paginatedBalances.map((b, idx) => {
+                        const globalIdx = startIndex + idx + 1;
+                        const allotted = Number(b.allotted) || 1;
+                        const remaining = Number(b.remaining) || 0;
+                        const used = Number(b.used) || 0;
+                        const pct = Math.min(100, Math.max(0, Math.round((used / allotted) * 100)));
 
-                      return (
-                        <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="p-4 text-center font-bold text-slate-400 dark:text-slate-500 font-mono text-[11px]">
-                            {String(idx + 1).padStart(2, '0')}
-                          </td>
-                          <td className="p-4 font-bold text-slate-800 dark:text-slate-100">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
-                                {b.employee_name?.slice(0, 1) || 'E'}
+                        return (
+                          <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="p-4 text-center font-bold text-slate-400 dark:text-slate-500 font-mono text-[11px]">
+                              {String(globalIdx).padStart(2, '0')}
+                            </td>
+                            <td className="p-4 font-bold text-slate-800 dark:text-slate-100">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                  {b.employee_name?.slice(0, 1) || 'E'}
+                                </div>
+                                <div>
+                                  <span className="block font-extrabold text-slate-900 dark:text-slate-100">{b.employee_name || 'Staff Member'}</span>
+                                  <span className="text-[10px] font-mono text-slate-400 block">{b.emp_id_code || b.employee_email}</span>
+                                </div>
                               </div>
-                              <div>
-                                <span className="block font-extrabold text-slate-900 dark:text-slate-100">{b.employee_name || 'Staff Member'}</span>
-                                <span className="text-[10px] font-mono text-slate-400 block">{b.emp_id_code || b.employee_email}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4 text-slate-600 dark:text-slate-300 font-medium">
-                            <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold border border-slate-200/60 dark:border-slate-700/60 inline-flex items-center gap-1.5">
-                              <i className="fa-solid fa-building text-indigo-500 text-[10px]"></i>
-                              {b.company_name || 'Organization'}
-                            </span>
-                          </td>
-                          <td className="p-4 font-semibold text-slate-700 dark:text-slate-200">
-                            <div className="flex items-center gap-1.5">
-                              <span className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-extrabold text-[10.5px] border border-indigo-200/60 dark:border-indigo-800/60">
-                                {b.leave_type_name || b.leave_type_code}
+                            </td>
+                            <td className="p-4 text-slate-600 dark:text-slate-300 font-medium">
+                              <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold border border-slate-200/60 dark:border-slate-700/60 inline-flex items-center gap-1.5">
+                                <i className="fa-solid fa-building text-indigo-500 text-[10px]"></i>
+                                {b.company_name || 'Organization'}
                               </span>
-                              {b.is_paid !== undefined && (
-                                <span className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold ${b.is_paid ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-500'}`}>
-                                  {b.is_paid ? 'PAID' : 'UNPAID'}
+                            </td>
+                            <td className="p-4 font-semibold text-slate-700 dark:text-slate-200">
+                              <div className="flex items-center gap-1.5">
+                                <span className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-extrabold text-[10.5px] border border-indigo-200/60 dark:border-indigo-800/60">
+                                  {b.leave_type_name || b.leave_type_code}
                                 </span>
+                                {b.is_paid !== undefined && (
+                                  <span className={`px-2 py-0.5 rounded text-[9.5px] font-extrabold ${b.is_paid ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-500'}`}>
+                                    {b.is_paid ? 'PAID' : 'UNPAID'}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 text-slate-500 font-mono font-bold">{b.balance_year}</td>
+                            <td className="p-4 font-bold text-slate-700 dark:text-slate-300 font-mono">{formatDaysVal(b.allotted)}</td>
+                            <td className="p-4 font-bold text-amber-600 dark:text-amber-400 font-mono">{formatDaysVal(b.used)}</td>
+                            <td className="p-4">
+                              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px] border border-emerald-200 dark:border-emerald-800 font-mono">
+                                {formatDaysVal(b.remaining)}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <div className="w-28 space-y-1">
+                                <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                                  <span>{pct}% used</span>
+                                  <span>{100 - pct}% left</span>
+                                </div>
+                                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full" style={{ width: `${pct}%` }}></div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4 text-right">
+                              {canEdit && (
+                                <button
+                                  onClick={() => openEditBalance(b)}
+                                  className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent text-xs font-extrabold rounded-xl shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 ml-auto"
+                                >
+                                  <i className="fa-solid fa-pen-to-square text-xs"></i>
+                                  <span>Edit</span>
+                                </button>
                               )}
-                            </div>
-                          </td>
-                          <td className="p-4 text-slate-500 font-mono font-bold">{b.balance_year}</td>
-                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">{b.allotted} Days</td>
-                          <td className="p-4 font-bold text-amber-600 dark:text-amber-400">{b.used} Days</td>
-                          <td className="p-4">
-                            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px] border border-emerald-200 dark:border-emerald-800 font-mono">
-                              {b.remaining} Days
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <div className="w-28 space-y-1">
-                              <div className="flex justify-between text-[10px] font-bold text-slate-500">
-                                <span>{pct}% used</span>
-                                <span>{100 - pct}% left</span>
-                              </div>
-                              <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full" style={{ width: `${pct}%` }}></div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4 text-right">
-                            <button
-                              onClick={() => openEditBalance(b)}
-                              className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent text-xs font-extrabold rounded-xl shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 ml-auto"
-                            >
-                              <i className="fa-solid fa-pen-to-square text-xs"></i>
-                              <span>Edit Quota</span>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 📄 PAGINATION CONTROLS (50 RECORDS PER PAGE) */}
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/50">
+                  <div>
+                    Showing <strong className="text-slate-900 dark:text-slate-100">{totalItems === 0 ? 0 : startIndex + 1}</strong> to <strong className="text-slate-900 dark:text-slate-100">{Math.min(startIndex + pageSize, totalItems)}</strong> of <strong className="text-slate-900 dark:text-slate-100">{totalItems}</strong> leave quotas
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    <span className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-extrabold border border-indigo-200 dark:border-indigo-900">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -467,7 +520,7 @@ export default function LeaveBalancesPage() {
             <div className="flex items-baseline justify-between pt-1">
               <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Calculated Remaining Quota:</span>
               <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono">
-                {balanceForm.remaining || '0'} Days
+                {formatDaysVal(balanceForm.remaining)}
               </span>
             </div>
           </div>
@@ -557,7 +610,7 @@ export default function LeaveBalancesPage() {
             )}
           </div>
 
-          {/* SELECT LEAVE CATEGORY */}
+          {/* SELECT LEAVE CATEGORY DROPDOWN (FIXED: ENABLED FOR EDITING/VIEWING) */}
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center gap-1.5">
               <i className="fa-solid fa-calendar-alt text-indigo-500 text-xs"></i>
@@ -568,7 +621,6 @@ export default function LeaveBalancesPage() {
               onChange={e => setBalanceForm(prev => ({ ...prev, leave_type_id: e.target.value }))}
               className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer truncate"
               required
-              disabled={!!editingBalance}
             >
               <option value="">-- Choose Leave Category --</option>
               {leaveTypes.map(lt => (

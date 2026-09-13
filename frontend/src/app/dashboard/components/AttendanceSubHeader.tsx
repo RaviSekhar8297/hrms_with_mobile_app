@@ -4,12 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 
 export interface AttendanceSubHeaderProps {
-  activeTab: 'logs' | 'rules' | 'regularization' | 'permissions' | 'raw' | 'summary' | 'locks';
+  activeTab: 'logs' | 'atd_history' | 'rules' | 'regularization' | 'permissions' | 'raw' | 'summary' | 'locks';
 }
 
 export const ATTENDANCE_NAV_ITEMS = [
   { id: 'logs', label: 'Attendance', href: '/dashboard/attendance', icon: '📅' },
-  { id: 'rules', label: 'Rules', href: '/dashboard/attendance/rules', icon: '⏰' },
+  { id: 'atd_history', label: 'History', href: '/dashboard/atd_history', icon: '📜' },
+  { id: 'rules', label: 'Policy', href: '/dashboard/attendance/rules', icon: '⏰' },
   { id: 'locks', label: 'Locks', href: '/dashboard/attendance/locks', icon: '🔒' },
   { id: 'regularization', label: 'Regularization', href: '/dashboard/attendance/regularization', icon: '📝' },
   { id: 'permissions', label: 'Permission', href: '/dashboard/attendance/permissions', icon: '🎫' },
@@ -26,7 +27,9 @@ export const AttendanceSubHeader: React.FC<AttendanceSubHeaderProps> = ({ active
         let activeBgClass = 'bg-blue-600 text-white shadow-xs scale-[1.02] border-blue-600';
         let activeDotClass = 'bg-white';
 
-        if (item.id === 'rules') {
+        if (item.id === 'atd_history') {
+          activeBgClass = 'bg-teal-600 text-white shadow-xs scale-[1.02] border-teal-600';
+        } else if (item.id === 'rules') {
           activeBgClass = 'bg-indigo-600 text-white shadow-xs scale-[1.02] border-indigo-600';
         } else if (item.id === 'locks') {
           activeBgClass = 'bg-rose-600 text-white shadow-xs scale-[1.02] border-rose-600';

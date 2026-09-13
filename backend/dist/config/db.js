@@ -7,6 +7,8 @@ exports.query = void 0;
 const pg_1 = require("pg");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
+// Prevent node-postgres from converting PostgreSQL DATE columns to local JS Date objects (eliminates 1-day date shift)
+pg_1.types.setTypeParser(1082, (val) => val);
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
     throw new Error('DATABASE_URL is not set');

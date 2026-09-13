@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import DashboardPageHeader from '../components/DashboardPageHeader';
-import { getHeaders } from '../utils/api';
+import SlideDrawer from '../components/SlideDrawer';
+import { usePermissions } from '../hooks/usePermissions';
 import { useDashboard } from '../components/DashboardContext';
+import { getHeaders, API_BASE } from '../utils/api';
 import { 
   Calendar, 
   Search, 
@@ -14,7 +16,8 @@ import {
   Clock, 
   AlertCircle,
   FileSpreadsheet,
-  Filter
+  Filter,
+  Upload
 } from 'lucide-react';
 
 interface Company {
@@ -66,11 +69,92 @@ const MONTH_NAMES = [
 
 export default function AttendanceSummaryPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
+  const { isSuperAdmin: isSuperAdminPerm, hasPermission } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin') || isSuperAdminPerm;
+  const canUploadCsv = isSuperAdmin || hasPermission('create_attendance_raw_punches');
+
+  const [punchUploadOpen, setPunchUploadOpen] = useState(false);
+  const [punchCsvFile, setPunchCsvFile] = useState<File | null>(null);
+  const [isUploadingPunches, setIsUploadingPunches] = useState(false);
+
+  const downloadSamplePunchCsv = () => {
+    const csvContent = 'empid,punchdate\nEMP001,2026-09-11T09:00:00\nEMP002,2026-09-11T09:15:00';
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sample_punch_upload.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePunchUpload = async () => {
+    if (!punchCsvFile) {
+      showToast('Please select a CSV file first', 'error');
+      return;
+    }
+    setIsUploadingPunches(true);
+    
+    try {
+      const text = await punchCsvFile.text();
+      const rows = text.split('\n').map(r => r.trim()).filter(r => r);
+      if (rows.length < 2) {
+        showToast('CSV must contain header and at least one data row', 'error');
+        setIsUploadingPunches(false);
+        return;
+      }
+      const headers = rows[0].toLowerCase().split(',');
+      const empIdx = headers.indexOf('empid');
+      const timeIdx = headers.indexOf('punchdate');
+      
+      if (empIdx === -1 || timeIdx === -1) {
+        showToast('CSV must contain "empid" and "punchdate" columns', 'error');
+        setIsUploadingPunches(false);
+        return;
+      }
+      
+      const punchesToUpload = [];
+      for (let i = 1; i < rows.length; i++) {
+        const cols = rows[i].split(',');
+        if (cols.length > Math.max(empIdx, timeIdx)) {
+          punchesToUpload.push({
+            empCode: cols[empIdx].trim(),
+            punchTime: cols[timeIdx].trim()
+          });
+        }
+      }
+      
+      const payload: any = { punches: punchesToUpload };
+      if (activeCompanyId) {
+        payload.companyId = activeCompanyId;
+      }
+      
+      const res = await fetch(`${API_BASE}/api/v1/attendance/punches/bulk`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`${data.successCount} punches uploaded. ${data.errorCount} skipped.`, 'success');
+        setPunchUploadOpen(false);
+        setPunchCsvFile(null);
+        fetchSummaryData();
+      } else {
+        showToast(data.error || 'Failed to upload punches', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Error uploading punches', 'error');
+    }
+    setIsUploadingPunches(false);
+  };
 
   const activeCompanyId = globalCompanyId || companyId;
 
@@ -443,6 +527,18 @@ export default function AttendanceSummaryPage() {
               />
             </div>
 
+            {/* Upload Punches CSV Button */}
+            {canUploadCsv && (
+              <button
+                type="button"
+                onClick={() => setPunchUploadOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+              >
+                <Upload size={16} />
+                <span>Upload CSV</span>
+              </button>
+            )}
+
             {/* Export Excel Button with Lucide FileSpreadsheet Icon */}
             <button
               onClick={exportToCSV}
@@ -615,6 +711,75 @@ export default function AttendanceSummaryPage() {
           </div>
         )}
       </div>
+
+      {/* Punch Upload Slideout Drawer */}
+      <SlideDrawer
+        isOpen={punchUploadOpen}
+        onClose={() => setPunchUploadOpen(false)}
+        title="Upload Punches (CSV)"
+      >
+        <div className="flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto premium-scrollbar p-6 space-y-6">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Upload raw punch data using a CSV file. The file must contain exactly the following two columns:
+              <br/><br/>
+              <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px] text-blue-600 dark:text-blue-400 font-bold">empid</code> - The unique employee ID code<br/>
+              <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px] text-blue-600 dark:text-blue-400 font-bold mt-1 inline-block">punchdate</code> - Valid Datetime string (e.g. 2023-10-25T09:00:00)
+            </p>
+
+            <button
+              onClick={downloadSamplePunchCsv}
+              className="px-4 py-2 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300 text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors w-full border border-slate-200 dark:border-slate-700 cursor-pointer"
+            >
+              Download Sample CSV
+            </button>
+
+            <div>
+              <label className="block text-[9.5px] font-black text-slate-500 dark:text-slate-450 uppercase tracking-widest mb-1.5">Select CSV File</label>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={e => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    setPunchCsvFile(e.target.files[0]);
+                  }
+                }}
+                className="form-input text-xs w-full cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50"
+              />
+              {punchCsvFile && (
+                <p className="mt-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                  Selected: {punchCsvFile.name}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900/30">
+            <button
+              onClick={() => setPunchUploadOpen(false)}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePunchUpload}
+              disabled={isUploadingPunches || !punchCsvFile}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isUploadingPunches ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Uploading...
+                </>
+              ) : (
+                'Upload Punches'
+              )}
+            </button>
+          </div>
+        </div>
+      </SlideDrawer>
     </div>
   );
 }

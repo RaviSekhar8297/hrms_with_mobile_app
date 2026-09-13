@@ -9,12 +9,13 @@ import SlideDrawer from '../../components/SlideDrawer';
 import { Eye, EyeOff, Radio } from 'lucide-react';
 
 export default function AttendanceRulesPage() {
-  const { showToast, companyId: globalCompanyId } = useDashboard();
+  const { showToast, companyId: globalCompanyId, setCompanyId: setGlobalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
   const canView = isSuperAdmin || hasPermission('view_attendance_policies') || hasPermission('view_attendance_rules');
   const canCreate = isSuperAdmin || hasPermission('create_attendance_policies') || hasPermission('create_attendance_rules');
   const canEdit = isSuperAdmin || hasPermission('edit_attendance_policies') || hasPermission('edit_attendance_rules');
+  const canDelete = isSuperAdmin || hasPermission('delete_attendance_policies') || hasPermission('delete_attendance_rules');
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -22,7 +23,42 @@ export default function AttendanceRulesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const activeCompanyId = globalCompanyId || companyId;
+  // 🗑️ Delete Policy Confirmation State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const activeCompanyId = globalCompanyId || companyId || (typeof window !== 'undefined' ? localStorage.getItem('companyId') : null);
+
+  const handleDeletePolicy = async () => {
+    const targetCid = activeCompanyId || companyId;
+    if (!targetCid) {
+      showToast('Please select a company context', 'error');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/attendance/policies?company_id=${targetCid}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('🗑️ Attendance policy deleted successfully!', 'success');
+        setDeleteModalOpen(false);
+        setPolicyForm(emptyPolicy);
+        setInitialPolicyForm(emptyPolicy);
+        setHasPolicyConfigured(false);
+        await fetchRules();
+      } else {
+        showToast(data.error || 'Failed to delete attendance policy', 'error');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast('Connection error while deleting policy', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // 📡 Biometric Sync Drawer State
   const [syncDrawerOpen, setSyncDrawerOpen] = useState(false);
@@ -75,20 +111,20 @@ export default function AttendanceRulesPage() {
     }
   };
 
-  const defaultPolicy = {
-    grace_period_mins: '15',
-    max_late_entries_allowed: '3',
+  const emptyPolicy = {
+    grace_period_mins: '',
+    max_late_entries_allowed: '',
     late_entry_penalty: 'HALF_DAY',
-    half_day_min_hours: '4',
-    full_day_min_hours: '8',
-    overtime_min_mins: '60',
-    cycle_start_day: '26',
-    cycle_end_day: '25',
-    max_permission_count_per_month: '2',
-    max_single_permission_minutes: '120',
-    max_permission_minutes_per_month: '240',
-    permission_affects_late: true,
-    permission_affects_early_exit: true,
+    half_day_min_hours: '',
+    full_day_min_hours: '',
+    overtime_min_mins: '',
+    cycle_start_day: '',
+    cycle_end_day: '',
+    max_permission_count_per_month: '',
+    max_single_permission_minutes: '',
+    max_permission_minutes_per_month: '',
+    permission_affects_late: false,
+    permission_affects_early_exit: false,
     allow_permission_carry_forward: false,
     allow_self_punch: true,
     require_location_gps: false,
@@ -96,10 +132,14 @@ export default function AttendanceRulesPage() {
     is_period_locked: false,
     lock_month: String(new Date().getMonth() + 1),
     lock_year: String(new Date().getFullYear()),
+    comp_off_display_name: '',
+    comp_off_half_day_hours: '',
+    comp_off_full_day_hours: '',
   };
 
-  const [policyForm, setPolicyForm] = useState(defaultPolicy);
-  const [initialPolicyForm, setInitialPolicyForm] = useState(defaultPolicy);
+  const [policyForm, setPolicyForm] = useState(emptyPolicy);
+  const [initialPolicyForm, setInitialPolicyForm] = useState(emptyPolicy);
+  const [hasPolicyConfigured, setHasPolicyConfigured] = useState<boolean>(true);
 
   const isModified = JSON.stringify(policyForm) !== JSON.stringify(initialPolicyForm);
 
@@ -133,7 +173,8 @@ export default function AttendanceRulesPage() {
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.companies || []);
         setCompanies(list);
-        if (!companyId && list.length > 0) {
+        if (!globalCompanyId && !localStorage.getItem('companyId') && !companyId && list.length > 0) {
+          if (setGlobalCompanyId) setGlobalCompanyId(list[0].id);
           setCompanyId(list[0].id);
         }
       }
@@ -142,30 +183,43 @@ export default function AttendanceRulesPage() {
     }
   };
 
+  const handleCompanyChange = (newId: string) => {
+    if (setGlobalCompanyId) setGlobalCompanyId(newId);
+    setCompanyId(newId);
+    localStorage.setItem('selectedCompanyId', newId);
+    localStorage.setItem('companyId', newId);
+  };
+
   const fetchRules = async () => {
     setIsLoading(true);
     try {
-      const cid = activeCompanyId || localStorage.getItem('companyId');
-      const url = cid && cid !== 'all'
-        ? `${API_BASE}/api/v1/attendance/policies?company_id=${cid}`
-        : `${API_BASE}/api/v1/attendance/policies`;
+      const cid = activeCompanyId || localStorage.getItem('companyId') || localStorage.getItem('selectedCompanyId');
+      if (!cid || cid === 'all') {
+        setPolicyForm(emptyPolicy);
+        setInitialPolicyForm(emptyPolicy);
+        setHasPolicyConfigured(false);
+        setIsLoading(false);
+        return;
+      }
+
+      const url = `${API_BASE}/api/v1/attendance/policies?company_id=${cid}`;
       const res = await fetch(url, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
-        if (data && data.length > 0) {
-          const p = data[0];
+        const p = data.policy;
+        if (p && (p.id || p.company_id) && String(p.company_id).toLowerCase().trim() === String(cid).toLowerCase().trim()) {
           const loadedData = {
-            grace_period_mins: String(p.grace_period_mins || 15),
-            max_late_entries_allowed: String(p.max_late_entries_allowed || 3),
+            grace_period_mins: String(p.grace_period_mins ?? 15),
+            max_late_entries_allowed: String(p.max_late_entries_allowed ?? p.late_allowed_per_month ?? 3),
             late_entry_penalty: p.late_entry_penalty || 'HALF_DAY',
-            half_day_min_hours: String(p.half_day_min_hours || 4),
-            full_day_min_hours: String(p.full_day_min_hours || 8),
-            overtime_min_mins: String(p.overtime_min_mins || 60),
-            cycle_start_day: String(p.cycle_start_day || 26),
-            cycle_end_day: String(p.cycle_end_day || 25),
-            max_permission_count_per_month: String(p.max_permission_count_per_month || 2),
-            max_single_permission_minutes: String(p.max_single_permission_minutes || 120),
-            max_permission_minutes_per_month: String(p.max_permission_minutes_per_month || 240),
+            half_day_min_hours: String(p.half_day_min_hours ?? 4),
+            full_day_min_hours: String(p.full_day_min_hours ?? 8),
+            overtime_min_mins: String(p.overtime_min_mins ?? 60),
+            cycle_start_day: String(p.cycle_start_day ?? 26),
+            cycle_end_day: String(p.cycle_end_day ?? 25),
+            max_permission_count_per_month: String(p.max_permission_count_per_month ?? 2),
+            max_single_permission_minutes: String(p.max_single_permission_minutes ?? 120),
+            max_permission_minutes_per_month: String(p.max_permission_minutes_per_month ?? 240),
             permission_affects_late: p.permission_affects_late ?? true,
             permission_affects_early_exit: p.permission_affects_early_exit ?? true,
             allow_permission_carry_forward: p.allow_permission_carry_forward ?? false,
@@ -175,27 +229,39 @@ export default function AttendanceRulesPage() {
             is_period_locked: p.is_period_locked ?? false,
             lock_month: String(p.lock_month || (new Date().getMonth() + 1)),
             lock_year: String(p.lock_year || new Date().getFullYear()),
+            comp_off_display_name: p.comp_off_display_name || 'Compensatory Off',
+            comp_off_half_day_hours: String(p.comp_off_half_day_hours ?? 4),
+            comp_off_full_day_hours: String(p.comp_off_full_day_hours ?? 8),
           };
           setPolicyForm(loadedData);
           setInitialPolicyForm(loadedData);
+          setHasPolicyConfigured(true);
+        } else {
+          setPolicyForm(emptyPolicy);
+          setInitialPolicyForm(emptyPolicy);
+          setHasPolicyConfigured(false);
         }
+      } else {
+        setPolicyForm(emptyPolicy);
+        setInitialPolicyForm(emptyPolicy);
+        setHasPolicyConfigured(false);
       }
     } catch (e) {
       console.error('Failed to load rules:', e);
+      setPolicyForm(emptyPolicy);
+      setInitialPolicyForm(emptyPolicy);
+      setHasPolicyConfigured(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCompanyChange = (newId: string) => {
-    setCompanyId(newId);
-    localStorage.setItem('selectedCompanyId', newId);
-  };
 
   const handleSaveRules = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isModified) return;
-    if (!companyId) {
+    const targetCid = activeCompanyId || companyId;
+    if (!targetCid) {
       showToast('Please select a company context', 'error');
       return;
     }
@@ -205,22 +271,23 @@ export default function AttendanceRulesPage() {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
-          companyId,
-          company_id: companyId,
+          companyId: targetCid,
+          company_id: targetCid,
           policy_name: 'Standard Attendance Policy',
           ...policyForm,
         }),
       });
 
+      const data = await res.json();
       if (res.ok) {
-        showToast('Attendance rules & policy flags updated successfully!', 'success');
+        showToast('🎉 Attendance policy rules saved successfully!', 'success');
         setInitialPolicyForm(policyForm);
+        setHasPolicyConfigured(true);
       } else {
-        const err = await res.json();
-        showToast(err.error || 'Failed to save attendance rules', 'error');
+        showToast(data.error || 'Failed to save attendance rules', 'error');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err: any) {
+      console.error(err);
       showToast('Connection error while saving rules', 'error');
     } finally {
       setIsSaving(false);
@@ -231,6 +298,17 @@ export default function AttendanceRulesPage() {
     <div className="space-y-6 animate-fadeIn w-full font-sans">
       <DashboardPageHeader
         title="Attendance Management"
+        statusBadge={
+          hasPolicyConfigured ? (
+            <span className="font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-xs">
+              <span>✅</span> Policy Configured
+            </span>
+          ) : (
+            <span className="font-extrabold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-xs animate-pulse">
+              <span>⚠️</span> Not Configured
+            </span>
+          )
+        }
         actionMessage=""
         actionError=""
         companies={companies}
@@ -298,14 +376,16 @@ export default function AttendanceRulesPage() {
               </button>
             )}
 
-            {canEdit && (
+            {canEdit ? (
               <button
                 type="submit"
                 disabled={!isModified || isSaving}
                 className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 border ${
-                  isModified && !isSaving
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 cursor-pointer scale-102 active:scale-100'
-                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-800 cursor-not-allowed opacity-60'
+                  isSaving
+                    ? 'bg-indigo-600 text-white border-indigo-600 opacity-80 cursor-wait'
+                    : isModified
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 cursor-pointer scale-102 active:scale-100 border-transparent'
+                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-black cursor-default shadow-xs'
                 }`}
               >
                 {isSaving ? (
@@ -320,20 +400,46 @@ export default function AttendanceRulesPage() {
                   </>
                 ) : (
                   <>
-                    <span>✓ Policy Saved</span>
+                    <span>✅ Policy Saved</span>
                   </>
                 )}
+              </button>
+            ) : (
+              <div className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
+                <span>🔒</span>
+                <span>View Only Mode</span>
+              </div>
+            )}
+
+            {canDelete && hasPolicyConfigured && (
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:border-rose-500/50 font-black text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-xs active:scale-95"
+                title="Delete Attendance Policy"
+              >
+                <span>🗑️</span>
+                <span>Delete Policy</span>
               </button>
             )}
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="py-16 text-center text-slate-400 text-xs font-medium bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-            Loading attendance policy configurations...
+        {!hasPolicyConfigured && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4.5 flex items-start gap-3.5 shadow-xs animate-fadeIn">
+            <span className="text-xl flex-shrink-0">⚠️</span>
+            <div>
+              <h4 className="text-xs font-black text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                Attendance Policy Not Configured Yet
+              </h4>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mt-0.5">
+                No attendance policy has been configured for this company yet. Please fill in the policy details below and click &quot;Save Policy Rules&quot;.
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* CARD 1: LATE ENTRY & GRACE PERIOD RULES */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4">
               <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -451,6 +557,70 @@ export default function AttendanceRulesPage() {
               </div>
             </div>
 
+            {/* CARD 6: COMP-OFF LEAVE CREDIT RULES (PLACED ABOVE PAYROLL CUTOFF) */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4 lg:col-span-2">
+              <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-sm font-bold">
+                  🎁
+                </span>
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Compensatory Off (Comp-Off) Rules
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Configure display title and minimum work hours required to earn half-day / full-day Comp-Off</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Comp-Off Display Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={policyForm.comp_off_display_name}
+                    onChange={(e) => setPolicyForm({ ...policyForm, comp_off_display_name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-emerald-500 transition-all"
+                    placeholder="e.g. Comp-Off / C-OFF"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Label shown across leave requests & payslips</p>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Min Hours for Half-Day Comp-Off *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={policyForm.comp_off_half_day_hours}
+                    onChange={(e) => setPolicyForm({ ...policyForm, comp_off_half_day_hours: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-emerald-500 transition-all"
+                    placeholder="e.g. 4.0"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Work duration on weekend/holiday for 0.5 Comp-Off credit</p>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Min Hours for Full-Day Comp-Off *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={policyForm.comp_off_full_day_hours}
+                    onChange={(e) => setPolicyForm({ ...policyForm, comp_off_full_day_hours: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-emerald-500 transition-all"
+                    placeholder="e.g. 8.0"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Work duration on weekend/holiday for 1.0 Comp-Off credit</p>
+                </div>
+              </div>
+            </div>
+
             {/* CARD 3: PAYROLL ATTENDANCE CYCLE CUTOFF DATES */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4">
               <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -534,8 +704,8 @@ export default function AttendanceRulesPage() {
               <div className="space-y-3">
                 {/* Toggle 1 */}
                 <div
-                  onClick={() => setPolicyForm(prev => ({ ...prev, allow_self_punch: !prev.allow_self_punch }))}
-                  className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/50 transition-all cursor-pointer group select-none"
+                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, allow_self_punch: !prev.allow_self_punch })); }}
+                  className={`flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 transition-all select-none ${canEdit ? 'hover:bg-slate-100/60 dark:hover:bg-slate-800/50 cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
                 >
                   <div>
                     <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
@@ -552,8 +722,8 @@ export default function AttendanceRulesPage() {
 
                 {/* Toggle 2 */}
                 <div
-                  onClick={() => setPolicyForm(prev => ({ ...prev, require_location_gps: !prev.require_location_gps }))}
-                  className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/50 transition-all cursor-pointer group select-none"
+                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, require_location_gps: !prev.require_location_gps })); }}
+                  className={`flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 transition-all select-none ${canEdit ? 'hover:bg-slate-100/60 dark:hover:bg-slate-800/50 cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
                 >
                   <div>
                     <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
@@ -570,8 +740,8 @@ export default function AttendanceRulesPage() {
 
                 {/* Toggle 3 */}
                 <div
-                  onClick={() => setPolicyForm(prev => ({ ...prev, auto_approve_regularization: !prev.auto_approve_regularization }))}
-                  className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/50 transition-all cursor-pointer group select-none"
+                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, auto_approve_regularization: !prev.auto_approve_regularization })); }}
+                  className={`flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 transition-all select-none ${canEdit ? 'hover:bg-slate-100/60 dark:hover:bg-slate-800/50 cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
                 >
                   <div>
                     <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
@@ -610,9 +780,10 @@ export default function AttendanceRulesPage() {
                     </label>
                     <input
                       type="number"
+                      disabled={!canEdit}
                       value={policyForm.max_permission_count_per_month}
                       onChange={(e) => setPolicyForm({ ...policyForm, max_permission_count_per_month: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 transition-all"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       placeholder="e.g. 2"
                       required
                     />
@@ -625,9 +796,10 @@ export default function AttendanceRulesPage() {
                     </label>
                     <input
                       type="number"
+                      disabled={!canEdit}
                       value={policyForm.max_single_permission_minutes}
                       onChange={(e) => setPolicyForm({ ...policyForm, max_single_permission_minutes: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 transition-all"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       placeholder="e.g. 120"
                       required
                     />
@@ -640,9 +812,10 @@ export default function AttendanceRulesPage() {
                     </label>
                     <input
                       type="number"
+                      disabled={!canEdit}
                       value={policyForm.max_permission_minutes_per_month}
                       onChange={(e) => setPolicyForm({ ...policyForm, max_permission_minutes_per_month: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 transition-all"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       placeholder="e.g. 240"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">Cumulative cap (240 mins = 4 hours)</p>
@@ -651,8 +824,8 @@ export default function AttendanceRulesPage() {
 
                 <div className="pt-2 space-y-2.5">
                   <div
-                    onClick={() => setPolicyForm(prev => ({ ...prev, permission_affects_late: !prev.permission_affects_late }))}
-                    className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/50 transition-all cursor-pointer select-none"
+                    onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, permission_affects_late: !prev.permission_affects_late })); }}
+                    className={`flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 transition-all select-none ${canEdit ? 'hover:bg-slate-100/60 dark:hover:bg-slate-800/50 cursor-pointer' : 'cursor-not-allowed opacity-75'}`}
                   >
                     <div>
                       <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">
@@ -668,8 +841,8 @@ export default function AttendanceRulesPage() {
                   </div>
 
                   <div
-                    onClick={() => setPolicyForm(prev => ({ ...prev, permission_affects_early_exit: !prev.permission_affects_early_exit }))}
-                    className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/50 transition-all cursor-pointer select-none"
+                    onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, permission_affects_early_exit: !prev.permission_affects_early_exit })); }}
+                    className={`flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 transition-all select-none ${canEdit ? 'hover:bg-slate-100/60 dark:hover:bg-slate-800/50 cursor-pointer' : 'cursor-not-allowed opacity-75'}`}
                   >
                     <div>
                       <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">
@@ -685,8 +858,8 @@ export default function AttendanceRulesPage() {
                   </div>
 
                   <div
-                    onClick={() => setPolicyForm(prev => ({ ...prev, allow_permission_carry_forward: !prev.allow_permission_carry_forward }))}
-                    className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-amber-50/40 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/40 transition-all cursor-pointer select-none"
+                    onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, allow_permission_carry_forward: !prev.allow_permission_carry_forward })); }}
+                    className={`flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-amber-50/40 dark:bg-amber-950/20 transition-all select-none ${canEdit ? 'hover:bg-amber-100/50 dark:hover:bg-amber-950/40 cursor-pointer' : 'cursor-not-allowed opacity-75'}`}
                   >
                     <div>
                       <span className="font-extrabold text-xs text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
@@ -707,8 +880,61 @@ export default function AttendanceRulesPage() {
               </div>
             </div>
           </div>
-        )}
-      </form>
+        </form>
+      )}
+
+      {/* 🗑️ DELETE POLICY CONFIRMATION MODAL */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 max-w-md w-full shadow-2xl space-y-5 animate-scaleUp">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-2xl border border-rose-500/20 flex-shrink-0">
+                ⚠️
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  Delete Policy Confirmation
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                  Are you sure you want to delete this attendance policy?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl p-4 text-xs font-semibold text-rose-800 dark:text-rose-300">
+              This action will remove all custom grace periods, late entry penalties, and cutoff rules for this company. Standard default rules will be restored.
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeletePolicy}
+                disabled={isDeleting}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-600/30 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🗑️ Yes, Delete Policy</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 📡 BIOMETRIC ATTENDANCE SYNC SLIDE DRAWER */}

@@ -8,13 +8,12 @@ import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 
 export default function CompOffClaimsPage() {
-  const { showToast } = useDashboard();
+  const { showToast, companyId } = useDashboard();
   const { isSuperAdmin: isSuperAdminPerm, getPermissionScope } = usePermissions();
   const compScope = getPermissionScope('view_leave_requests');
   const canSeeTeamTab = isSuperAdminPerm || compScope !== 'SELF';
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
-  const [companyId, setCompanyId] = useState<string | null>(null);
 
   const [viewScope, setViewScope] = useState<'my' | 'team'>('my');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
@@ -48,7 +47,6 @@ export default function CompOffClaimsPage() {
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
     const storedEmail = localStorage.getItem('email');
-    const storedCompanyId = localStorage.getItem('companyId');
     let parsedRoles: string[] = [];
     if (storedRoles) {
       try {
@@ -57,7 +55,6 @@ export default function CompOffClaimsPage() {
       } catch (e) {}
     }
     if (storedEmail) setEmail(storedEmail);
-    if (storedCompanyId) setCompanyId(storedCompanyId);
 
     const isSuper = parsedRoles.includes('SuperAdmin') || parsedRoles.includes('superadmin');
     const isMgr = parsedRoles.some(r => {

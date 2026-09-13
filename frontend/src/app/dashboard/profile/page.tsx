@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
 import { useDashboard } from '../components/DashboardContext';
 import { 
   User, Mail, Phone, Calendar, MapPin, CreditCard, ShieldCheck, Building2, 
   Layers, Briefcase, GraduationCap, Zap, Landmark, Lock, Heart, FileText, 
-  CheckCircle2, Edit3, Eye, EyeOff, Plus, Trash2, Award, FileSpreadsheet, Globe, KeyRound, Sparkles, Pin
+  CheckCircle2, Edit3, Eye, EyeOff, Plus, Trash2, Award, FileSpreadsheet, Globe, KeyRound, Sparkles, Pin, Printer, QrCode
 } from 'lucide-react';
 
 interface Company {
@@ -153,6 +154,13 @@ export default function ProfilePage() {
   const [employmentType, setEmploymentType] = useState('');
   const [empImage, setEmpImage] = useState('');
   const [imgLoadError, setImgLoadError] = useState(false);
+  const [showIdCardModal, setShowIdCardModal] = useState(false);
+  const [companyDetails, setCompanyDetails] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const compressImage = (file: File, callback: (base64: string) => void) => {
     const reader = new FileReader();
@@ -273,7 +281,14 @@ export default function ProfilePage() {
     try {
       const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
-      if (res.ok) setCompanies(data.companies || []);
+      if (res.ok) {
+        setCompanies(data.companies || []);
+        if (data.companies && data.companies.length > 0) {
+          const currentCompanyId = companyId || localStorage.getItem('companyId');
+          const foundCo = data.companies.find((c: any) => c.id === currentCompanyId) || data.companies[0];
+          setCompanyDetails(foundCo);
+        }
+      }
     } catch (e) {
       console.error(e);
     }
@@ -442,9 +457,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (email) {
-      if (isSuperAdmin) {
-        fetchCompanies();
-      }
+      fetchCompanies();
       fetchProfileData(email, companyId);
     } else {
       setLoading(false);
@@ -904,7 +917,7 @@ export default function ProfilePage() {
             <div className="p-6 sm:p-8 relative z-10 space-y-6">
               
               {/* Cover Top Inspiration */}
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-end border-b border-white/10 pb-4">
                 <span className="text-xs font-bold text-sky-100/90 italic drop-shadow-md hidden sm:inline-block">
                   "An employee's experience is the sum of all interactions."
                 </span>
@@ -920,7 +933,7 @@ export default function ProfilePage() {
                   <label className="relative group shrink-0 transition-all duration-500 hover:scale-105 cursor-pointer" title="Click photo to change">
                     <div className="absolute -inset-1.5 rounded-[2.2rem] bg-gradient-to-r from-sky-400 via-indigo-400 to-pink-500 opacity-80 blur-md group-hover:opacity-100 group-hover:blur-lg transition-all duration-500" />
                     
-                    <div className="h-28 w-28 sm:h-32 sm:w-32 rounded-[2rem] bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-900 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-2xl relative font-outfit overflow-hidden border-4 border-white group-hover:border-sky-300 transition-all duration-500">
+                    <div className="h-32 w-32 sm:h-36 sm:w-36 rounded-[2.2rem] bg-gradient-to-br from-[#07518a] via-blue-700 to-indigo-900 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-2xl relative font-outfit overflow-hidden border-4 border-white group-hover:border-sky-300 transition-all duration-500">
                       {(empImage || myProfile?.emp_image) && !imgLoadError ? (
                         <img 
                           src={empImage || myProfile?.emp_image} 
@@ -981,7 +994,7 @@ export default function ProfilePage() {
                       {myProfile?.designation_name || 'Organization Member'}
                     </p>
 
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-medium text-white pt-1">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 text-xs font-medium text-white pt-2.5">
                       <span className="bg-white/15 backdrop-blur-md px-3 py-1 rounded-xl border border-white/20 text-white shadow-xs">
                         Emp ID: <strong className="font-mono text-white">{myProfile?.emp_id_code || 'PENDING'}</strong>
                       </span>
@@ -993,6 +1006,26 @@ export default function ProfilePage() {
                       </span>
                     </div>
                   </div>
+                </div>
+
+                {/* Right Side: QR Code Badge (Increased QR Code Size) */}
+                <div className="shrink-0 flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowIdCardModal(true)}
+                    className="relative group bg-white p-2.5 rounded-2xl shadow-2xl border-2 border-white/80 hover:border-sky-300 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer flex flex-col items-center"
+                    title="Click to view & print Digital Employee ID Card"
+                  >
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent((typeof window !== 'undefined' ? window.location.origin : 'https://newhrms.brihaspathi.in') + '/idcard/' + (myProfile?.emp_id_code || '101'))}`}
+                      alt="Employee Verification QR Code"
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-contain"
+                    />
+                    <div className="absolute inset-0 bg-slate-950/65 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white text-[10px] font-black uppercase tracking-wider gap-1 backdrop-blur-2xs p-1 text-center">
+                      <QrCode className="w-5 h-5 text-sky-300" />
+                      <span>ID Card</span>
+                    </div>
+                  </button>
                 </div>
 
               </div>
@@ -1857,6 +1890,205 @@ export default function ProfilePage() {
           </form>
 
         </div>
+      )}
+
+      {/* 🎴 DIGITAL EMPLOYEE ID CARD MODAL (Portaled to document.body to cover 100% full viewport) */}
+      {showIdCardModal && mounted && createPortal(
+        <div 
+          className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md animate-fadeIn"
+          onClick={() => setShowIdCardModal(false)}
+        >
+          <div 
+            className="relative w-[95vw] max-w-sm sm:max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_25px_90px_rgba(0,0,0,0.5)] border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col items-center animate-scaleUp max-h-[92vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            
+            {/* Modal Header Actions */}
+            <div className="w-full flex items-center justify-between px-6 py-4 bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-100 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md">
+                  🎴
+                </div>
+                <div className="flex flex-col text-left leading-tight">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>Official Digital ID Card</span>
+                    <span className="text-[8.5px] px-2 py-0.5 rounded-full bg-emerald-500 text-white font-mono font-extrabold shadow-2xs">VERIFIED</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">Official Employee Identity Pass</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-600 transition-all cursor-pointer shadow-2xs"
+                  title="Print ID Card"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Print</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowIdCardModal(false)}
+                  className="w-8 h-8 rounded-xl bg-slate-200/80 dark:bg-slate-700/80 hover:bg-rose-500 hover:text-white text-slate-500 transition-all cursor-pointer font-black flex items-center justify-center shadow-2xs"
+                  title="Close Modal"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* 🎴 PHYSICAL ID CARD CONTAINER VIEW */}
+            <div className="p-4 sm:p-6 w-full flex-1 overflow-y-auto no-scrollbar flex justify-center bg-slate-100/70 dark:bg-slate-950/70">
+              
+              <div className="w-[320px] sm:w-[345px] rounded-3xl border border-slate-300 dark:border-slate-700 bg-white text-slate-900 shadow-2xl overflow-hidden relative flex flex-col font-sans select-none border-t-4 border-t-blue-600 shrink-0">
+                
+                {/* 1. Header Section with Smooth Vector Curves & Branding Logo */}
+                <div className="relative bg-[#07518a] pt-7 pb-16 px-4 text-center text-white overflow-hidden">
+                  
+                  {/* Background Decorative Vector Waves & Circles Pattern */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
+                    <div className="absolute -top-12 -left-12 w-56 h-56 rounded-full bg-sky-400/20 blur-xl" />
+                    <div className="absolute -bottom-16 -right-16 w-60 h-60 rounded-full bg-cyan-300/15 blur-xl" />
+
+                    <svg className="absolute inset-0 w-full h-full opacity-35" preserveAspectRatio="none" viewBox="0 0 400 160">
+                      <path d="M -50 160 C 90 20, 260 180, 450 30 L 450 0 L -50 0 Z" fill="#ffffff" fillOpacity="0.1" />
+                      <path d="M -20 0 C 130 140, 270 10, 420 120 L 420 0 Z" fill="#38bdf8" fillOpacity="0.1" />
+                      <circle cx="60" cy="40" r="90" fill="none" stroke="#ffffff" strokeWidth="1" opacity="0.25" />
+                      <circle cx="340" cy="120" r="110" fill="none" stroke="#7dd3fc" strokeWidth="1" opacity="0.2" />
+                    </svg>
+                  </div>
+                  
+                  {/* Company Logo / Branding Header */}
+                  <div className="relative z-10 flex flex-col items-center justify-center">
+                    {companyDetails?.branding_logo ? (
+                      <img 
+                        src={companyDetails.branding_logo} 
+                        alt="Company Branding Logo" 
+                        className="max-h-12 max-w-[240px] object-contain drop-shadow-md brightness-0 invert"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <circle cx="12" cy="12" r="9" strokeOpacity="0.4" />
+                            <path d="M12 3a9 9 0 0 1 9 9 9 9 0 0 1-9 9" strokeLinecap="round" />
+                          </svg>
+                          <span className="text-xl font-black tracking-tight text-white drop-shadow-sm font-outfit uppercase">
+                            Brihaspathi
+                          </span>
+                        </div>
+                        <span className="text-[9px] text-blue-100 font-bold tracking-widest uppercase mt-0.5 opacity-90">
+                          ...The Guru of Tomorrow's Technology
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Circular Photo Section & Card Body Background (NO overflow-hidden to prevent photo top clipping) */}
+                <div className="relative bg-gradient-to-b from-slate-50 via-white to-sky-50/40 text-slate-900">
+                  
+                  {/* Centered Circular Employee Photo overlapping header cleanly */}
+                  <div className="-mt-14 flex justify-center relative z-30">
+                    <div className="w-32 h-32 rounded-full border-4 border-white bg-gradient-to-tr from-[#07518a] via-blue-600 to-sky-400 p-1 shadow-2xl flex items-center justify-center overflow-hidden shrink-0">
+                      {(empImage || myProfile?.emp_image) && !imgLoadError ? (
+                        <img 
+                          src={empImage || myProfile?.emp_image} 
+                          alt="Employee Portrait" 
+                          className="w-full h-full rounded-full object-cover object-top"
+                        />
+                      ) : (
+                        <div className="w-full h-full rounded-full bg-gradient-to-br from-[#07518a] to-blue-900 text-white font-black text-4xl flex items-center justify-center uppercase">
+                          {firstName ? firstName.charAt(0) : (email ? email.charAt(0).toUpperCase() : 'R')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 3. Employee Name & Designation */}
+                  <div className="px-5 pt-3 pb-2 text-center flex flex-col items-center relative z-10">
+                    <h2 className="text-xl font-black text-blue-950 tracking-tight leading-snug">
+                      {firstName ? `${firstName} ${lastName}`.trim() : (myProfile?.first_name ? `${myProfile.first_name} ${myProfile.last_name}` : 'Rajasekhar Papolu')}
+                    </h2>
+                    <div className="w-16 h-0.5 bg-[#07518a] my-1.5 rounded-full opacity-80" />
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                      {myProfile?.designation_name || employmentType || 'MANAGING DIRECTOR'}
+                    </span>
+                  </div>
+
+                  {/* 4. Blue Pill Box: ID No & Blood Group */}
+                  <div className="px-5 my-2.5 relative z-10">
+                    <div className="bg-[#07518a] text-white rounded-xl px-4 py-2.5 flex items-center justify-between shadow-md text-xs font-bold font-mono">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sky-200">ID No:</span>
+                        <span className="text-white font-extrabold tracking-wider">
+                          {myProfile?.emp_id_code || '101'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <span className="text-rose-400 text-sm">🩸 :</span>
+                        <span className="text-blue-100 font-extrabold">
+                          {bloodGroup || myProfile?.blood_group ? (bloodGroup.includes('Ve') ? bloodGroup : `${bloodGroup} Ve`) : 'A+ Ve'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. Issuing Authority Cursive Green Signature Section */}
+                  <div className="px-5 pt-1 pb-3 flex flex-col items-end text-right relative z-10">
+                    <div className="h-9 w-28 flex items-center justify-end pr-1">
+                      <svg className="w-full h-full text-emerald-600" viewBox="0 0 120 40" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M 22 28 C 12 18, 20 8, 28 14 C 36 20, 26 34, 34 34 C 44 34, 38 20, 48 20 C 56 20, 52 32, 62 30 C 72 28, 78 16, 88 22 C 94 26, 100 20, 106 23" />
+                        <path d="M 60 28 L 92 28" />
+                      </svg>
+                    </div>
+                    <span className="text-[9.5px] font-extrabold text-[#07518a] uppercase tracking-wider border-t border-slate-300/80 pt-0.5 mt-0.5">
+                      Issuing Authority
+                    </span>
+                  </div>
+                </div>
+
+                {/* 6. Bottom Blue Footer Banner */}
+                <div className="bg-[#07518a] text-white p-3.5 text-center text-[9px] leading-snug font-sans space-y-1.5 relative overflow-hidden">
+                  {/* Subtly curved light glow behind footer */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/10 rounded-full blur-xl pointer-events-none" />
+
+                  <p className="font-extrabold text-[11px] tracking-wide uppercase relative z-10">
+                    {companyDetails?.name || 'Brihaspathi Technologies Limited'}
+                  </p>
+                  <p className="text-[8.5px] text-sky-200 font-medium italic relative z-10">
+                    (Formerly known as Brihaspathi Technologies Private Limited)
+                  </p>
+                  <p className="font-semibold text-blue-100 text-[9px] relative z-10">
+                    Toll Free: 1800 296 8899, Phone: +91-9989994488
+                  </p>
+                  <p className="font-extrabold text-sky-200 hover:underline cursor-pointer text-[9.5px] relative z-10">
+                    www.brihaspathi.com
+                  </p>
+
+                  {/* 2-Column Side-by-Side Office Addresses */}
+                  <div className="border-t border-sky-300/30 pt-1.5 grid grid-cols-2 gap-2 text-left text-[8px] sm:text-[8.5px] leading-tight text-blue-100 relative z-10">
+                    <div className="space-y-0.5">
+                      <span className="font-extrabold text-white block uppercase tracking-wide border-b border-sky-300/30 pb-0.5 mb-1">Corporate Office</span>
+                      <p className="opacity-95">#501, #508-510, Shangrila Plaza, Road No. 2, Banjara Hills, Hyd - 34</p>
+                    </div>
+                    <div className="space-y-0.5 border-l border-sky-300/30 pl-2">
+                      <span className="font-extrabold text-white block uppercase tracking-wide border-b border-sky-300/30 pb-0.5 mb-1">Registered Office</span>
+                      <p className="opacity-95">#7-1-621/259, Sahithi Arcade, V Floor, S R Nagar, Hyd -38</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Styled Overrides */}

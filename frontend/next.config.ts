@@ -27,6 +27,18 @@ const nextConfig: NextConfig = {
       ...extraOrigins,
     ])
   ),
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self)' },
+          { key: 'Content-Security-Policy', value: "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; img-src 'self' data: blob: https:; font-src 'self' https: data:;" },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     // Same-origin paths so office LAN (no nginx) and VPS HTTPS (nginx) both work.
     // When nginx already proxies these paths, it wins; these are the LAN / :3005 fallback.

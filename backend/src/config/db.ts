@@ -1,7 +1,10 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// Prevent node-postgres from converting PostgreSQL DATE columns to local JS Date objects (eliminates 1-day date shift)
+types.setTypeParser(1082, (val: string) => val);
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {

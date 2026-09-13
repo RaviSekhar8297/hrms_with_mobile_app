@@ -111,7 +111,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           setCompanyName(match.name || 'HRMS PORTAL');
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [companyId]);
 
   useEffect(() => {
@@ -285,7 +285,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             localStorage.setItem('permissionScopes', JSON.stringify(data.scopes));
           }
         })
-        .catch(() => {});
+        .catch(() => { });
 
       // Load company branding
       const storedCompanyId = localStorage.getItem('companyId');
@@ -306,7 +306,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             setCompanyName(match.name || 'HRMS PORTAL');
           }
         })
-        .catch(() => {});
+        .catch(() => { });
 
       // Fetch employee designation details
       fetch(`/api/v1/employees`, {
@@ -334,7 +334,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             }
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [router, pathname]);
 
@@ -398,116 +398,116 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       title: 'Core Console',
       items: isSuperAdmin
         ? [
-            {
-              tab: 'overview',
-              label: 'Overview',
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              ),
-            },
-            {
-              tab: 'profile',
-              label: 'My Profile',
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              ),
-            },
-            {
-              tab: 'flow',
-              label: 'Work Flow',
-              badge: 'Guide',
-              icon: (
-                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              ),
-            },
-            {
-              tab: 'analytics',
-              label: 'Analytics',
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 00-2 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h-2a2 2 0 00-2-2z" />
-                </svg>
-              ),
-            },
-            {
-              tab: 'employees',
-              label: 'Employees',
-              permission: 'view_employees',
-              badge: 'Active',
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ),
-            },
-            {
-              tab: 'ai-assistant',
-              label: 'AI Assistant',
-              badge: 'Free AI',
-              icon: (
-                <svg className="w-5 h-5 text-purple-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
-                </svg>
-              ),
-            },
-          ]
+          {
+            tab: 'overview',
+            label: 'Overview',
+            icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            ),
+          },
+          {
+            tab: 'profile',
+            label: 'My Profile',
+            icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            ),
+          },
+          {
+            tab: 'flow',
+            label: 'Work Flow',
+            badge: 'Guide',
+            icon: (
+              <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            ),
+          },
+          {
+            tab: 'analytics',
+            label: 'Analytics',
+            icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 00-2 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h-2a2 2 0 00-2-2z" />
+              </svg>
+            ),
+          },
+          {
+            tab: 'employees',
+            label: 'Employees',
+            permission: 'view_employees',
+            badge: 'Active',
+            icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ),
+          },
+          {
+            tab: 'ai-assistant',
+            label: 'AI Assistant',
+            badge: 'Free AI',
+            icon: (
+              <svg className="w-5 h-5 text-purple-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+              </svg>
+            ),
+          },
+        ]
         : [
-            {
-              tab: 'overview',
-              label: 'Dashboard',
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              ),
-            },
-            {
-              tab: 'profile',
-              label: 'My Profile',
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              ),
-            },
-            {
-              tab: 'flow',
-              label: 'Work Flow',
-              badge: 'Guide',
-              icon: (
-                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              ),
-            },
-            {
-              tab: 'employees',
-              label: 'Employees',
-              permission: 'view_employees',
-              badge: 'Active',
-              icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ),
-            },
-            {
-              tab: 'ai-assistant',
-              label: 'AI Assistant',
-              badge: 'Free AI',
-              icon: (
-                <svg className="w-5 h-5 text-purple-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
-                </svg>
-              ),
-            },
-          ],
+          {
+            tab: 'overview',
+            label: 'Dashboard',
+            icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            ),
+          },
+          {
+            tab: 'profile',
+            label: 'My Profile',
+            icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            ),
+          },
+          {
+            tab: 'flow',
+            label: 'Work Flow',
+            badge: 'Guide',
+            icon: (
+              <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            ),
+          },
+          {
+            tab: 'employees',
+            label: 'Employees',
+            permission: 'view_employees',
+            badge: 'Active',
+            icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ),
+          },
+          {
+            tab: 'ai-assistant',
+            label: 'AI Assistant',
+            badge: 'Free AI',
+            icon: (
+              <svg className="w-5 h-5 text-purple-400 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+              </svg>
+            ),
+          },
+        ],
     },
     {
       title: 'Organization',
@@ -523,16 +523,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         ...(isSuperAdmin
           ? [
-              {
-                tab: 'companies',
-                label: 'Tenants/Companies',
-                icon: (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                ),
-              },
-            ]
+            {
+              tab: 'companies',
+              label: 'Tenants/Companies',
+              icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              ),
+            },
+          ]
           : []),
         {
           tab: 'branches',
@@ -603,7 +603,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'formula',
-          label: 'Calculation Formulas',
+          label: 'Formulas',
           permission: 'view_salary_component_configurations',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -613,7 +613,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'structure',
-          label: 'Salary Structure',
+          label: 'Structure',
           permission: 'view_salary_structures',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -623,7 +623,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'payroll/tds',
-          label: 'TDS Tax Calculator',
+          label: 'TDS Tax',
           permission: 'view_payroll_runs',
           badge: 'Tax',
           icon: (
@@ -634,7 +634,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'payslip',
-          label: 'Payslip Console',
+          label: 'Payslips',
           permission: 'view_payslips',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -650,7 +650,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'attendance',
           label: 'Attendance',
-          permission: 'view_attendance_summary',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -658,8 +657,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ),
         },
         {
+          tab: 'atd_history',
+          label: 'History',
+          permission: 'view_attendance_summary',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+        },
+        {
           tab: 'attendance/rules',
-          label: 'Rules',
+          label: 'Policy',
           permission: 'view_attendance_policies',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -699,12 +708,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ),
         },
         {
-          tab: 'attendance_requests',
-          label: 'Requests',
-          permission: 'view_attendance_summary',
+          tab: 'leaves/compoff',
+          label: 'Comp-Offs',
+          permission: 'view_comp_off_requests',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           ),
         },
@@ -788,16 +797,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </svg>
           ),
         },
-        {
-          tab: 'leaves/compoff',
-          label: 'Comp-Off Claims',
-          permission: 'view_comp_off_requests',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          ),
-        },
+
         {
           tab: 'leaves/balances',
           label: 'Leave Balances',
@@ -810,7 +810,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'leaves',
-          label: 'Leave Types & Logs',
+          label: 'Leave Types',
           permission: 'view_leave_types',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -822,7 +822,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       ],
     },
     {
-      title: 'Talent & Operations',
+      title: 'Onboarding',
       items: [
         {
           tab: 'recruitment',
@@ -845,11 +845,21 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         },
         {
           tab: 'onboarding',
-          label: 'Employee Onboarding',
+          label: 'Pre Joining',
           permission: 'view_employee_onboardings',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'onboarding/letters',
+          label: 'Letters',
+          badge: 'New',
+          icon: (
+            <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           ),
         },
@@ -1029,8 +1039,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </button>
             </div>
 
-            <div 
-              className="flex-1 overflow-y-auto no-scrollbar" 
+            <div
+              className="flex-1 overflow-y-auto no-scrollbar"
               onClick={(e) => {
                 if ((e.target as HTMLElement).closest('a')) {
                   setMobileMenuOpen(false);
@@ -1040,7 +1050,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <Sidebar
                 isMobile={true}
                 sidebarCollapsed={false}
-                setSidebarCollapsed={() => {}}
+                setSidebarCollapsed={() => { }}
                 companyName={companyName}
                 companyLogo={companyLogo}
                 logoError={logoError}
@@ -1089,7 +1099,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         />
 
         {/* 🚀 MAIN BODY AREA */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative no-scrollbar rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative no-scrollbar rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-gradient-to-br from-slate-50 via-indigo-50/20 to-slate-100/90 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 shadow-sm">
           {bodyLoading ? (
             <div className="w-full h-full flex flex-col gap-6 animate-fadeIn p-2">
               <div className="h-9 w-1/4 rounded-xl shimmer-loading" />
@@ -1115,20 +1125,43 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 select-none touch-none"
           style={{ transform: `translate(calc(-50% + ${fabPos.x}px), ${fabPos.y}px)` }}
         >
-          <button
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-            onClick={handleFabClick}
-            className="flex items-center justify-center gap-2.5 p-3 sm:px-6 sm:py-3 rounded-full border border-slate-200/80 dark:border-slate-800/80 bg-card/90 shadow-2xl backdrop-blur-xl hover:scale-105 active:scale-95 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all duration-250 cursor-grab active:cursor-grabbing group text-slate-800 dark:text-slate-200"
-          >
-            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1.5" />
-              <rect x="14" y="3" width="7" height="7" rx="1.5" />
-              <rect x="14" y="14" width="7" height="7" rx="1.5" />
-              <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            </svg>
-            <span className="hidden sm:inline text-[10px] uppercase tracking-widest font-black">App Launcher</span>
-          </button>
+          <div className="relative group">
+            {/* Animated Ambient Pulsing Aura Glow */}
+            <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 blur-md opacity-75 group-hover:opacity-100 transition-all duration-500 animate-pulse" />
+            
+            <button
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+              onClick={handleFabClick}
+              className="relative flex items-center justify-center gap-2.5 px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border border-white/40 dark:border-slate-700/60 bg-gradient-to-r from-slate-900/90 via-indigo-950/90 to-slate-900/90 dark:from-slate-900/95 dark:via-blue-950/95 dark:to-slate-900/95 text-white shadow-2xl backdrop-blur-2xl hover:scale-105 active:scale-95 transition-all duration-300 cursor-grab active:cursor-grabbing overflow-hidden"
+            >
+              {/* Shimmer Light Beam Effect */}
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+              
+              {/* Unique Animated Launcher Icon Badge */}
+              <div className="relative flex items-center justify-center w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 text-white shadow-md group-hover:rotate-12 transition-transform duration-300">
+                <svg className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="2" />
+                  <rect x="14" y="3" width="7" height="7" rx="2" />
+                  <rect x="14" y="14" width="7" height="7" rx="2" />
+                  <rect x="3" y="14" width="7" height="7" rx="2" />
+                </svg>
+                {/* Micro Sparkle Indicator */}
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              </div>
+
+              <div className="flex flex-col text-left leading-none">
+                <span className="hidden sm:inline text-[11px] tracking-wider uppercase font-black text-white group-hover:text-blue-300 transition-colors">
+                  App Universe
+                </span>
+                <span className="hidden sm:inline text-[8.5px] font-extrabold text-blue-200/80 tracking-tight mt-0.5">
+                  LAUNCHER DOCK
+                </span>
+              </div>
+
+              <span className="sm:hidden text-xs font-black tracking-wider uppercase text-white">Apps</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -1137,7 +1170,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-50 flex items-end justify-center pb-2 sm:pb-3 pointer-events-none">
           {/* Normal clear background without heavy blur */}
           <div className="fixed inset-0 bg-slate-900/15 backdrop-blur-none pointer-events-auto transition-opacity duration-300" onClick={() => setMoreAppsOpen(false)} />
-          
+
           {/* Orbital Modal Container - Light Glassmorphic Card (Width increased to max-w-[820px]) */}
           <div
             className="relative z-50 w-[95vw] max-w-[820px] sm:w-[800px] bg-white/95 text-slate-900 backdrop-blur-2xl rounded-[2.5rem] border border-slate-200/90 shadow-[0_25px_90px_rgba(0,0,0,0.18)] animate-scaleUp flex flex-col overflow-hidden pointer-events-auto transition-all duration-300 ease-out font-sans select-none mb-1"
@@ -1187,21 +1220,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <div className="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200 text-[11px] font-bold">
                   <button
                     onClick={() => setLauncherMode('orbital')}
-                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                      launcherMode === 'orbital'
+                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${launcherMode === 'orbital'
                         ? 'bg-indigo-600 text-white shadow-xs font-bold'
                         : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                      }`}
                   >
                     <span>🌌 Orbital</span>
                   </button>
                   <button
                     onClick={() => setLauncherMode('grid')}
-                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                      launcherMode === 'grid'
+                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${launcherMode === 'grid'
                         ? 'bg-indigo-600 text-white shadow-xs font-bold'
                         : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                      }`}
                   >
                     <span>📱 Grid</span>
                   </button>
@@ -1265,8 +1296,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     const leftPct = 50 + (ringRadius / 375) * 50 * Math.cos(rad);
                     const topPct = 90 - (ringRadius / 390) * 100 * Math.sin(rad);
 
-                    const isMatched = !appSearch || 
-                      item.label.toLowerCase().includes(appSearch.toLowerCase()) || 
+                    const isMatched = !appSearch ||
+                      item.label.toLowerCase().includes(appSearch.toLowerCase()) ||
                       item.tab.toLowerCase().includes(appSearch.toLowerCase());
 
                     const gradientStyles = [
@@ -1297,9 +1328,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           top: `${topPct}%`,
                           transform: 'translate(-50%, -50%)'
                         }}
-                        className={`absolute transition-all duration-300 ${
-                          isMatched ? 'opacity-100 z-30' : 'opacity-20 scale-90 blur-[0.5px] z-10 pointer-events-none'
-                        } group`}
+                        className={`absolute transition-all duration-300 ${isMatched ? 'opacity-100 z-30' : 'opacity-20 scale-90 blur-[0.5px] z-10 pointer-events-none'
+                          } group`}
                       >
                         <Link
                           href={`/dashboard/${item.tab}`}
@@ -1335,11 +1365,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                         key={item.tab}
                         href={`/dashboard/${item.tab}`}
                         onClick={() => setMoreAppsOpen(false)}
-                        className={`group flex flex-col items-center text-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer ${
-                          currentTab === item.tab
+                        className={`group flex flex-col items-center text-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer ${currentTab === item.tab
                             ? 'bg-indigo-50 border-indigo-400 text-indigo-700 shadow-xs'
                             : 'border-slate-200 bg-slate-50/70 hover:border-indigo-300 hover:bg-white text-slate-800'
-                        }`}
+                          }`}
                       >
                         <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center text-xl mb-1.5 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-2xs">
                           {getLucideIcon(item.tab, item.icon)}
@@ -1400,23 +1429,27 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <button
-                        onClick={() => setLayout('sidebar')}
-                        className={`py-2.5 px-3.5 rounded-xl border text-xs font-extrabold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
-                          layout === 'sidebar'
+                        onClick={() => {
+                          setLayout('sidebar');
+                          setSettingsOpen(false);
+                        }}
+                        className={`py-2.5 px-3.5 rounded-xl border text-xs font-extrabold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${layout === 'sidebar'
                             ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
                             : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500'
-                        }`}
+                          }`}
                       >
                         <span className="text-base">🗂️</span>
                         <span>Sidebar</span>
                       </button>
                       <button
-                        onClick={() => setLayout('bottom-dock')}
-                        className={`py-2.5 px-3.5 rounded-xl border text-xs font-extrabold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
-                          layout === 'bottom-dock'
+                        onClick={() => {
+                          setLayout('bottom-dock');
+                          setSettingsOpen(false);
+                        }}
+                        className={`py-2.5 px-3.5 rounded-xl border text-xs font-extrabold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${layout === 'bottom-dock'
                             ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
                             : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500'
-                        }`}
+                          }`}
                       >
                         <span className="text-base">⚓</span>
                         <span>Bottom Dock</span>
@@ -1434,12 +1467,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <button
-                        onClick={() => setTheme('slate-dark')}
-                        className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${
-                          theme === 'slate-dark'
+                        onClick={() => {
+                          setTheme('slate-dark');
+                          setSettingsOpen(false);
+                        }}
+                        className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${theme === 'slate-dark'
                             ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/20'
                             : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
+                          }`}
                       >
                         <div className="h-5 w-10 rounded bg-[#0b0f19] mb-2 border border-slate-700 shadow-xs" />
                         <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">Slate Dark</span>
@@ -1449,12 +1484,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       </button>
 
                       <button
-                        onClick={() => setTheme('nordic-light')}
-                        className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${
-                          theme === 'nordic-light'
+                        onClick={() => {
+                          setTheme('nordic-light');
+                          setSettingsOpen(false);
+                        }}
+                        className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${theme === 'nordic-light'
                             ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/20'
                             : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
-                        }`}
+                          }`}
                       >
                         <div className="h-5 w-10 rounded bg-[#f8fafc] mb-2 border border-slate-300 shadow-xs" />
                         <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">Nordic Light</span>
@@ -1477,12 +1514,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       {(['Poppins', 'Inter', 'Outfit', 'Space Grotesk', 'Playfair Display', 'DM Sans'] as const).map((f) => (
                         <button
                           key={f}
-                          onClick={() => setFont(f)}
-                          className={`w-full py-2.5 px-3.5 rounded-xl border text-left text-xs font-extrabold transition-all cursor-pointer flex justify-between items-center ${
-                            font === f
+                          onClick={() => {
+                            setFont(f);
+                            setSettingsOpen(false);
+                          }}
+                          className={`w-full py-2.5 px-3.5 rounded-xl border text-left text-xs font-extrabold transition-all cursor-pointer flex justify-between items-center ${font === f
                               ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
                               : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                          }`}
+                            }`}
                         >
                           <span style={{ fontFamily: f }}>{f}</span>
                           {font === f && (
@@ -1522,26 +1561,24 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 text-slate-100 border border-slate-700/70 shadow-2xl backdrop-blur-2xl">
               <div className="flex items-center gap-3">
                 <span
-                  className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border ${
-                    toast.type === 'error'
+                  className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border ${toast.type === 'error'
                       ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
                       : toast.type === 'info'
-                      ? 'bg-blue-500/15 border-blue-500/30 text-blue-400'
-                      : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                  }`}
+                        ? 'bg-blue-500/15 border-blue-500/30 text-blue-400'
+                        : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                    }`}
                 >
                   {toast.type === 'error' ? '✕' : toast.type === 'info' ? 'ℹ' : '✓'}
                 </span>
                 <div>
                   <p className="text-xs font-bold leading-snug text-slate-100">{toast.message}</p>
                   <span
-                    className={`text-[9.5px] font-extrabold uppercase tracking-wider block mt-0.5 ${
-                      toast.type === 'error'
+                    className={`text-[9.5px] font-extrabold uppercase tracking-wider block mt-0.5 ${toast.type === 'error'
                         ? 'text-rose-400'
                         : toast.type === 'info'
-                        ? 'text-blue-400'
-                        : 'text-emerald-400'
-                    }`}
+                          ? 'text-blue-400'
+                          : 'text-emerald-400'
+                      }`}
                   >
                     {toast.type}
                   </span>
