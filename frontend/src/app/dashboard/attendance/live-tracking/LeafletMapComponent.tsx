@@ -10,12 +10,12 @@ interface LocationLog {
   recorded_at: string;
 }
 
-interface LeafletMapProps {
+export interface LeafletMapProps {
   logs: LocationLog[];
   employeeName: string;
 }
 
-export default function LeafletMapComponent({ logs, employeeName }: LeafletMapProps) {
+export function LeafletMapComponent({ logs, employeeName }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
@@ -119,3 +119,5 @@ export default function LeafletMapComponent({ logs, employeeName }: LeafletMapPr
     />
   );
 }
+
+export default LeafletMapComponent;

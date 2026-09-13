@@ -7,7 +7,18 @@ import AttendanceSubHeader from '../../components/AttendanceSubHeader';
 import { getHeaders } from '../../utils/api';
 import { usePermissions } from '../../hooks/usePermissions';
 
-import LeafletMapComponent from './LeafletMapComponent';
+const LeafletMapComponent = dynamic<any>(
+  // @ts-ignore
+  () => import('./LeafletMapComponent').then((mod) => mod.LeafletMapComponent || mod.default),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-80 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
+        Loading Leaflet Interactive Map...
+      </div>
+    )
+  }
+);
 
 interface LocationLog {
   id: string;
