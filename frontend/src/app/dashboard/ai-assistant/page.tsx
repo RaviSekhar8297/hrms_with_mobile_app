@@ -151,31 +151,31 @@ export default function AiAssistantPage() {
       />
 
       {/* Model Indicator & Capability Banner */}
-      <div className="p-4 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white border border-indigo-500/20 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-4 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white border border-indigo-400/30 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-indigo-400 font-black text-xl shadow-inner">
+          <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center text-white font-black text-xl shadow-inner">
             🤖
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-base">Active AI Engine</h2>
-              <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+              <span className="bg-white/20 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-white/30">
                 100% Lifetime Free
               </span>
             </div>
-            <p className="text-xs text-slate-300">
+            <p className="text-xs text-blue-100">
               No API subscriptions required. Powered by local Ollama & Hugging Face models.
             </p>
           </div>
         </div>
 
         {/* Model Switcher */}
-        <div className="flex items-center gap-2 bg-white/10 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md">
-          <span className="text-xs font-semibold px-2 text-slate-300">Engine:</span>
+        <div className="flex items-center gap-2 bg-white/15 p-1.5 rounded-2xl border border-white/25 backdrop-blur-md">
+          <span className="text-xs font-semibold px-2 text-blue-100">Engine:</span>
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="bg-slate-900 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white border border-white/30 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer shadow-xs"
           >
             <option value="Ollama Local (DeepSeek/LLaMA)">Ollama Local (DeepSeek/LLaMA 3)</option>
             <option value="Hugging Face Open Source (BERT/Whisper)">Hugging Face Open Source (BERT/Whisper)</option>
@@ -220,7 +220,7 @@ export default function AiAssistantPage() {
 
       {/* TAB 1: AI HR AGENT CHAT */}
       {activeTab === 'chat' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden flex flex-col h-[600px]">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden flex flex-col h-[460px]">
           {/* Chat Header */}
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
