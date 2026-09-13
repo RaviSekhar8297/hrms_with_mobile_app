@@ -135,6 +135,7 @@ export default function AttendanceRulesPage() {
     comp_off_display_name: '',
     comp_off_half_day_hours: '',
     comp_off_full_day_hours: '',
+    location_tracking_interval_mins: '15',
   };
 
   const [policyForm, setPolicyForm] = useState(emptyPolicy);
@@ -232,6 +233,7 @@ export default function AttendanceRulesPage() {
             comp_off_display_name: p.comp_off_display_name || 'Compensatory Off',
             comp_off_half_day_hours: String(p.comp_off_half_day_hours ?? 4),
             comp_off_full_day_hours: String(p.comp_off_full_day_hours ?? 8),
+            location_tracking_interval_mins: String(p.location_tracking_interval_mins ?? 15),
           };
           setPolicyForm(loadedData);
           setInitialPolicyForm(loadedData);
@@ -553,6 +555,22 @@ export default function AttendanceRulesPage() {
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all"
                   />
                   <p className="text-[10px] text-slate-400 mt-1">Extra work beyond shift must exceed this duration to qualify for OT.</p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
+                    <span>📍</span> Live GPS Tracking Ping Interval (Minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="180"
+                    value={policyForm.location_tracking_interval_mins}
+                    onChange={(e) => setPolicyForm({ ...policyForm, location_tracking_interval_mins: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 transition-all"
+                    placeholder="e.g. 15"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Silent background GPS location breadcrumb ping interval for field staff (Default: 15 mins).</p>
                 </div>
               </div>
             </div>
