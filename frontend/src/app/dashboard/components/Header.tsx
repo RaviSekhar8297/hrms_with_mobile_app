@@ -88,6 +88,7 @@ const GLOBAL_NAV_ITEMS = [
   { label: 'Comp-Offs', path: '/dashboard/leaves/compoff', category: 'Module', icon: '⏱️' },
   { label: 'Permissions', path: '/dashboard/attendance/permissions', category: 'Module', icon: '📝' },
   { label: 'Attendance Policies & Logs', path: '/dashboard/attendance', category: 'Module', icon: '📅' },
+  { label: 'Attendance Location Tracking', path: '/dashboard/attendance/live-tracking', category: 'Module', icon: '📍' },
   { label: 'Leave Requests & Balances', path: '/dashboard/leaves', category: 'Module', icon: '🌴' },
   { label: 'Payroll Management', path: '/dashboard/payroll', category: 'Module', icon: '💰' },
   { label: 'Run Payroll Batch', path: '/dashboard/payroll/generate', category: 'Module', icon: '⚡' },

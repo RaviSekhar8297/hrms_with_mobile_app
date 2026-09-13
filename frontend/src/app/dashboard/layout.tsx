@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { DashboardProvider, useDashboard, FontType } from './components/DashboardContext';
 import { Header } from './components/Header';
+import LiveLocationTracker from './components/LiveLocationTracker';
 import { Sidebar, SidebarGroup, SidebarItem } from './components/Sidebar';
 import { FloatingAiWidget } from './components/FloatingAiWidget';
 const getLucideIcon = (tab: string, fallback: React.ReactNode) => {
@@ -1113,6 +1114,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
           ) : (
             <div className={`${layout === 'bottom-dock' ? 'pb-24' : ''}`}>
+              <LiveLocationTracker />
               {children}
             </div>
           )}

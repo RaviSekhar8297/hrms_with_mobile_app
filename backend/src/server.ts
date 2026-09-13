@@ -4467,6 +4467,112 @@ app.post('/api/v1/attendance/public/device-punch', async (req: express.Request, 
 });
 
 /**
+ * 📍 LIVE GPS LOCATION TRACKING APIs (attendance_location_tracking)
+ */
+app.post('/api/v1/attendance/live-location', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { latitude, longitude, location_name } = req.body;
+    if (latitude == null || longitude == null) {
+      return res.status(400).json({ error: 'Latitude and Longitude are required' });
+    }
+
+    const companyId = req.user?.companyId;
+    const email = req.user?.email;
+
+    const empRes = await query(`SELECT id, company_id FROM hrms.employees WHERE email = $1 LIMIT 1`, [email]);
+    if (empRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Employee profile not found' });
+    }
+
+    const emp = empRes.rows[0];
+    const cid = companyId || emp.company_id;
+
+    const insertRes = await query(
+      `INSERT INTO hrms.attendance_location_tracking 
+       (company_id, employee_id, latitude, longitude, location_name, recorded_at)
+       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+       RETURNING *`,
+      [cid, emp.id, Number(latitude), Number(longitude), location_name || null]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Location tracked successfully',
+      location: insertRes.rows[0]
+    });
+  } catch (err: any) {
+    console.error('Error posting live location tracking:', err);
+    return res.status(500).json({ error: 'Failed to record location tracking' });
+  }
+});
+
+app.get('/api/v1/attendance/live-tracking', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const scopeCtx = await getEmployeeDataScope(req, 'attendance', 'view_attendance_tracking');
+    const { startDate, endDate, employeeId } = req.query;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sDate = startDate ? String(startDate) : todayStr;
+    const eDate = endDate ? String(endDate) : todayStr;
+
+    let params: any[] = [`${sDate} 00:00:00`, `${eDate} 23:59:59`];
+    let paramIdx = 3;
+
+    let scopeCondition = '';
+    if (scopeCtx.scope === 'SELF' && scopeCtx.employeeId) {
+      scopeCondition += ` AND t.employee_id = $${paramIdx}`;
+      params.push(scopeCtx.employeeId);
+      paramIdx++;
+    } else if (scopeCtx.scope === 'TEAM' && scopeCtx.subordinateIds?.length) {
+      scopeCondition += ` AND t.employee_id = ANY($${paramIdx}::uuid[])`;
+      params.push(scopeCtx.subordinateIds);
+      paramIdx++;
+    } else if (scopeCtx.scope === 'DEPARTMENT' && scopeCtx.departmentId) {
+      scopeCondition += ` AND e.department_id = $${paramIdx}`;
+      params.push(scopeCtx.departmentId);
+      paramIdx++;
+    }
+
+    if (employeeId && employeeId !== 'all') {
+      scopeCondition += ` AND t.employee_id = $${paramIdx}`;
+      params.push(String(employeeId));
+      paramIdx++;
+    }
+
+    const sql = `
+      SELECT 
+        t.id,
+        t.company_id,
+        t.employee_id,
+        t.latitude,
+        t.longitude,
+        t.location_name,
+        t.recorded_at,
+        e.emp_id_code,
+        e.first_name,
+        e.last_name,
+        e.email,
+        d.name as department_name
+      FROM hrms.attendance_location_tracking t
+      JOIN hrms.employees e ON e.id = t.employee_id
+      LEFT JOIN hrms.departments d ON d.id = e.department_id
+      WHERE t.recorded_at >= $1::timestamp AND t.recorded_at <= $2::timestamp
+      ${scopeCondition}
+      ORDER BY t.recorded_at ASC
+    `;
+
+    const result = await query(sql, params);
+    return res.json({
+      success: true,
+      logs: result.rows
+    });
+  } catch (err: any) {
+    console.error('Error fetching live tracking logs:', err);
+    return res.status(500).json({ error: 'Failed to fetch location tracking records' });
+  }
+});
+
+/**
  * 🕒 ATTENDANCE SUMMARY LOG APIs
  */
 app.get('/api/v1/attendance/summary', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {

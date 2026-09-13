@@ -4,12 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 
 export interface AttendanceSubHeaderProps {
-  activeTab: 'logs' | 'atd_history' | 'rules' | 'regularization' | 'permissions' | 'raw' | 'summary' | 'locks';
+  activeTab: 'logs' | 'atd_history' | 'rules' | 'regularization' | 'permissions' | 'raw' | 'summary' | 'locks' | 'tracking';
 }
 
 export const ATTENDANCE_NAV_ITEMS = [
   { id: 'logs', label: 'Attendance', href: '/dashboard/attendance', icon: '📅' },
   { id: 'atd_history', label: 'History', href: '/dashboard/atd_history', icon: '📜' },
+  { id: 'tracking', label: 'Tracking', href: '/dashboard/attendance/live-tracking', icon: '📍' },
   { id: 'rules', label: 'Policy', href: '/dashboard/attendance/rules', icon: '⏰' },
   { id: 'locks', label: 'Locks', href: '/dashboard/attendance/locks', icon: '🔒' },
   { id: 'regularization', label: 'Regularization', href: '/dashboard/attendance/regularization', icon: '📝' },
