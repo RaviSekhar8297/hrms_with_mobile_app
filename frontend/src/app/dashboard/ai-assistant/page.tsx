@@ -144,45 +144,24 @@ export default function AiAssistantPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Page Header */}
+      {/* Page Header with Engine Dropdown */}
       <DashboardPageHeader
         title="AI Assistant & Operations Hub"
         subtitle="100% Free Lifetime HR AI Console powered by Local Open Source & Free Inference Models"
-      />
-
-      {/* Model Indicator & Capability Banner */}
-      <div className="p-4 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white border border-indigo-400/30 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center text-white font-black text-xl shadow-inner">
-            🤖
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-bold text-base">Active AI Engine</h2>
-              <span className="bg-white/20 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-white/30">
-                100% Lifetime Free
-              </span>
-            </div>
-            <p className="text-xs text-blue-100">
-              No API subscriptions required. Powered by local Ollama & Hugging Face models.
-            </p>
-          </div>
-        </div>
-
-        {/* Model Switcher */}
-        <div className="flex items-center gap-2 bg-white/15 p-1.5 rounded-2xl border border-white/25 backdrop-blur-md">
-          <span className="text-xs font-semibold px-2 text-blue-100">Engine:</span>
+      >
+        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 px-1">Engine:</span>
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white border border-white/30 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer shadow-xs"
+            className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-xs"
           >
             <option value="Ollama Local (DeepSeek/LLaMA)">Ollama Local (DeepSeek/LLaMA 3)</option>
             <option value="Hugging Face Open Source (BERT/Whisper)">Hugging Face Open Source (BERT/Whisper)</option>
             <option value="Google Gemini Free Tier API">Google Gemini Free Tier API</option>
           </select>
         </div>
-      </div>
+      </DashboardPageHeader>
 
       {/* Segmented Navigation Tabs */}
       <div className="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-fit">
