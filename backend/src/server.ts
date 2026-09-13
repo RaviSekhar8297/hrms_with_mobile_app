@@ -5919,7 +5919,8 @@ app.post('/api/v1/attendance/policies', authenticateToken, async (req: Authentic
     require_selfie, require_gps, enforce_device_binding, cycle_start_day, cycle_end_day,
     grace_period_mins, max_late_entries_allowed, allow_permission_carry_forward,
     half_day_min_hours, full_day_min_hours, overtime_min_mins,
-    comp_off_display_name, comp_off_half_day_hours, comp_off_full_day_hours
+    comp_off_display_name, comp_off_half_day_hours, comp_off_full_day_hours,
+    location_tracking_interval_mins
   } = req.body;
 
   const effectivePolicyName = policy_name || 'Standard Attendance Policy';
@@ -5939,6 +5940,7 @@ app.post('/api/v1/attendance/policies', authenticateToken, async (req: Authentic
     await query("ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS comp_off_display_name VARCHAR(100) DEFAULT 'Comp-Off'").catch(() => {});
     await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS comp_off_half_day_hours NUMERIC(4,2) DEFAULT 4.0').catch(() => {});
     await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS comp_off_full_day_hours NUMERIC(4,2) DEFAULT 8.0').catch(() => {});
+    await query('ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS location_tracking_interval_mins INTEGER DEFAULT 15').catch(() => {});
 
     if (check.rows.length > 0) {
       result = await query(
@@ -5949,8 +5951,9 @@ app.post('/api/v1/attendance/policies', authenticateToken, async (req: Authentic
           require_selfie = $12, require_gps = $13, enforce_device_binding = $14, cycle_start_day = $15, cycle_end_day = $16,
           grace_period_mins = $17, allow_permission_carry_forward = $18,
           half_day_min_hours = $19, full_day_min_hours = $20, overtime_min_mins = $21,
-          comp_off_display_name = $22, comp_off_half_day_hours = $23, comp_off_full_day_hours = $24, updated_at = NOW()
-         WHERE id = $25 RETURNING *`,
+          comp_off_display_name = $22, comp_off_half_day_hours = $23, comp_off_full_day_hours = $24,
+          location_tracking_interval_mins = $25, updated_at = NOW()
+         WHERE id = $26 RETURNING *`,
         [
           effectivePolicyName,
           allowedLate ? parseInt(String(allowedLate)) : 3,
@@ -5976,6 +5979,7 @@ app.post('/api/v1/attendance/policies', authenticateToken, async (req: Authentic
           comp_off_display_name || 'Comp-Off',
           comp_off_half_day_hours ? parseFloat(String(comp_off_half_day_hours)) : 4.0,
           comp_off_full_day_hours ? parseFloat(String(comp_off_full_day_hours)) : 8.0,
+          location_tracking_interval_mins ? parseInt(String(location_tracking_interval_mins)) : 15,
           check.rows[0].id
         ]
       );
@@ -5986,8 +5990,8 @@ app.post('/api/v1/attendance/policies', authenticateToken, async (req: Authentic
           max_permission_count_per_month, max_permission_minutes_per_month, max_single_permission_minutes,
           permission_affects_late, permission_affects_early_exit, allow_mobile_punch, allow_web_punch,
           require_selfie, require_gps, enforce_device_binding, cycle_start_day, cycle_end_day, grace_period_mins, allow_permission_carry_forward,
-          half_day_min_hours, full_day_min_hours, overtime_min_mins, comp_off_display_name, comp_off_half_day_hours, comp_off_full_day_hours)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25) RETURNING *`,
+          half_day_min_hours, full_day_min_hours, overtime_min_mins, comp_off_display_name, comp_off_half_day_hours, comp_off_full_day_hours, location_tracking_interval_mins)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26) RETURNING *`,
         [
           companyId,
           effectivePolicyName,
@@ -6013,7 +6017,8 @@ app.post('/api/v1/attendance/policies', authenticateToken, async (req: Authentic
           overtime_min_mins ? parseInt(String(overtime_min_mins)) : 60,
           comp_off_display_name || 'Comp-Off',
           comp_off_half_day_hours ? parseFloat(String(comp_off_half_day_hours)) : 4.0,
-          comp_off_full_day_hours ? parseFloat(String(comp_off_full_day_hours)) : 8.0
+          comp_off_full_day_hours ? parseFloat(String(comp_off_full_day_hours)) : 8.0,
+          location_tracking_interval_mins ? parseInt(String(location_tracking_interval_mins)) : 15
         ]
       );
     }

@@ -55,13 +55,36 @@ export default function LiveLocationTracker() {
       }
     };
 
-    // Initial ping on component mount
-    sendLocationPing();
+    let intervalMs = 15 * 60 * 1000; // Default 15 minutes
+    let timerId: any = null;
 
-    // Repeat every 10 minutes (600,000 milliseconds)
-    const intervalId = setInterval(sendLocationPing, 600000);
+    const initTracker = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          const res = await fetch('/api/v1/attendance/policies', { headers: getHeaders() });
+          if (res.ok) {
+            const data = await res.json();
+            const policyMins = data?.policy?.location_tracking_interval_mins;
+            if (policyMins && Number(policyMins) > 0) {
+              intervalMs = Number(policyMins) * 60 * 1000;
+            }
+          }
+        }
+      } catch (e) {}
 
-    return () => clearInterval(intervalId);
+      // Initial ping on component mount
+      sendLocationPing();
+
+      // Dynamic repeat interval (default 15 minutes)
+      timerId = setInterval(sendLocationPing, intervalMs);
+    };
+
+    initTracker();
+
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
   }, []);
 
   return null; // Silent background component with 0 UI footprint
