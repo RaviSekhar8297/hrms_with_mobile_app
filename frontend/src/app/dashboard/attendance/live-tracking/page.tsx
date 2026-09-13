@@ -139,9 +139,6 @@ export default function LiveTrackingPage() {
 
   return (
     <div className="p-3 space-y-3.5 max-w-[100vw] overflow-x-hidden font-sans">
-      {/* SubHeader Navigation */}
-      <AttendanceSubHeader activeTab="tracking" />
-
       {/* Main Banner & Date Filter */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -154,16 +151,6 @@ export default function LiveTrackingPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-bold text-slate-500">Date:</span>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
-            />
-          </div>
-
           <input
             type="text"
             placeholder="Search employee..."
@@ -171,6 +158,16 @@ export default function LiveTrackingPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
           />
+
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            <input
+              type="date"
+              max={todayStr}
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 
