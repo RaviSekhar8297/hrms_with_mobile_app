@@ -313,8 +313,7 @@ export default function LeaveBalancesPage() {
                 return (
                   <div 
                     key={b.id}
-                    style={{ boxShadow: 'rgba(14, 30, 37, 0.12) 0px 2px 4px 0px, rgba(14, 30, 37, 0.32) 0px 2px 16px 0px' }}
-                    className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-blue-50/90 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-blue-950/40 border border-indigo-200/80 dark:border-indigo-800/50 space-y-3 relative overflow-hidden transition-all duration-300 hover:-translate-y-1"
+                    className="p-5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-xs space-y-3 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-600"
                   >
                     <div className="flex items-center justify-between">
                       <div>

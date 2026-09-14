@@ -457,9 +457,9 @@ export default function OverviewPage() {
     }));
   }, [activeEmployees]);
 
-  const userDisplayName = myProfile 
+  const userDisplayName = (myProfile 
     ? `${myProfile.first_name} ${myProfile.last_name}` 
-    : email ? email.split('@')[0] : 'Ayon Ahmed';
+    : email ? email.split('@')[0] : 'Ayon Ahmed').toUpperCase();
 
   // Format activity relative time
   const getRelativeTime = (isoString: string) => {
@@ -1956,7 +1956,7 @@ function EmployeeDashboard({
 
   const allEmps = empEmployees.length > 0 ? empEmployees : employees;
   const me = empMyProfile || myProfile || allEmps.find(emp => emp.email?.toLowerCase() === email.toLowerCase()) || (typeof window !== 'undefined' && localStorage.getItem('myProfile') ? JSON.parse(localStorage.getItem('myProfile') || 'null') : null);
-  const displayName = me ? `${me.first_name} ${me.last_name}` : email.split('@')[0];
+  const displayName = (me ? `${me.first_name} ${me.last_name}` : email.split('@')[0]).toUpperCase();
 
   const getBirthdaysToday = () => {
     const today = new Date();

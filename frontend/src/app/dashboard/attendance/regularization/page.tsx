@@ -153,6 +153,11 @@ export default function AttendanceRegularizationPage() {
       showToast('Please select a company context', 'error');
       return;
     }
+    const trimmedReason = form.reason ? form.reason.trim() : '';
+    if (trimmedReason.length < 5 || trimmedReason.length > 100) {
+      showToast('Reason must be between 5 and 100 characters', 'error');
+      return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/v1/attendance/regularizations`, {
@@ -161,6 +166,7 @@ export default function AttendanceRegularizationPage() {
         body: JSON.stringify({
           company_id: cid,
           ...form,
+          reason: trimmedReason,
         }),
       });
 
@@ -203,12 +209,17 @@ export default function AttendanceRegularizationPage() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingReq) return;
+    const trimmedReason = editForm.reason ? editForm.reason.trim() : '';
+    if (trimmedReason.length < 5 || trimmedReason.length > 100) {
+      showToast('Reason must be between 5 and 100 characters', 'error');
+      return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/v1/attendance/regularizations/${editingReq.id}`, {
         method: 'PUT',
         headers: getHeaders(),
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({ ...editForm, reason: trimmedReason }),
       });
 
       if (res.ok) {
@@ -421,7 +432,7 @@ export default function AttendanceRegularizationPage() {
               onClick={() => setDrawerOpen(true)}
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
             >
-              <span>➕</span> Apply Regularization
+              <span>➕</span> Apply
             </button>
           )}
         </div>
@@ -648,15 +659,22 @@ export default function AttendanceRegularizationPage() {
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Reason / Explanation *
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block font-bold text-slate-700 dark:text-slate-300">
+                Reason / Explanation *
+              </label>
+              <span className={`text-[10px] font-bold ${form.reason.length < 5 || form.reason.length > 100 ? 'text-amber-500' : 'text-slate-400'}`}>
+                {form.reason.length}/100 (min 5)
+              </span>
+            </div>
             <textarea
               rows={3}
               value={form.reason}
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
               placeholder="e.g. Biometric machine offline / Forgot to punch"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium"
+              minLength={5}
+              maxLength={100}
               required
             />
           </div>
@@ -728,15 +746,22 @@ export default function AttendanceRegularizationPage() {
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Reason / Explanation *
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block font-bold text-slate-700 dark:text-slate-300">
+                Reason / Explanation *
+              </label>
+              <span className={`text-[10px] font-bold ${editForm.reason.length < 5 || editForm.reason.length > 100 ? 'text-amber-500' : 'text-slate-400'}`}>
+                {editForm.reason.length}/100 (min 5)
+              </span>
+            </div>
             <textarea
               rows={3}
               value={editForm.reason}
               onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
               placeholder="e.g. Biometric machine offline / Forgot to punch"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium"
+              minLength={5}
+              maxLength={100}
               required
             />
           </div>

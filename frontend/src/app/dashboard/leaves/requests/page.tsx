@@ -174,12 +174,17 @@ export default function LeaveRequestsPage() {
       showToast('Please fill all required fields', 'error');
       return;
     }
+    const trimmedReason = applyForm.reason ? applyForm.reason.trim() : '';
+    if (trimmedReason.length < 5 || trimmedReason.length > 100) {
+      showToast('Reason must be between 5 and 100 characters', 'error');
+      return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch('/api/v1/leave-requests', {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify(applyForm)
+        body: JSON.stringify({ ...applyForm, reason: trimmedReason })
       });
       const data = await res.json();
       if (res.ok) {
@@ -586,15 +591,22 @@ export default function LeaveRequestsPage() {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-              Reason / Remarks *
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                Reason / Remarks *
+              </label>
+              <span className={`text-[10px] font-bold ${applyForm.reason.length < 5 || applyForm.reason.length > 100 ? 'text-amber-500' : 'text-slate-400'}`}>
+                {applyForm.reason.length}/100 (min 5)
+              </span>
+            </div>
             <textarea
               rows={3}
               placeholder="State the reason for leave request..."
               value={applyForm.reason}
               onChange={e => setApplyForm(prev => ({ ...prev, reason: e.target.value }))}
               className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none"
+              minLength={5}
+              maxLength={100}
               required
             />
           </div>
