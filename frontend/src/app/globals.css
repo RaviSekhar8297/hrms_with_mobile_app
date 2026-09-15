@@ -36,7 +36,6 @@ aside.font-sidebar * {
 }
 
 html, body, main, .bg-background {
-  background-color: #f1f5f9;
   color: #0f172a !important;
   font-family: 'Poppins', 'Inter', sans-serif !important;
   transition: background-color 0.25s ease, color 0.25s ease;

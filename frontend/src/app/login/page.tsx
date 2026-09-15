@@ -144,6 +144,14 @@ export default function LoginPage() {
       setError('Please enter both email/username and password.');
       return;
     }
+    if (username.length > 40) {
+      setError('Username/Email cannot exceed 40 characters.');
+      return;
+    }
+    if (password.length > 20) {
+      setError('Password cannot exceed 20 characters.');
+      return;
+    }
     setLoading(true);
     setError('');
     setSuccessMessage('');
@@ -223,8 +231,9 @@ export default function LoginPage() {
         if (errMsg === 'invalid_grant' || errMsg.includes('invalid_grant') || errMsg.toLowerCase().includes('invalid credential')) {
           errMsg = 'Invalid email or password. Please check your credentials and try again.';
         }
-        const isTempPass = password === '123456' || password === '123' || password.toLowerCase().includes('temp');
-        if ((errMsg.includes('fully set up') || errMsg.includes('temporary')) && isTempPass) {
+        const userIsStillTemp = data.is_temporary_password === true;
+        
+        if (userIsStillTemp && (errMsg.includes('fully set up') || errMsg.includes('temporary'))) {
           router.replace(`/passwordupdate?username=${encodeURIComponent(username)}&temp=${encodeURIComponent(password)}`);
         } else {
           setError(errMsg);
@@ -290,16 +299,17 @@ export default function LoginPage() {
             {/* Login Form */}
             <form onSubmit={handleLogin} className="space-y-4">
               
-              {/* Field 1: Username / Email */}
+              {/* Field 1: Username / Email (Max 40 chars) */}
               <div className="relative flex items-center">
                 <input
                   id="username"
                   type="text"
                   required
-                  placeholder="Username or Email ID"
+                  maxLength={40}
+                  placeholder="Username or Email ID (max 40 chars)"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full h-12 py-3 px-4 pr-11 rounded-xl bg-slate-100/90 border border-slate-300/80 text-slate-900 font-semibold text-sm sm:text-base outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400 placeholder:text-xs sm:placeholder:text-sm shadow-inner"
+                  onChange={(e) => setUsername(e.target.value.slice(0, 40))}
+                  className="w-full h-12 py-3 px-4 pr-11 rounded-xl bg-slate-100/90 border border-slate-300/80 text-slate-900 font-medium text-sm sm:text-base outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs sm:placeholder:text-sm shadow-inner"
                 />
                 <div className="absolute right-3.5 text-slate-400 pointer-events-none">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -309,16 +319,17 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Field 2: Password */}
+              {/* Field 2: Password (Max 20 chars) */}
               <div className="relative flex items-center">
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="Password"
+                  maxLength={20}
+                  placeholder="Password (max 20 chars)"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 py-3 px-4 pr-11 rounded-xl bg-slate-100/90 border border-slate-300/80 text-slate-900 font-semibold text-sm sm:text-base outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400 placeholder:text-xs sm:placeholder:text-sm shadow-inner"
+                  onChange={(e) => setPassword(e.target.value.slice(0, 20))}
+                  className="w-full h-12 py-3 px-4 pr-11 rounded-xl bg-slate-100/90 border border-slate-300/80 text-slate-900 font-medium text-sm sm:text-base outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs sm:placeholder:text-sm shadow-inner"
                 />
                 <button
                   type="button"
@@ -342,7 +353,7 @@ export default function LoginPage() {
 
               {/* Stylish Custom Checkbox & Forgot Password Link */}
               <div className="flex items-center justify-between text-xs pt-0.5">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700 font-semibold group">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-600 font-medium group">
                   <div className="relative flex items-center justify-center">
                     <input 
                       type="checkbox" 
@@ -362,12 +373,12 @@ export default function LoginPage() {
                       </svg>
                     </div>
                   </div>
-                  <span className="group-hover:text-slate-900 transition-colors text-xs sm:text-sm">Keep me signed in</span>
+                  <span className="group-hover:text-slate-900 transition-colors text-xs sm:text-sm font-medium text-slate-600">Keep me signed in</span>
                 </label>
                 <a 
                   href="#" 
                   onClick={(e) => { e.preventDefault(); alert('Please contact your HR Administrator to reset your credentials.'); }}
-                  className="text-blue-600 hover:text-blue-700 transition-colors font-bold hover:underline text-xs sm:text-sm"
+                  className="text-blue-600 hover:text-blue-700 transition-colors font-medium hover:underline text-xs sm:text-sm"
                 >
                   Forgot Password?
                 </a>

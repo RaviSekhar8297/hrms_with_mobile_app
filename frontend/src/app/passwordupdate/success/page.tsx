@@ -9,29 +9,26 @@ export default function PasswordUpdateSuccessPage() {
 
   const handleProceedToLogin = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('email');
-      localStorage.removeItem('roles');
-      localStorage.removeItem('permissions');
-      localStorage.removeItem('companyId');
-      localStorage.removeItem('designation');
-      localStorage.removeItem('myProfile');
+      const rememberedEmail = localStorage.getItem('remembered_email');
+      localStorage.clear();
       sessionStorage.clear();
+      if (rememberedEmail) {
+        localStorage.setItem('remembered_email', rememberedEmail);
+      }
     }
     router.replace('/login?logout=true&clear=true');
   };
 
   useEffect(() => {
     setMounted(true);
-    // Clear any active tokens when password update success page opens
+    // Clear any active tokens and session state when password update success page opens
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('email');
-      localStorage.removeItem('roles');
-      localStorage.removeItem('permissions');
-      localStorage.removeItem('companyId');
-      localStorage.removeItem('myProfile');
+      const rememberedEmail = localStorage.getItem('remembered_email');
+      localStorage.clear();
       sessionStorage.clear();
+      if (rememberedEmail) {
+        localStorage.setItem('remembered_email', rememberedEmail);
+      }
     }
     // Switch to light theme on mount
     document.documentElement.classList.remove('dark');

@@ -52,7 +52,66 @@ export function usePermissions(): UsePermissionsResult {
   const hasPermission = (permissionName?: string): boolean => {
     if (!permissionName) return true;   // no guard = always visible
     if (isSuperAdmin) return true;       // SuperAdmin sees everything
-    return permissions.includes(permissionName) || permissions.includes('*');
+    if (permissions.includes('*')) return true;
+
+    // Direct match by Permission Name or Permission ID
+    if (permissions.includes(permissionName)) return true;
+
+    // Intelligent matching for permission aliases (e.g., create_tasks vs create_project_tasks vs PROJECT_TASKS_CREATE)
+    const targetLower = permissionName.toLowerCase().trim();
+    
+    return permissions.some(p => {
+      const pLower = p.toLowerCase().trim();
+      if (pLower === targetLower) return true;
+
+      // Extract action (create/view/edit/delete) and entity (tasks, projects, etc.)
+      const isCreate = targetLower.includes('create');
+      const isView = targetLower.includes('view') || targetLower.includes('read');
+      const isEdit = targetLower.includes('edit') || targetLower.includes('update');
+      const isDelete = targetLower.includes('delete') || targetLower.includes('remove');
+
+      if (isCreate && pLower.includes('create')) {
+        if ((targetLower.includes('task') && pLower.includes('task')) ||
+            (targetLower.includes('project') && pLower.includes('project')) ||
+            (targetLower.includes('label') && pLower.includes('label')) ||
+            (targetLower.includes('timesheet') && pLower.includes('timesheet')) ||
+            (targetLower.includes('workflow') && pLower.includes('workflow'))) {
+          return true;
+        }
+      }
+
+      if (isEdit && pLower.includes('edit')) {
+        if ((targetLower.includes('task') && pLower.includes('task')) ||
+            (targetLower.includes('project') && pLower.includes('project')) ||
+            (targetLower.includes('label') && pLower.includes('label')) ||
+            (targetLower.includes('timesheet') && pLower.includes('timesheet')) ||
+            (targetLower.includes('workflow') && pLower.includes('workflow'))) {
+          return true;
+        }
+      }
+
+      if (isDelete && pLower.includes('delete')) {
+        if ((targetLower.includes('task') && pLower.includes('task')) ||
+            (targetLower.includes('project') && pLower.includes('project')) ||
+            (targetLower.includes('label') && pLower.includes('label')) ||
+            (targetLower.includes('timesheet') && pLower.includes('timesheet')) ||
+            (targetLower.includes('workflow') && pLower.includes('workflow'))) {
+          return true;
+        }
+      }
+
+      if (isView && (pLower.includes('view') || pLower.includes('read'))) {
+        if ((targetLower.includes('task') && pLower.includes('task')) ||
+            (targetLower.includes('project') && pLower.includes('project')) ||
+            (targetLower.includes('label') && pLower.includes('label')) ||
+            (targetLower.includes('timesheet') && pLower.includes('timesheet')) ||
+            (targetLower.includes('workflow') && pLower.includes('workflow'))) {
+          return true;
+        }
+      }
+
+      return false;
+    });
   };
 
   const getPermissionScope = (permissionName?: string): DataScope => {

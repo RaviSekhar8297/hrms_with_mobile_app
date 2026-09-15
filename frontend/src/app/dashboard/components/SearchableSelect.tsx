@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect } from 'react';
 interface Option {
   value: string;
   label: string;
+  disabled?: boolean;
 }
 
 interface SearchableSelectProps {
@@ -124,14 +125,17 @@ export default function SearchableSelect({
                 <div
                   key={opt.value}
                   onClick={() => {
+                    if (opt.disabled) return;
                     onChange(opt.value);
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                    opt.value === value
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                    opt.disabled
+                      ? 'opacity-60 cursor-not-allowed text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/40'
+                      : opt.value === value
+                      ? 'bg-blue-600 text-white shadow-xs cursor-pointer'
+                      : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'
                   }`}
                 >
                   {opt.label}

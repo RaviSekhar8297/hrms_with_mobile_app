@@ -23,6 +23,14 @@ import notificationRoutes from './routes/notifications';
 import eventsRoutes from './routes/events';
 import { sendNotification } from './services/notificationService';
 
+// ============================================================================
+// WORKBRIDGE: TASK MANAGEMENT MODULE - START
+// ============================================================================
+import workbridgeRoutes from './routes/workbridge';
+// ============================================================================
+// WORKBRIDGE: TASK MANAGEMENT MODULE - END
+// ============================================================================
+
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
@@ -260,13 +268,19 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
   let userExists = isSuperAdminDev;
   let isInactive = false;
   let resolvedEmail = username;
+  let dbIsTempPassword: boolean | null = null;
   try {
     const empCheck = await query(
-      "SELECT email, status FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1))",
+      `SELECT email, status, is_temporary_password 
+       FROM hrms.employees 
+       WHERE LOWER(email) = LOWER($1) 
+          OR LOWER(emp_id_code) = LOWER($1) 
+          OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)`,
       [username]
     );
     if (empCheck.rows.length > 0) {
       const empStatus = empCheck.rows[0].status;
+      dbIsTempPassword = empCheck.rows[0].is_temporary_password === true;
       if (empStatus === 'INACTIVE' || empStatus === 'TERMINATED' || empStatus === 'EXITED') {
         isInactive = true;
       } else {
@@ -337,12 +351,14 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
       if (!isSuper) {
         try {
           const empQuery = await query(
-            'SELECT company_id, role_id, is_temporary_password FROM hrms.employees WHERE (email = $1 OR emp_id_code = $1) AND status = \'ACTIVE\'',
+            `SELECT company_id, role_id, is_temporary_password 
+             FROM hrms.employees 
+             WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)) AND status = 'ACTIVE'`,
             [email]
           );
           if (empQuery.rows.length > 0) {
             companyId = empQuery.rows[0].company_id;
-            isTemporaryPassword = empQuery.rows[0].is_temporary_password !== false;
+            isTemporaryPassword = empQuery.rows[0].is_temporary_password === true;
             const roleId = empQuery.rows[0].role_id;
             if (roleId) {
               const permQuery = await query(
@@ -359,7 +375,7 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
           console.error('Error querying employee details in login:', dbQueryErr);
           // Fallback if is_temporary_password column is not present or query fails
           const fallbackQuery = await query(
-            'SELECT company_id, role_id FROM hrms.employees WHERE (email = $1 OR emp_id_code = $1) AND status = \'ACTIVE\'',
+            'SELECT company_id, role_id FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)) AND status = \'ACTIVE\'',
             [email]
           );
           if (fallbackQuery.rows.length > 0) {
@@ -405,7 +421,10 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
       );
 
       const errorMsg = data.error_description || 'Incorrect password.';
-      return res.status(401).json({ error: errorMsg });
+      return res.status(401).json({ 
+        error: errorMsg,
+        is_temporary_password: dbIsTempPassword === true
+      });
     }
   } catch (err) {
     console.error('Keycloak authentication server connection error:', err);
@@ -805,15 +824,34 @@ app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username/email or temporary password' });
     }
 
-    // Set is_temporary_password to FALSE and save new updated custom_password in DB
+    // 2. Find exact employee record ID from hrms.employees table
+    const empFind = await query(
+      `SELECT id, email FROM hrms.employees 
+       WHERE LOWER(email) = LOWER($1) 
+          OR LOWER(emp_id_code) = LOWER($1) 
+          OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)`,
+      [username]
+    );
+
+    if (empFind.rows.length === 0) {
+      return res.status(404).json({ error: 'Employee account not found in database.' });
+    }
+
+    const employeeId = empFind.rows[0].id;
+
+    // 3. Set is_temporary_password to FALSE in DB using Primary Key ID
     try {
-      await query(
-        "UPDATE hrms.employees SET is_temporary_password = FALSE, custom_password = $2 WHERE LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)",
-        [username, newPassword]
+      const dbUpdateRes = await query(
+        "UPDATE hrms.employees SET is_temporary_password = FALSE, updated_at = NOW() WHERE id = $1",
+        [employeeId]
       );
-      console.log(`Successfully updated password and set is_temporary_password = FALSE in DB for ${username}`);
+      if (dbUpdateRes.rowCount === 0) {
+        return res.status(500).json({ error: 'Failed to update employee record in database.' });
+      }
+      console.log(`Successfully set is_temporary_password = FALSE in DB for Employee ID: ${employeeId} (${username})`);
     } catch (dbErr) {
-      console.error('Failed to update DB password and is_temporary_password flag:', dbErr);
+      console.error('Failed to update DB is_temporary_password flag:', dbErr);
+      return res.status(500).json({ error: 'Database update failed. Password status could not be updated.' });
     }
 
     // 2. Extract Keycloak User ID from token if available, or query via Admin API
@@ -879,7 +917,8 @@ app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
 
     if (!resetRes.ok) {
       const errText = await resetRes.text();
-      console.warn('Keycloak password reset warning (handled gracefully):', resetRes.status, errText);
+      console.error('Keycloak password reset failed:', resetRes.status, errText);
+      return res.status(500).json({ error: 'Failed to update permanent password in Keycloak authentication system.' });
     }
 
     // 5. Clear Required Actions in Keycloak and fill missing profile attributes like lastName
@@ -9521,6 +9560,15 @@ app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/v1/events', eventsRoutes);
 app.use('/api/events', eventsRoutes);
+
+// ============================================================================
+// WORKBRIDGE: TASK MANAGEMENT MODULE - START
+// ============================================================================
+app.use('/api/v1/workbridge', workbridgeRoutes);
+app.use('/api/workbridge', workbridgeRoutes);
+// ============================================================================
+// WORKBRIDGE: TASK MANAGEMENT MODULE - END
+// ============================================================================
 
 // Start server
 app.listen(Number(PORT), '0.0.0.0', async () => {

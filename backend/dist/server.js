@@ -29,6 +29,13 @@ const onboarding_1 = __importDefault(require("./routes/onboarding"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const events_1 = __importDefault(require("./routes/events"));
 const notificationService_1 = require("./services/notificationService");
+// ============================================================================
+// WORKBRIDGE: TASK MANAGEMENT MODULE - START
+// ============================================================================
+const workbridge_1 = __importDefault(require("./routes/workbridge"));
+// ============================================================================
+// WORKBRIDGE: TASK MANAGEMENT MODULE - END
+// ============================================================================
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
 dotenv_1.default.config();
@@ -238,10 +245,16 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
     let userExists = isSuperAdminDev;
     let isInactive = false;
     let resolvedEmail = username;
+    let dbIsTempPassword = null;
     try {
-        const empCheck = await (0, db_1.query)("SELECT email, status FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1))", [username]);
+        const empCheck = await (0, db_1.query)(`SELECT email, status, is_temporary_password 
+       FROM hrms.employees 
+       WHERE LOWER(email) = LOWER($1) 
+          OR LOWER(emp_id_code) = LOWER($1) 
+          OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)`, [username]);
         if (empCheck.rows.length > 0) {
             const empStatus = empCheck.rows[0].status;
+            dbIsTempPassword = empCheck.rows[0].is_temporary_password === true;
             if (empStatus === 'INACTIVE' || empStatus === 'TERMINATED' || empStatus === 'EXITED') {
                 isInactive = true;
             }
@@ -300,10 +313,12 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
             // Find company_id, permissions and temporary password status if user is not a global SuperAdmin
             if (!isSuper) {
                 try {
-                    const empQuery = await (0, db_1.query)('SELECT company_id, role_id, is_temporary_password FROM hrms.employees WHERE (email = $1 OR emp_id_code = $1) AND status = \'ACTIVE\'', [email]);
+                    const empQuery = await (0, db_1.query)(`SELECT company_id, role_id, is_temporary_password 
+             FROM hrms.employees 
+             WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)) AND status = 'ACTIVE'`, [email]);
                     if (empQuery.rows.length > 0) {
                         companyId = empQuery.rows[0].company_id;
-                        isTemporaryPassword = empQuery.rows[0].is_temporary_password !== false;
+                        isTemporaryPassword = empQuery.rows[0].is_temporary_password === true;
                         const roleId = empQuery.rows[0].role_id;
                         if (roleId) {
                             const permQuery = await (0, db_1.query)(`SELECT p.name 
@@ -317,7 +332,7 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
                 catch (dbQueryErr) {
                     console.error('Error querying employee details in login:', dbQueryErr);
                     // Fallback if is_temporary_password column is not present or query fails
-                    const fallbackQuery = await (0, db_1.query)('SELECT company_id, role_id FROM hrms.employees WHERE (email = $1 OR emp_id_code = $1) AND status = \'ACTIVE\'', [email]);
+                    const fallbackQuery = await (0, db_1.query)('SELECT company_id, role_id FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)) AND status = \'ACTIVE\'', [email]);
                     if (fallbackQuery.rows.length > 0) {
                         companyId = fallbackQuery.rows[0].company_id;
                     }
@@ -344,7 +359,10 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
             // Record failed login attempt in audit logs using background task queue
             enqueueActivityLog(null, username, 'LOGIN_FAILED', 'auth', JSON.stringify({ error: data.error_description || 'Invalid credentials' }), ipAddress, userAgent);
             const errorMsg = data.error_description || 'Incorrect password.';
-            return res.status(401).json({ error: errorMsg });
+            return res.status(401).json({
+                error: errorMsg,
+                is_temporary_password: dbIsTempPassword === true
+            });
         }
     }
     catch (err) {
@@ -700,13 +718,26 @@ app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
         if (!isValidCredentials) {
             return res.status(401).json({ error: 'Invalid username/email or temporary password' });
         }
-        // Set is_temporary_password to FALSE and save new updated custom_password in DB
+        // 2. Find exact employee record ID from hrms.employees table
+        const empFind = await (0, db_1.query)(`SELECT id, email FROM hrms.employees 
+       WHERE LOWER(email) = LOWER($1) 
+          OR LOWER(emp_id_code) = LOWER($1) 
+          OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)`, [username]);
+        if (empFind.rows.length === 0) {
+            return res.status(404).json({ error: 'Employee account not found in database.' });
+        }
+        const employeeId = empFind.rows[0].id;
+        // 3. Set is_temporary_password to FALSE in DB using Primary Key ID
         try {
-            await (0, db_1.query)("UPDATE hrms.employees SET is_temporary_password = FALSE, custom_password = $2 WHERE LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)", [username, newPassword]);
-            console.log(`Successfully updated password and set is_temporary_password = FALSE in DB for ${username}`);
+            const dbUpdateRes = await (0, db_1.query)("UPDATE hrms.employees SET is_temporary_password = FALSE, updated_at = NOW() WHERE id = $1", [employeeId]);
+            if (dbUpdateRes.rowCount === 0) {
+                return res.status(500).json({ error: 'Failed to update employee record in database.' });
+            }
+            console.log(`Successfully set is_temporary_password = FALSE in DB for Employee ID: ${employeeId} (${username})`);
         }
         catch (dbErr) {
-            console.error('Failed to update DB password and is_temporary_password flag:', dbErr);
+            console.error('Failed to update DB is_temporary_password flag:', dbErr);
+            return res.status(500).json({ error: 'Database update failed. Password status could not be updated.' });
         }
         // 2. Extract Keycloak User ID from token if available, or query via Admin API
         let keycloakUserId = null;
@@ -765,7 +796,8 @@ app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
         });
         if (!resetRes.ok) {
             const errText = await resetRes.text();
-            console.warn('Keycloak password reset warning (handled gracefully):', resetRes.status, errText);
+            console.error('Keycloak password reset failed:', resetRes.status, errText);
+            return res.status(500).json({ error: 'Failed to update permanent password in Keycloak authentication system.' });
         }
         // 5. Clear Required Actions in Keycloak and fill missing profile attributes like lastName
         if (!userProfile) {
@@ -7930,6 +7962,14 @@ app.use('/api/v1/notifications', notifications_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/v1/events', events_1.default);
 app.use('/api/events', events_1.default);
+// ============================================================================
+// WORKBRIDGE: TASK MANAGEMENT MODULE - START
+// ============================================================================
+app.use('/api/v1/workbridge', workbridge_1.default);
+app.use('/api/workbridge', workbridge_1.default);
+// ============================================================================
+// WORKBRIDGE: TASK MANAGEMENT MODULE - END
+// ============================================================================
 // Start server
 app.listen(Number(PORT), '0.0.0.0', async () => {
     console.log(`HRMS Backend server running on port ${PORT}`);
