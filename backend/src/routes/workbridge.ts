@@ -493,10 +493,23 @@ router.post('/workflows', async (req: AuthenticatedRequest, res: Response): Prom
 // 4. TASKS API (`hrms.project_tasks`)
 // ----------------------------------------------------------------------------
 
+// Audit Activity Logger Helper Function
+const logTaskActivity = async (companyId: string, taskId: string, actorId: string | null, actionType: string, details: any = {}) => {
+  try {
+    await query(
+      `INSERT INTO hrms.task_activity_log (company_id, task_id, actor_id, action_type, details, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [companyId, taskId, actorId, actionType, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('Error writing to task_activity_log:', err);
+  }
+};
+
 router.get('/tasks', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { company_id, project_id, milestone_id, status, priority, search } = req.query;
-    const cid = company_id || req.user?.companyId;
+    const { project_id, milestone_id, status, priority, search, company_id } = req.query;
+    const cid = (company_id as string) || req.user?.companyId;
 
     let sql = `
       SELECT t.*, t.task_name as title,
@@ -510,6 +523,9 @@ router.get('/tasks', async (req: AuthenticatedRequest, res: Response): Promise<v
                FROM hrms.task_timer_logs 
                WHERE task_id = t.id AND is_running = false
              ), 0) as total_logged_minutes,
+             COALESCE((SELECT COUNT(*) FROM hrms.task_checklists WHERE task_id = t.id), 0) as subtasks_count,
+             COALESCE((SELECT COUNT(*) FROM hrms.task_checklists WHERE task_id = t.id AND is_completed = true), 0) as completed_subtasks_count,
+             COALESCE((SELECT COUNT(*) FROM hrms.task_comments WHERE task_id = t.id), 0) as comments_count,
              COALESCE((
                SELECT json_agg(json_build_object(
                  'id', l.id,
@@ -570,10 +586,18 @@ router.get('/tasks/:id', async (req: AuthenticatedRequest, res: Response): Promi
     const taskSql = `
       SELECT t.*, t.task_name as title,
              p.project_name, p.project_code,
-             m.milestone_name as milestone_title
+             m.milestone_name as milestone_title,
+             CONCAT(e.first_name, ' ', e.last_name) as assignee_name,
+             e.emp_id_code as assignee_code,
+             COALESCE((
+               SELECT SUM(duration_minutes) 
+               FROM hrms.task_timer_logs 
+               WHERE task_id = t.id AND is_running = false
+             ), 0) as total_logged_minutes
       FROM hrms.project_tasks t
       LEFT JOIN hrms.projects p ON t.project_id = p.id
       LEFT JOIN hrms.project_milestones m ON t.milestone_id = m.id
+      LEFT JOIN hrms.employees e ON t.assigned_to = e.id
       WHERE t.id = $1 AND t.is_active = true
     `;
     const taskRes = await query(taskSql, [id]);
@@ -608,8 +632,30 @@ router.get('/tasks/:id', async (req: AuthenticatedRequest, res: Response): Promi
       [id]
     );
 
+    // Fetch Timer Logs History
+    const timerLogsRes = await query(
+      `SELECT t.*, CONCAT(e.first_name, ' ', e.last_name) as employee_name
+       FROM hrms.task_timer_logs t
+       LEFT JOIN hrms.employees e ON t.employee_id = e.id
+       WHERE t.task_id = $1
+       ORDER BY t.start_time DESC`,
+      [id]
+    );
+
+    // Fetch Activity Logs Timeline
+    const activityLogsRes = await query(
+      `SELECT a.*, CONCAT(e.first_name, ' ', e.last_name) as actor_name, e.emp_id_code as actor_code
+       FROM hrms.task_activity_log a
+       LEFT JOIN hrms.employees e ON a.actor_id = e.id
+       WHERE a.task_id = $1
+       ORDER BY a.created_at DESC LIMIT 30`,
+      [id]
+    );
+
     task.subtasks = subtaskRes.rows;
     task.comments = commentRes.rows;
+    task.timer_logs = timerLogsRes.rows;
+    task.activity_logs = activityLogsRes.rows;
 
     res.json({ success: true, task });
   } catch (error: any) {
@@ -648,9 +694,18 @@ router.post('/tasks', async (req: AuthenticatedRequest, res: Response): Promise<
     const creatorId = empRes.rows.length > 0 ? empRes.rows[0].id : null;
     const finalAssigneeId = assigned_to || creatorId;
 
-    const finalDueDatetime = due_datetime || (due_date ? `${due_date}T18:00:00Z` : null);
-    const finalDueDate = due_date || (due_datetime ? due_datetime.split('T')[0] : null);
-    const finalStartDate = start_date || new Date().toISOString().split('T')[0];
+    const cleanStartDate = start_date && typeof start_date === 'string' && start_date.trim() ? start_date.trim() : null;
+    const cleanDueDate = due_date && typeof due_date === 'string' && due_date.trim() ? due_date.trim() : null;
+    const cleanDueDatetime = due_datetime && typeof due_datetime === 'string' && due_datetime.trim() ? due_datetime.trim() : null;
+
+    let finalDueDatetime = cleanDueDatetime || (cleanDueDate ? `${cleanDueDate}T18:00:00Z` : null);
+    let finalDueDate = cleanDueDate || (cleanDueDatetime ? cleanDueDatetime.split('T')[0] : null);
+    let finalStartDate = cleanStartDate || new Date().toISOString().split('T')[0];
+
+    // PREVENT CHECK CONSTRAINT "chk_task_dates" (due_date >= start_date)
+    if (finalStartDate && finalDueDate && finalDueDate < finalStartDate) {
+      finalStartDate = finalDueDate;
+    }
 
     const sql = `
       INSERT INTO hrms.project_tasks
@@ -674,7 +729,12 @@ router.post('/tasks', async (req: AuthenticatedRequest, res: Response): Promise<
       finalAssigneeId
     ]);
 
-    res.status(201).json({ success: true, task: result.rows[0] });
+    const createdTask = result.rows[0];
+
+    // Log Activity
+    await logTaskActivity(cid, createdTask.id, creatorId, 'TASK_CREATED', { title: title.trim(), code: generatedCode });
+
+    res.status(201).json({ success: true, task: createdTask });
   } catch (error: any) {
     console.error('Error creating task:', error);
     res.status(500).json({ error: error.message || 'Failed to create task' });
@@ -697,8 +757,29 @@ router.put('/tasks/:id', async (req: AuthenticatedRequest, res: Response): Promi
       assigned_to
     } = req.body;
 
-    const finalDueDatetime = due_datetime || (due_date ? `${due_date}T18:00:00Z` : null);
-    const finalDueDate = due_date || (due_datetime ? due_datetime.split('T')[0] : null);
+    const existingRes = await query(`SELECT company_id, start_date, due_date, due_datetime FROM hrms.project_tasks WHERE id = $1`, [id]);
+    if (existingRes.rows.length === 0) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    const currentTask = existingRes.rows[0];
+
+    const creatorEmail = req.user?.email || '';
+    const empRes = await query(`SELECT id FROM hrms.employees WHERE LOWER(email) = LOWER($1) LIMIT 1`, [creatorEmail]);
+    const actorId = empRes.rows[0]?.id || null;
+
+    const cleanStartDate = start_date && typeof start_date === 'string' && start_date.trim() ? start_date.trim() : null;
+    const cleanDueDate = due_date && typeof due_date === 'string' && due_date.trim() ? due_date.trim() : null;
+    const cleanDueDatetime = due_datetime && typeof due_datetime === 'string' && due_datetime.trim() ? due_datetime.trim() : null;
+
+    let finalDueDate = cleanDueDate || (cleanDueDatetime ? cleanDueDatetime.split('T')[0] : (currentTask.due_date ? new Date(currentTask.due_date).toISOString().split('T')[0] : null));
+    let finalDueDatetime = cleanDueDatetime || (cleanDueDate ? `${cleanDueDate}T18:00:00Z` : (currentTask.due_datetime ? new Date(currentTask.due_datetime).toISOString() : null));
+    let finalStartDate = cleanStartDate || (currentTask.start_date ? new Date(currentTask.start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+
+    // PREVENT CHECK CONSTRAINT "chk_task_dates" (due_date >= start_date)
+    if (finalStartDate && finalDueDate && finalDueDate < finalStartDate) {
+      finalStartDate = finalDueDate;
+    }
 
     const sql = `
       UPDATE hrms.project_tasks
@@ -709,8 +790,8 @@ router.put('/tasks/:id', async (req: AuthenticatedRequest, res: Response): Promi
           status = COALESCE($5, status),
           estimated_minutes = COALESCE($6, estimated_minutes),
           start_date = COALESCE($7, start_date),
-          due_date = COALESCE($8, due_date),
-          due_datetime = COALESCE($9, due_datetime),
+          due_date = $8,
+          due_datetime = $9,
           assigned_to = COALESCE($10, assigned_to),
           updated_at = NOW()
       WHERE id = $11
@@ -722,20 +803,24 @@ router.put('/tasks/:id', async (req: AuthenticatedRequest, res: Response): Promi
       description !== undefined ? description : null,
       priority || null,
       status || null,
-      estimated_hours !== undefined ? Math.round((parseFloat(estimated_hours) || 0) * 60) : null,
-      start_date || null,
+      estimated_hours !== undefined && estimated_hours !== null && estimated_hours !== '' ? Math.round((parseFloat(estimated_hours) || 0) * 60) : null,
+      finalStartDate,
       finalDueDate,
       finalDueDatetime,
       assigned_to || null,
       id
     ]);
 
-    if (result.rows.length === 0) {
-      res.status(404).json({ error: 'Task not found' });
-      return;
-    }
+    const updatedTask = result.rows[0];
 
-    res.json({ success: true, task: result.rows[0] });
+    // Log Activity
+    await logTaskActivity(currentTask.company_id, id, actorId, 'TASK_UPDATED', {
+      title: title || updatedTask.task_name,
+      status: status || updatedTask.status,
+      priority: priority || updatedTask.priority
+    });
+
+    res.json({ success: true, task: updatedTask });
   } catch (error: any) {
     console.error('Error updating task:', error);
     res.status(500).json({ error: error.message || 'Failed to update task' });
@@ -750,6 +835,13 @@ router.delete('/tasks/:id', async (req: AuthenticatedRequest, res: Response): Pr
       res.status(404).json({ error: 'Task not found' });
       return;
     }
+
+    const creatorEmail = req.user?.email || '';
+    const empRes = await query(`SELECT id FROM hrms.employees WHERE LOWER(email) = LOWER($1) LIMIT 1`, [creatorEmail]);
+    const actorId = empRes.rows[0]?.id || null;
+
+    await logTaskActivity(result.rows[0].company_id, id, actorId, 'TASK_DELETED', { task_name: result.rows[0].task_name });
+
     res.json({ success: true, message: 'Task deleted successfully' });
   } catch (error: any) {
     console.error('Error deleting task:', error);
@@ -773,8 +865,18 @@ router.post('/tasks/:id/checklists', async (req: AuthenticatedRequest, res: Resp
     const taskRes = await query(`SELECT company_id FROM hrms.project_tasks WHERE id = $1`, [id]);
     const cid = taskRes.rows[0]?.company_id;
 
+    const creatorEmail = req.user?.email || '';
+    const empRes = await query(`SELECT id FROM hrms.employees WHERE LOWER(email) = LOWER($1) LIMIT 1`, [creatorEmail]);
+    const actorId = empRes.rows[0]?.id || null;
+
     const sql = `INSERT INTO hrms.task_checklists (company_id, task_id, item_name) VALUES ($1, $2, $3) RETURNING *, item_name as item_text`;
     const result = await query(sql, [cid, id, item_text.trim()]);
+
+    // Log Activity
+    if (cid) {
+      await logTaskActivity(cid, id, actorId, 'CHECKLIST_ADDED', { item_name: item_text.trim() });
+    }
+
     res.status(201).json({ success: true, checklist: result.rows[0] });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -783,12 +885,15 @@ router.post('/tasks/:id/checklists', async (req: AuthenticatedRequest, res: Resp
 
 router.put('/tasks/:id/checklists/:subtaskId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { subtaskId } = req.params;
+    const { id, subtaskId } = req.params;
     const { is_completed, item_text } = req.body;
 
     const creatorEmail = req.user?.email || '';
     const empRes = await query(`SELECT id FROM hrms.employees WHERE LOWER(email) = LOWER($1) LIMIT 1`, [creatorEmail]);
     const empId = empRes.rows[0]?.id || null;
+
+    const taskRes = await query(`SELECT company_id FROM hrms.project_tasks WHERE id = $1`, [id]);
+    const cid = taskRes.rows[0]?.company_id;
 
     let sql = '';
     let params: any[] = [];
@@ -828,6 +933,14 @@ router.put('/tasks/:id/checklists/:subtaskId', async (req: AuthenticatedRequest,
     }
 
     const result = await query(sql, params);
+
+    // Log Activity
+    if (cid) {
+      await logTaskActivity(cid, id, empId, is_completed ? 'CHECKLIST_COMPLETED' : 'CHECKLIST_UNCOMPLETED', {
+        item_name: result.rows[0]?.item_name
+      });
+    }
+
     res.json({ success: true, checklist: result.rows[0] });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -836,8 +949,20 @@ router.put('/tasks/:id/checklists/:subtaskId', async (req: AuthenticatedRequest,
 
 router.delete('/tasks/:id/checklists/:subtaskId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { subtaskId } = req.params;
+    const { id, subtaskId } = req.params;
+    const taskRes = await query(`SELECT company_id FROM hrms.project_tasks WHERE id = $1`, [id]);
+    const cid = taskRes.rows[0]?.company_id;
+
+    const creatorEmail = req.user?.email || '';
+    const empRes = await query(`SELECT id FROM hrms.employees WHERE LOWER(email) = LOWER($1) LIMIT 1`, [creatorEmail]);
+    const empId = empRes.rows[0]?.id || null;
+
     await query(`DELETE FROM hrms.task_checklists WHERE id = $1`, [subtaskId]);
+
+    if (cid) {
+      await logTaskActivity(cid, id, empId, 'CHECKLIST_DELETED', { subtaskId });
+    }
+
     res.json({ success: true, message: 'Checklist item deleted' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -860,6 +985,11 @@ router.post('/tasks/:id/comments', async (req: AuthenticatedRequest, res: Respon
 
     const sql = `INSERT INTO hrms.task_comments (company_id, task_id, employee_id, comment) VALUES ($1, $2, $3, $4) RETURNING *, comment as comment_text`;
     const result = await query(sql, [cid, id, creatorId, comment_text.trim()]);
+
+    if (cid) {
+      await logTaskActivity(cid, id, creatorId, 'COMMENT_POSTED', { comment_text: comment_text.trim() });
+    }
+
     res.status(201).json({ success: true, comment: result.rows[0] });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -867,7 +997,7 @@ router.post('/tasks/:id/comments', async (req: AuthenticatedRequest, res: Respon
 });
 
 // ----------------------------------------------------------------------------
-// 6. LIVE TIMER API
+// 6. LIVE TIMER & MANUAL WORKED TIME API
 // ----------------------------------------------------------------------------
 
 router.post('/timer/start', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -886,19 +1016,32 @@ router.post('/timer/start', async (req: AuthenticatedRequest, res: Response): Pr
     }
     const emp = empRes.rows[0];
 
+    // Seamless UX: If employee already has an active running timer for another task, auto-stop it first!
     const activeRes = await query(
-      `SELECT id FROM hrms.task_timer_logs WHERE employee_id = $1 AND is_running = true LIMIT 1`,
+      `SELECT * FROM hrms.task_timer_logs WHERE employee_id = $1 AND is_running = true ORDER BY start_time DESC LIMIT 1`,
       [emp.id]
     );
+
     if (activeRes.rows.length > 0) {
-      res.status(400).json({ error: 'You already have an active timer running' });
-      return;
+      const runningTimer = activeRes.rows[0];
+      const startMs = new Date(runningTimer.start_time).getTime();
+      // Cap at max 480 mins (8 hours) if accidentally left running
+      const elapsedMins = Math.min(480, Math.max(1, Math.round((Date.now() - startMs) / (1000 * 60))));
+
+      await query(
+        `UPDATE hrms.task_timer_logs SET end_time = NOW(), duration_minutes = $1, is_running = false WHERE id = $2`,
+        [elapsedMins, runningTimer.id]
+      );
+      await syncTimerLogsToTimesheets(emp.id);
+      await logTaskActivity(emp.company_id, runningTimer.task_id, emp.id, 'TIMER_AUTO_STOPPED', { duration_minutes: elapsedMins });
     }
 
     const ins = await query(
       `INSERT INTO hrms.task_timer_logs (company_id, task_id, employee_id, start_time, is_running) VALUES ($1, $2, $3, NOW(), true) RETURNING *`,
       [emp.company_id, task_id, emp.id]
     );
+
+    await logTaskActivity(emp.company_id, task_id, emp.id, 'TIMER_STARTED');
 
     res.status(201).json({ success: true, active_timer: ins.rows[0] });
   } catch (error: any) {
@@ -924,7 +1067,8 @@ router.post('/timer/stop', async (req: AuthenticatedRequest, res: Response): Pro
 
     const timer = timerRes.rows[0];
     const startTime = new Date(timer.start_time).getTime();
-    const durationMinutes = Math.max(1, Math.round((Date.now() - startTime) / (1000 * 60)));
+    // Cap at max 480 mins (8 hours) safety limit
+    const durationMinutes = Math.min(480, Math.max(1, Math.round((Date.now() - startTime) / (1000 * 60))));
 
     const updatedTimer = await query(
       `UPDATE hrms.task_timer_logs SET end_time = NOW(), duration_minutes = $1, is_running = false WHERE id = $2 RETURNING *`,
@@ -934,7 +1078,48 @@ router.post('/timer/stop', async (req: AuthenticatedRequest, res: Response): Pro
     // Sync timer log to weekly timesheet and entries
     await syncTimerLogsToTimesheets(emp.id);
 
+    await logTaskActivity(emp.company_id, timer.task_id, emp.id, 'TIMER_STOPPED', { duration_minutes: durationMinutes });
+
     res.json({ success: true, message: 'Timer stopped!', timer: updatedTimer.rows[0], duration_minutes: durationMinutes });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual Worked Time Logging Endpoint
+router.post('/timer/manual', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { task_id, hours, minutes, description } = req.body;
+    if (!task_id) {
+      res.status(400).json({ error: 'Task ID required' });
+      return;
+    }
+
+    const totalMinutes = Math.round((parseFloat(hours) || 0) * 60 + (parseFloat(minutes) || 0));
+    if (totalMinutes <= 0) {
+      res.status(400).json({ error: 'Please enter valid hours or minutes' });
+      return;
+    }
+
+    const creatorEmail = req.user?.email || '';
+    const empRes = await query(`SELECT id, company_id FROM hrms.employees WHERE LOWER(email) = LOWER($1) LIMIT 1`, [creatorEmail]);
+    if (empRes.rows.length === 0) {
+      res.status(400).json({ error: 'Employee record not found' });
+      return;
+    }
+    const emp = empRes.rows[0];
+
+    const ins = await query(
+      `INSERT INTO hrms.task_timer_logs (company_id, task_id, employee_id, start_time, end_time, duration_minutes, is_running)
+       VALUES ($1, $2, $3, NOW() - ($4 || ' minutes')::interval, NOW(), $4, false) RETURNING *`,
+      [emp.company_id, task_id, emp.id, totalMinutes]
+    );
+
+    await syncTimerLogsToTimesheets(emp.id);
+
+    await logTaskActivity(emp.company_id, task_id, emp.id, 'TIME_LOGGED_MANUALLY', { duration_minutes: totalMinutes, description });
+
+    res.status(201).json({ success: true, timer: ins.rows[0], message: 'Worked time logged successfully' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -1098,55 +1283,77 @@ router.get('/timesheets', async (req: AuthenticatedRequest, res: Response): Prom
 
 router.post('/timesheets/entries', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { company_id, project_id, task_id, entry_date, duration_minutes, description } = req.body;
-    const cid = company_id || req.user?.companyId;
-
     const creatorEmail = req.user?.email || '';
-    const empRes = await query(`SELECT id FROM hrms.employees WHERE LOWER(email) = LOWER($1) LIMIT 1`, [creatorEmail]);
+    const empRes = await query(`SELECT id, company_id FROM hrms.employees WHERE LOWER(email) = LOWER($1) LIMIT 1`, [creatorEmail]);
     if (empRes.rows.length === 0) {
       res.status(400).json({ error: 'Employee record not found' });
       return;
     }
-    const empId = empRes.rows[0].id;
+    const emp = empRes.rows[0];
+    const defaultCid = req.body.company_id || emp.company_id;
 
-    const workDate = new Date(entry_date);
-    const dayOfWeek = workDate.getDay();
-    const diffToMon = workDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    const monday = new Date(workDate.setDate(diffToMon));
-    const sunday = new Date(workDate.setDate(monday.getDate() + 6));
+    const entriesList = Array.isArray(req.body.entries) ? req.body.entries : [req.body];
 
-    const startDateStr = monday.toISOString().split('T')[0];
-    const endDateStr = sunday.toISOString().split('T')[0];
+    const savedEntries = [];
+    for (const item of entriesList) {
+      const { project_id, task_id, entry_date, duration_minutes, title, description } = item;
+      const mins = Math.round(parseFloat(duration_minutes) || 0);
+      if (mins <= 0) continue;
 
-    let tsRes = await query(
-      `SELECT id FROM hrms.timesheets WHERE company_id = $1 AND employee_id = $2 AND week_start_date = $3 LIMIT 1`,
-      [cid, empId, startDateStr]
-    );
+      const workDate = new Date(entry_date || new Date());
+      const dateStr = workDate.toISOString().split('T')[0];
 
-    let timesheetId: string;
-    if (tsRes.rows.length === 0) {
-      const insTs = await query(
-        `INSERT INTO hrms.timesheets (company_id, employee_id, week_start_date, week_end_date, total_minutes, status)
-         VALUES ($1, $2, $3, $4, $5, 'DRAFT') RETURNING id`,
-        [cid, empId, startDateStr, endDateStr, duration_minutes]
+      const dayOfWeek = workDate.getDay();
+      const diffToMon = workDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const monday = new Date(workDate);
+      monday.setDate(diffToMon);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+
+      const startDateStr = monday.toISOString().split('T')[0];
+      const endDateStr = sunday.toISOString().split('T')[0];
+
+      let tsRes = await query(
+        `SELECT id FROM hrms.timesheets WHERE company_id = $1 AND employee_id = $2 AND week_start_date = $3 LIMIT 1`,
+        [defaultCid, emp.id, startDateStr]
       );
-      timesheetId = insTs.rows[0].id;
-    } else {
-      timesheetId = tsRes.rows[0].id;
-      await query(
-        `UPDATE hrms.timesheets SET total_minutes = total_minutes + $1, updated_at = NOW() WHERE id = $2`,
-        [duration_minutes, timesheetId]
+
+      let timesheetId: string;
+      if (tsRes.rows.length === 0) {
+        const insTs = await query(
+          `INSERT INTO hrms.timesheets (company_id, employee_id, week_start_date, week_end_date, total_minutes, status)
+           VALUES ($1, $2, $3, $4, $5, 'DRAFT') RETURNING id`,
+          [defaultCid, emp.id, startDateStr, endDateStr, mins]
+        );
+        timesheetId = insTs.rows[0].id;
+      } else {
+        timesheetId = tsRes.rows[0].id;
+        await query(
+          `UPDATE hrms.timesheets SET total_minutes = total_minutes + $1, updated_at = NOW() WHERE id = $2`,
+          [mins, timesheetId]
+        );
+      }
+
+      // If task_id provided but project_id null, look up project_id
+      let finalProjectId = project_id || null;
+      if (!finalProjectId && task_id) {
+        const tRes = await query(`SELECT project_id FROM hrms.project_tasks WHERE id = $1`, [task_id]);
+        if (tRes.rows.length > 0) finalProjectId = tRes.rows[0].project_id;
+      }
+
+      const fullDesc = title ? (description ? `${title}: ${description}` : title) : (description || 'Manual Time Entry');
+
+      const insEntry = await query(
+        `INSERT INTO hrms.timesheet_entries (company_id, timesheet_id, employee_id, project_id, task_id, entry_date, minutes, description)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [defaultCid, timesheetId, emp.id, finalProjectId, task_id || null, dateStr, mins, fullDesc]
       );
+      savedEntries.push(insEntry.rows[0]);
     }
 
-    const insEntry = await query(
-      `INSERT INTO hrms.timesheet_entries (company_id, timesheet_id, employee_id, project_id, task_id, entry_date, minutes, description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [cid, timesheetId, empId, project_id, task_id || null, entry_date, duration_minutes, description || null]
-    );
-
-    res.status(201).json({ success: true, entry: insEntry.rows[0] });
+    res.status(201).json({ success: true, count: savedEntries.length, entries: savedEntries });
   } catch (error: any) {
+    console.error('Error posting timesheet entries:', error);
     res.status(500).json({ error: error.message });
   }
 });

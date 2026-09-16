@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders, API_BASE } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
@@ -10,6 +11,7 @@ import SearchableSelect from '../../components/SearchableSelect';
 import { Clock, Calendar, CheckCircle2, XCircle, Send, Plus, Filter, User, FolderKanban, Briefcase } from 'lucide-react';
 
 export default function WorkBridgeTimesheetsPage() {
+  const router = useRouter();
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
@@ -240,7 +242,7 @@ export default function WorkBridgeTimesheetsPage() {
             </div>
 
             <button
-              onClick={() => setDrawerOpen(true)}
+              onClick={() => router.push('/dashboard/workbridge/timesheets/log')}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition-all text-xs"
             >
               <Plus className="w-4 h-4" /> Log Manual Time

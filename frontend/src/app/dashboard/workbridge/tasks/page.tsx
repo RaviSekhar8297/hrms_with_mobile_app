@@ -29,7 +29,9 @@ import {
   CheckCircle2,
   Zap,
   Check,
-  Layers
+  Layers,
+  MessageSquare,
+  Loader2
 } from 'lucide-react';
 
 export default function WorkBridgeTasksPage() {
@@ -37,9 +39,9 @@ export default function WorkBridgeTasksPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, getPermissionScope, isSuperAdmin } = usePermissions();
 
-  const canCreate = isSuperAdmin || hasPermission('project_tasks_create') || hasPermission('create_project_tasks') || hasPermission('create_tasks') || hasPermission('create');
-  const canEdit = isSuperAdmin || hasPermission('project_tasks_edit') || hasPermission('edit_project_tasks') || hasPermission('edit_tasks') || hasPermission('edit');
-  const canDelete = isSuperAdmin || hasPermission('project_tasks_delete') || hasPermission('delete_project_tasks') || hasPermission('delete_tasks') || hasPermission('delete');
+  const canCreate = hasPermission('project_tasks_create');
+  const canEdit = hasPermission('project_tasks_edit');
+  const canDelete = hasPermission('project_tasks_delete');
 
   const activeCompanyId = globalCompanyId;
 
@@ -236,6 +238,8 @@ export default function WorkBridgeTasksPage() {
     }
   };
 
+  const [isTogglingTimerMap, setIsTogglingTimerMap] = useState<Record<string, boolean>>({});
+
   const fetchActiveTimers = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/v1/workbridge/timer/active`, { headers: getHeaders() });
@@ -251,6 +255,8 @@ export default function WorkBridgeTasksPage() {
   };
 
   const handleToggleTimer = async (taskId: string) => {
+    if (isTogglingTimerMap[taskId]) return;
+    setIsTogglingTimerMap((prev) => ({ ...prev, [taskId]: true }));
     const isRunning = !!activeTimers[taskId];
     try {
       const endpoint = isRunning ? '/api/v1/workbridge/timer/stop' : '/api/v1/workbridge/timer/start';
@@ -263,14 +269,16 @@ export default function WorkBridgeTasksPage() {
 
       if (res.ok) {
         showToast(isRunning ? 'Timer stopped & saved! ⏱️' : 'Live timer started ⏱️', 'success');
-        fetchActiveTimers();
-        fetchTasks();
+        await fetchActiveTimers();
+        await fetchTasks();
       } else {
         const err = await res.json();
         showToast(err.error || 'Timer action failed', 'error');
       }
     } catch (e) {
       showToast('Error managing timer', 'error');
+    } finally {
+      setIsTogglingTimerMap((prev) => ({ ...prev, [taskId]: false }));
     }
   };
 
@@ -719,10 +727,22 @@ export default function WorkBridgeTasksPage() {
                         </div>
                       </div>
 
-                      {/* Assignee */}
-                      <div className="flex items-center gap-1.5 text-slate-500 pt-0.5">
-                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate text-[11px]">{task.assignee_name || 'Self / Unassigned'}</span>
+                      {/* Assignee & Activity Badges */}
+                      <div className="flex items-center justify-between gap-2 pt-0.5">
+                        <div className="flex items-center gap-1.5 text-slate-500 min-w-0">
+                          <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate text-[11px] font-semibold">{task.assignee_name || 'Self / Unassigned'}</span>
+                        </div>
+
+                        {/* Comments & Subtasks Counters */}
+                        <div className="flex items-center gap-2 text-[10px] text-slate-600 dark:text-slate-400 font-extrabold shrink-0">
+                          <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md border border-slate-200/60 dark:border-slate-700" title="Comments">
+                            <MessageSquare className="w-3 h-3 text-blue-500" /> {task.comments_count || 0}
+                          </span>
+                          <span className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md border border-slate-200/60 dark:border-slate-700" title="Subtasks Completed">
+                            <CheckSquare className="w-3 h-3 text-emerald-500" /> {task.completed_subtasks_count || 0}/{task.subtasks_count || 0}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -731,15 +751,26 @@ export default function WorkBridgeTasksPage() {
                   <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                     <button
                       onClick={() => handleToggleTimer(task.id)}
-                      className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] flex items-center gap-1.5 transition-all ${
+                      disabled={isTogglingTimerMap[task.id]}
+                      className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] flex items-center gap-1.5 transition-all disabled:opacity-50 ${
                         isTimerRunning
                           ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
                           : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:text-blue-600 hover:border-blue-300'
                       }`}
                       title={isTimerRunning ? 'Stop Live Timer' : 'Start Live Timer'}
                     >
-                      {isTimerRunning ? <Square className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                      <span>{isTimerRunning ? 'Stop Timer' : 'Timer'}</span>
+                      {isTogglingTimerMap[task.id] ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : isTimerRunning ? (
+                        <Square className="w-3.5 h-3.5 fill-current" />
+                      ) : (
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                      )}
+                      <span>
+                        {isTogglingTimerMap[task.id]
+                          ? (isTimerRunning ? 'Stopping...' : 'Starting...')
+                          : (isTimerRunning ? 'Stop Timer' : 'Timer')}
+                      </span>
                     </button>
 
                     <div className="flex items-center gap-1.5">

@@ -32,8 +32,8 @@ export default function EditTaskPage({ params }: { params: Promise<{ id: string 
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { getPermissionScope, isSuperAdmin, hasPermission } = usePermissions();
 
-  const canEdit = isSuperAdmin || hasPermission('project_tasks_edit') || hasPermission('edit_project_tasks') || hasPermission('edit_tasks') || hasPermission('edit');
-  const canDelete = isSuperAdmin || hasPermission('project_tasks_delete') || hasPermission('delete_project_tasks') || hasPermission('delete_tasks') || hasPermission('delete');
+  const canEdit = hasPermission('project_tasks_edit');
+  const canDelete = hasPermission('project_tasks_delete');
 
   const activeCompanyId = globalCompanyId;
 
