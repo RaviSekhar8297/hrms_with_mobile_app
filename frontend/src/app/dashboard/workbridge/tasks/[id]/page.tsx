@@ -279,31 +279,55 @@ export default function WorkBridgeTaskDetailPage() {
               />
             </div>
 
-            <div className="space-y-2 pt-2">
-              {subtasks.map((s) => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={s.is_completed}
-                      onChange={(e) => handleToggleSubtask(s.id, e.target.checked)}
-                      className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 bg-white cursor-pointer"
-                    />
-                    <span className={`text-sm ${s.is_completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-                      {s.item_text || s.item_name}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteSubtask(s.id)}
-                    className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
+            <div className="space-y-2.5 pt-2">
+              {subtasks.length === 0 ? (
+                <p className="text-slate-400 text-xs italic py-3 text-center bg-slate-50 rounded-xl border border-slate-200/60">
+                  No checklist items yet. Add sub-tasks to track granular progress.
+                </p>
+              ) : (
+                subtasks.map((s) => (
+                  <div
+                    key={s.id}
+                    className={`flex items-start justify-between border rounded-xl p-3 transition-all ${
+                      s.is_completed
+                        ? 'bg-emerald-50/40 border-emerald-200/80 dark:bg-emerald-950/20'
+                        : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100/60'
+                    }`}
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-start gap-3 flex-1 min-w-0 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={s.is_completed}
+                        onChange={(e) => handleToggleSubtask(s.id, e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 bg-white cursor-pointer mt-0.5"
+                      />
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <span className={`text-xs font-semibold block leading-snug ${s.is_completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                          {s.item_text || s.item_name}
+                        </span>
+                        
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 font-medium">
+                          {s.created_at && (
+                            <span>Added: {new Date(s.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                          )}
+                          {s.is_completed && (
+                            <span className="text-emerald-600 font-bold bg-emerald-100/80 dark:bg-emerald-900/50 px-1.5 py-0.2 rounded">
+                              ✓ Completed {s.completed_by_name ? `by ${s.completed_by_name}` : ''} {s.completed_at ? `on ${new Date(s.completed_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteSubtask(s.id)}
+                      className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors shrink-0"
+                      title="Delete item"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
 
             <form onSubmit={handleAddSubtask} className="flex gap-2 pt-2">
@@ -312,55 +336,69 @@ export default function WorkBridgeTaskDetailPage() {
                 placeholder="Add new checklist item..."
                 value={newSubtaskTitle}
                 onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="flex-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <button
                 type="submit"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1 shadow-sm"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs transition-all"
               >
-                <Plus className="w-4 h-4" /> Add
+                <Plus className="w-4 h-4" /> Add Item
               </button>
             </form>
           </div>
 
           {/* Comments */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2 text-base">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-base">
               <MessageSquare className="w-5 h-5 text-emerald-600" /> Discussion & Updates ({comments.length})
             </h3>
 
             <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
               {comments.length === 0 ? (
-                <p className="text-slate-400 text-xs italic py-4 text-center">No comments yet. Start the discussion!</p>
+                <p className="text-slate-400 text-xs italic py-6 text-center bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                  No comments yet. Start the discussion below!
+                </p>
               ) : (
                 comments.map((c) => (
-                  <div key={c.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-emerald-700 flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5" /> {c.author_name || 'Team Member'}
-                      </span>
-                      <span className="text-slate-400">
-                        {c.created_at ? new Date(c.created_at).toLocaleString() : ''}
+                  <div key={c.id} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">
+                          {(c.author_name || 'U').charAt(0)}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-900 dark:text-white">{c.author_name || 'Team Member'}</span>
+                          {c.author_code && (
+                            <span className="text-[10px] font-mono font-semibold text-slate-500 bg-slate-200 dark:bg-slate-700 px-1.5 py-0.2 rounded">
+                              {c.author_code}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        {c.created_at ? new Date(c.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}
                       </span>
                     </div>
-                    <p className="text-slate-800 text-sm leading-relaxed">{c.comment_text || c.comment}</p>
+                    <p className="text-slate-800 dark:text-slate-200 text-xs leading-relaxed font-medium whitespace-pre-wrap pt-0.5">
+                      {c.comment_text || c.comment}
+                    </p>
                   </div>
                 ))
               )}
             </div>
 
-            <form onSubmit={handleAddComment} className="flex flex-col gap-2 pt-2">
+            <form onSubmit={handleAddComment} className="flex flex-col gap-2.5 pt-2">
               <textarea
                 rows={3}
-                placeholder="Write a comment..."
+                placeholder="Write a comment or project update..."
                 value={newCommentText}
                 onChange={(e) => setNewCommentText(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl p-3 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all"
                 >
                   <Send className="w-3.5 h-3.5" /> Post Comment
                 </button>

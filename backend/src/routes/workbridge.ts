@@ -587,13 +587,20 @@ router.get('/tasks/:id', async (req: AuthenticatedRequest, res: Response): Promi
 
     // Fetch Checklists
     const subtaskRes = await query(
-      `SELECT c.*, c.item_name as item_text FROM hrms.task_checklists c WHERE c.task_id = $1 ORDER BY c.sort_order ASC, c.created_at ASC`,
+      `SELECT c.*, c.item_name as item_text,
+              CONCAT(e.first_name, ' ', e.last_name) as completed_by_name
+       FROM hrms.task_checklists c
+       LEFT JOIN hrms.employees e ON c.completed_by = e.id
+       WHERE c.task_id = $1 
+       ORDER BY c.sort_order ASC, c.created_at ASC`,
       [id]
     );
 
     // Fetch Comments
     const commentRes = await query(
-      `SELECT c.*, c.comment as comment_text, CONCAT(e.first_name, ' ', e.last_name) as author_name
+      `SELECT c.*, c.comment as comment_text,
+              CONCAT(e.first_name, ' ', e.last_name) as author_name,
+              e.emp_id_code as author_code
        FROM hrms.task_comments c
        LEFT JOIN hrms.employees e ON c.employee_id = e.id
        WHERE c.task_id = $1
@@ -779,14 +786,48 @@ router.put('/tasks/:id/checklists/:subtaskId', async (req: AuthenticatedRequest,
     const { subtaskId } = req.params;
     const { is_completed, item_text } = req.body;
 
-    const sql = `
-      UPDATE hrms.task_checklists
-      SET is_completed = COALESCE($1, is_completed),
-          item_name = COALESCE($2, item_name)
-      WHERE id = $3
-      RETURNING *, item_name as item_text
-    `;
-    const result = await query(sql, [is_completed, item_text ? item_text.trim() : null, subtaskId]);
+    const creatorEmail = req.user?.email || '';
+    const empRes = await query(`SELECT id FROM hrms.employees WHERE LOWER(email) = LOWER($1) LIMIT 1`, [creatorEmail]);
+    const empId = empRes.rows[0]?.id || null;
+
+    let sql = '';
+    let params: any[] = [];
+
+    if (is_completed !== undefined) {
+      if (is_completed) {
+        sql = `
+          UPDATE hrms.task_checklists
+          SET is_completed = true,
+              completed_by = $1,
+              completed_at = NOW(),
+              item_name = COALESCE($2, item_name)
+          WHERE id = $3
+          RETURNING *, item_name as item_text
+        `;
+        params = [empId, item_text ? item_text.trim() : null, subtaskId];
+      } else {
+        sql = `
+          UPDATE hrms.task_checklists
+          SET is_completed = false,
+              completed_by = NULL,
+              completed_at = NULL,
+              item_name = COALESCE($1, item_name)
+          WHERE id = $2
+          RETURNING *, item_name as item_text
+        `;
+        params = [item_text ? item_text.trim() : null, subtaskId];
+      }
+    } else {
+      sql = `
+        UPDATE hrms.task_checklists
+        SET item_name = COALESCE($1, item_name)
+        WHERE id = $2
+        RETURNING *, item_name as item_text
+      `;
+      params = [item_text ? item_text.trim() : null, subtaskId];
+    }
+
+    const result = await query(sql, params);
     res.json({ success: true, checklist: result.rows[0] });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
