@@ -459,7 +459,7 @@ export default function AttendanceHistoryPage() {
   };
 
   return (
-    <div className="p-3 space-y-3 max-w-[100vw] overflow-x-hidden">
+    <div className="space-y-4 animate-fadeIn w-full font-sans">
       {/* Main Page Title Banner */}
       <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
         <h1 className="text-lg md:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">

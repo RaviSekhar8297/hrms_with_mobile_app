@@ -10,7 +10,10 @@ import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
+import multer from 'multer';
 import { query } from './config/db';
+
+const bulkUploadMulter = multer({ storage: multer.memoryStorage() });
 import { updateEmployeeDailySummary } from './utils/attendanceSync';
 import { authenticateToken, requireSuperAdmin, requirePermission, AuthenticatedRequest, getEmployeeDataScope, buildDataScopeCondition } from './middlewares/auth';
 
@@ -2084,26 +2087,105 @@ app.post(
 
 /**
  * 📦 BULK UPLOAD EMPLOYEES
- * Accepts an array of employee records and inserts them in batch.
+ * Accepts an array of employee records or uploaded CSV file and inserts them in batch.
  * Returns per-row success/failure details.
  */
-app.post(
-  '/api/v1/employees/bulk',
-  authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
-    const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-    const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
-    const employees: any[] = req.body.employees;
+const handleBulkEmployeeUpload = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const isSuperAdmin = req.user && (
+      (Array.isArray(req.user.roles) && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'))) ||
+      (req.user as any).role === 'SuperAdmin' || (req.user as any).role === 'superadmin' ||
+      (req.user as any).isSuperAdmin === true
+    );
+  const companyId = isSuperAdmin ? (req.body?.companyId || req.query?.companyId || req.user?.companyId) : req.user?.companyId;
 
-    if (!companyId) {
-      return res.status(400).json({ error: 'Company ID is required' });
+  if (!companyId) {
+    return res.status(400).json({ error: 'Company ID is required' });
+  }
+
+  // 1. FILE EXTENSION VALIDATION (EMP-BULK-NEG-001)
+  const filename: string = (
+    req.file?.originalname ||
+    req.body?.filename ||
+    req.body?.fileName ||
+    req.body?.file_name ||
+    req.body?.fileExtension ||
+    req.query?.filename ||
+    ''
+  ).trim();
+
+  if (filename) {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    if (ext && !['csv', 'xlsx', 'xls'].includes(ext)) {
+      return res.status(400).json({
+        error: `Invalid file extension '.${ext}'. Only .csv and .xlsx files are supported for employee bulk upload.`
+      });
     }
-    if (!Array.isArray(employees) || employees.length === 0) {
-      return res.status(400).json({ error: 'employees array is required and must not be empty' });
+  }
+
+  // 2. EMPTY FILE / 0-BYTE VALIDATION (EMP-BULK-NEG-002)
+  let fileContentStr: string = (req.body?.fileContent || req.body?.file_content || req.body?.text || '').trim();
+  if (req.file) {
+    if (req.file.size === 0 || !req.file.buffer || req.file.buffer.length === 0) {
+      return res.status(400).json({ error: 'Uploaded CSV file is completely empty (0 bytes).' });
     }
-    if (employees.length > 500) {
-      return res.status(400).json({ error: 'Maximum 500 employees can be uploaded at once' });
+    fileContentStr = req.file.buffer.toString('utf-8').trim();
+  }
+
+  let employees: any[] = req.body?.employees;
+  let csvHeaders: string[] = Array.isArray(req.body?.headers) ? req.body.headers : [];
+
+  // Parse CSV content string if array not provided
+  if (fileContentStr && (!Array.isArray(employees) || employees.length === 0)) {
+    if (fileContentStr.length === 0) {
+      return res.status(400).json({ error: 'Uploaded CSV file is completely empty (0 bytes).' });
     }
+    const lines = fileContentStr.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) {
+      return res.status(400).json({ error: 'CSV file is empty or contains no data rows.' });
+    }
+
+    csvHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    employees = lines.slice(1).map(line => {
+      const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      const obj: Record<string, string> = {};
+      csvHeaders.forEach((h, i) => {
+        let val = values[i] || '';
+        if (h.toLowerCase() === 'email') val = val.replace(/\s+/g, '');
+        obj[h] = val;
+      });
+      return obj;
+    });
+  }
+
+  if (!Array.isArray(employees) || employees.length === 0) {
+    return res.status(400).json({ error: 'CSV file is empty (0 bytes) or employees array is empty.' });
+  }
+
+  if (employees.length > 500) {
+    return res.status(400).json({ error: 'Maximum 500 employees can be uploaded at once' });
+  }
+
+  // 3. REQUIRED HEADER COLUMNS VALIDATION (EMP-BULK-NEG-004)
+  let allKeys: string[] = csvHeaders.map(h => h.trim().toLowerCase());
+  if (allKeys.length === 0 && employees.length > 0) {
+    allKeys = Object.keys(employees[0]).map(k => k.trim().toLowerCase());
+  }
+
+  const hasEmpCode = allKeys.some(k => ['emp_id_code', 'emp_code', 'empcode', 'employee_code', 'employee_id'].includes(k));
+  const hasFirstName = allKeys.some(k => ['first_name', 'firstname', 'name'].includes(k));
+  const hasEmail = allKeys.some(k => ['email', 'email_address'].includes(k));
+
+  if (!hasEmpCode || !hasFirstName || !hasEmail) {
+    const missing: string[] = [];
+    if (!hasEmpCode) missing.push('emp_id_code');
+    if (!hasFirstName) missing.push('first_name');
+    if (!hasEmail) missing.push('email');
+
+    return res.status(400).json({
+      error: `Missing required header columns: ${missing.join(', ')}. Bulk upload file must include headers for emp_id_code, first_name, and email.`
+    });
+  }
 
     const results: { row: number; emp_id_code: string; status: 'success' | 'error'; keycloak_status?: string; message: string }[] = [];
 
@@ -2324,8 +2406,15 @@ app.post(
       keycloakFailCount,
       results,
     });
+  } catch (err: any) {
+    console.error('Error in bulk employee upload:', err);
+    return res.status(500).json({ error: 'Failed to process employee bulk upload' });
   }
-);
+};
+
+app.post('/api/v1/employees/bulk', authenticateToken, bulkUploadMulter.single('file'), handleBulkEmployeeUpload);
+app.post('/api/v1/employees/upload', authenticateToken, bulkUploadMulter.single('file'), handleBulkEmployeeUpload);
+app.post('/api/v1/employees/bulk-upload', authenticateToken, bulkUploadMulter.single('file'), handleBulkEmployeeUpload);
 
 app.put(
   '/api/v1/employees/:id',
@@ -4526,6 +4615,25 @@ app.post('/api/v1/attendance/live-location', authenticateToken, async (req: Auth
     const emp = empRes.rows[0];
     const cid = companyId || emp.company_id;
 
+    // Verify employee is currently Punched IN for today
+    const todayStr = new Date().toISOString().split('T')[0];
+    const punchCheck = await query(
+      `SELECT direction, punch_time FROM hrms.attendance_raw_punches 
+       WHERE employee_id = $1 AND punch_time::date = $2::date 
+       ORDER BY punch_time DESC, id DESC LIMIT 1`,
+      [emp.id, todayStr]
+    );
+
+    const lastPunch = punchCheck.rows[0];
+    const isPunchedIn = lastPunch && String(lastPunch.direction).toUpperCase() === 'IN';
+
+    if (!isPunchedIn) {
+      return res.status(400).json({
+        success: false,
+        error: 'Location tracking is only recorded when employee is Punched IN'
+      });
+    }
+
     const insertRes = await query(
       `INSERT INTO hrms.attendance_location_tracking 
        (company_id, employee_id, latitude, longitude, location_name, recorded_at)
@@ -4548,6 +4656,9 @@ app.post('/api/v1/attendance/live-location', authenticateToken, async (req: Auth
 app.get('/api/v1/attendance/live-tracking', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const scopeCtx = await getEmployeeDataScope(req, 'attendance', 'view_attendance_tracking');
+    const rawCompany = req.query.companyId || req.query.company_id;
+    const companyId = rawCompany !== undefined && rawCompany !== null ? (rawCompany === 'all' ? null : String(rawCompany)) : req.user?.companyId;
+
     const { startDate, endDate, employeeId } = req.query;
 
     const todayStr = new Date().toISOString().split('T')[0];
@@ -4561,8 +4672,14 @@ app.get('/api/v1/attendance/live-tracking', authenticateToken, async (req: Authe
     params.push(...scopeRes.params);
     let paramIdx = scopeRes.nextParamIdx;
 
+    if (companyId && companyId !== 'all') {
+      scopeCondition += ` AND (t.company_id::text = $${paramIdx} OR e.company_id::text = $${paramIdx})`;
+      params.push(String(companyId));
+      paramIdx++;
+    }
+
     if (employeeId && employeeId !== 'all') {
-      scopeCondition += ` AND t.employee_id = $${paramIdx}`;
+      scopeCondition += ` AND t.employee_id::text = $${paramIdx}`;
       params.push(String(employeeId));
       paramIdx++;
     }
@@ -4580,6 +4697,7 @@ app.get('/api/v1/attendance/live-tracking', authenticateToken, async (req: Authe
         e.first_name,
         e.last_name,
         e.email,
+        e.emp_image,
         d.name as department_name
       FROM hrms.attendance_location_tracking t
       JOIN hrms.employees e ON e.id = t.employee_id

@@ -18,7 +18,9 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const morgan_1 = __importDefault(require("morgan"));
 const node_cron_1 = __importDefault(require("node-cron"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
+const multer_1 = __importDefault(require("multer"));
 const db_1 = require("./config/db");
+const bulkUploadMulter = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 const attendanceSync_1 = require("./utils/attendanceSync");
 const auth_1 = require("./middlewares/auth");
 // Modular Routes
@@ -1746,143 +1748,213 @@ app.post('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
 });
 /**
  * 📦 BULK UPLOAD EMPLOYEES
- * Accepts an array of employee records and inserts them in batch.
+ * Accepts an array of employee records or uploaded CSV file and inserts them in batch.
  * Returns per-row success/failure details.
  */
-app.post('/api/v1/employees/bulk', auth_1.authenticateToken, async (req, res) => {
-    const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-    const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
-    const employees = req.body.employees;
-    if (!companyId) {
-        return res.status(400).json({ error: 'Company ID is required' });
-    }
-    if (!Array.isArray(employees) || employees.length === 0) {
-        return res.status(400).json({ error: 'employees array is required and must not be empty' });
-    }
-    if (employees.length > 500) {
-        return res.status(400).json({ error: 'Maximum 500 employees can be uploaded at once' });
-    }
-    const results = [];
-    // Pre-fetch lookup maps for this company to avoid N+1 queries
-    let branchMap = {};
-    let deptMap = {};
-    let desigMap = {};
-    let roleMap = {};
-    let shiftMap = {};
+const handleBulkEmployeeUpload = async (req, res) => {
     try {
-        const [branchRes, deptRes, desigRes, roleRes, shiftRes] = await Promise.all([
-            (0, db_1.query)('SELECT id, name FROM hrms.branches WHERE company_id = $1', [companyId]),
-            (0, db_1.query)('SELECT id, name FROM hrms.departments WHERE company_id = $1', [companyId]),
-            (0, db_1.query)('SELECT id, name FROM hrms.designations WHERE company_id = $1', [companyId]),
-            (0, db_1.query)('SELECT id, name FROM hrms.roles WHERE company_id = $1', [companyId]),
-            (0, db_1.query)('SELECT id, shift_name as name FROM hrms.shift_masters WHERE company_id = $1', [companyId]),
-        ]);
-        branchMap = Object.fromEntries(branchRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
-        deptMap = Object.fromEntries(deptRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
-        desigMap = Object.fromEntries(desigRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
-        roleMap = Object.fromEntries(roleRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
-        shiftMap = Object.fromEntries(shiftRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
-    }
-    catch (lookupErr) {
-        console.error('Error building lookup maps for bulk upload:', lookupErr);
-        return res.status(500).json({ error: 'Failed to fetch company lookup data' });
-    }
-    for (let i = 0; i < employees.length; i++) {
-        const emp = employees[i];
-        const rowNum = i + 2; // Row 1 = header in CSV, so data starts at row 2
-        const joiningDate = emp.joining_date || new Date().toISOString().split('T')[0];
-        const empEmail = (emp.email || '').trim().toLowerCase();
-        const empCode = (emp.emp_id_code || '').trim();
-        // Required fields validation (minimal: emp_id_code, first_name, email)
-        if (!empCode || !emp.first_name || !empEmail) {
-            results.push({ row: rowNum, emp_id_code: empCode || '—', status: 'error', message: 'Required fields missing: emp_id_code, first_name, email' });
-            continue;
+        const isSuperAdmin = req.user && ((Array.isArray(req.user.roles) && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'))) ||
+            req.user.role === 'SuperAdmin' || req.user.role === 'superadmin' ||
+            req.user.isSuperAdmin === true);
+        const companyId = isSuperAdmin ? (req.body?.companyId || req.query?.companyId || req.user?.companyId) : req.user?.companyId;
+        if (!companyId) {
+            return res.status(400).json({ error: 'Company ID is required' });
         }
-        // Check duplicate email or code in DB before inserting
-        try {
-            const dupCheck = await (0, db_1.query)(`SELECT id, email, emp_id_code FROM hrms.employees WHERE company_id = $1 AND (LOWER(email) = LOWER($2) OR LOWER(emp_id_code) = LOWER($3))`, [companyId, empEmail, empCode]);
-            if (dupCheck.rows.length > 0) {
-                const dupRow = dupCheck.rows[0];
-                const reason = dupRow.email.toLowerCase() === empEmail ? `Email '${empEmail}' already registered` : `Emp Code '${empCode}' already assigned`;
-                results.push({
-                    row: rowNum,
-                    emp_id_code: empCode,
-                    status: 'error',
-                    message: `Skipped: ${reason}`
+        // 1. FILE EXTENSION VALIDATION (EMP-BULK-NEG-001)
+        const filename = (req.file?.originalname ||
+            req.body?.filename ||
+            req.body?.fileName ||
+            req.body?.file_name ||
+            req.body?.fileExtension ||
+            req.query?.filename ||
+            '').trim();
+        if (filename) {
+            const ext = filename.split('.').pop()?.toLowerCase();
+            if (ext && !['csv', 'xlsx', 'xls'].includes(ext)) {
+                return res.status(400).json({
+                    error: `Invalid file extension '.${ext}'. Only .csv and .xlsx files are supported for employee bulk upload.`
                 });
+            }
+        }
+        // 2. EMPTY FILE / 0-BYTE VALIDATION (EMP-BULK-NEG-002)
+        let fileContentStr = (req.body?.fileContent || req.body?.file_content || req.body?.text || '').trim();
+        if (req.file) {
+            if (req.file.size === 0 || !req.file.buffer || req.file.buffer.length === 0) {
+                return res.status(400).json({ error: 'Uploaded CSV file is completely empty (0 bytes).' });
+            }
+            fileContentStr = req.file.buffer.toString('utf-8').trim();
+        }
+        let employees = req.body?.employees;
+        let csvHeaders = Array.isArray(req.body?.headers) ? req.body.headers : [];
+        // Parse CSV content string if array not provided
+        if (fileContentStr && (!Array.isArray(employees) || employees.length === 0)) {
+            if (fileContentStr.length === 0) {
+                return res.status(400).json({ error: 'Uploaded CSV file is completely empty (0 bytes).' });
+            }
+            const lines = fileContentStr.split('\n').map(l => l.trim()).filter(Boolean);
+            if (lines.length < 2) {
+                return res.status(400).json({ error: 'CSV file is empty or contains no data rows.' });
+            }
+            csvHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            employees = lines.slice(1).map(line => {
+                const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+                const obj = {};
+                csvHeaders.forEach((h, i) => {
+                    let val = values[i] || '';
+                    if (h.toLowerCase() === 'email')
+                        val = val.replace(/\s+/g, '');
+                    obj[h] = val;
+                });
+                return obj;
+            });
+        }
+        if (!Array.isArray(employees) || employees.length === 0) {
+            return res.status(400).json({ error: 'CSV file is empty (0 bytes) or employees array is empty.' });
+        }
+        if (employees.length > 500) {
+            return res.status(400).json({ error: 'Maximum 500 employees can be uploaded at once' });
+        }
+        // 3. REQUIRED HEADER COLUMNS VALIDATION (EMP-BULK-NEG-004)
+        let allKeys = csvHeaders.map(h => h.trim().toLowerCase());
+        if (allKeys.length === 0 && employees.length > 0) {
+            allKeys = Object.keys(employees[0]).map(k => k.trim().toLowerCase());
+        }
+        const hasEmpCode = allKeys.some(k => ['emp_id_code', 'emp_code', 'empcode', 'employee_code', 'employee_id'].includes(k));
+        const hasFirstName = allKeys.some(k => ['first_name', 'firstname', 'name'].includes(k));
+        const hasEmail = allKeys.some(k => ['email', 'email_address'].includes(k));
+        if (!hasEmpCode || !hasFirstName || !hasEmail) {
+            const missing = [];
+            if (!hasEmpCode)
+                missing.push('emp_id_code');
+            if (!hasFirstName)
+                missing.push('first_name');
+            if (!hasEmail)
+                missing.push('email');
+            return res.status(400).json({
+                error: `Missing required header columns: ${missing.join(', ')}. Bulk upload file must include headers for emp_id_code, first_name, and email.`
+            });
+        }
+        const results = [];
+        // Pre-fetch lookup maps for this company to avoid N+1 queries
+        let branchMap = {};
+        let deptMap = {};
+        let desigMap = {};
+        let roleMap = {};
+        let shiftMap = {};
+        try {
+            const [branchRes, deptRes, desigRes, roleRes, shiftRes] = await Promise.all([
+                (0, db_1.query)('SELECT id, name FROM hrms.branches WHERE company_id = $1', [companyId]),
+                (0, db_1.query)('SELECT id, name FROM hrms.departments WHERE company_id = $1', [companyId]),
+                (0, db_1.query)('SELECT id, name FROM hrms.designations WHERE company_id = $1', [companyId]),
+                (0, db_1.query)('SELECT id, name FROM hrms.roles WHERE company_id = $1', [companyId]),
+                (0, db_1.query)('SELECT id, shift_name as name FROM hrms.shift_masters WHERE company_id = $1', [companyId]),
+            ]);
+            branchMap = Object.fromEntries(branchRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
+            deptMap = Object.fromEntries(deptRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
+            desigMap = Object.fromEntries(desigRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
+            roleMap = Object.fromEntries(roleRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
+            shiftMap = Object.fromEntries(shiftRes.rows.map((r) => [r.name.trim().toLowerCase(), r.id]));
+        }
+        catch (lookupErr) {
+            console.error('Error building lookup maps for bulk upload:', lookupErr);
+            return res.status(500).json({ error: 'Failed to fetch company lookup data' });
+        }
+        for (let i = 0; i < employees.length; i++) {
+            const emp = employees[i];
+            const rowNum = i + 2; // Row 1 = header in CSV, so data starts at row 2
+            const joiningDate = emp.joining_date || new Date().toISOString().split('T')[0];
+            const empEmail = (emp.email || '').trim().toLowerCase();
+            const empCode = (emp.emp_id_code || '').trim();
+            // Required fields validation (minimal: emp_id_code, first_name, email)
+            if (!empCode || !emp.first_name || !empEmail) {
+                results.push({ row: rowNum, emp_id_code: empCode || '—', status: 'error', message: 'Required fields missing: emp_id_code, first_name, email' });
                 continue;
             }
-        }
-        catch (dupErr) {
-            console.error('Error checking duplicate employee:', dupErr);
-        }
-        // Resolve or auto-create branch
-        let branch_id = emp.branch_name ? branchMap[emp.branch_name.trim().toLowerCase()] || null : null;
-        if (!branch_id && emp.branch_name && emp.branch_name.trim()) {
-            const cleanBName = emp.branch_name.trim();
+            // Check duplicate email or code in DB before inserting
             try {
-                const bRes = await (0, db_1.query)(`INSERT INTO hrms.branches (company_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`, [companyId, cleanBName]);
-                if (bRes.rows.length > 0) {
-                    branch_id = bRes.rows[0].id;
+                const dupCheck = await (0, db_1.query)(`SELECT id, email, emp_id_code FROM hrms.employees WHERE company_id = $1 AND (LOWER(email) = LOWER($2) OR LOWER(emp_id_code) = LOWER($3))`, [companyId, empEmail, empCode]);
+                if (dupCheck.rows.length > 0) {
+                    const dupRow = dupCheck.rows[0];
+                    const reason = dupRow.email.toLowerCase() === empEmail ? `Email '${empEmail}' already registered` : `Emp Code '${empCode}' already assigned`;
+                    results.push({
+                        row: rowNum,
+                        emp_id_code: empCode,
+                        status: 'error',
+                        message: `Skipped: ${reason}`
+                    });
+                    continue;
                 }
-                else {
-                    const fetchB = await (0, db_1.query)(`SELECT id FROM hrms.branches WHERE company_id = $1 AND LOWER(name) = LOWER($2)`, [companyId, cleanBName]);
-                    if (fetchB.rows.length > 0)
-                        branch_id = fetchB.rows[0].id;
+            }
+            catch (dupErr) {
+                console.error('Error checking duplicate employee:', dupErr);
+            }
+            // Resolve or auto-create branch
+            let branch_id = emp.branch_name ? branchMap[emp.branch_name.trim().toLowerCase()] || null : null;
+            if (!branch_id && emp.branch_name && emp.branch_name.trim()) {
+                const cleanBName = emp.branch_name.trim();
+                try {
+                    const bRes = await (0, db_1.query)(`INSERT INTO hrms.branches (company_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`, [companyId, cleanBName]);
+                    if (bRes.rows.length > 0) {
+                        branch_id = bRes.rows[0].id;
+                    }
+                    else {
+                        const fetchB = await (0, db_1.query)(`SELECT id FROM hrms.branches WHERE company_id = $1 AND LOWER(name) = LOWER($2)`, [companyId, cleanBName]);
+                        if (fetchB.rows.length > 0)
+                            branch_id = fetchB.rows[0].id;
+                    }
+                    if (branch_id)
+                        branchMap[cleanBName.toLowerCase()] = branch_id;
                 }
-                if (branch_id)
-                    branchMap[cleanBName.toLowerCase()] = branch_id;
+                catch (bErr) {
+                    console.error('Branch auto-create error:', bErr);
+                }
             }
-            catch (bErr) {
-                console.error('Branch auto-create error:', bErr);
+            // Resolve or auto-create department
+            let department_id = emp.department_name ? deptMap[emp.department_name.trim().toLowerCase()] || null : null;
+            if (!department_id && emp.department_name && emp.department_name.trim()) {
+                const cleanDName = emp.department_name.trim();
+                try {
+                    const dRes = await (0, db_1.query)(`INSERT INTO hrms.departments (company_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`, [companyId, cleanDName]);
+                    if (dRes.rows.length > 0) {
+                        department_id = dRes.rows[0].id;
+                    }
+                    else {
+                        const fetchD = await (0, db_1.query)(`SELECT id FROM hrms.departments WHERE company_id = $1 AND LOWER(name) = LOWER($2)`, [companyId, cleanDName]);
+                        if (fetchD.rows.length > 0)
+                            department_id = fetchD.rows[0].id;
+                    }
+                    if (department_id)
+                        deptMap[cleanDName.toLowerCase()] = department_id;
+                }
+                catch (dErr) {
+                    console.error('Department auto-create error:', dErr);
+                }
             }
-        }
-        // Resolve or auto-create department
-        let department_id = emp.department_name ? deptMap[emp.department_name.trim().toLowerCase()] || null : null;
-        if (!department_id && emp.department_name && emp.department_name.trim()) {
-            const cleanDName = emp.department_name.trim();
+            // Resolve or auto-create designation
+            let designation_id = emp.designation_name ? desigMap[emp.designation_name.trim().toLowerCase()] || null : null;
+            if (!designation_id && emp.designation_name && emp.designation_name.trim()) {
+                const cleanDesName = emp.designation_name.trim();
+                try {
+                    const desRes = await (0, db_1.query)(`INSERT INTO hrms.designations (company_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`, [companyId, cleanDesName]);
+                    if (desRes.rows.length > 0) {
+                        designation_id = desRes.rows[0].id;
+                    }
+                    else {
+                        const fetchDes = await (0, db_1.query)(`SELECT id FROM hrms.designations WHERE company_id = $1 AND LOWER(name) = LOWER($2)`, [companyId, cleanDesName]);
+                        if (fetchDes.rows.length > 0)
+                            designation_id = fetchDes.rows[0].id;
+                    }
+                    if (designation_id)
+                        desigMap[cleanDesName.toLowerCase()] = designation_id;
+                }
+                catch (desErr) {
+                    console.error('Designation auto-create error:', desErr);
+                }
+            }
+            const role_id = emp.role_name ? roleMap[emp.role_name.trim().toLowerCase()] || null : null;
+            const shift_id = emp.shift_name ? shiftMap[emp.shift_name.trim().toLowerCase()] || null : null;
             try {
-                const dRes = await (0, db_1.query)(`INSERT INTO hrms.departments (company_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`, [companyId, cleanDName]);
-                if (dRes.rows.length > 0) {
-                    department_id = dRes.rows[0].id;
-                }
-                else {
-                    const fetchD = await (0, db_1.query)(`SELECT id FROM hrms.departments WHERE company_id = $1 AND LOWER(name) = LOWER($2)`, [companyId, cleanDName]);
-                    if (fetchD.rows.length > 0)
-                        department_id = fetchD.rows[0].id;
-                }
-                if (department_id)
-                    deptMap[cleanDName.toLowerCase()] = department_id;
-            }
-            catch (dErr) {
-                console.error('Department auto-create error:', dErr);
-            }
-        }
-        // Resolve or auto-create designation
-        let designation_id = emp.designation_name ? desigMap[emp.designation_name.trim().toLowerCase()] || null : null;
-        if (!designation_id && emp.designation_name && emp.designation_name.trim()) {
-            const cleanDesName = emp.designation_name.trim();
-            try {
-                const desRes = await (0, db_1.query)(`INSERT INTO hrms.designations (company_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id`, [companyId, cleanDesName]);
-                if (desRes.rows.length > 0) {
-                    designation_id = desRes.rows[0].id;
-                }
-                else {
-                    const fetchDes = await (0, db_1.query)(`SELECT id FROM hrms.designations WHERE company_id = $1 AND LOWER(name) = LOWER($2)`, [companyId, cleanDesName]);
-                    if (fetchDes.rows.length > 0)
-                        designation_id = fetchDes.rows[0].id;
-                }
-                if (designation_id)
-                    desigMap[cleanDesName.toLowerCase()] = designation_id;
-            }
-            catch (desErr) {
-                console.error('Designation auto-create error:', desErr);
-            }
-        }
-        const role_id = emp.role_name ? roleMap[emp.role_name.trim().toLowerCase()] || null : null;
-        const shift_id = emp.shift_name ? shiftMap[emp.shift_name.trim().toLowerCase()] || null : null;
-        try {
-            const result = await (0, db_1.query)(`INSERT INTO hrms.employees (
+                const result = await (0, db_1.query)(`INSERT INTO hrms.employees (
             company_id, role_id, branch_id, department_id, designation_id,
             emp_id_code, first_name, last_name, email, phone, status, joining_date,
             dob, gender, reporting_to_id, emp_image
@@ -1890,64 +1962,72 @@ app.post('/api/v1/employees/bulk', auth_1.authenticateToken, async (req, res) =>
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
             $13, $14, $15, $16
           ) RETURNING id, emp_id_code`, [
-                companyId,
-                role_id || null,
-                branch_id || null,
-                department_id || null,
-                designation_id || null,
-                empCode,
-                emp.first_name.trim(),
-                (emp.last_name || '').trim(),
-                empEmail,
-                emp.phone || null,
-                emp.status || 'ACTIVE',
-                joiningDate,
-                emp.dob || null,
-                emp.gender || null,
-                null, // reporting_to_id resolved separately if needed
-                null
-            ]);
-            const newEmp = result.rows[0];
-            // Auto-initialize documents record
-            await (0, db_1.query)(`INSERT INTO hrms.employee_documents (company_id, employee_id, documents)
+                    companyId,
+                    role_id || null,
+                    branch_id || null,
+                    department_id || null,
+                    designation_id || null,
+                    empCode,
+                    emp.first_name.trim(),
+                    (emp.last_name || '').trim(),
+                    empEmail,
+                    emp.phone || null,
+                    emp.status || 'ACTIVE',
+                    joiningDate,
+                    emp.dob || null,
+                    emp.gender || null,
+                    null, // reporting_to_id resolved separately if needed
+                    null
+                ]);
+                const newEmp = result.rows[0];
+                // Auto-initialize documents record
+                await (0, db_1.query)(`INSERT INTO hrms.employee_documents (company_id, employee_id, documents)
            VALUES ($1, $2, '[]'::jsonb) ON CONFLICT (employee_id) DO NOTHING`, [companyId, newEmp.id]);
-            // Assign shift if resolved
-            if (shift_id) {
-                await (0, db_1.query)(`INSERT INTO hrms.employee_shifts (employee_id, shift_id, effective_from)
+                // Assign shift if resolved
+                if (shift_id) {
+                    await (0, db_1.query)(`INSERT INTO hrms.employee_shifts (employee_id, shift_id, effective_from)
              VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [newEmp.id, shift_id, emp.joining_date]);
+                }
+                // Create Keycloak user with fixed default password '123' (awaited so we can report status)
+                const keycloakResult = await createKeycloakUser(empEmail, emp.first_name.trim(), (emp.last_name || '').trim(), '123');
+                results.push({
+                    row: rowNum,
+                    emp_id_code: newEmp.emp_id_code,
+                    status: 'success',
+                    keycloak_status: keycloakResult.success ? 'created' : 'failed',
+                    message: keycloakResult.success
+                        ? 'DB ✅ | Keycloak ✅ | Password: 123'
+                        : `DB ✅ | Keycloak ❌: ${keycloakResult.error || 'Account creation failed'}`,
+                });
             }
-            // Create Keycloak user with fixed default password '123' (awaited so we can report status)
-            const keycloakResult = await createKeycloakUser(empEmail, emp.first_name.trim(), (emp.last_name || '').trim(), '123');
-            results.push({
-                row: rowNum,
-                emp_id_code: newEmp.emp_id_code,
-                status: 'success',
-                keycloak_status: keycloakResult.success ? 'created' : 'failed',
-                message: keycloakResult.success
-                    ? 'DB ✅ | Keycloak ✅ | Password: 123'
-                    : `DB ✅ | Keycloak ❌: ${keycloakResult.error || 'Account creation failed'}`,
-            });
-        }
-        catch (insertErr) {
-            let errorMsg = 'Database error';
-            if (insertErr.code === '23505') {
-                errorMsg = insertErr.message.includes('email') ? 'Skipped: Email already exists' : 'Skipped: Employee code already exists';
+            catch (insertErr) {
+                let errorMsg = 'Database error';
+                if (insertErr.code === '23505') {
+                    errorMsg = insertErr.message.includes('email') ? 'Skipped: Email already exists' : 'Skipped: Employee code already exists';
+                }
+                results.push({ row: rowNum, emp_id_code: empCode || '—', status: 'error', message: errorMsg });
             }
-            results.push({ row: rowNum, emp_id_code: empCode || '—', status: 'error', message: errorMsg });
         }
+        const successCount = results.filter(r => r.status === 'success').length;
+        const errorCount = results.filter(r => r.status === 'error').length;
+        const keycloakFailCount = results.filter(r => r.status === 'success' && r.keycloak_status === 'failed').length;
+        enqueueActivityLog(companyId, req.user?.email || 'unknown', 'EMPLOYEE_BULK_IMPORT', 'employee', JSON.stringify({ total: employees.length, success: successCount, errors: errorCount }), (req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''), req.headers['user-agent'] || '');
+        return res.status(207).json({
+            message: `Bulk import complete. ${successCount} DB records saved (${keycloakFailCount} Keycloak account${keycloakFailCount !== 1 ? 's' : ''} failed), ${errorCount} rows skipped.`,
+            successCount,
+            errorCount,
+            keycloakFailCount,
+            results,
+        });
     }
-    const successCount = results.filter(r => r.status === 'success').length;
-    const errorCount = results.filter(r => r.status === 'error').length;
-    const keycloakFailCount = results.filter(r => r.status === 'success' && r.keycloak_status === 'failed').length;
-    enqueueActivityLog(companyId, req.user?.email || 'unknown', 'EMPLOYEE_BULK_IMPORT', 'employee', JSON.stringify({ total: employees.length, success: successCount, errors: errorCount }), (req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''), req.headers['user-agent'] || '');
-    return res.status(207).json({
-        message: `Bulk import complete. ${successCount} DB records saved (${keycloakFailCount} Keycloak account${keycloakFailCount !== 1 ? 's' : ''} failed), ${errorCount} rows skipped.`,
-        successCount,
-        errorCount,
-        keycloakFailCount,
-        results,
-    });
-});
+    catch (err) {
+        console.error('Error in bulk employee upload:', err);
+        return res.status(500).json({ error: 'Failed to process employee bulk upload' });
+    }
+};
+app.post('/api/v1/employees/bulk', auth_1.authenticateToken, bulkUploadMulter.single('file'), handleBulkEmployeeUpload);
+app.post('/api/v1/employees/upload', auth_1.authenticateToken, bulkUploadMulter.single('file'), handleBulkEmployeeUpload);
+app.post('/api/v1/employees/bulk-upload', auth_1.authenticateToken, bulkUploadMulter.single('file'), handleBulkEmployeeUpload);
 app.put('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
@@ -3671,6 +3751,19 @@ app.post('/api/v1/attendance/live-location', auth_1.authenticateToken, async (re
         }
         const emp = empRes.rows[0];
         const cid = companyId || emp.company_id;
+        // Verify employee is currently Punched IN for today
+        const todayStr = new Date().toISOString().split('T')[0];
+        const punchCheck = await (0, db_1.query)(`SELECT direction, punch_time FROM hrms.attendance_raw_punches 
+       WHERE employee_id = $1 AND punch_time::date = $2::date 
+       ORDER BY punch_time DESC, id DESC LIMIT 1`, [emp.id, todayStr]);
+        const lastPunch = punchCheck.rows[0];
+        const isPunchedIn = lastPunch && String(lastPunch.direction).toUpperCase() === 'IN';
+        if (!isPunchedIn) {
+            return res.status(400).json({
+                success: false,
+                error: 'Location tracking is only recorded when employee is Punched IN'
+            });
+        }
         const insertRes = await (0, db_1.query)(`INSERT INTO hrms.attendance_location_tracking 
        (company_id, employee_id, latitude, longitude, location_name, recorded_at)
        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
@@ -3689,6 +3782,8 @@ app.post('/api/v1/attendance/live-location', auth_1.authenticateToken, async (re
 app.get('/api/v1/attendance/live-tracking', auth_1.authenticateToken, async (req, res) => {
     try {
         const scopeCtx = await (0, auth_1.getEmployeeDataScope)(req, 'attendance', 'view_attendance_tracking');
+        const rawCompany = req.query.companyId || req.query.company_id;
+        const companyId = rawCompany !== undefined && rawCompany !== null ? (rawCompany === 'all' ? null : String(rawCompany)) : req.user?.companyId;
         const { startDate, endDate, employeeId } = req.query;
         const todayStr = new Date().toISOString().split('T')[0];
         const sDate = startDate ? String(startDate) : todayStr;
@@ -3698,8 +3793,13 @@ app.get('/api/v1/attendance/live-tracking', auth_1.authenticateToken, async (req
         let scopeCondition = scopeRes.whereSql ? ` AND (${scopeRes.whereSql})` : '';
         params.push(...scopeRes.params);
         let paramIdx = scopeRes.nextParamIdx;
+        if (companyId && companyId !== 'all') {
+            scopeCondition += ` AND (t.company_id::text = $${paramIdx} OR e.company_id::text = $${paramIdx})`;
+            params.push(String(companyId));
+            paramIdx++;
+        }
         if (employeeId && employeeId !== 'all') {
-            scopeCondition += ` AND t.employee_id = $${paramIdx}`;
+            scopeCondition += ` AND t.employee_id::text = $${paramIdx}`;
             params.push(String(employeeId));
             paramIdx++;
         }
@@ -3716,6 +3816,7 @@ app.get('/api/v1/attendance/live-tracking', auth_1.authenticateToken, async (req
         e.first_name,
         e.last_name,
         e.email,
+        e.emp_image,
         d.name as department_name
       FROM hrms.attendance_location_tracking t
       JOIN hrms.employees e ON e.id = t.employee_id

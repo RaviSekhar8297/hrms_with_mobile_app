@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, Pause, RotateCcw, FastForward, MapPin, Navigation, Clock, Route, Compass, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Play, Pause, RotateCcw, FastForward } from 'lucide-react';
 
 interface LocationLog {
   id: string;
@@ -9,16 +9,50 @@ interface LocationLog {
   longitude: number;
   location_name?: string | null;
   recorded_at: string;
+  emp_image?: string | null;
 }
 
 export interface LeafletMapProps {
   logs: LocationLog[];
   employeeName: string;
+  empImage?: string | null;
   selectedLogId?: string | null;
   onSelectLog?: (logId: string) => void;
 }
 
-export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelectLog }: LeafletMapProps) {
+const getFormattedAvatarUrl = (raw?: string | null): string | null => {
+  if (!raw || typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/9j/') || trimmed.startsWith('/9j4')) {
+    return `data:image/jpeg;base64,${trimmed}`;
+  }
+  if (trimmed.startsWith('iVBORw')) {
+    return `data:image/png;base64,${trimmed}`;
+  }
+  if (trimmed.startsWith('R0lGOD')) {
+    return `data:image/gif;base64,${trimmed}`;
+  }
+  if (trimmed.startsWith('PHN2Zw')) {
+    return `data:image/svg+xml;base64,${trimmed}`;
+  }
+  if (trimmed.startsWith('/uploads/')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('uploads/')) {
+    return `/${trimmed}`;
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  return `/uploads/${trimmed}`;
+};
+
+export function LeafletMapComponent({ logs, employeeName, empImage, selectedLogId, onSelectLog }: LeafletMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const movingMarkerRef = useRef<any>(null);
@@ -28,30 +62,22 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
   const animationRef = useRef<number | null>(null);
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [speed, setSpeed] = useState<number>(1); // 1x, 2x, 4x
+  const [speed, setSpeed] = useState<number>(1);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [activeLog, setActiveLog] = useState<LocationLog | null>(logs[0] || null);
 
   // Routing State
-  const [useRoadSnapping, setUseRoadSnapping] = useState<boolean>(true);
-  const [isFetchingRoute, setIsFetchingRoute] = useState<boolean>(false);
   const [roadRouteCoords, setRoadRouteCoords] = useState<[number, number][]>([]);
-  const [totalDistanceKm, setTotalDistanceKm] = useState<number | null>(null);
 
-  // Direct P2P coordinates as fallback
   const directCoords: [number, number][] = logs.map((l) => [l.latitude, l.longitude]);
 
-  // Sync active log when currentIndex changes
   useEffect(() => {
     if (logs && logs[currentIndex]) {
-      setActiveLog(logs[currentIndex]);
       if (onSelectLog && logs[currentIndex].id) {
         onSelectLog(logs[currentIndex].id);
       }
     }
   }, [currentIndex, logs, onSelectLog]);
 
-  // Sync with external selectedLogId if user clicks log item in list
   useEffect(() => {
     if (!selectedLogId || !logs.length) return;
     const idx = logs.findIndex((l) => l.id === selectedLogId);
@@ -65,15 +91,12 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
   useEffect(() => {
     if (!logs || logs.length < 2) {
       setRoadRouteCoords([]);
-      setTotalDistanceKm(null);
       return;
     }
 
     let isMounted = true;
     const fetchOSRMRoute = async () => {
-      setIsFetchingRoute(true);
       try {
-        // Build OSRM waypoint query string (longitude,latitude;longitude,latitude;...)
         const coordString = logs.map((l) => `${l.longitude},${l.latitude}`).join(';');
         const url = `https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson`;
 
@@ -83,26 +106,18 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
         const data = await res.json();
         if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
           const route = data.routes[0];
-          // OSRM returns GeoJSON coordinates: [longitude, latitude] -> convert to Leaflet [latitude, longitude]
           const mappedCoords: [number, number][] = route.geometry.coordinates.map(
             (c: [number, number]) => [c[1], c[0]]
           );
 
           if (isMounted) {
             setRoadRouteCoords(mappedCoords);
-            setTotalDistanceKm(Number((route.distance / 1000).toFixed(2)));
           }
-        } else {
-          throw new Error('OSRM routing returned non-Ok code');
         }
       } catch (err) {
-        console.warn('OSRM road routing fallback to direct lines:', err);
         if (isMounted) {
           setRoadRouteCoords([]);
-          setTotalDistanceKm(null);
         }
-      } finally {
-        if (isMounted) setIsFetchingRoute(false);
       }
     };
 
@@ -117,7 +132,6 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
   useEffect(() => {
     if (typeof window === 'undefined' || !mapContainerRef.current) return;
 
-    // Inject Leaflet CSS if missing
     if (!document.getElementById('leaflet-css')) {
       const link = document.createElement('link');
       link.id = 'leaflet-css';
@@ -126,15 +140,14 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
       document.head.appendChild(link);
     }
 
-    // Inject animation styles if missing
     if (!document.getElementById('leaflet-custom-styles')) {
       const style = document.createElement('style');
       style.id = 'leaflet-custom-styles';
       style.innerHTML = `
-        @keyframes pingPulse {
-          0% { transform: scale(0.8); opacity: 0.8; }
-          50% { transform: scale(1.6); opacity: 0.25; }
-          100% { transform: scale(0.8); opacity: 0.8; }
+        @keyframes avatarPingPulse {
+          0% { transform: scale(0.85); opacity: 0.8; }
+          50% { transform: scale(1.5); opacity: 0.2; }
+          100% { transform: scale(0.85); opacity: 0.8; }
         }
         @keyframes activeMarkerGlow {
           0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
@@ -153,7 +166,6 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
       const L = (window as any).L;
       if (!L || !mapContainerRef.current) return;
 
-      // Clean up previous map instance
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -169,13 +181,11 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
 
       mapInstanceRef.current = map;
 
-      // CartoDB Voyager Tile Layer
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        subdomains: 'abcd'
+        attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      // Recalculate bounds after modal transition
       setTimeout(() => {
         if (mapInstanceRef.current) {
           mapInstanceRef.current.invalidateSize();
@@ -196,7 +206,6 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
           hour12: true
         });
 
-        // Color coding: Start (Green), Last (Red), Intermediate (Blue)
         const bgGradient = isFirst
           ? 'linear-gradient(135deg, #10B981, #059669)'
           : isLast
@@ -208,9 +217,9 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
             position: relative;
             background: ${bgGradient};
             color: white;
-            min-width: 26px;
-            height: 26px;
-            padding: 0 6px;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 5px;
             border-radius: 9999px;
             display: flex;
             align-items: center;
@@ -220,7 +229,6 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
             border: 2px solid white;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             font-family: system-ui, -apple-system, sans-serif;
-            letter-spacing: -0.5px;
           ">
             <span>${idx + 1}</span>
             ${isFirst ? '<span style="font-size: 8px; margin-left: 2px; text-transform: uppercase;">START</span>' : ''}
@@ -231,17 +239,17 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
         const customIcon = L.divIcon({
           className: `leaflet-ping-icon ${idx === currentIndex ? 'leaflet-active-ping' : ''}`,
           html: pinHtml,
-          iconSize: [isFirst || isLast ? 58 : 28, 28],
-          iconAnchor: [isFirst || isLast ? 29 : 14, 14]
+          iconSize: [isFirst || isLast ? 54 : 26, 26],
+          iconAnchor: [isFirst || isLast ? 27 : 13, 13]
         });
 
         const popupHtml = `
-          <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px 6px; min-width: 170px;">
+          <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px 6px; min-width: 160px;">
             <div style="font-weight: 900; font-size: 12px; color: #0f172a; margin-bottom: 2px;">
               ${employeeName}
             </div>
             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #475569; font-weight: 700; margin-bottom: 4px;">
-              <span>${isFirst ? '🟢 Start Punch (#1)' : isLast ? `🔴 Final Ping (#${idx + 1})` : `📍 Ping #${idx + 1}`}</span>
+              <span>${isFirst ? '🟢 Start Punch' : isLast ? '🔴 Final Ping' : `📍 Ping #${idx + 1}`}</span>
               <span style="color: #2563eb; font-weight: 800;">${timeStr}</span>
             </div>
             <div style="font-size: 10.5px; color: #334155; line-height: 1.35; font-weight: 600; background: #f8fafc; padding: 6px 8px; border-radius: 8px; border: 1px solid #e2e8f0;">
@@ -259,68 +267,70 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
         });
       });
 
-      // Select active polyline coords: Road Route if available & enabled, else Direct
-      const activeCoords =
-        useRoadSnapping && roadRouteCoords.length > 0 ? roadRouteCoords : directCoords;
+      const activeCoords = roadRouteCoords.length > 0 ? roadRouteCoords : directCoords;
 
       if (activeCoords.length > 1) {
-        // Glowing Background Polyline
         polylineGlowRef.current = L.polyline(activeCoords, {
           color: '#6366F1',
-          weight: 7,
+          weight: 6,
           opacity: 0.35,
           lineCap: 'round',
           lineJoin: 'round'
         }).addTo(map);
 
-        // Foreground Polyline
         polylineRef.current = L.polyline(activeCoords, {
-          color: useRoadSnapping && roadRouteCoords.length > 0 ? '#2563EB' : '#4F46E5',
+          color: '#2563EB',
           weight: 4,
           opacity: 0.9,
-          dashArray: useRoadSnapping && roadRouteCoords.length > 0 ? undefined : '8, 8',
           lineCap: 'round',
           lineJoin: 'round'
         }).addTo(map);
 
-        map.fitBounds(polylineRef.current.getBounds(), { padding: [45, 45] });
+        map.fitBounds(polylineRef.current.getBounds(), { padding: [35, 35] });
       }
 
-      // Animated Moving Tracker Avatar
+      // 2 & 4. Animated Employee Circular Avatar Marker (Moving on Play Route)
       const initialPos = activeCoords[0] || [firstLog.latitude, firstLog.longitude];
+      const rawAvatarSrc = empImage || firstLog.emp_image || null;
+      const avatarSrc = getFormattedAvatarUrl(rawAvatarSrc);
+      const initialLetter = employeeName.charAt(0).toUpperCase();
+
       const movingHtml = `
-        <div style="position: relative; width: 38px; height: 38px;">
+        <div style="position: relative; width: 48px; height: 48px;">
           <div style="
             position: absolute;
-            inset: 0;
+            inset: -4px;
             border-radius: 50%;
-            background: rgba(37, 99, 235, 0.4);
-            animation: pingPulse 1.8s infinite ease-in-out;
+            background: rgba(16, 185, 129, 0.45);
+            animation: avatarPingPulse 1.8s infinite ease-in-out;
           "></div>
           <div style="
             position: absolute;
-            inset: 3px;
-            background: linear-gradient(135deg, #1d4ed8, #7c3aed);
-            border: 2.5px solid white;
+            inset: 0;
+            background: white;
+            border: 3px solid #10B981;
             border-radius: 50%;
-            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.6);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
           ">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-            </svg>
+            ${avatarSrc ? `
+              <img src="${avatarSrc}" alt="${employeeName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onError="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+              <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #2563EB, #4F46E5); color: white; font-weight: 900; font-size: 18px; align-items: center; justify-content: center; font-family: system-ui, sans-serif;">${initialLetter}</div>
+            ` : `
+              <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #2563EB, #4F46E5); color: white; font-weight: 900; font-size: 18px; display: flex; align-items: center; justify-content: center; font-family: system-ui, sans-serif;">${initialLetter}</div>
+            `}
           </div>
         </div>
       `;
 
       const movingIcon = L.divIcon({
-        className: 'moving-tracker-marker',
+        className: 'moving-avatar-marker',
         html: movingHtml,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19]
+        iconSize: [48, 48],
+        iconAnchor: [24, 24]
       });
 
       movingMarkerRef.current = L.marker(initialPos, { icon: movingIcon, zIndexOffset: 1000 }).addTo(map);
@@ -334,7 +344,7 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
       script.onload = () => initMap();
       document.body.appendChild(script);
     }
-  }, [logs, employeeName, useRoadSnapping, roadRouteCoords]);
+  }, [logs, employeeName, empImage, roadRouteCoords]);
 
   // Update moving marker position when currentIndex changes
   useEffect(() => {
@@ -347,7 +357,7 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
     }
   }, [currentIndex, logs]);
 
-  // Animated Playback Loop across pings
+  // Animated Playback Loop
   useEffect(() => {
     if (!isPlaying) {
       if (animationRef.current) {
@@ -366,10 +376,8 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
     const fromLog = logs[currentIndex];
     const toLog = logs[currentIndex + 1];
 
-    // Determine sub-path for segment if road route is active
     let segmentCoords: [number, number][] = [];
-    if (useRoadSnapping && roadRouteCoords.length > 0) {
-      // Find nearest indices in roadRouteCoords to fromLog and toLog
+    if (roadRouteCoords.length > 0) {
       let fromIdx = 0;
       let toIdx = roadRouteCoords.length - 1;
       let minFromDist = Infinity;
@@ -402,14 +410,12 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
       ];
     }
 
-    // Step duration based on speed multiplier
     const stepDuration = 1600 / speed;
 
     const animateSegment = (timestamp: number) => {
       if (!startTimestamp) startTimestamp = timestamp;
       const progress = Math.min((timestamp - startTimestamp) / stepDuration, 1);
 
-      // Interpolate along segmentCoords
       const totalPoints = segmentCoords.length;
       const pointProgress = progress * (totalPoints - 1);
       const baseIdx = Math.floor(pointProgress);
@@ -443,7 +449,7 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying, currentIndex, speed, logs, useRoadSnapping, roadRouteCoords]);
+  }, [isPlaying, currentIndex, speed, logs, roadRouteCoords]);
 
   const handleReset = () => {
     setIsPlaying(false);
@@ -457,86 +463,26 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
   return (
     <div className="relative w-full rounded-2xl overflow-hidden shadow-inner border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
       {/* Map Container */}
-      <div ref={mapContainerRef} className="w-full h-[390px] md:h-[440px] z-10" />
+      <div ref={mapContainerRef} className="w-full h-[380px] md:h-[420px] z-10" />
 
-      {/* Floating Dynamic Header with Location & Route Info */}
-      {activeLog && (
-        <div className="absolute top-3 left-3 right-3 z-[400] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-3 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-md flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
-              {currentIndex + 1}
-            </div>
-            <div className="truncate">
-              <div className="flex items-center gap-2">
-                <span className="font-black text-slate-900 dark:text-white truncate text-xs">
-                  {activeLog.location_name || `${activeLog.latitude.toFixed(5)}, ${activeLog.longitude.toFixed(5)}`}
-                </span>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                  Ping #{currentIndex + 1} of {logs.length}
-                </span>
-              </div>
-              <p className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
-                <Clock className="w-3 h-3 text-slate-400" />
-                <span>
-                  Recorded at{' '}
-                  <strong className="text-slate-700 dark:text-slate-200 font-bold">
-                    {new Date(activeLog.recorded_at).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                      hour12: true
-                    })}
-                  </strong>
-                </span>
-              </p>
-            </div>
-          </div>
-
-          {/* Route distance & Snapping toggle badge */}
-          <div className="flex items-center gap-2 shrink-0">
-            {totalDistanceKm !== null && useRoadSnapping && (
-              <div className="flex items-center gap-1 text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 px-2.5 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                <Route className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{totalDistanceKm} KM Road Route</span>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setUseRoadSnapping(!useRoadSnapping)}
-              title="Toggle between Road Routing (OSRM) and Direct Lines"
-              className={`px-2.5 py-1 rounded-xl text-[10.5px] font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                useRoadSnapping
-                  ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              <Compass className="w-3.5 h-3.5" />
-              <span>{useRoadSnapping ? 'Road Snap: ON' : 'Direct Lines'}</span>
-              {isFetchingRoute && <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping ml-1" />}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Bottom Toolbar */}
-      <div className="absolute bottom-3 left-3 right-3 z-[400] bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl border border-slate-700/60 shadow-xl flex flex-wrap items-center justify-between gap-3 text-white">
-        {/* Play/Pause & Actions */}
-        <div className="flex items-center gap-2">
+      {/* Sleek Low-Height Floating Bottom Toolbar */}
+      <div className="absolute bottom-2.5 left-2.5 right-2.5 z-[400] bg-slate-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 shadow-lg flex items-center justify-between gap-3 text-white text-xs">
+        {/* Play/Pause & Speed */}
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setIsPlaying(!isPlaying)}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all text-xs font-black text-white shadow-md cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all text-xs font-bold text-white shadow-xs cursor-pointer"
           >
             {isPlaying ? (
               <>
                 <Pause className="w-3.5 h-3.5" />
-                <span>Pause Movement</span>
+                <span>Pause</span>
               </>
             ) : (
               <>
                 <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Play Live Route</span>
+                <span>Play Route</span>
               </>
             )}
           </button>
@@ -545,25 +491,24 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
             type="button"
             onClick={handleReset}
             title="Reset to start"
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all text-slate-300 hover:text-white cursor-pointer"
+            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
 
           <button
             type="button"
             onClick={handleSpeedToggle}
             title="Toggle playback speed"
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all text-xs font-extrabold text-blue-400 cursor-pointer flex items-center gap-1"
+            className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-blue-400 cursor-pointer"
           >
-            <FastForward className="w-3.5 h-3.5" />
-            <span>{speed}x</span>
+            {speed}x
           </button>
         </div>
 
         {/* Timeline Slider */}
-        <div className="flex-1 min-w-[180px] flex items-center gap-3">
-          <span className="text-[11px] font-black text-slate-400 shrink-0">
+        <div className="flex-1 min-w-[140px] flex items-center gap-2">
+          <span className="text-[10.5px] font-bold text-slate-400 shrink-0 font-mono">
             {currentIndex + 1} / {logs.length}
           </span>
           <input
@@ -575,13 +520,8 @@ export function LeafletMapComponent({ logs, employeeName, selectedLogId, onSelec
               setIsPlaying(false);
               setCurrentIndex(Number(e.target.value));
             }}
-            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
           />
-        </div>
-
-        <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-1 rounded-xl">
-          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-          <span>Numbered Waypoints Active</span>
         </div>
       </div>
     </div>

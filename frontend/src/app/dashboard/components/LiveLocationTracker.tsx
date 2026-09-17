@@ -16,6 +16,19 @@ export default function LiveLocationTracker() {
         const token = localStorage.getItem('access_token');
         if (!token) return;
 
+        // Verify employee is currently Punched IN today
+        const todayStr = new Date().toISOString().split('T')[0];
+        const punchRes = await fetch(`/api/v1/attendance/punches?start_date=${todayStr}&end_date=${todayStr}&scope=SELF`, {
+          headers: getHeaders()
+        });
+        if (!punchRes.ok) return;
+        const punchData = await punchRes.json();
+        const punchesList = Array.isArray(punchData?.data) ? punchData.data : Array.isArray(punchData?.punches) ? punchData.punches : [];
+        if (punchesList.length === 0) return; // No punch today
+        const lastPunch = punchesList[0];
+        const isIN = lastPunch.direction === 'IN' || lastPunch.punch_type === 'IN';
+        if (!isIN) return; // Punched OUT or Not Punched IN today
+
         navigator.geolocation.getCurrentPosition(
           async (position) => {
             const { latitude, longitude } = position.coords;

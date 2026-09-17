@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { useDashboard } from '../../components/DashboardContext';
 import { getHeaders } from '../../utils/api';
@@ -9,7 +10,6 @@ import {
   MapPin,
   Search,
   Calendar,
-  Building2,
   ChevronRight,
   X,
   RefreshCw,
@@ -42,6 +42,7 @@ interface LocationLog {
   first_name?: string;
   last_name?: string;
   email?: string;
+  emp_image?: string | null;
   department_name?: string;
 }
 
@@ -51,6 +52,7 @@ interface EmployeeGroup {
   code: string;
   email: string;
   department: string;
+  empImage?: string | null;
   initialPunchTime: string;
   initialLocation: string;
   lastActiveTime: string;
@@ -59,9 +61,43 @@ interface EmployeeGroup {
   logs: LocationLog[];
 }
 
+const getAvatarUrl = (raw?: string | null): string | null => {
+  if (!raw || typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/9j/') || trimmed.startsWith('/9j4')) {
+    return `data:image/jpeg;base64,${trimmed}`;
+  }
+  if (trimmed.startsWith('iVBORw')) {
+    return `data:image/png;base64,${trimmed}`;
+  }
+  if (trimmed.startsWith('R0lGOD')) {
+    return `data:image/gif;base64,${trimmed}`;
+  }
+  if (trimmed.startsWith('PHN2Zw')) {
+    return `data:image/svg+xml;base64,${trimmed}`;
+  }
+  if (trimmed.startsWith('/uploads/')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('uploads/')) {
+    return `/${trimmed}`;
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  return `/uploads/${trimmed}`;
+};
+
 export default function LiveTrackingPage() {
-  const { showToast } = useDashboard();
+  const { showToast, companyId, companyId: ctxCompanyId } = useDashboard();
   const { isSuperAdmin } = usePermissions();
+
+  const activeCompanyId = companyId || ctxCompanyId || (typeof window !== 'undefined' ? localStorage.getItem('companyId') : null);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -73,10 +109,12 @@ export default function LiveTrackingPage() {
   const [modalEmployee, setModalEmployee] = useState<EmployeeGroup | null>(null);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
 
+  // 1. Fetch tracking logs with companyId filter from header dropdown
   const fetchTrackingLogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/attendance/live-tracking?startDate=${selectedDate}&endDate=${selectedDate}`, {
+      const compParam = activeCompanyId && activeCompanyId !== 'all' ? `&companyId=${activeCompanyId}` : '';
+      const res = await fetch(`/api/v1/attendance/live-tracking?startDate=${selectedDate}&endDate=${selectedDate}${compParam}`, {
         headers: getHeaders()
       });
       if (res.ok) {
@@ -95,7 +133,7 @@ export default function LiveTrackingPage() {
 
   useEffect(() => {
     fetchTrackingLogs();
-  }, [selectedDate]);
+  }, [selectedDate, activeCompanyId]);
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -107,6 +145,18 @@ export default function LiveTrackingPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // 3. Hide body overflow when popup is open so header & sidebar are covered
+  useEffect(() => {
+    if (modalEmployee) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [modalEmployee]);
 
   // Group logs by Employee
   const employeeGroups = useMemo(() => {
@@ -120,7 +170,6 @@ export default function LiveTrackingPage() {
 
     const groups: EmployeeGroup[] = [];
     map.forEach((empLogs, empId) => {
-      // Sort chronologically
       empLogs.sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
 
       const firstLog = empLogs[0];
@@ -129,6 +178,7 @@ export default function LiveTrackingPage() {
       const empName = `${firstLog.first_name || ''} ${firstLog.last_name || ''}`.trim() || 'Employee';
       const empCode = firstLog.emp_id_code || empId.slice(0, 6);
       const dept = firstLog.department_name || 'Field Ops';
+      const formattedImg = getAvatarUrl(firstLog.emp_image);
 
       groups.push({
         employee_id: empId,
@@ -136,6 +186,7 @@ export default function LiveTrackingPage() {
         code: empCode,
         email: firstLog.email || '',
         department: dept,
+        empImage: formattedImg,
         initialPunchTime: new Date(firstLog.recorded_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
         initialLocation: firstLog.location_name || `${firstLog.latitude.toFixed(4)}, ${firstLog.longitude.toFixed(4)}`,
         lastActiveTime: new Date(lastLog.recorded_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
@@ -148,7 +199,6 @@ export default function LiveTrackingPage() {
     return groups;
   }, [logs]);
 
-  // Filter groups by search query
   const filteredGroups = useMemo(() => {
     return employeeGroups.filter((g) => {
       const q = searchQuery.toLowerCase().trim();
@@ -164,8 +214,8 @@ export default function LiveTrackingPage() {
   };
 
   return (
-    <div className="p-2 md:p-3 space-y-2 max-w-[1600px] mx-auto font-sans">
-      {/* 1. Top Header Card (Light theme, ONLY Title + Search & Controls, NO description content) */}
+    <div className="space-y-4 animate-fadeIn w-full font-sans">
+      {/* 1. Top Header Card */}
       <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center font-black">
@@ -251,9 +301,13 @@ export default function LiveTrackingPage() {
                   {/* Header Row */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0">
-                        {initial}
-                      </div>
+                      {group.empImage ? (
+                        <img src={group.empImage} alt={group.name} className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-xs shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0">
+                          {initial}
+                        </div>
+                      )}
                       <div className="truncate">
                         <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                           {group.name}
@@ -271,7 +325,7 @@ export default function LiveTrackingPage() {
                     </span>
                   </div>
 
-                  {/* Punch & Active Times (ONLY English Time - NO Address!) */}
+                  {/* Punch & Active Times */}
                   <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-700/60 grid grid-cols-2 gap-2 text-[11px] font-bold">
                     <div className="space-y-0.5">
                       <span className="text-[9.5px] text-slate-400 uppercase tracking-wider block">First Punch</span>
@@ -307,19 +361,30 @@ export default function LiveTrackingPage() {
         </div>
       )}
 
-      {/* POPUP MODAL DIALOG: LIVE TRACKING & ANIMATED ROUTE */}
-      {modalEmployee && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+      {/* 3. POPUP MODAL DIALOG: FULL SCREEN OVERLAY COVERING SIDEBAR AND HEADER VIA REACT PORTAL */}
+      {modalEmployee && typeof window !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-5 bg-slate-950/95 backdrop-blur-md animate-in fade-in duration-150 overflow-y-auto w-screen h-screen">
           <div
-            className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto animate-in zoom-in-95 duration-150"
+            className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[94vh] my-auto animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header (Clean Light Theme) */}
-            <div className="p-4 sm:p-5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white flex items-center justify-between border-b border-slate-200 dark:border-slate-800 shrink-0">
+            {/* Modal Header */}
+            <div className="p-3.5 sm:p-4 bg-white dark:bg-slate-900 text-slate-900 dark:text-white flex items-center justify-between border-b border-slate-200 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-base flex items-center justify-center shadow-xs shrink-0">
-                  {modalEmployee.name.charAt(0).toUpperCase()}
-                </div>
+                {modalEmployee.empImage ? (
+                  <img
+                    src={modalEmployee.empImage}
+                    alt={modalEmployee.name}
+                    className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-xs shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-base flex items-center justify-center shadow-xs shrink-0">
+                    {modalEmployee.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="truncate">
                   <div className="flex items-center gap-2">
                     <h3 className="text-base font-black tracking-tight uppercase truncate">
@@ -345,44 +410,47 @@ export default function LiveTrackingPage() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
+            <div className="p-3.5 sm:p-4 overflow-y-auto space-y-3">
               {/* Quick Times Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold">
-                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">First Punch Time</span>
-                  <p className="text-slate-900 dark:text-slate-100 font-extrabold text-sm mt-0.5">{modalEmployee.initialPunchTime}</p>
-                  <span className="text-[10.5px] font-medium text-slate-500 truncate block mt-0.5">{modalEmployee.initialLocation}</span>
-                </div>
-
-                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Last Active Time</span>
-                  <p className="text-blue-600 dark:text-blue-400 font-extrabold text-sm mt-0.5">{modalEmployee.lastActiveTime}</p>
-                  <span className="text-[10.5px] font-medium text-slate-500 truncate block mt-0.5">{modalEmployee.lastLocation}</span>
-                </div>
-
-                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-bold">
+                <div className="bg-slate-50 dark:bg-slate-800/60 py-2 px-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Tracking Date</span>
-                    <p className="text-slate-900 dark:text-slate-100 font-extrabold text-sm mt-0.5">{selectedDate}</p>
+                    <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 block">First Punch Time</span>
+                    <p className="text-slate-900 dark:text-slate-100 font-extrabold text-xs mt-0.5">{modalEmployee.initialPunchTime}</p>
                   </div>
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black">
-                    <Calendar className="w-4 h-4" />
+                  <Clock className="w-4 h-4 text-emerald-500 shrink-0" />
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/60 py-2 px-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
+                  <div>
+                    <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 block">Last Active Time</span>
+                    <p className="text-blue-600 dark:text-blue-400 font-extrabold text-xs mt-0.5">{modalEmployee.lastActiveTime}</p>
                   </div>
+                  <Clock className="w-4 h-4 text-blue-500 shrink-0" />
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/60 py-2 px-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
+                  <div>
+                    <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 block">Tracking Date</span>
+                    <p className="text-slate-900 dark:text-slate-100 font-extrabold text-xs mt-0.5">{selectedDate}</p>
+                  </div>
+                  <Calendar className="w-4 h-4 text-indigo-500 shrink-0" />
                 </div>
               </div>
 
-              {/* Animated Leaflet Map Container */}
+              {/* 2 & 4. Animated Leaflet Map Container */}
               <div className="rounded-xl overflow-hidden shadow-xs">
                 <LeafletMapComponent
                   logs={modalEmployee.logs}
                   employeeName={modalEmployee.name}
+                  empImage={modalEmployee.empImage}
                   selectedLogId={selectedLogId}
                   onSelectLog={(id: string) => setSelectedLogId(id)}
                 />
               </div>
 
               {/* Ping History Log Table / Timeline */}
-              <div className="bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+              <div className="bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
                     <Clock className="w-4 h-4 text-blue-500" />
@@ -391,7 +459,7 @@ export default function LiveTrackingPage() {
                   <span className="text-[10.5px] font-semibold text-slate-400">Click any row to jump on map</span>
                 </div>
 
-                <div className="max-h-[180px] overflow-y-auto space-y-2 pr-1 no-scrollbar">
+                <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
                   {modalEmployee.logs.map((log, idx) => {
                     const isSelected = selectedLogId === log.id;
                     const timeStr = new Date(log.recorded_at).toLocaleTimeString('en-IN', {
@@ -405,7 +473,7 @@ export default function LiveTrackingPage() {
                       <div
                         key={log.id}
                         onClick={() => setSelectedLogId(log.id)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                        className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-blue-50 dark:bg-blue-950/70 border-blue-500 ring-1 ring-blue-500 text-blue-950 dark:text-blue-100 font-bold'
                             : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -442,18 +510,19 @@ export default function LiveTrackingPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs font-bold shrink-0">
+            <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs font-bold shrink-0">
               <span className="text-slate-400">Press ESC or click close to exit map</span>
               <button
                 type="button"
                 onClick={() => setModalEmployee(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold transition-all cursor-pointer"
+                className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold transition-all cursor-pointer"
               >
                 Close Tracking Popup
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

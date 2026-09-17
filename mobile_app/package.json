@@ -1,0 +1,36 @@
+{
+  "name": "hrms-mobile-app",
+  "version": "1.0.0",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "EXPO_NO_DEV_TOOLS=1 ELECTRON_DISABLE_SANDBOX=1 expo start --port 8088",
+    "tunnel": "EXPO_NO_DEV_TOOLS=1 ELECTRON_DISABLE_SANDBOX=1 expo start --tunnel --port 8088",
+    "android": "expo start --android --port 8088",
+    "ios": "expo start --ios --port 8088",
+    "web": "expo start --web --port 8088"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "axios": "^1.7.2",
+    "buffer": "^6.0.3",
+    "expo": "~52.0.37",
+    "expo-asset": "~11.0.5",
+    "expo-linear-gradient": "~14.0.2",
+    "expo-location": "~18.0.7",
+    "expo-splash-screen": "~0.29.24",
+    "expo-status-bar": "~2.0.1",
+    "expo-system-ui": "~4.0.9",
+    "expo-updates": "~0.27.5",
+    "lucide-react-native": "^0.395.0",
+    "react": "18.3.1",
+    "react-native": "0.76.9",
+    "react-native-svg": "15.8.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@expo/ngrok": "^4.1.3",
+    "@types/react": "~18.3.12",
+    "typescript": "^5.3.3"
+  },
+  "private": true
+}
