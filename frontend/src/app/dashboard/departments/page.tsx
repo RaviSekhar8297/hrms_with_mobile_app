@@ -7,13 +7,14 @@ import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface Company {
   id: string;
   name: string;
-  subdomain: string;
-  status: string;
-  created_at: string;
+  subdomain?: string;
+  status?: string;
+  created_at?: string;
 }
 
 interface Branch {
@@ -37,6 +38,7 @@ interface Department {
 
 export default function DepartmentsPage() {
   const { showToast, companyId, setCompanyId } = useDashboard();
+  const { hasPermission } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -54,16 +56,17 @@ export default function DepartmentsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [deletingDepartment, setDeletingDepartment] = useState<Department | null>(null);
 
   // Form states
   const [deptForm, setDeptForm] = useState({ name: '', description: '', branch_id: '', companyId: '', status: 'ACTIVE' });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || permissions.includes('view_departments');
-  const canCreate = isSuperAdmin || permissions.includes('create_departments');
-  const canEdit = isSuperAdmin || permissions.includes('edit_departments');
-  const canDelete = isSuperAdmin || permissions.includes('delete_departments');
+  const canView = isSuperAdmin || hasPermission('view_departments');
+  const canCreate = isSuperAdmin || hasPermission('create_departments');
+  const canEdit = isSuperAdmin || hasPermission('edit_departments');
+  const canDelete = isSuperAdmin || hasPermission('delete_departments');
 
   const filteredDepartments = departments.filter(d => 
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -168,11 +171,35 @@ export default function DepartmentsPage() {
       return;
     }
 
-    if (!deptForm.name || !deptForm.description || !deptForm.branch_id) {
-      showToast('Office Branch, Department Name, and Description are required', 'error');
+    if (!deptForm.branch_id) {
+      showToast('Office Branch is required', 'error');
       return;
     }
 
+    if (!deptForm.name.trim()) {
+      showToast('Department Name is required', 'error');
+      return;
+    }
+
+    if (deptForm.name.trim().length > 50) {
+      showToast('Department Name cannot exceed 50 characters', 'error');
+      return;
+    }
+
+    // Duplicate check within branch/company
+    const cleanName = deptForm.name.trim().toLowerCase();
+    const isDuplicate = departments.some(d => 
+      d.id !== selectedDepartmentId &&
+      d.name.trim().toLowerCase() === cleanName &&
+      String(d.branch_id) === String(deptForm.branch_id) &&
+      (targetCompanyId && targetCompanyId !== 'all' ? String(d.company_id) === String(targetCompanyId) : true)
+    );
+    if (isDuplicate) {
+      showToast(`A department with the name "${deptForm.name.trim()}" already exists in this branch`, 'error');
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const url = editMode 
         ? `/api/v1/departments/${selectedDepartmentId}`
@@ -203,6 +230,8 @@ export default function DepartmentsPage() {
       }
     } catch (err) {
       showToast('Failed to save department', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -345,23 +374,31 @@ export default function DepartmentsPage() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              Department Name
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                Department Name *
+              </label>
+              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                {deptForm.name.length}/50
+              </span>
+            </div>
             <input
-              type="text" placeholder="e.g. Engineering"
+              type="text"
+              placeholder="e.g. Engineering"
+              maxLength={50}
               value={deptForm.name}
-              onChange={e => setDeptForm({ ...deptForm, name: e.target.value })}
+              onChange={e => setDeptForm({ ...deptForm, name: e.target.value.slice(0, 50) })}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-450 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 transition-all duration-200"
             />
           </div>
 
           <div>
             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              Description
+              Description <span className="text-slate-400 lowercase text-[10px] font-normal">(optional)</span>
             </label>
             <input
-              type="text" placeholder="e.g. Tech & Development"
+              type="text"
+              placeholder="e.g. Tech & Development"
               value={deptForm.description}
               onChange={e => setDeptForm({ ...deptForm, description: e.target.value })}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-450 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 transition-all duration-200"
@@ -384,8 +421,18 @@ export default function DepartmentsPage() {
             </div>
           )}
 
-          <button type="submit" className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-sm transition-all duration-200 cursor-pointer">
-            {editMode ? 'Save Department changes' : 'Create Department'}
+          <button 
+            type="submit" 
+            disabled={isSaving}
+            className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isSaving && (
+              <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            )}
+            {isSaving ? (editMode ? 'Saving changes...' : 'Creating...') : (editMode ? 'Save Department changes' : 'Create Department')}
           </button>
         </form>
       </SlideDrawer>

@@ -8,9 +8,10 @@ interface SlideDrawerProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  width?: string;
 }
 
-export default function SlideDrawer({ isOpen, onClose, title, children }: SlideDrawerProps) {
+export default function SlideDrawer({ isOpen, onClose, title, children, width }: SlideDrawerProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function SlideDrawer({ isOpen, onClose, title, children }: SlideD
       />
 
       {/* Drawer Panel content */}
-      <aside className="relative w-full max-w-[480px] h-full bg-white dark:bg-slate-900 border-l border-slate-200/80 dark:border-slate-800 shadow-[0_0_60px_rgba(0,0,0,0.3)] dark:shadow-[0_0_80px_rgba(0,0,0,0.7)] z-[1000000] flex flex-col justify-between animate-slideIn">
+      <aside className={`relative w-full ${width || 'max-w-[480px]'} h-full bg-white dark:bg-slate-900 border-l border-slate-200/80 dark:border-slate-800 shadow-[0_0_60px_rgba(0,0,0,0.3)] dark:shadow-[0_0_80px_rgba(0,0,0,0.7)] z-[1000000] flex flex-col justify-between animate-slideIn`}>
         {/* Decorative branding left gradient bar */}
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-600 via-indigo-600 to-violet-600" />
 

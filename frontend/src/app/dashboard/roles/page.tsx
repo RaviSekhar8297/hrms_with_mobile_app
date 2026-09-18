@@ -41,7 +41,7 @@ export default function RolesPage() {
   const [tenantRoles, setTenantRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
 
@@ -58,6 +58,8 @@ export default function RolesPage() {
   // New Role Form & Edit Role Form
   const [roleForm, setRoleForm] = useState({ name: '', description: '' });
   const [editRoleDrawerOpen, setEditRoleDrawerOpen] = useState(false);
+  const [isCreatingRole, setIsCreatingRole] = useState(false);
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [editRoleForm, setEditRoleForm] = useState({ name: '', description: '' });
 
@@ -183,6 +185,7 @@ export default function RolesPage() {
       showToast('Role description is required', 'error');
       return;
     }
+    setIsCreatingRole(true);
     try {
       const res = await fetch('/api/v1/roles', {
         method: 'POST',
@@ -200,6 +203,8 @@ export default function RolesPage() {
       }
     } catch (err) {
       showToast('Failed to save role context', 'error');
+    } finally {
+      setIsCreatingRole(false);
     }
   };
 
@@ -217,6 +222,7 @@ export default function RolesPage() {
       showToast('Role Name is required', 'error');
       return;
     }
+    setIsUpdatingRole(true);
     try {
       const res = await fetch(`/api/v1/roles/${editingRole.id}`, {
         method: 'PUT',
@@ -234,6 +240,8 @@ export default function RolesPage() {
       }
     } catch (err) {
       showToast('Failed to update role', 'error');
+    } finally {
+      setIsUpdatingRole(false);
     }
   };
 
@@ -480,7 +488,27 @@ export default function RolesPage() {
       </div>
 
       {/* Main Content Area */}
-      {viewMode === 'matrix' ? (
+      {loading ? (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-20 shadow-xl flex flex-col items-center justify-center gap-4 text-center animate-fadeIn min-h-[420px]">
+          <div className="relative">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shadow-inner">
+              <svg className="animate-spin h-7 w-7 text-indigo-600 dark:text-indigo-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            </div>
+            <div className="absolute -inset-1 rounded-2xl bg-indigo-500/20 blur-md -z-10 animate-pulse" />
+          </div>
+          <div>
+            <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+              Loading Role Access Policies...
+            </h4>
+            <p className="text-xs text-slate-400 font-medium mt-1">
+              Synchronizing permissions matrix and role assignments
+            </p>
+          </div>
+        </div>
+      ) : viewMode === 'matrix' ? (
         /* ⚡ SUPABASE-STYLE ROLE PERMISSION MATRIX TABLE */
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-card shadow-xl overflow-hidden text-left w-full">
           {/* Header Controls inside Matrix */}
@@ -1109,9 +1137,16 @@ export default function RolesPage() {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-indigo-600/35 transition-all duration-200 cursor-pointer mt-4 active:scale-[0.98]"
+            disabled={isCreatingRole}
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-indigo-600/35 transition-all duration-200 cursor-pointer mt-4 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Create Access Role
+            {isCreatingRole && (
+              <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            )}
+            {isCreatingRole ? 'Creating Access Role...' : 'Create Access Role'}
           </button>
         </form>
       </SlideDrawer>
@@ -1143,8 +1178,18 @@ export default function RolesPage() {
             />
           </div>
 
-          <button type="submit" className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black shadow-lg shadow-indigo-600/30 transition-all duration-200 cursor-pointer uppercase tracking-wider">
-            Save Role Changes
+          <button 
+            type="submit" 
+            disabled={isUpdatingRole}
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black shadow-lg shadow-indigo-600/30 transition-all duration-200 cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isUpdatingRole && (
+              <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            )}
+            {isUpdatingRole ? 'Saving Role Changes...' : 'Save Role Changes'}
           </button>
         </form>
       </SlideDrawer>

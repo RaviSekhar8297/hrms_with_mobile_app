@@ -3,12 +3,12 @@
 import React from 'react';
 import SearchableSelect from './SearchableSelect';
 
-interface Company {
+export interface Company {
   id: string;
   name: string;
-  subdomain: string;
-  status: string;
-  created_at: string;
+  subdomain?: string;
+  status?: string;
+  created_at?: string;
 }
 
 interface DashboardPageHeaderProps {

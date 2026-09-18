@@ -529,7 +529,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ? [
             {
               tab: 'companies',
-              label: 'Tenants/Companies',
+              label: 'Companies (Tenants)',
               icon: (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -649,7 +649,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       ],
     },
     {
-      title: 'Attendance Engine',
+      title: 'Time & Attendance',
       items: [
         {
           tab: 'attendance',
@@ -1620,31 +1620,43 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* 🥞 ANIMATED TOASTS STACK PANEL (RIGHT SIDE CENTER) */}
-      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[99] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-sans">
+      {/* 🥞 ANIMATED TOASTS STACK PANEL (TOP RIGHT or MIDDLE RIGHT on /dashboard/roles) */}
+      <div className={`fixed right-6 z-[999999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-sans transition-all duration-300 ${
+        pathname?.includes('/dashboard/roles')
+          ? 'top-1/2 -translate-y-1/2'
+          : 'top-6'
+      }`}>
         {toasts.map((toast) => (
           <div key={toast.id} className="pointer-events-auto animate-toast">
-            <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 text-slate-100 border border-slate-700/70 shadow-2xl backdrop-blur-2xl">
+            <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border-y border-r border-slate-200/90 dark:border-slate-800 shadow-2xl backdrop-blur-2xl transition-all ${
+              toast.type === 'error'
+                ? 'border-l-4 border-l-rose-500 shadow-rose-500/10'
+                : toast.type === 'info'
+                ? 'border-l-4 border-l-blue-500 shadow-blue-500/10'
+                : 'border-l-4 border-l-emerald-500 shadow-emerald-500/10'
+            }`}>
               <div className="flex items-center gap-3">
                 <span
-                  className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border ${toast.type === 'error'
-                      ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                  className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border text-sm font-black ${
+                    toast.type === 'error'
+                      ? 'bg-rose-50 dark:bg-rose-950/80 border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400'
                       : toast.type === 'info'
-                        ? 'bg-blue-500/15 border-blue-500/30 text-blue-400'
-                        : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                    }`}
+                      ? 'bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400'
+                      : 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400'
+                  }`}
                 >
                   {toast.type === 'error' ? '✕' : toast.type === 'info' ? 'ℹ' : '✓'}
                 </span>
                 <div>
-                  <p className="text-xs font-bold leading-snug text-slate-100">{toast.message}</p>
+                  <p className="text-xs font-bold leading-snug text-slate-900 dark:text-slate-100">{toast.message}</p>
                   <span
-                    className={`text-[9.5px] font-extrabold uppercase tracking-wider block mt-0.5 ${toast.type === 'error'
-                        ? 'text-rose-400'
+                    className={`text-[9.5px] font-extrabold uppercase tracking-wider block mt-0.5 ${
+                      toast.type === 'error'
+                        ? 'text-rose-600 dark:text-rose-400'
                         : toast.type === 'info'
-                          ? 'text-blue-400'
-                          : 'text-emerald-400'
-                      }`}
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-emerald-600 dark:text-emerald-400'
+                    }`}
                   >
                     {toast.type}
                   </span>
@@ -1652,7 +1664,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </div>
               <button
                 onClick={() => dismissToast(toast.id)}
-                className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 hover:text-white transition-colors cursor-pointer border border-slate-700/50"
+                className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer border border-slate-200/80 dark:border-slate-700/50"
               >
                 ✕
               </button>

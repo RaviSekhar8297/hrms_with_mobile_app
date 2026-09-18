@@ -167,20 +167,27 @@ export function requirePermission(permissionName: string) {
 
       const roleId = empQuery.rows[0].role_id;
 
-      // 3. Query PostgreSQL hrms.role_permissions dynamically for assigned permission
+      // 3. Query PostgreSQL hrms.role_permissions dynamically for assigned permission by ID or Name
+      const parts = permissionName.toLowerCase().trim().split('_');
+      const reversed = parts.length >= 2 ? `${parts.slice(1).join('_')}_${parts[0]}` : permissionName;
+      const pluralVariant = permissionName.endsWith('s') ? permissionName.slice(0, -1) : `${permissionName}s`;
+
       const permQuery = await query(
         `SELECT COUNT(*) as count 
          FROM hrms.role_permissions rp 
          JOIN hrms.permissions p ON rp.permission_id = p.id 
          WHERE rp.role_id = $1 
            AND (
-             LOWER(p.name) = LOWER($2) 
+             p.id::text = $2 
+             OR LOWER(p.name) = LOWER($2) 
+             OR LOWER(p.name) = LOWER($3)
+             OR LOWER(p.name) = LOWER($4)
              OR LOWER(p.name) = LOWER($2 || '_masters')
              OR LOWER(p.name) = LOWER(REPLACE($2, '_masters', ''))
              OR LOWER(p.module) = LOWER(SPLIT_PART($2, ':', 1))
              OR p.name = '*'
            )`,
-        [roleId, permissionName]
+        [roleId, permissionName, reversed, pluralVariant]
       );
 
       if (parseInt(permQuery.rows[0].count, 10) === 0) {

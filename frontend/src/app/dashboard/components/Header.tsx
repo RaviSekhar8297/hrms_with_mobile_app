@@ -94,7 +94,7 @@ const GLOBAL_NAV_ITEMS = [
   { label: 'Run Payroll Batch', path: '/dashboard/payroll/generate', category: 'Module', icon: '⚡' },
   { label: 'Salary Structures', path: '/dashboard/structure', category: 'Module', icon: '📑' },
   { label: 'Formula Builder', path: '/dashboard/formula', category: 'Module', icon: '🧮' },
-  { label: 'Tenants / Companies', path: '/dashboard/companies', category: 'Module', icon: '🏢' },
+  { label: 'Companies (Tenants)', path: '/dashboard/companies', category: 'Module', icon: '🏢' },
   { label: 'Branch Offices', path: '/dashboard/branches', category: 'Module', icon: '📍' },
   { label: 'Departments', path: '/dashboard/departments', category: 'Module', icon: '🏢' },
   { label: 'Designations', path: '/dashboard/designations', category: 'Module', icon: '👔' },

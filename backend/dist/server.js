@@ -1154,12 +1154,20 @@ app.get('/api/v1/analytics/summary', auth_1.authenticateToken, async (req, res) 
  */
 app.post('/api/v1/companies', auth_1.authenticateToken, auth_1.requireSuperAdmin, async (req, res) => {
     const { name, company_code, subdomain, domain, branding_logo, established_date } = req.body;
-    if (!name || !subdomain) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName || !subdomain) {
         return res.status(400).json({ error: 'Name and subdomain are required' });
     }
-    const codeVal = company_code || (subdomain ? subdomain.toUpperCase() : 'COMP');
+    if (cleanName.length > 50) {
+        return res.status(400).json({ error: 'Company name cannot exceed 50 characters' });
+    }
     try {
-        const result = await (0, db_1.query)('INSERT INTO hrms.companies (name, company_code, subdomain, domain, branding_logo, established_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [name, codeVal, subdomain, domain || null, branding_logo || null, established_date || null]);
+        const dupCheck = await (0, db_1.query)('SELECT id FROM hrms.companies WHERE LOWER(TRIM(name)) = LOWER($1)', [cleanName]);
+        if (dupCheck.rows.length > 0) {
+            return res.status(409).json({ error: `A company with the name "${cleanName}" already exists` });
+        }
+        const codeVal = company_code || (subdomain ? subdomain.toUpperCase() : 'COMP');
+        const result = await (0, db_1.query)('INSERT INTO hrms.companies (name, company_code, subdomain, domain, branding_logo, established_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [cleanName, codeVal, subdomain, domain || null, branding_logo || null, established_date || null]);
         const newCompany = result.rows[0];
         const defaultRoles = ['Admin'];
         for (const roleName of defaultRoles) {
@@ -1254,12 +1262,20 @@ app.put('/api/v1/companies/:id', auth_1.authenticateToken, async (req, res) => {
         return res.status(403).json({ error: 'Access denied: You can only update your own company' });
     }
     const { name, company_code, subdomain, domain, branding_logo, status, established_date } = req.body;
-    if (!name || !subdomain) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName || !subdomain) {
         return res.status(400).json({ error: 'Name and subdomain are required' });
     }
-    const codeVal = company_code || (subdomain ? subdomain.toUpperCase() : 'COMP');
+    if (cleanName.length > 50) {
+        return res.status(400).json({ error: 'Company name cannot exceed 50 characters' });
+    }
     try {
-        const result = await (0, db_1.query)('UPDATE hrms.companies SET name = $1, company_code = $2, subdomain = $3, domain = $4, branding_logo = $5, status = $6, established_date = $7, updated_at = NOW() WHERE id = $8 RETURNING *', [name, codeVal, subdomain, domain || null, branding_logo || null, status || 'ACTIVE', established_date || null, id]);
+        const dupCheck = await (0, db_1.query)('SELECT id FROM hrms.companies WHERE LOWER(TRIM(name)) = LOWER($1) AND id != $2', [cleanName, id]);
+        if (dupCheck.rows.length > 0) {
+            return res.status(409).json({ error: `A company with the name "${cleanName}" already exists` });
+        }
+        const codeVal = company_code || (subdomain ? subdomain.toUpperCase() : 'COMP');
+        const result = await (0, db_1.query)('UPDATE hrms.companies SET name = $1, company_code = $2, subdomain = $3, domain = $4, branding_logo = $5, status = $6, established_date = $7, updated_at = NOW() WHERE id = $8 RETURNING *', [cleanName, codeVal, subdomain, domain || null, branding_logo || null, status || 'ACTIVE', established_date || null, id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Company not found' });
         }
@@ -1316,7 +1332,7 @@ app.delete('/api/v1/companies/:id', auth_1.authenticateToken, auth_1.requireSupe
  */
 app.get('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-    const companyIdRaw = isSuperAdmin ? req.query.companyId : req.user?.companyId;
+    const companyIdRaw = (req.query.companyId && req.query.companyId !== 'all') ? req.query.companyId : req.user?.companyId;
     const companyId = (companyIdRaw === 'all' || companyIdRaw === 'undefined' || companyIdRaw === 'null' || !companyIdRaw) ? null : companyIdRaw;
     if (!companyId) {
         if (isSuperAdmin) {
@@ -1395,7 +1411,6 @@ app.get('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
          ${whereClause}
          ORDER BY e.emp_id_code ASC`, queryParams);
         return res.json({
-            companyId,
             count: result.rows.length,
             employees: result.rows,
         });
@@ -1403,6 +1418,45 @@ app.get('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
     catch (err) {
         console.error('Error fetching employees:', err);
         return res.status(500).json({ error: 'Internal database query failure' });
+    }
+});
+// 🔍 REAL-TIME DUPLICATE CHECK FOR EMAIL & EMPLOYEE ID CODE
+app.get('/api/v1/employees/check-duplicate', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const email = (req.query.email || '').trim().toLowerCase();
+        const empIdCode = (req.query.emp_id_code || '').trim().toLowerCase();
+        const companyId = (req.query.companyId || '').trim();
+        let duplicateEmail = null;
+        let duplicateEmpId = null;
+        if (email) {
+            const emailRes = await (0, db_1.query)(`SELECT id, company_id, emp_id_code, first_name, last_name, email 
+           FROM hrms.employees 
+           WHERE LOWER(TRIM(email)) = $1 OR LOWER(TRIM(COALESCE(personal_email, ''))) = $1 
+           LIMIT 1`, [email]);
+            if (emailRes.rows.length > 0) {
+                duplicateEmail = emailRes.rows[0];
+            }
+        }
+        if (empIdCode) {
+            let empSql = `SELECT id, company_id, emp_id_code, first_name, last_name, email 
+                      FROM hrms.employees 
+                      WHERE LOWER(TRIM(emp_id_code)) = $1`;
+            const params = [empIdCode];
+            if (companyId && companyId !== 'all') {
+                empSql += ` AND company_id = $2`;
+                params.push(companyId);
+            }
+            empSql += ` LIMIT 1`;
+            const empRes = await (0, db_1.query)(empSql, params);
+            if (empRes.rows.length > 0) {
+                duplicateEmpId = empRes.rows[0];
+            }
+        }
+        return res.json({ duplicateEmail, duplicateEmpId });
+    }
+    catch (err) {
+        console.error('Error in check-duplicate:', err);
+        return res.status(500).json({ error: 'Failed to check duplicate' });
     }
 });
 // 👤 GET LOGGED-IN EMPLOYEE PROFILE (ME)
@@ -1951,7 +2005,28 @@ const handleBulkEmployeeUpload = async (req, res) => {
                     console.error('Designation auto-create error:', desErr);
                 }
             }
-            const role_id = emp.role_name ? roleMap[emp.role_name.trim().toLowerCase()] || null : null;
+            // Resolve or auto-create role
+            const roleInputName = (emp.role_name || emp.role || '').trim();
+            let role_id = roleInputName ? roleMap[roleInputName.toLowerCase()] || null : null;
+            if (!role_id && roleInputName) {
+                try {
+                    const fetchR = await (0, db_1.query)(`SELECT id FROM hrms.roles WHERE company_id = $1 AND LOWER(name) = LOWER($2)`, [companyId, roleInputName]);
+                    if (fetchR.rows.length > 0) {
+                        role_id = fetchR.rows[0].id;
+                    }
+                    else {
+                        const rRes = await (0, db_1.query)(`INSERT INTO hrms.roles (company_id, name, description) VALUES ($1, $2, $3) RETURNING id`, [companyId, roleInputName, `Auto-created during bulk upload`]);
+                        if (rRes.rows.length > 0) {
+                            role_id = rRes.rows[0].id;
+                        }
+                    }
+                    if (role_id)
+                        roleMap[roleInputName.toLowerCase()] = role_id;
+                }
+                catch (rErr) {
+                    console.error('Role auto-create error in bulk upload:', rErr);
+                }
+            }
             const shift_id = emp.shift_name ? shiftMap[emp.shift_name.trim().toLowerCase()] || null : null;
             try {
                 const result = await (0, db_1.query)(`INSERT INTO hrms.employees (
@@ -2505,11 +2580,19 @@ app.post('/api/v1/branches', auth_1.authenticateToken, (0, auth_1.requirePermiss
     if (!companyId) {
         return res.status(400).json({ error: 'Company ID is required' });
     }
-    if (!name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) {
         return res.status(400).json({ error: 'Branch name is required' });
     }
+    if (cleanName.length > 50) {
+        return res.status(400).json({ error: 'Branch name cannot exceed 50 characters' });
+    }
     try {
-        const result = await (0, db_1.query)('INSERT INTO hrms.branches (company_id, name, address) VALUES ($1, $2, $3) RETURNING *', [companyId, name, address || '']);
+        const dupCheck = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE company_id = $1 AND LOWER(TRIM(name)) = LOWER($2)', [companyId, cleanName]);
+        if (dupCheck.rows.length > 0) {
+            return res.status(409).json({ error: `A branch with the name "${cleanName}" already exists in this company` });
+        }
+        const result = await (0, db_1.query)('INSERT INTO hrms.branches (company_id, name, address) VALUES ($1, $2, $3) RETURNING *', [companyId, cleanName, address || '']);
         return res.status(201).json({ message: 'Branch created successfully', branch: result.rows[0] });
     }
     catch (err) {
@@ -2525,20 +2608,29 @@ app.put('/api/v1/branches/:id', auth_1.authenticateToken, (0, auth_1.requirePerm
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = req.user?.companyId;
     const { name, address, status } = req.body;
-    if (!name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) {
         return res.status(400).json({ error: 'Branch name is required' });
     }
+    if (cleanName.length > 50) {
+        return res.status(400).json({ error: 'Branch name cannot exceed 50 characters' });
+    }
     try {
+        const branchCheck = await (0, db_1.query)('SELECT company_id FROM hrms.branches WHERE id = $1', [id]);
+        if (branchCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Branch not found' });
+        }
+        const targetCompId = branchCheck.rows[0].company_id;
         if (!isSuperAdmin) {
-            const branchCheck = await (0, db_1.query)('SELECT company_id FROM hrms.branches WHERE id = $1', [id]);
-            if (branchCheck.rows.length === 0) {
-                return res.status(404).json({ error: 'Branch not found' });
-            }
-            if (branchCheck.rows[0].company_id !== companyId) {
+            if (targetCompId !== companyId) {
                 return res.status(403).json({ error: 'Access denied: Branch is not in your company context' });
             }
         }
-        const result = await (0, db_1.query)('UPDATE hrms.branches SET name = $1, address = $2, status = $3 WHERE id = $4 RETURNING *', [name, address || '', status || 'ACTIVE', id]);
+        const dupCheck = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE company_id = $1 AND LOWER(TRIM(name)) = LOWER($2) AND id != $3', [targetCompId, cleanName, id]);
+        if (dupCheck.rows.length > 0) {
+            return res.status(409).json({ error: `A branch with the name "${cleanName}" already exists in this company` });
+        }
+        const result = await (0, db_1.query)('UPDATE hrms.branches SET name = $1, address = $2, status = $3 WHERE id = $4 RETURNING *', [cleanName, address || '', status || 'ACTIVE', id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Branch not found' });
         }
@@ -2633,15 +2725,23 @@ app.post('/api/v1/departments', auth_1.authenticateToken, (0, auth_1.requirePerm
     if (!branch_id) {
         return res.status(400).json({ error: 'Branch reference is required' });
     }
-    if (!name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) {
         return res.status(400).json({ error: 'Department name is required' });
+    }
+    if (cleanName.length > 50) {
+        return res.status(400).json({ error: 'Department name cannot exceed 50 characters' });
     }
     try {
         const branchCheck = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE id = $1 AND company_id = $2', [branch_id, companyId]);
         if (branchCheck.rows.length === 0) {
             return res.status(400).json({ error: 'Invalid Branch reference' });
         }
-        const result = await (0, db_1.query)('INSERT INTO hrms.departments (company_id, branch_id, name, description) VALUES ($1, $2, $3, $4) RETURNING *', [companyId, branch_id, name, description || '']);
+        const dupCheck = await (0, db_1.query)('SELECT id FROM hrms.departments WHERE company_id = $1 AND branch_id = $2 AND LOWER(TRIM(name)) = LOWER($3)', [companyId, branch_id, cleanName]);
+        if (dupCheck.rows.length > 0) {
+            return res.status(409).json({ error: `A department with the name "${cleanName}" already exists under this branch` });
+        }
+        const result = await (0, db_1.query)('INSERT INTO hrms.departments (company_id, branch_id, name, description) VALUES ($1, $2, $3, $4) RETURNING *', [companyId, branch_id, cleanName, description || '']);
         return res.status(201).json({ message: 'Department created successfully', department: result.rows[0] });
     }
     catch (err) {
@@ -2663,24 +2763,33 @@ app.put('/api/v1/departments/:id', auth_1.authenticateToken, (0, auth_1.requireP
     if (!branch_id) {
         return res.status(400).json({ error: 'Branch reference is required' });
     }
-    if (!name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) {
         return res.status(400).json({ error: 'Department name is required' });
     }
+    if (cleanName.length > 50) {
+        return res.status(400).json({ error: 'Department name cannot exceed 50 characters' });
+    }
     try {
+        const deptCheck = await (0, db_1.query)('SELECT company_id FROM hrms.departments WHERE id = $1', [id]);
+        if (deptCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Department not found' });
+        }
+        const targetCompId = deptCheck.rows[0].company_id;
         if (!isSuperAdmin) {
-            const deptCheck = await (0, db_1.query)('SELECT company_id FROM hrms.departments WHERE id = $1', [id]);
-            if (deptCheck.rows.length === 0) {
-                return res.status(404).json({ error: 'Department not found' });
-            }
-            if (deptCheck.rows[0].company_id !== companyId) {
+            if (targetCompId !== companyId) {
                 return res.status(403).json({ error: 'Access denied: Department is not in your company context' });
             }
         }
-        const branchCheck = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE id = $1 AND company_id = $2', [branch_id, companyId]);
+        const branchCheck = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE id = $1 AND company_id = $2', [branch_id, targetCompId]);
         if (branchCheck.rows.length === 0) {
             return res.status(400).json({ error: 'Invalid Branch reference for this company' });
         }
-        const result = await (0, db_1.query)('UPDATE hrms.departments SET branch_id = $1, name = $2, description = $3, status = $4 WHERE id = $5 RETURNING *', [branch_id, name, description || '', status || 'ACTIVE', id]);
+        const dupCheck = await (0, db_1.query)('SELECT id FROM hrms.departments WHERE company_id = $1 AND branch_id = $2 AND LOWER(TRIM(name)) = LOWER($3) AND id != $4', [targetCompId, branch_id, cleanName, id]);
+        if (dupCheck.rows.length > 0) {
+            return res.status(409).json({ error: `A department with the name "${cleanName}" already exists under this branch` });
+        }
+        const result = await (0, db_1.query)('UPDATE hrms.departments SET branch_id = $1, name = $2, description = $3, status = $4 WHERE id = $5 RETURNING *', [branch_id, cleanName, description || '', status || 'ACTIVE', id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Department not found' });
         }
@@ -2799,8 +2908,12 @@ app.post('/api/v1/designations', auth_1.authenticateToken, (0, auth_1.requirePer
     if (!branch_id || !department_id) {
         return res.status(400).json({ error: 'Branch and Department references are required' });
     }
-    if (!name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) {
         return res.status(400).json({ error: 'Designation name is required' });
+    }
+    if (cleanName.length > 50) {
+        return res.status(400).json({ error: 'Designation name cannot exceed 50 characters' });
     }
     try {
         const branchCheck = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE id = $1 AND company_id = $2', [branch_id, companyId]);
@@ -2811,7 +2924,11 @@ app.post('/api/v1/designations', auth_1.authenticateToken, (0, auth_1.requirePer
         if (deptCheck.rows.length === 0) {
             return res.status(400).json({ error: 'Invalid Department reference' });
         }
-        const result = await (0, db_1.query)('INSERT INTO hrms.designations (company_id, branch_id, department_id, name, description) VALUES ($1, $2, $3, $4, $5) RETURNING *', [companyId, branch_id, department_id, name, description || '']);
+        const dupCheck = await (0, db_1.query)('SELECT id FROM hrms.designations WHERE company_id = $1 AND department_id = $2 AND LOWER(TRIM(name)) = LOWER($3)', [companyId, department_id, cleanName]);
+        if (dupCheck.rows.length > 0) {
+            return res.status(409).json({ error: `A designation with the title "${cleanName}" already exists in this department` });
+        }
+        const result = await (0, db_1.query)('INSERT INTO hrms.designations (company_id, branch_id, department_id, name, description) VALUES ($1, $2, $3, $4, $5) RETURNING *', [companyId, branch_id, department_id, cleanName, description || '']);
         return res.status(201).json({ message: 'Designation created successfully', designation: result.rows[0] });
     }
     catch (err) {
@@ -2833,28 +2950,37 @@ app.put('/api/v1/designations/:id', auth_1.authenticateToken, (0, auth_1.require
     if (!branch_id || !department_id) {
         return res.status(400).json({ error: 'Branch and Department references are required' });
     }
-    if (!name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) {
         return res.status(400).json({ error: 'Designation name is required' });
     }
+    if (cleanName.length > 50) {
+        return res.status(400).json({ error: 'Designation name cannot exceed 50 characters' });
+    }
     try {
+        const desigCheck = await (0, db_1.query)('SELECT company_id FROM hrms.designations WHERE id = $1', [id]);
+        if (desigCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Designation not found' });
+        }
+        const targetCompId = desigCheck.rows[0].company_id;
         if (!isSuperAdmin) {
-            const desigCheck = await (0, db_1.query)('SELECT company_id FROM hrms.designations WHERE id = $1', [id]);
-            if (desigCheck.rows.length === 0) {
-                return res.status(404).json({ error: 'Designation not found' });
-            }
-            if (desigCheck.rows[0].company_id !== companyId) {
+            if (targetCompId !== companyId) {
                 return res.status(403).json({ error: 'Access denied: Designation is not in your company context' });
             }
         }
-        const branchCheck = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE id = $1 AND company_id = $2', [branch_id, companyId]);
+        const branchCheck = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE id = $1 AND company_id = $2', [branch_id, targetCompId]);
         if (branchCheck.rows.length === 0) {
             return res.status(400).json({ error: 'Invalid Branch reference' });
         }
-        const deptCheck = await (0, db_1.query)('SELECT id FROM hrms.departments WHERE id = $1 AND branch_id = $2 AND company_id = $3', [department_id, branch_id, companyId]);
+        const deptCheck = await (0, db_1.query)('SELECT id FROM hrms.departments WHERE id = $1 AND branch_id = $2 AND company_id = $3', [department_id, branch_id, targetCompId]);
         if (deptCheck.rows.length === 0) {
             return res.status(400).json({ error: 'Invalid Department reference' });
         }
-        const result = await (0, db_1.query)('UPDATE hrms.designations SET branch_id = $1, department_id = $2, name = $3, description = $4, status = $5 WHERE id = $6 RETURNING *', [branch_id, department_id, name, description || '', status || 'ACTIVE', id]);
+        const dupCheck = await (0, db_1.query)('SELECT id FROM hrms.designations WHERE company_id = $1 AND department_id = $2 AND LOWER(TRIM(name)) = LOWER($3) AND id != $4', [targetCompId, department_id, cleanName, id]);
+        if (dupCheck.rows.length > 0) {
+            return res.status(409).json({ error: `A designation with the title "${cleanName}" already exists in this department` });
+        }
+        const result = await (0, db_1.query)('UPDATE hrms.designations SET branch_id = $1, department_id = $2, name = $3, description = $4, status = $5 WHERE id = $6 RETURNING *', [branch_id, department_id, cleanName, description || '', status || 'ACTIVE', id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Designation not found' });
         }
@@ -7034,6 +7160,37 @@ app.post('/api/v1/payroll/generate', auth_1.authenticateToken, async (req, res) 
         let successCount = 0;
         let skippedCount = 0;
         const totalDaysInMonth = new Date(year, month, 0).getDate();
+        // Fetch active statutory rules and slabs for this cutoff period and company
+        let statutoryRules = [];
+        let statutorySlabs = [];
+        try {
+            const statutoryRulesRes = await (0, db_1.query)(`
+        SELECT r.*, c.component_code
+        FROM hrms.statutory_rules r
+        JOIN hrms.salary_components c ON r.component_id = c.id
+        WHERE (r.company_id = $1 OR r.company_id IS NULL)
+          AND r.is_active = true
+          AND r.effective_from <= $2
+          AND (r.effective_to IS NULL OR r.effective_to >= $3)
+        ORDER BY r.effective_from DESC
+      `, [targetCompanyId, endDate, startDate]);
+            statutoryRules = statutoryRulesRes.rows;
+            const statutorySlabsRes = await (0, db_1.query)(`
+        SELECT s.*, r.rule_code, c.component_code
+        FROM hrms.statutory_rule_slabs s
+        JOIN hrms.statutory_rules r ON s.statutory_rule_id = r.id
+        JOIN hrms.salary_components c ON r.component_id = c.id
+        WHERE (r.company_id = $1 OR r.company_id IS NULL)
+          AND s.is_active = true
+          AND s.effective_from <= $2
+          AND (s.effective_to IS NULL OR s.effective_to >= $3)
+        ORDER BY s.display_order ASC, s.min_wage ASC
+      `, [targetCompanyId, endDate, startDate]);
+            statutorySlabs = statutorySlabsRes.rows;
+        }
+        catch (stErr) {
+            console.warn('Warning: Could not fetch statutory rules for payroll run, fallback will be used:', stErr);
+        }
         for (const emp of employees.rows) {
             // 1. Query Active Salary Structure from hrms.salary_structures
             const salRes = await (0, db_1.query)(`
@@ -7156,10 +7313,76 @@ app.post('/api/v1/payroll/generate', auth_1.authenticateToken, async (req, res) 
             const sa = Math.round(monthlySa * prRatio);
             const other = Math.round(monthlyOther * prRatio);
             const gross = basic + hra + ca + ma + sa + other;
-            // Calculate Deductions
-            const pf = salStruct.pf_check !== false && basic > 0 ? Math.min(Math.round(basic * 0.12), 1800) : 0;
-            const esi = salStruct.esi_check !== false && gross > 0 && gross <= 21000 ? Math.round(gross * 0.0075) : 0;
-            const pt = salStruct.pt_check !== false && gross > 20000 ? 200 : 0;
+            // Calculate Deductions via Dynamic Statutory Rules
+            // 1. Dynamic PF
+            let pf = 0;
+            if (salStruct.pf_check !== false) {
+                const pfRule = statutoryRules.find((r) => r.component_code === 'PF');
+                if (pfRule) {
+                    const pfRate = parseFloat(pfRule.employee_rate || 0) / 100;
+                    const pfCeiling = pfRule.wage_ceiling ? parseFloat(pfRule.wage_ceiling) : null;
+                    const pfMaxAmount = pfRule.max_employee_amount ? parseFloat(pfRule.max_employee_amount) : null;
+                    const pfBaseAmount = pfRule.calculation_base === 'GROSS' ? gross : basic;
+                    if (pfBaseAmount > 0) {
+                        const applicableWage = pfCeiling ? Math.min(pfBaseAmount, pfCeiling) : pfBaseAmount;
+                        let calculatedPf = Math.round(applicableWage * pfRate);
+                        if (pfMaxAmount && calculatedPf > pfMaxAmount) {
+                            calculatedPf = Math.round(pfMaxAmount);
+                        }
+                        pf = calculatedPf;
+                    }
+                }
+                else if (basic > 0) {
+                    // Default statutory fallback
+                    pf = Math.min(Math.round(basic * 0.12), 1800);
+                }
+            }
+            // 2. Dynamic ESI
+            let esi = 0;
+            if (salStruct.esi_check !== false) {
+                const esiRule = statutoryRules.find((r) => r.component_code === 'ESI');
+                if (esiRule) {
+                    const esiRate = parseFloat(esiRule.employee_rate || 0) / 100;
+                    const esiCeiling = esiRule.wage_ceiling ? parseFloat(esiRule.wage_ceiling) : 21000;
+                    const esiBaseAmount = esiRule.calculation_base === 'BASIC' ? basic : gross;
+                    if (esiBaseAmount > 0 && esiBaseAmount <= esiCeiling) {
+                        esi = Math.round(esiBaseAmount * esiRate);
+                    }
+                }
+                else if (gross > 0 && gross <= 21000) {
+                    esi = Math.round(gross * 0.0075);
+                }
+            }
+            // 3. Dynamic PT
+            let pt = 0;
+            if (salStruct.pt_check !== false) {
+                const ptRule = statutoryRules.find((r) => r.component_code === 'PT');
+                if (ptRule) {
+                    const ptBaseAmount = ptRule.calculation_base === 'BASIC' ? basic : gross;
+                    const matchingSlabs = statutorySlabs.filter((s) => s.statutory_rule_id === ptRule.id);
+                    if (matchingSlabs.length > 0) {
+                        const matched = matchingSlabs.find((s) => {
+                            const min = parseFloat(s.min_wage || 0);
+                            const max = s.max_wage ? parseFloat(s.max_wage) : Infinity;
+                            return ptBaseAmount >= min && ptBaseAmount <= max;
+                        });
+                        if (matched) {
+                            if (matched.fixed_amount !== null && matched.fixed_amount !== undefined) {
+                                pt = Math.round(parseFloat(matched.fixed_amount));
+                            }
+                            else if (matched.percentage) {
+                                pt = Math.round(ptBaseAmount * (parseFloat(matched.percentage) / 100));
+                            }
+                        }
+                    }
+                    else if (ptRule.max_employee_amount && ptBaseAmount > 20000) {
+                        pt = Math.round(parseFloat(ptRule.max_employee_amount));
+                    }
+                }
+                else if (gross > 20000) {
+                    pt = 200;
+                }
+            }
             const tds = gross > 50000 ? Math.round((gross - 50000) * 0.1) : 0;
             const deductions = pf + esi + pt + tds;
             const net = Math.max(0, gross - deductions);
@@ -7641,11 +7864,47 @@ app.get('/api/v1/payroll/sandbox-data', auth_1.authenticateToken, async (req, re
          ORDER BY s.min_gross ASC, c.display_order ASC`, [companyId]);
         }
         const calcTypes = await (0, db_1.query)('SELECT * FROM hrms.calculation_types ORDER BY type_name ASC');
+        let statutoryRules = { rows: [] };
+        let statutorySlabs = { rows: [] };
+        let statutoryWageComponents = { rows: [] };
+        try {
+            const statRulesQuery = !companyId
+                ? `SELECT r.*, c.component_code, c.component_name
+           FROM hrms.statutory_rules r
+           JOIN hrms.salary_components c ON r.component_id = c.id
+           ORDER BY r.created_at DESC`
+                : `SELECT r.*, c.component_code, c.component_name
+           FROM hrms.statutory_rules r
+           JOIN hrms.salary_components c ON r.component_id = c.id
+           WHERE r.company_id = $1 OR r.company_id IS NULL
+           ORDER BY r.created_at DESC`;
+            statutoryRules = await (0, db_1.query)(statRulesQuery, companyId ? [companyId] : []);
+            statutorySlabs = await (0, db_1.query)(`
+        SELECT s.*, r.rule_code, r.rule_name, c.component_code
+        FROM hrms.statutory_rule_slabs s
+        JOIN hrms.statutory_rules r ON s.statutory_rule_id = r.id
+        JOIN hrms.salary_components c ON r.component_id = c.id
+        ORDER BY s.display_order ASC, s.min_wage ASC
+      `);
+            statutoryWageComponents = await (0, db_1.query)(`
+        SELECT w.*, r.rule_code, r.rule_name, c.component_code, c.component_name
+        FROM hrms.statutory_wage_components w
+        JOIN hrms.statutory_rules r ON w.statutory_rule_id = r.id
+        JOIN hrms.salary_components c ON w.salary_component_id = c.id
+        ORDER BY w.created_at ASC
+      `);
+        }
+        catch (stErr) {
+            console.warn('Could not fetch statutory data for sandbox:', stErr);
+        }
         return res.json({
             slabs: slabs.rows,
             components: components.rows,
             calculationTypes: calcTypes.rows,
-            configurations: configurations.rows
+            configurations: configurations.rows,
+            statutoryRules: statutoryRules.rows,
+            statutoryRuleSlabs: statutorySlabs.rows,
+            statutoryWageComponents: statutoryWageComponents.rows
         });
     }
     catch (err) {
@@ -7921,6 +8180,295 @@ app.delete('/api/v1/payroll/configurations/:id', auth_1.authenticateToken, async
     }
     catch (err) {
         console.error('Error deleting configuration:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+// =========================================================================
+// 🏛️ STATUTORY RULES, SLABS & WAGE COMPONENTS API ENDPOINTS
+// =========================================================================
+// 1. STATUTORY RULES CRUD
+app.get('/api/v1/payroll/statutory-rules', auth_1.authenticateToken, async (req, res) => {
+    const companyId = resolveCompanyId(req);
+    try {
+        const q = !companyId
+            ? `SELECT r.*, c.component_code, c.component_name
+         FROM hrms.statutory_rules r
+         JOIN hrms.salary_components c ON r.component_id = c.id
+         ORDER BY r.created_at DESC`
+            : `SELECT r.*, c.component_code, c.component_name
+         FROM hrms.statutory_rules r
+         JOIN hrms.salary_components c ON r.component_id = c.id
+         WHERE r.company_id = $1 OR r.company_id IS NULL
+         ORDER BY r.created_at DESC`;
+        const result = await (0, db_1.query)(q, companyId ? [companyId] : []);
+        return res.json({ rules: result.rows });
+    }
+    catch (err) {
+        console.error('Error fetching statutory rules:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+app.post('/api/v1/payroll/statutory-rules', auth_1.authenticateToken, async (req, res) => {
+    const companyId = resolveCompanyId(req);
+    const { component_id, rule_code, rule_name, calculation_base, calculation_type, employee_rate, employer_rate, wage_ceiling, max_employee_amount, max_employer_amount, formula_expression, effective_from, effective_to, is_active, remarks } = req.body;
+    if (!component_id || !rule_code || !rule_name) {
+        return res.status(400).json({ error: 'Required fields missing: component_id, rule_code, rule_name' });
+    }
+    try {
+        const code = String(rule_code).trim().toUpperCase();
+        const dupCheck = await (0, db_1.query)(`SELECT COUNT(*) FROM hrms.statutory_rules 
+       WHERE rule_code = $1 AND (company_id = $2 OR company_id IS NULL)`, [code, companyId]);
+        if (parseInt(dupCheck.rows[0].count) > 0) {
+            return res.status(400).json({ error: `Rule code '${code}' already exists.` });
+        }
+        const result = await (0, db_1.query)(`INSERT INTO hrms.statutory_rules 
+       (company_id, component_id, rule_code, rule_name, calculation_base, calculation_type,
+        employee_rate, employer_rate, wage_ceiling, max_employee_amount, max_employer_amount,
+        formula_expression, effective_from, effective_to, is_active, remarks)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       RETURNING *`, [
+            companyId || null,
+            component_id,
+            code,
+            rule_name.trim(),
+            calculation_base || 'BASIC',
+            calculation_type || 'PERCENTAGE_WITH_CEILING',
+            employee_rate !== undefined && employee_rate !== '' ? parseFloat(employee_rate) : 0,
+            employer_rate !== undefined && employer_rate !== '' ? parseFloat(employer_rate) : 0,
+            wage_ceiling ? parseFloat(wage_ceiling) : null,
+            max_employee_amount ? parseFloat(max_employee_amount) : null,
+            max_employer_amount ? parseFloat(max_employer_amount) : null,
+            formula_expression || null,
+            effective_from || new Date().toISOString().split('T')[0],
+            effective_to || null,
+            is_active !== false,
+            remarks || null
+        ]);
+        return res.json({ message: 'Statutory rule created successfully', rule: result.rows[0] });
+    }
+    catch (err) {
+        console.error('Error creating statutory rule:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+app.put('/api/v1/payroll/statutory-rules/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const companyId = resolveCompanyId(req);
+    const { component_id, rule_code, rule_name, calculation_base, calculation_type, employee_rate, employer_rate, wage_ceiling, max_employee_amount, max_employer_amount, formula_expression, effective_from, effective_to, is_active, remarks } = req.body;
+    if (!component_id || !rule_code || !rule_name) {
+        return res.status(400).json({ error: 'Required fields missing: component_id, rule_code, rule_name' });
+    }
+    try {
+        const code = String(rule_code).trim().toUpperCase();
+        const dupCheck = await (0, db_1.query)(`SELECT COUNT(*) FROM hrms.statutory_rules 
+       WHERE rule_code = $1 AND (company_id = $2 OR company_id IS NULL) AND id <> $3`, [code, companyId, id]);
+        if (parseInt(dupCheck.rows[0].count) > 0) {
+            return res.status(400).json({ error: `Rule code '${code}' is already in use by another rule.` });
+        }
+        const result = await (0, db_1.query)(`UPDATE hrms.statutory_rules 
+       SET component_id = $1, rule_code = $2, rule_name = $3, calculation_base = $4, calculation_type = $5,
+           employee_rate = $6, employer_rate = $7, wage_ceiling = $8, max_employee_amount = $9, max_employer_amount = $10,
+           formula_expression = $11, effective_from = $12, effective_to = $13, is_active = $14, remarks = $15, updated_at = NOW()
+       WHERE id = $16 AND (company_id = $17 OR company_id IS NULL)
+       RETURNING *`, [
+            component_id,
+            code,
+            rule_name.trim(),
+            calculation_base || 'BASIC',
+            calculation_type || 'PERCENTAGE_WITH_CEILING',
+            employee_rate !== undefined && employee_rate !== '' ? parseFloat(employee_rate) : 0,
+            employer_rate !== undefined && employer_rate !== '' ? parseFloat(employer_rate) : 0,
+            wage_ceiling ? parseFloat(wage_ceiling) : null,
+            max_employee_amount ? parseFloat(max_employee_amount) : null,
+            max_employer_amount ? parseFloat(max_employer_amount) : null,
+            formula_expression || null,
+            effective_from || new Date().toISOString().split('T')[0],
+            effective_to || null,
+            is_active !== false,
+            remarks || null,
+            id,
+            companyId
+        ]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Statutory rule not found or unauthorized' });
+        }
+        return res.json({ message: 'Statutory rule updated successfully', rule: result.rows[0] });
+    }
+    catch (err) {
+        console.error('Error updating statutory rule:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+app.delete('/api/v1/payroll/statutory-rules/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const companyId = resolveCompanyId(req);
+    try {
+        const result = await (0, db_1.query)('DELETE FROM hrms.statutory_rules WHERE id = $1 AND (company_id = $2 OR company_id IS NULL) RETURNING *', [id, companyId]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Statutory rule not found or unauthorized' });
+        }
+        return res.json({ message: 'Statutory rule deleted successfully' });
+    }
+    catch (err) {
+        console.error('Error deleting statutory rule:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+// 2. STATUTORY RULE SLABS CRUD (PT etc.)
+app.get('/api/v1/payroll/statutory-rule-slabs', auth_1.authenticateToken, async (_req, res) => {
+    try {
+        const result = await (0, db_1.query)(`
+      SELECT s.*, r.rule_code, r.rule_name, c.component_code, c.component_name
+      FROM hrms.statutory_rule_slabs s
+      JOIN hrms.statutory_rules r ON s.statutory_rule_id = r.id
+      JOIN hrms.salary_components c ON r.component_id = c.id
+      ORDER BY s.display_order ASC, s.min_wage ASC
+    `);
+        return res.json({ slabs: result.rows });
+    }
+    catch (err) {
+        console.error('Error fetching statutory rule slabs:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+app.post('/api/v1/payroll/statutory-rule-slabs', auth_1.authenticateToken, async (req, res) => {
+    const { statutory_rule_id, min_wage, max_wage, fixed_amount, percentage, effective_from, effective_to, is_active, display_order } = req.body;
+    if (!statutory_rule_id || min_wage === undefined) {
+        return res.status(400).json({ error: 'Required fields missing: statutory_rule_id, min_wage' });
+    }
+    try {
+        const result = await (0, db_1.query)(`INSERT INTO hrms.statutory_rule_slabs
+       (statutory_rule_id, min_wage, max_wage, fixed_amount, percentage, effective_from, effective_to, is_active, display_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`, [
+            statutory_rule_id,
+            parseFloat(min_wage) || 0,
+            max_wage !== undefined && max_wage !== '' && max_wage !== null ? parseFloat(max_wage) : null,
+            fixed_amount !== undefined && fixed_amount !== '' && fixed_amount !== null ? parseFloat(fixed_amount) : null,
+            percentage !== undefined && percentage !== '' && percentage !== null ? parseFloat(percentage) : null,
+            effective_from || new Date().toISOString().split('T')[0],
+            effective_to || null,
+            is_active !== false,
+            parseInt(display_order) || 1
+        ]);
+        return res.json({ message: 'Statutory slab created successfully', slab: result.rows[0] });
+    }
+    catch (err) {
+        console.error('Error creating statutory slab:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+app.put('/api/v1/payroll/statutory-rule-slabs/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { statutory_rule_id, min_wage, max_wage, fixed_amount, percentage, effective_from, effective_to, is_active, display_order } = req.body;
+    if (!statutory_rule_id || min_wage === undefined) {
+        return res.status(400).json({ error: 'Required fields missing: statutory_rule_id, min_wage' });
+    }
+    try {
+        const result = await (0, db_1.query)(`UPDATE hrms.statutory_rule_slabs
+       SET statutory_rule_id = $1, min_wage = $2, max_wage = $3, fixed_amount = $4, percentage = $5,
+           effective_from = $6, effective_to = $7, is_active = $8, display_order = $9, updated_at = NOW()
+       WHERE id = $10 RETURNING *`, [
+            statutory_rule_id,
+            parseFloat(min_wage) || 0,
+            max_wage !== undefined && max_wage !== '' && max_wage !== null ? parseFloat(max_wage) : null,
+            fixed_amount !== undefined && fixed_amount !== '' && fixed_amount !== null ? parseFloat(fixed_amount) : null,
+            percentage !== undefined && percentage !== '' && percentage !== null ? parseFloat(percentage) : null,
+            effective_from || new Date().toISOString().split('T')[0],
+            effective_to || null,
+            is_active !== false,
+            parseInt(display_order) || 1,
+            id
+        ]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Statutory slab not found' });
+        }
+        return res.json({ message: 'Statutory slab updated successfully', slab: result.rows[0] });
+    }
+    catch (err) {
+        console.error('Error updating statutory slab:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+app.delete('/api/v1/payroll/statutory-rule-slabs/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await (0, db_1.query)('DELETE FROM hrms.statutory_rule_slabs WHERE id = $1 RETURNING *', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Statutory slab not found' });
+        }
+        return res.json({ message: 'Statutory slab deleted successfully' });
+    }
+    catch (err) {
+        console.error('Error deleting statutory slab:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+// 3. STATUTORY WAGE COMPONENTS CRUD
+app.get('/api/v1/payroll/statutory-wage-components', auth_1.authenticateToken, async (_req, res) => {
+    try {
+        const result = await (0, db_1.query)(`
+      SELECT w.*, r.rule_code, r.rule_name, c.component_code, c.component_name
+      FROM hrms.statutory_wage_components w
+      JOIN hrms.statutory_rules r ON w.statutory_rule_id = r.id
+      JOIN hrms.salary_components c ON w.salary_component_id = c.id
+      ORDER BY w.created_at ASC
+    `);
+        return res.json({ wageComponents: result.rows });
+    }
+    catch (err) {
+        console.error('Error fetching statutory wage components:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+app.post('/api/v1/payroll/statutory-wage-components', auth_1.authenticateToken, async (req, res) => {
+    const { statutory_rule_id, salary_component_id, is_included } = req.body;
+    if (!statutory_rule_id || !salary_component_id) {
+        return res.status(400).json({ error: 'Required fields missing: statutory_rule_id, salary_component_id' });
+    }
+    try {
+        const result = await (0, db_1.query)(`INSERT INTO hrms.statutory_wage_components (statutory_rule_id, salary_component_id, is_included)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (statutory_rule_id, salary_component_id) DO UPDATE SET is_included = EXCLUDED.is_included
+       RETURNING *`, [statutory_rule_id, salary_component_id, is_included !== false]);
+        return res.json({ message: 'Wage component mapping saved successfully', wageComponent: result.rows[0] });
+    }
+    catch (err) {
+        console.error('Error saving statutory wage component mapping:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+app.put('/api/v1/payroll/statutory-wage-components/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { statutory_rule_id, salary_component_id, is_included } = req.body;
+    if (!statutory_rule_id || !salary_component_id) {
+        return res.status(400).json({ error: 'Required fields missing: statutory_rule_id, salary_component_id' });
+    }
+    try {
+        const result = await (0, db_1.query)(`UPDATE hrms.statutory_wage_components 
+       SET statutory_rule_id = $1, salary_component_id = $2, is_included = $3
+       WHERE id = $4
+       RETURNING *`, [statutory_rule_id, salary_component_id, is_included !== false, id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Wage component mapping not found' });
+        }
+        return res.json({ message: 'Wage component mapping updated successfully', wageComponent: result.rows[0] });
+    }
+    catch (err) {
+        console.error('Error updating statutory wage component mapping:', err);
+        return res.status(500).json({ error: 'Internal server database error' });
+    }
+});
+app.delete('/api/v1/payroll/statutory-wage-components/:id', auth_1.authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await (0, db_1.query)('DELETE FROM hrms.statutory_wage_components WHERE id = $1 RETURNING *', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Wage component mapping not found' });
+        }
+        return res.json({ message: 'Wage component mapping deleted successfully' });
+    }
+    catch (err) {
+        console.error('Error deleting statutory wage component mapping:', err);
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });

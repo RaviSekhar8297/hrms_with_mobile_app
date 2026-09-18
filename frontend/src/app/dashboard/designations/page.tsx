@@ -6,13 +6,14 @@ import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface Company {
   id: string;
   name: string;
-  subdomain: string;
-  status: string;
-  created_at: string;
+  subdomain?: string;
+  status?: string;
+  created_at?: string;
 }
 
 interface Branch {
@@ -47,6 +48,7 @@ interface Designation {
 
 export default function DesignationsPage() {
   const { showToast, companyId, setCompanyId } = useDashboard();
+  const { hasPermission } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -68,16 +70,17 @@ export default function DesignationsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedDesignationId, setSelectedDesignationId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [deletingDesignation, setDeletingDesignation] = useState<Designation | null>(null);
 
   // Form states
   const [desigForm, setDesigForm] = useState({ name: '', description: '', branch_id: '', department_id: '', companyId: '', status: 'ACTIVE' });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || permissions.includes('view_designations');
-  const canCreate = isSuperAdmin || permissions.includes('create_designations');
-  const canEdit = isSuperAdmin || permissions.includes('edit_designations');
-  const canDelete = isSuperAdmin || permissions.includes('delete_designations');
+  const canView = isSuperAdmin || hasPermission('view_designations');
+  const canCreate = isSuperAdmin || hasPermission('create_designations');
+  const canEdit = isSuperAdmin || hasPermission('edit_designations');
+  const canDelete = isSuperAdmin || hasPermission('delete_designations');
 
   const filteredDesignations = designations.filter(ds =>
     ds.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -197,11 +200,40 @@ export default function DesignationsPage() {
       return;
     }
 
-    if (!desigForm.name || !desigForm.description || !desigForm.branch_id || !desigForm.department_id) {
-      showToast('Office Branch, Department, Title, and Description are required', 'error');
+    if (!desigForm.branch_id) {
+      showToast('Office Branch is required', 'error');
       return;
     }
 
+    if (!desigForm.department_id) {
+      showToast('Department is required', 'error');
+      return;
+    }
+
+    if (!desigForm.name.trim()) {
+      showToast('Designation Title is required', 'error');
+      return;
+    }
+
+    if (desigForm.name.trim().length > 50) {
+      showToast('Designation Title cannot exceed 50 characters', 'error');
+      return;
+    }
+
+    // Duplicate check within department/company
+    const cleanName = desigForm.name.trim().toLowerCase();
+    const isDuplicate = designations.some(d => 
+      d.id !== selectedDesignationId &&
+      d.name.trim().toLowerCase() === cleanName &&
+      String(d.department_id) === String(desigForm.department_id) &&
+      (targetCompanyId && targetCompanyId !== 'all' ? String(d.company_id) === String(targetCompanyId) : true)
+    );
+    if (isDuplicate) {
+      showToast(`A designation with the title "${desigForm.name.trim()}" already exists in this department`, 'error');
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const url = editMode 
         ? `/api/v1/designations/${selectedDesignationId}`
@@ -233,6 +265,8 @@ export default function DesignationsPage() {
       }
     } catch (err) {
       showToast('Failed to save designation', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -394,23 +428,31 @@ export default function DesignationsPage() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              Designation Title
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                Designation Title *
+              </label>
+              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                {desigForm.name.length}/50
+              </span>
+            </div>
             <input
-              type="text" placeholder="e.g. Lead Software Engineer"
+              type="text"
+              placeholder="e.g. Lead Software Engineer"
+              maxLength={50}
               value={desigForm.name}
-              onChange={e => setDesigForm({ ...desigForm, name: e.target.value })}
+              onChange={e => setDesigForm({ ...desigForm, name: e.target.value.slice(0, 50) })}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-450 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 transition-all duration-200"
             />
           </div>
 
           <div>
             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              Description
+              Description <span className="text-slate-400 lowercase text-[10px] font-normal">(optional)</span>
             </label>
             <input
-              type="text" placeholder="e.g. Full-stack tech owner"
+              type="text"
+              placeholder="e.g. Full-stack tech owner"
               value={desigForm.description}
               onChange={e => setDesigForm({ ...desigForm, description: e.target.value })}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-450 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 transition-all duration-200"
@@ -433,8 +475,18 @@ export default function DesignationsPage() {
             </div>
           )}
 
-          <button type="submit" className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-sm transition-all duration-200 cursor-pointer">
-            {editMode ? 'Save Designation changes' : 'Create Designation'}
+          <button 
+            type="submit" 
+            disabled={isSaving}
+            className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isSaving && (
+              <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            )}
+            {isSaving ? (editMode ? 'Saving changes...' : 'Creating...') : (editMode ? 'Save Designation changes' : 'Create Designation')}
           </button>
         </form>
       </SlideDrawer>

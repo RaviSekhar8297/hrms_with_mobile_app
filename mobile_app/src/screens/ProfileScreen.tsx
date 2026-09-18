@@ -234,7 +234,7 @@ export const ProfileScreen: React.FC<ProfileProps> = ({ onBack }) => {
         >
           <Edit2 size={15} color={isEditing ? '#FFFFFF' : '#818CF8'} />
           <Text style={[styles.editModeText, isEditing ? { color: '#FFFFFF' } : { color: '#818CF8' }]}>
-            {isEditing ? 'Cancel' : 'Edit Profile'}
+            {isEditing ? 'Cancel' : 'Edit'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   heroNameText: {
     fontSize: 19,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#FFFFFF',
   },
   heroDesignationText: {
     fontSize: 13,

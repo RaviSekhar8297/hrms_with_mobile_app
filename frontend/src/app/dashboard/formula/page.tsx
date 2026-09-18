@@ -61,12 +61,64 @@ interface Configuration {
   is_active: boolean;
 }
 
+interface StatutoryRule {
+  id: string;
+  company_id: string | null;
+  component_id: string;
+  component_code?: string;
+  component_name?: string;
+  rule_code: string;
+  rule_name: string;
+  calculation_base: string;
+  calculation_type: string;
+  employee_rate: number;
+  employer_rate: number;
+  wage_ceiling: number | null;
+  max_employee_amount: number | null;
+  max_employer_amount: number | null;
+  formula_expression: string | null;
+  effective_from: string;
+  effective_to: string | null;
+  is_active: boolean;
+  remarks: string | null;
+}
+
+interface StatutoryRuleSlab {
+  id: string;
+  statutory_rule_id: string;
+  rule_code?: string;
+  rule_name?: string;
+  component_code?: string;
+  min_wage: number;
+  max_wage: number | null;
+  fixed_amount: number | null;
+  percentage: number | null;
+  effective_from: string;
+  effective_to: string | null;
+  is_active: boolean;
+  display_order: number;
+}
+
+interface StatutoryWageComponent {
+  id: string;
+  statutory_rule_id: string;
+  rule_code?: string;
+  rule_name?: string;
+  salary_component_id: string;
+  component_code?: string;
+  component_name?: string;
+  is_included: boolean;
+}
+
 // Tab definitions with permission keys
 const FORMULA_TABS = [
-  { id: 'slabs',      label: '1. Salary Slabs',                   permission: 'view_salary_slabs' },
-  { id: 'components', label: '2. Salary Components',              permission: 'view_salary_components' },
-  { id: 'calctypes',  label: '3. Calculation Type Master',        permission: 'view_salary_component_configurations' },
-  { id: 'configs',    label: '4. Salary Component Configuration', permission: 'view_salary_component_configurations' },
+  { id: 'slabs',           label: '1. Slabs',             permission: 'view_salary_slabs' },
+  { id: 'components',      label: '2. Components',        permission: 'view_salary_components' },
+  { id: 'calctypes',       label: '3. Calculation',       permission: 'view_salary_component_configurations' },
+  { id: 'configs',         label: '4. Configuration',     permission: 'view_salary_component_configurations' },
+  { id: 'statutory_rules', label: '5. Statutory',         permission: 'view_salary_component_configurations' },
+  { id: 'statutory_slabs', label: '6. Statutory Slabs',   permission: 'view_salary_component_configurations' },
+  { id: 'statutory_wages', label: '7. Wage Components',   permission: 'view_salary_component_configurations' },
 ] as const;
 
 type FormulaTabId = typeof FORMULA_TABS[number]['id'];
@@ -87,6 +139,9 @@ export default function PayrollFormulaEnginePage() {
   const [components, setComponents] = useState<Component[]>([]);
   const [calculationTypes, setCalculationTypes] = useState<CalculationType[]>([]);
   const [configurations, setConfigurations] = useState<Configuration[]>([]);
+  const [statutoryRules, setStatutoryRules] = useState<StatutoryRule[]>([]);
+  const [statutoryRuleSlabs, setStatutoryRuleSlabs] = useState<StatutoryRuleSlab[]>([]);
+  const [statutoryWageComponents, setStatutoryWageComponents] = useState<StatutoryWageComponent[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Active sub-tab under engine
@@ -137,6 +192,45 @@ export default function PayrollFormulaEnginePage() {
     is_active: true
   });
 
+  const [statutoryRuleForm, setStatutoryRuleForm] = useState({
+    id: '',
+    component_id: '',
+    rule_code: '',
+    rule_name: '',
+    calculation_base: 'BASIC',
+    calculation_type: 'PERCENTAGE_WITH_CEILING',
+    employee_rate: '12',
+    employer_rate: '12',
+    wage_ceiling: '15000',
+    max_employee_amount: '1800',
+    max_employer_amount: '1800',
+    formula_expression: '',
+    effective_from: new Date().toISOString().split('T')[0],
+    effective_to: '',
+    is_active: true,
+    remarks: ''
+  });
+
+  const [statutorySlabForm, setStatutorySlabForm] = useState({
+    id: '',
+    statutory_rule_id: '',
+    min_wage: '0',
+    max_wage: '',
+    fixed_amount: '0',
+    percentage: '',
+    effective_from: new Date().toISOString().split('T')[0],
+    effective_to: '',
+    is_active: true,
+    display_order: '1'
+  });
+
+  const [statutoryWageForm, setStatutoryWageForm] = useState({
+    id: '',
+    statutory_rule_id: '',
+    salary_component_id: '',
+    is_included: true
+  });
+
   // Sandbox simulation states
   const [sbGross, setSbGross] = useState('');
   const [sbTotalDays, setSbTotalDays] = useState('30');
@@ -163,21 +257,24 @@ export default function PayrollFormulaEnginePage() {
     activeTab === 'slabs' ? hasPermission('create_salary_slabs') :
     activeTab === 'components' ? hasPermission('create_salary_components') :
     activeTab === 'calctypes' ? hasPermission('create_salary_component_configurations') :
-    activeTab === 'configs' ? hasPermission('create_salary_component_configurations') : false
+    activeTab === 'configs' ? hasPermission('create_salary_component_configurations') :
+    ['statutory_rules', 'statutory_slabs', 'statutory_wages'].includes(activeTab) ? (hasPermission('create_salary_component_configurations') || isSuperAdmin) : false
   );
 
   const canEditCurrentTab = isSuperAdmin || (
     activeTab === 'slabs' ? hasPermission('edit_salary_slabs') :
     activeTab === 'components' ? hasPermission('edit_salary_components') :
     activeTab === 'calctypes' ? hasPermission('edit_salary_component_configurations') :
-    activeTab === 'configs' ? hasPermission('edit_salary_component_configurations') : false
+    activeTab === 'configs' ? hasPermission('edit_salary_component_configurations') :
+    ['statutory_rules', 'statutory_slabs', 'statutory_wages'].includes(activeTab) ? (hasPermission('edit_salary_component_configurations') || isSuperAdmin) : false
   );
 
   const canDeleteCurrentTab = isSuperAdmin || (
     activeTab === 'slabs' ? hasPermission('delete_salary_slabs') :
     activeTab === 'components' ? hasPermission('delete_salary_components') :
     activeTab === 'calctypes' ? hasPermission('delete_salary_component_configurations') :
-    activeTab === 'configs' ? hasPermission('delete_salary_component_configurations') : false
+    activeTab === 'configs' ? hasPermission('delete_salary_component_configurations') :
+    ['statutory_rules', 'statutory_slabs', 'statutory_wages'].includes(activeTab) ? (hasPermission('delete_salary_component_configurations') || isSuperAdmin) : false
   );
 
   // Auto-correct activeTab if it's not visible
@@ -210,6 +307,9 @@ export default function PayrollFormulaEnginePage() {
         setComponents(data.components || []);
         setCalculationTypes(data.calculationTypes || []);
         setConfigurations(data.configurations || []);
+        setStatutoryRules(data.statutoryRules || []);
+        setStatutoryRuleSlabs(data.statutoryRuleSlabs || []);
+        setStatutoryWageComponents(data.statutoryWageComponents || []);
       } else {
         showToast(data.error || 'Failed to load salary engine configuration.', 'error');
       }
@@ -457,15 +557,64 @@ export default function PayrollFormulaEnginePage() {
 
     const earnedTDS = calculateTDSValue(earnedGross);
 
-    // 2. PF: 12% of Basic up to 15,000 max (cap 1800)
+    // 2. PF: Dynamic from statutoryRules or statutory ceiling
+    let earnedPF = 0;
     const basicEarned = resolved['BASIC']?.earned || 0;
-    const earnedPF = Math.round(basicEarned >= 15000 ? 1800 : basicEarned * 0.12);
+    const pfRule = statutoryRules.find((r: any) => r.component_code === 'PF' && r.is_active !== false);
+    if (pfRule) {
+      const rate = (parseFloat(String(pfRule.employee_rate)) || 0) / 100;
+      const ceiling = pfRule.wage_ceiling ? parseFloat(String(pfRule.wage_ceiling)) : null;
+      const maxCap = pfRule.max_employee_amount ? parseFloat(String(pfRule.max_employee_amount)) : null;
+      const baseVal = pfRule.calculation_base === 'GROSS' ? earnedGross : basicEarned;
+      if (baseVal > 0) {
+        const appWage = ceiling ? Math.min(baseVal, ceiling) : baseVal;
+        let p = Math.round(appWage * rate);
+        if (maxCap && p > maxCap) p = Math.round(maxCap);
+        earnedPF = p;
+      }
+    } else {
+      earnedPF = Math.round(basicEarned >= 15000 ? 1800 : basicEarned * 0.12);
+    }
 
-    // 3. ESI: 0.75% of Gross if Gross < 21000
-    const earnedESI = Math.round(gross < 21000 ? earnedGross * 0.0075 : 0);
+    // 3. ESI: Dynamic from statutoryRules or statutory ceiling
+    let earnedESI = 0;
+    const esiRule = statutoryRules.find((r: any) => r.component_code === 'ESI' && r.is_active !== false);
+    if (esiRule) {
+      const rate = (parseFloat(String(esiRule.employee_rate)) || 0) / 100;
+      const ceiling = esiRule.wage_ceiling ? parseFloat(String(esiRule.wage_ceiling)) : 21000;
+      const baseVal = esiRule.calculation_base === 'BASIC' ? basicEarned : earnedGross;
+      if (baseVal > 0 && gross <= ceiling) {
+        earnedESI = Math.round(baseVal * rate);
+      }
+    } else {
+      earnedESI = Math.round(gross < 21000 ? earnedGross * 0.0075 : 0);
+    }
 
-    // 4. PT: Professional Tax based on earned gross slabs
-    const earnedPT = earnedGross >= 20001 ? 200 : (earnedGross >= 15001 ? 150 : 0);
+    // 4. PT: Dynamic from statutoryRules & statutoryRuleSlabs
+    let earnedPT = 0;
+    const ptRule = statutoryRules.find((r: any) => r.component_code === 'PT' && r.is_active !== false);
+    if (ptRule) {
+      const baseVal = ptRule.calculation_base === 'BASIC' ? basicEarned : earnedGross;
+      const slabs = statutoryRuleSlabs.filter((s: any) => s.statutory_rule_id === ptRule.id && s.is_active !== false);
+      if (slabs.length > 0) {
+        const matched = slabs.find((s: any) => {
+          const min = parseFloat(String(s.min_wage || 0));
+          const max = s.max_wage ? parseFloat(String(s.max_wage)) : Infinity;
+          return baseVal >= min && baseVal <= max;
+        });
+        if (matched) {
+          if (matched.fixed_amount !== null && matched.fixed_amount !== undefined) {
+            earnedPT = Math.round(parseFloat(String(matched.fixed_amount)));
+          } else if (matched.percentage) {
+            earnedPT = Math.round(baseVal * (parseFloat(String(matched.percentage)) / 100));
+          }
+        }
+      } else if (ptRule.max_employee_amount && baseVal > 20000) {
+        earnedPT = Math.round(parseFloat(String(ptRule.max_employee_amount)));
+      }
+    } else {
+      earnedPT = earnedGross >= 20001 ? 200 : (earnedGross >= 15001 ? 150 : 0);
+    }
 
     const netSalary = Math.round(earnedGross - (earnedTDS + earnedPF + earnedESI + earnedPT));
 
@@ -515,6 +664,45 @@ export default function PayrollFormulaEnginePage() {
         max_cap: item ? (item.max_cap ? String(item.max_cap) : '') : '',
         display_order: item ? String(item.display_order) : '1',
         is_active: item ? item.is_active : true
+      });
+    } else if (activeTab === 'statutory_rules') {
+      setStatutoryRuleForm({
+        id: item ? item.id : '',
+        component_id: item ? item.component_id : (components.find(c => ['PF', 'ESI', 'PT'].includes(c.component_code))?.id || components[0]?.id || ''),
+        rule_code: item ? item.rule_code : '',
+        rule_name: item ? item.rule_name : '',
+        calculation_base: item ? item.calculation_base : 'BASIC',
+        calculation_type: item ? item.calculation_type : 'PERCENTAGE_WITH_CEILING',
+        employee_rate: item ? String(item.employee_rate) : '12',
+        employer_rate: item ? String(item.employer_rate) : '12',
+        wage_ceiling: item ? (item.wage_ceiling ? String(item.wage_ceiling) : '') : '15000',
+        max_employee_amount: item ? (item.max_employee_amount ? String(item.max_employee_amount) : '') : '1800',
+        max_employer_amount: item ? (item.max_employer_amount ? String(item.max_employer_amount) : '') : '1800',
+        formula_expression: item ? (item.formula_expression || '') : '',
+        effective_from: item ? (item.effective_from ? item.effective_from.split('T')[0] : '') : new Date().toISOString().split('T')[0],
+        effective_to: item ? (item.effective_to ? item.effective_to.split('T')[0] : '') : '',
+        is_active: item ? item.is_active : true,
+        remarks: item ? (item.remarks || '') : ''
+      });
+    } else if (activeTab === 'statutory_slabs') {
+      setStatutorySlabForm({
+        id: item ? item.id : '',
+        statutory_rule_id: item ? item.statutory_rule_id : (statutoryRules[0]?.id || ''),
+        min_wage: item ? String(item.min_wage) : '0',
+        max_wage: item ? (item.max_wage ? String(item.max_wage) : '') : '',
+        fixed_amount: item ? (item.fixed_amount !== null && item.fixed_amount !== undefined ? String(item.fixed_amount) : '') : '0',
+        percentage: item ? (item.percentage !== null && item.percentage !== undefined ? String(item.percentage) : '') : '',
+        effective_from: item ? (item.effective_from ? item.effective_from.split('T')[0] : '') : new Date().toISOString().split('T')[0],
+        effective_to: item ? (item.effective_to ? item.effective_to.split('T')[0] : '') : '',
+        is_active: item ? item.is_active : true,
+        display_order: item ? String(item.display_order) : '1'
+      });
+    } else if (activeTab === 'statutory_wages') {
+      setStatutoryWageForm({
+        id: item ? item.id : '',
+        statutory_rule_id: item ? item.statutory_rule_id : (statutoryRules[0]?.id || ''),
+        salary_component_id: item ? item.salary_component_id : (components[0]?.id || ''),
+        is_included: item ? item.is_included : true
       });
     }
     setDrawerOpen(true);
@@ -579,6 +767,58 @@ export default function PayrollFormulaEnginePage() {
         is_active: configForm.is_active,
         companyId
       };
+    } else if (activeTab === 'statutory_rules') {
+      if (!statutoryRuleForm.component_id || !statutoryRuleForm.rule_code || !statutoryRuleForm.rule_name) {
+        showToast('Please select component, rule code, and rule name.', 'error');
+        return;
+      }
+      url = '/api/v1/payroll/statutory-rules';
+      payload = {
+        component_id: statutoryRuleForm.component_id,
+        rule_code: statutoryRuleForm.rule_code,
+        rule_name: statutoryRuleForm.rule_name,
+        calculation_base: statutoryRuleForm.calculation_base,
+        calculation_type: statutoryRuleForm.calculation_type,
+        employee_rate: statutoryRuleForm.employee_rate,
+        employer_rate: statutoryRuleForm.employer_rate,
+        wage_ceiling: statutoryRuleForm.wage_ceiling || null,
+        max_employee_amount: statutoryRuleForm.max_employee_amount || null,
+        max_employer_amount: statutoryRuleForm.max_employer_amount || null,
+        formula_expression: statutoryRuleForm.formula_expression || null,
+        effective_from: statutoryRuleForm.effective_from,
+        effective_to: statutoryRuleForm.effective_to || null,
+        is_active: statutoryRuleForm.is_active,
+        remarks: statutoryRuleForm.remarks || null,
+        companyId
+      };
+    } else if (activeTab === 'statutory_slabs') {
+      if (!statutorySlabForm.statutory_rule_id || statutorySlabForm.min_wage === undefined || statutorySlabForm.min_wage === '') {
+        showToast('Please select statutory rule and enter min wage.', 'error');
+        return;
+      }
+      url = '/api/v1/payroll/statutory-rule-slabs';
+      payload = {
+        statutory_rule_id: statutorySlabForm.statutory_rule_id,
+        min_wage: parseFloat(statutorySlabForm.min_wage),
+        max_wage: statutorySlabForm.max_wage ? parseFloat(statutorySlabForm.max_wage) : null,
+        fixed_amount: statutorySlabForm.fixed_amount !== '' ? parseFloat(statutorySlabForm.fixed_amount) : null,
+        percentage: statutorySlabForm.percentage !== '' ? parseFloat(statutorySlabForm.percentage) : null,
+        effective_from: statutorySlabForm.effective_from,
+        effective_to: statutorySlabForm.effective_to || null,
+        is_active: statutorySlabForm.is_active,
+        display_order: parseInt(statutorySlabForm.display_order) || 1
+      };
+    } else if (activeTab === 'statutory_wages') {
+      if (!statutoryWageForm.statutory_rule_id || !statutoryWageForm.salary_component_id) {
+        showToast('Please select statutory rule and salary component.', 'error');
+        return;
+      }
+      url = '/api/v1/payroll/statutory-wage-components';
+      payload = {
+        statutory_rule_id: statutoryWageForm.statutory_rule_id,
+        salary_component_id: statutoryWageForm.salary_component_id,
+        is_included: statutoryWageForm.is_included
+      };
     }
 
     if (editingItem) {
@@ -615,6 +855,9 @@ export default function PayrollFormulaEnginePage() {
     if (activeTab === 'slabs') url = `/api/v1/payroll/slabs/${id}`;
     else if (activeTab === 'components') url = `/api/v1/payroll/components/${id}`;
     else if (activeTab === 'configs') url = `/api/v1/payroll/configurations/${id}`;
+    else if (activeTab === 'statutory_rules') url = `/api/v1/payroll/statutory-rules/${id}`;
+    else if (activeTab === 'statutory_slabs') url = `/api/v1/payroll/statutory-rule-slabs/${id}`;
+    else if (activeTab === 'statutory_wages') url = `/api/v1/payroll/statutory-wage-components/${id}`;
 
     try {
       const res = await fetch(url, {
@@ -642,6 +885,23 @@ export default function PayrollFormulaEnginePage() {
       return components.filter(c => c.component_code.toLowerCase().includes(q) || c.component_name.toLowerCase().includes(q));
     } else if (activeTab === 'calctypes') {
       return calculationTypes.filter(t => t.type_name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
+    } else if (activeTab === 'statutory_rules') {
+      return statutoryRules.filter((r: any) =>
+        r.rule_code.toLowerCase().includes(q) ||
+        r.rule_name.toLowerCase().includes(q) ||
+        (r.component_code || '').toLowerCase().includes(q)
+      );
+    } else if (activeTab === 'statutory_slabs') {
+      return statutoryRuleSlabs.filter((s: any) =>
+        (s.rule_code || '').toLowerCase().includes(q) ||
+        (s.rule_name || '').toLowerCase().includes(q) ||
+        (s.component_code || '').toLowerCase().includes(q)
+      );
+    } else if (activeTab === 'statutory_wages') {
+      return statutoryWageComponents.filter((w: any) =>
+        (w.rule_code || '').toLowerCase().includes(q) ||
+        (w.component_code || '').toLowerCase().includes(q)
+      );
     } else {
       return configurations.filter(c =>
         c.component_code.toLowerCase().includes(q) ||
@@ -652,29 +912,22 @@ export default function PayrollFormulaEnginePage() {
   };
 
   const filteredList = getFilteredData();
-  const activeList = activeTab === 'slabs' ? slabs : activeTab === 'components' ? components : activeTab === 'calctypes' ? calculationTypes : configurations;
-  const paginatedConfigs = activeTab === 'configs'
+  const activeList =
+    activeTab === 'slabs' ? slabs :
+    activeTab === 'components' ? components :
+    activeTab === 'calctypes' ? calculationTypes :
+    activeTab === 'statutory_rules' ? statutoryRules :
+    activeTab === 'statutory_slabs' ? statutoryRuleSlabs :
+    activeTab === 'statutory_wages' ? statutoryWageComponents :
+    configurations;
+
+  const paginatedConfigs = ['configs', 'statutory_rules', 'statutory_slabs'].includes(activeTab)
     ? filteredList.slice((currentPage - 1) * pageSize, currentPage * pageSize)
     : filteredList;
   const totalPages = Math.ceil(filteredList.length / pageSize) || 1;
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="formula-page-container font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full">
-      <style dangerouslySetInnerHTML={{__html: `
-        .formula-page-container,
-        .formula-page-container td,
-        .formula-page-container th,
-        .formula-page-container button,
-        .formula-page-container input,
-        .formula-page-container select,
-        .formula-page-container label,
-        .formula-page-container span,
-        .formula-page-container div,
-        .formula-page-container p {
-          font-family: 'DM Sans', sans-serif !important;
-        }
-      `}} />
-
+    <div className="formula-page-container space-y-6 animate-fadeIn w-full">
       <DashboardPageHeader
         title="Gross-to-Net Payroll Hub"
         actionMessage=""
@@ -692,7 +945,7 @@ export default function PayrollFormulaEnginePage() {
       <div className="p-6 rounded-2xl border border-slate-200/50 dark:border-slate-800/60 bg-card text-left space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-black text-slate-850 dark:text-slate-100 uppercase tracking-wider">Salary Structure Engine</h3>
+            <h3 className="text-sm font-bold text-slate-850 dark:text-slate-100 uppercase tracking-wider">Salary Structure Engine</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Define gross ranges, master component codes, calculation configurations, and engine mappings.</p>
           </div>
           <div className="flex gap-2">
@@ -726,7 +979,7 @@ export default function PayrollFormulaEnginePage() {
           </div>
         ) : (
           <div className="border-b border-slate-200/60 dark:border-slate-800/80 pb-px">
-            <nav className="flex gap-2 overflow-x-auto no-scrollbar pt-1">
+            <nav className="flex gap-1.5 overflow-x-auto no-scrollbar pt-1">
               {visibleTabs.map(tab => {
                 const isSelected = activeTab === tab.id;
                 return (
@@ -737,8 +990,7 @@ export default function PayrollFormulaEnginePage() {
                       setSearchQuery('');
                       setCurrentPage(1);
                     }}
-                    style={{ fontFamily: "'DM Sans', sans-serif" }}
-                    className={`py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer flex-shrink-0 border-0 ${
+                    className={`py-2 px-3.5 rounded-xl text-xs font-semibold tracking-normal transition-all duration-200 cursor-pointer flex-shrink-0 border-0 ${
                       isSelected
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
@@ -763,13 +1015,21 @@ export default function PayrollFormulaEnginePage() {
             <input
               type="text"
               autoComplete="off"
-              placeholder={`Search ${activeTab === 'slabs' ? 'slabs' : activeTab === 'components' ? 'components' : activeTab === 'calctypes' ? 'calculation types' : 'configurations'}...`}
+              placeholder={`Search ${
+                activeTab === 'slabs' ? 'slabs' :
+                activeTab === 'components' ? 'components' :
+                activeTab === 'calctypes' ? 'calculation types' :
+                activeTab === 'configs' ? 'configurations' :
+                activeTab === 'statutory_rules' ? 'statutory rules' :
+                activeTab === 'statutory_slabs' ? 'statutory slabs' :
+                activeTab === 'statutory_wages' ? 'wage components' : 'items'
+              }...`}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="!pl-11 pr-4 py-2 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-255"
             />
           </div>
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold tracking-wide">
             Showing {filteredList.length} of {activeList.length} entries
           </span>
         </div>
@@ -779,7 +1039,7 @@ export default function PayrollFormulaEnginePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-150 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/40 text-[9.5px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                <tr className="border-b border-slate-150 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/40 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   {activeTab === 'slabs' && (
                     <>
                       <th className="p-4">Slab Name</th>
@@ -818,6 +1078,39 @@ export default function PayrollFormulaEnginePage() {
                       <th className="p-4">Prorata?</th>
                       <th className="p-4">Order</th>
                       <th className="p-4">Status</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </>
+                  )}
+                  {activeTab === 'statutory_rules' && (
+                    <>
+                      <th className="p-4">Component</th>
+                      <th className="p-4">Rule Code & Name</th>
+                      <th className="p-4">Base & Type</th>
+                      <th className="p-4">Employee / Employer Rate</th>
+                      <th className="p-4">Wage Ceiling</th>
+                      <th className="p-4">Max Cap</th>
+                      <th className="p-4">Effective Dates</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </>
+                  )}
+                  {activeTab === 'statutory_slabs' && (
+                    <>
+                      <th className="p-4">Statutory Rule</th>
+                      <th className="p-4">Min Wage (₹)</th>
+                      <th className="p-4">Max Wage (₹)</th>
+                      <th className="p-4">Fixed Amount (₹)</th>
+                      <th className="p-4">Percentage (%)</th>
+                      <th className="p-4">Order</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </>
+                  )}
+                  {activeTab === 'statutory_wages' && (
+                    <>
+                      <th className="p-4">Statutory Rule</th>
+                      <th className="p-4">Salary Component</th>
+                      <th className="p-4">Included in Calculation?</th>
                       <th className="p-4 text-right">Actions</th>
                     </>
                   )}
@@ -939,6 +1232,145 @@ export default function PayrollFormulaEnginePage() {
                             }`}>
                               <span className={`w-1 h-1 rounded-full ${item.is_active ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-slate-400'}`}></span>
                               {item.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right space-x-1.5">
+                            {canEditCurrentTab && (
+                              <button
+                                onClick={() => handleOpenDrawer(item)}
+                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {canDeleteCurrentTab && (
+                              <button
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 text-red-650 dark:text-red-455 hover:bg-red-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </td>
+                        </>
+                      )}
+                      {activeTab === 'statutory_rules' && (
+                        <>
+                          <td className="p-4">
+                            <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-xs">
+                              {item.component_code}
+                            </span>
+                            <div className="text-[11px] text-slate-450 mt-0.5">{item.component_name}</div>
+                          </td>
+                          <td className="p-4">
+                            <div className="font-bold text-slate-850 dark:text-slate-200">{item.rule_name}</div>
+                            <div className="text-[10.5px] font-mono text-slate-450">{item.rule_code}</div>
+                          </td>
+                          <td className="p-4">
+                            <div className="font-semibold text-slate-700 dark:text-slate-300">{item.calculation_base}</div>
+                            <div className="text-[10px] text-slate-450">{item.calculation_type}</div>
+                          </td>
+                          <td className="p-4 font-mono font-medium">
+                            <span className="text-blue-600 dark:text-blue-400">EE: {parseFloat(item.employee_rate || 0)}%</span>
+                            <span className="text-slate-400 mx-1">/</span>
+                            <span className="text-indigo-600 dark:text-indigo-400">ER: {parseFloat(item.employer_rate || 0)}%</span>
+                          </td>
+                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">
+                            {item.wage_ceiling ? `₹${parseFloat(item.wage_ceiling).toLocaleString('en-IN')}` : 'No Ceiling'}
+                          </td>
+                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">
+                            {item.max_employee_amount ? `₹${parseFloat(item.max_employee_amount).toLocaleString('en-IN')}` : '-'}
+                          </td>
+                          <td className="p-4 text-[11px] text-slate-500">
+                            {item.effective_from ? item.effective_from.split('T')[0] : '-'}
+                            {item.effective_to ? ` to ${item.effective_to.split('T')[0]}` : ' onwards'}
+                          </td>
+                          <td className="p-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                              item.is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              <span className={`w-1 h-1 rounded-full ${item.is_active ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-slate-400'}`}></span>
+                              {item.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right space-x-1.5">
+                            {canEditCurrentTab && (
+                              <button
+                                onClick={() => handleOpenDrawer(item)}
+                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {canDeleteCurrentTab && (
+                              <button
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 text-red-650 dark:text-red-455 hover:bg-red-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </td>
+                        </>
+                      )}
+                      {activeTab === 'statutory_slabs' && (
+                        <>
+                          <td className="p-4">
+                            <div className="font-bold text-slate-850 dark:text-slate-200">{item.rule_name || item.rule_code}</div>
+                            <div className="text-[10px] font-mono text-indigo-600">{item.component_code}</div>
+                          </td>
+                          <td className="p-4 font-mono font-semibold">₹{parseFloat(item.min_wage).toLocaleString('en-IN')}</td>
+                          <td className="p-4 font-mono font-semibold">
+                            {item.max_wage ? `₹${parseFloat(item.max_wage).toLocaleString('en-IN')}` : 'Above / No Limit'}
+                          </td>
+                          <td className="p-4 font-bold text-slate-800 dark:text-slate-200">
+                            {item.fixed_amount !== null && item.fixed_amount !== undefined ? `₹${parseFloat(item.fixed_amount).toLocaleString('en-IN')}` : '-'}
+                          </td>
+                          <td className="p-4 font-mono">
+                            {item.percentage !== null && item.percentage !== undefined ? `${parseFloat(item.percentage)}%` : '-'}
+                          </td>
+                          <td className="p-4 text-center font-mono">{item.display_order}</td>
+                          <td className="p-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                              item.is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>
+                              <span className={`w-1 h-1 rounded-full ${item.is_active ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-slate-400'}`}></span>
+                              {item.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right space-x-1.5">
+                            {canEditCurrentTab && (
+                              <button
+                                onClick={() => handleOpenDrawer(item)}
+                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {canDeleteCurrentTab && (
+                              <button
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="px-2.5 py-1 rounded-lg border border-red-100 dark:border-red-900/50 text-red-650 dark:text-red-455 hover:bg-red-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </td>
+                        </>
+                      )}
+                      {activeTab === 'statutory_wages' && (
+                        <>
+                          <td className="p-4 font-bold text-slate-850 dark:text-slate-200">
+                            {item.rule_name || item.rule_code}
+                          </td>
+                          <td className="p-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                            {item.component_code} <span className="text-slate-500 font-sans font-normal">({item.component_name})</span>
+                          </td>
+                          <td className="p-4">
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                              item.is_included ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                            }`}>
+                              {item.is_included ? 'YES (Included in Wage)' : 'NO (Excluded)'}
                             </span>
                           </td>
                           <td className="p-4 text-right space-x-1.5">
@@ -1477,19 +1909,315 @@ export default function PayrollFormulaEnginePage() {
             </>
           )}
 
-          <div className="pt-4 flex gap-3">
+          {activeTab === 'statutory_rules' && (
+            <>
+              <div>
+                <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Salary Component</label>
+                <select
+                  value={statutoryRuleForm.component_id}
+                  onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, component_id: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                >
+                  <option value="">-- Select Component --</option>
+                  {components.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.component_name} ({c.component_code}) - {c.component_type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Rule Code</label>
+                  <input
+                    type="text"
+                    value={statutoryRuleForm.rule_code}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, rule_code: e.target.value.toUpperCase() })}
+                    placeholder="e.g. PF_STD_2026"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Rule Name</label>
+                  <input
+                    type="text"
+                    value={statutoryRuleForm.rule_name}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, rule_name: e.target.value })}
+                    placeholder="e.g. Provident Fund Standard Rule"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Calculation Base</label>
+                  <select
+                    value={statutoryRuleForm.calculation_base}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, calculation_base: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="BASIC">BASIC</option>
+                    <option value="GROSS">GROSS</option>
+                    <option value="PF_WAGE">PF_WAGE (Custom Components)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Calculation Type</label>
+                  <select
+                    value={statutoryRuleForm.calculation_type}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, calculation_type: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="PERCENTAGE_WITH_CEILING">Percentage with Ceiling (PF/ESI)</option>
+                    <option value="PERCENTAGE">Percentage</option>
+                    <option value="FIXED">Fixed Amount</option>
+                    <option value="SLAB">Slab Based (PT)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Employee Rate (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={statutoryRuleForm.employee_rate}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, employee_rate: e.target.value })}
+                    placeholder="e.g. 12"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Employer Rate (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={statutoryRuleForm.employer_rate}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, employer_rate: e.target.value })}
+                    placeholder="e.g. 12"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Wage Ceiling (₹)</label>
+                  <input
+                    type="number"
+                    value={statutoryRuleForm.wage_ceiling}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, wage_ceiling: e.target.value })}
+                    placeholder="e.g. 15000 or 25000"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Max Employee Cap (₹)</label>
+                  <input
+                    type="number"
+                    value={statutoryRuleForm.max_employee_amount}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, max_employee_amount: e.target.value })}
+                    placeholder="e.g. 1800 or 3000"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Effective From Date</label>
+                  <input
+                    type="date"
+                    value={statutoryRuleForm.effective_from}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, effective_from: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Effective To Date (Optional)</label>
+                  <input
+                    type="date"
+                    value={statutoryRuleForm.effective_to}
+                    onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, effective_to: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Remarks / Compliance Notes</label>
+                <textarea
+                  value={statutoryRuleForm.remarks}
+                  onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, remarks: e.target.value })}
+                  placeholder="Government notification / EPFO circular details..."
+                  rows={2}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 resize-none"
+                />
+              </div>
+              <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-900/20 rounded-xl">
+                <span className="text-[9.5px] font-black text-slate-450 uppercase tracking-widest">Is Rule Active</span>
+                <input
+                  type="checkbox"
+                  checked={statutoryRuleForm.is_active}
+                  onChange={e => setStatutoryRuleForm({ ...statutoryRuleForm, is_active: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 cursor-pointer"
+                />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'statutory_slabs' && (
+            <>
+              <div>
+                <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Statutory Rule</label>
+                <select
+                  value={statutorySlabForm.statutory_rule_id}
+                  onChange={e => setStatutorySlabForm({ ...statutorySlabForm, statutory_rule_id: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                >
+                  <option value="">-- Select Statutory Rule --</option>
+                  {statutoryRules.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.rule_name} ({r.rule_code}) - {r.component_code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Min Wage (₹)</label>
+                  <input
+                    type="number"
+                    value={statutorySlabForm.min_wage}
+                    onChange={e => setStatutorySlabForm({ ...statutorySlabForm, min_wage: e.target.value })}
+                    placeholder="e.g. 15001"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Max Wage (₹, leave empty for unbounded)</label>
+                  <input
+                    type="number"
+                    value={statutorySlabForm.max_wage}
+                    onChange={e => setStatutorySlabForm({ ...statutorySlabForm, max_wage: e.target.value })}
+                    placeholder="e.g. 20000 or empty"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Fixed Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={statutorySlabForm.fixed_amount}
+                    onChange={e => setStatutorySlabForm({ ...statutorySlabForm, fixed_amount: e.target.value })}
+                    placeholder="e.g. 150 or 200"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Percentage (Optional %)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={statutorySlabForm.percentage}
+                    onChange={e => setStatutorySlabForm({ ...statutorySlabForm, percentage: e.target.value })}
+                    placeholder="e.g. 1.0"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Display Order</label>
+                  <input
+                    type="number"
+                    value={statutorySlabForm.display_order}
+                    onChange={e => setStatutorySlabForm({ ...statutorySlabForm, display_order: e.target.value })}
+                    placeholder="e.g. 1"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Effective From</label>
+                  <input
+                    type="date"
+                    value={statutorySlabForm.effective_from}
+                    onChange={e => setStatutorySlabForm({ ...statutorySlabForm, effective_from: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-900/20 rounded-xl">
+                <span className="text-[9.5px] font-black text-slate-450 uppercase tracking-widest">Is Slab Active</span>
+                <input
+                  type="checkbox"
+                  checked={statutorySlabForm.is_active}
+                  onChange={e => setStatutorySlabForm({ ...statutorySlabForm, is_active: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 cursor-pointer"
+                />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'statutory_wages' && (
+            <>
+              <div>
+                <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Statutory Rule</label>
+                <select
+                  value={statutoryWageForm.statutory_rule_id}
+                  onChange={e => setStatutoryWageForm({ ...statutoryWageForm, statutory_rule_id: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                >
+                  <option value="">-- Select Statutory Rule --</option>
+                  {statutoryRules.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.rule_name} ({r.rule_code}) - {r.component_code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[9.5px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest mb-1.5">Salary Component (To Include in Wage Base)</label>
+                <select
+                  value={statutoryWageForm.salary_component_id}
+                  onChange={e => setStatutoryWageForm({ ...statutoryWageForm, salary_component_id: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 px-3.5 py-2.5 text-xs outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
+                >
+                  <option value="">-- Select Salary Component --</option>
+                  {components.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.component_name} ({c.component_code}) - {c.component_type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-900/20 rounded-xl">
+                <span className="text-[9.5px] font-black text-slate-450 uppercase tracking-widest">Include in Wage Calculation?</span>
+                <input
+                  type="checkbox"
+                  checked={statutoryWageForm.is_included}
+                  onChange={e => setStatutoryWageForm({ ...statutoryWageForm, is_included: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded border-slate-300 cursor-pointer"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="pt-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between w-full mt-3 gap-3">
             <button
               type="button"
               onClick={() => setDrawerOpen(false)}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-850 text-slate-650 dark:text-slate-350 hover:bg-slate-105 dark:hover:bg-slate-800/40 text-xs font-black uppercase tracking-wider transition-colors cursor-pointer text-center"
+              className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer shadow-xs"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center"
+              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-2"
             >
-              {editingItem ? 'Save Changes' : 'Create Record'}
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              <span>{editingItem ? 'Save Changes' : 'Create Record'}</span>
             </button>
           </div>
         </form>

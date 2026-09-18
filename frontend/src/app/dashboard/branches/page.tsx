@@ -6,6 +6,7 @@ import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface Company {
   id: string;
@@ -17,15 +18,17 @@ interface Company {
 
 interface Branch {
   id: string;
-  company_id?: string;
   name: string;
   address: string;
   status: string;
+  company_id?: string;
+  company_name?: string;
   created_at: string;
 }
 
 export default function BranchesPage() {
   const { showToast, companyId, setCompanyId } = useDashboard();
+  const { hasPermission } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -37,6 +40,7 @@ export default function BranchesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [deletingBranch, setDeletingBranch] = useState<Branch | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -44,10 +48,10 @@ export default function BranchesPage() {
   const [branchForm, setBranchForm] = useState({ name: '', address: '', companyId: '', status: 'ACTIVE' });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || permissions.includes('view_branches');
-  const canCreate = isSuperAdmin || permissions.includes('create_branches');
-  const canEdit = isSuperAdmin || permissions.includes('edit_branches');
-  const canDelete = isSuperAdmin || permissions.includes('delete_branches');
+  const canView = isSuperAdmin || hasPermission('view_branches');
+  const canCreate = isSuperAdmin || hasPermission('create_branches');
+  const canEdit = isSuperAdmin || hasPermission('edit_branches');
+  const canDelete = isSuperAdmin || hasPermission('delete_branches');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -63,7 +67,9 @@ export default function BranchesPage() {
       const res = await fetch('/api/v1/companies', { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const fetchBranches = async () => {
@@ -71,8 +77,12 @@ export default function BranchesPage() {
     try {
       const res = await fetch(getUrl('/api/v1/branches', companyId), { headers: getHeaders() });
       const data = await res.json();
-      if (res.ok) setBranches(data.branches || []);
-    } catch (e) { console.error(e); }
+      if (res.ok) {
+        setBranches(data.branches || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   };
 
@@ -101,11 +111,29 @@ export default function BranchesPage() {
       return;
     }
 
-    if (!branchForm.name || !branchForm.address) {
-      showToast('Branch Name and Address are required', 'error');
+    if (!branchForm.name.trim()) {
+      showToast('Branch Name is required', 'error');
       return;
     }
 
+    if (branchForm.name.trim().length > 50) {
+      showToast('Branch Name cannot exceed 50 characters', 'error');
+      return;
+    }
+
+    // Duplicate check within company
+    const cleanName = branchForm.name.trim().toLowerCase();
+    const isDuplicate = branches.some(b => 
+      b.id !== selectedBranchId &&
+      b.name.trim().toLowerCase() === cleanName &&
+      (targetCompanyId && targetCompanyId !== 'all' ? String(b.company_id) === String(targetCompanyId) : true)
+    );
+    if (isDuplicate) {
+      showToast(`A branch with the name "${branchForm.name.trim()}" already exists in this company`, 'error');
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const url = editMode 
         ? `/api/v1/branches/${selectedBranchId}`
@@ -135,6 +163,8 @@ export default function BranchesPage() {
       }
     } catch (err) {
       showToast('Failed to save branch location', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -317,7 +347,7 @@ export default function BranchesPage() {
                   <div className="flex flex-col text-[10px] font-bold font-mono">
                     <span className="text-[8.5px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest">Created At</span>
                     <span className="text-slate-600 dark:text-slate-300 font-bold">
-                      {new Date(b.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} • {new Date(b.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      {b.created_at ? `${new Date(b.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} • ${new Date(b.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -370,20 +400,27 @@ export default function BranchesPage() {
           )}
 
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              Branch Name *
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                Branch Name *
+              </label>
+              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                {branchForm.name.length}/50
+              </span>
+            </div>
             <input
-              type="text" placeholder="e.g. Hitech City HQ"
+              type="text"
+              placeholder="e.g. Hitech City HQ"
+              maxLength={50}
               value={branchForm.name}
-              onChange={e => setBranchForm({ ...branchForm, name: e.target.value })}
+              onChange={e => setBranchForm({ ...branchForm, name: e.target.value.slice(0, 50) })}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 transition-all duration-200 font-medium"
             />
           </div>
 
           <div>
             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              Branch Address *
+              Branch Address <span className="text-slate-400 lowercase text-[10px] font-normal">(optional)</span>
             </label>
             <textarea
               placeholder="e.g. Hyderabad, India"
@@ -409,8 +446,18 @@ export default function BranchesPage() {
             </div>
           )}
 
-          <button type="submit" className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white shadow-md shadow-blue-600/20 active:scale-[0.99] transition-all duration-200 cursor-pointer">
-            {editMode ? 'Save Branch changes' : 'Create Office Branch'}
+          <button 
+            type="submit" 
+            disabled={isSaving}
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white shadow-md shadow-blue-600/20 active:scale-[0.99] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isSaving && (
+              <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            )}
+            {isSaving ? (editMode ? 'Saving changes...' : 'Creating...') : (editMode ? 'Save Branch changes' : 'Create Office Branch')}
           </button>
         </form>
       </SlideDrawer>

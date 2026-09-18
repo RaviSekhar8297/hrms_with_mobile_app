@@ -3813,10 +3813,11 @@ export default function AttendancePage() {
           isOpen={dayDetailModalOpen}
           onClose={() => setDayDetailModalOpen(false)}
           title={`Attendance Audit — ${formatDisplayDate(selectedDayLog.attendance_date)}`}
+          width="max-w-[560px]"
         >
-          <div className="space-y-5 animate-fadeIn">
+          <div className="space-y-5 animate-fadeIn font-sans">
             {/* Light Soft Header Card */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/50 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-800/80 border border-slate-200/80 dark:border-slate-800 shadow-2xs relative overflow-hidden">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50/60 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-800/80 border border-slate-200/80 dark:border-slate-800 shadow-2xs relative overflow-hidden">
               <div className="flex items-center justify-between relative z-10">
                 <div>
                   <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest block mb-0.5">
@@ -3906,6 +3907,95 @@ export default function AttendancePage() {
                 <span className={`font-bold text-[10.5px] uppercase tracking-wider px-2.5 py-1 rounded-lg ${selectedDayLog.is_regularized ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
                   {selectedDayLog.is_regularized ? 'Regularized' : 'Normal'}
                 </span>
+              </div>
+            </div>
+
+            {/* ⚡ Colorful Column Action Buttons Section */}
+            <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Quick Actions / Applications
+                </span>
+                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-200/60 dark:border-blue-900/60">
+                  Employee Portal
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                {/* 🌴 Apply Leave Button */}
+                <button
+                  type="button"
+                  className="w-full group flex items-center justify-between p-3.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent hover:from-amber-500/20 hover:via-amber-500/10 dark:from-amber-500/20 dark:via-amber-500/10 hover:border-amber-300 dark:hover:border-amber-700/60 transition-all duration-200 shadow-2xs hover:shadow-md cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
+                      🌴
+                    </div>
+                    <div className="text-left">
+                      <span className="block text-xs font-black text-amber-950 dark:text-amber-200 uppercase tracking-wide group-hover:text-amber-600 dark:group-hover:text-amber-300 transition-colors font-outfit">
+                        Apply Leave
+                      </span>
+                      <span className="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                        Request casual, sick or annual leave for this date
+                      </span>
+                    </div>
+                  </div>
+                  <span className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 group-hover:translate-x-1 transition-transform border border-amber-200/60 dark:border-amber-900/50 shadow-2xs">
+                    <svg className="w-4 h-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </span>
+                </button>
+
+                {/* 📝 Apply Request Button */}
+                <button
+                  type="button"
+                  className="w-full group flex items-center justify-between p-3.5 rounded-xl border border-indigo-200/80 dark:border-indigo-900/40 bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent hover:from-indigo-500/20 hover:via-indigo-500/10 dark:from-indigo-500/20 dark:via-indigo-500/10 hover:border-indigo-300 dark:hover:border-indigo-700/60 transition-all duration-200 shadow-2xs hover:shadow-md cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
+                      📝
+                    </div>
+                    <div className="text-left">
+                      <span className="block text-xs font-black text-indigo-950 dark:text-indigo-200 uppercase tracking-wide group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors font-outfit">
+                        Apply Request
+                      </span>
+                      <span className="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                        Submit regularization or work-from-home request
+                      </span>
+                    </div>
+                  </div>
+                  <span className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform border border-indigo-200/60 dark:border-indigo-900/50 shadow-2xs">
+                    <svg className="w-4 h-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </span>
+                </button>
+
+                {/* ⏱️ Apply Permission Button */}
+                <button
+                  type="button"
+                  className="w-full group flex items-center justify-between p-3.5 rounded-xl border border-emerald-200/80 dark:border-emerald-900/40 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent hover:from-emerald-500/20 hover:via-emerald-500/10 dark:from-emerald-500/20 dark:via-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-700/60 transition-all duration-200 shadow-2xs hover:shadow-md cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
+                      ⏱️
+                    </div>
+                    <div className="text-left">
+                      <span className="block text-xs font-black text-emerald-950 dark:text-emerald-200 uppercase tracking-wide group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors font-outfit">
+                        Apply Permission
+                      </span>
+                      <span className="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+                        Request short duration or late entry permission
+                      </span>
+                    </div>
+                  </div>
+                  <span className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform border border-emerald-200/60 dark:border-emerald-900/50 shadow-2xs">
+                    <svg className="w-4 h-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  </span>
+                </button>
               </div>
             </div>
           </div>

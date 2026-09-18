@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
@@ -19,8 +20,11 @@ const STEPPER_STEPS = [
 function CreateEmployeeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { showToast } = useDashboard();
-  const { isSuperAdmin } = usePermissions();
+  const { showToast, companyId: contextCompanyId, companies: contextCompanies } = useDashboard();
+  const { isSuperAdmin, hasPermission } = usePermissions();
+  const canCreateBranch = isSuperAdmin || hasPermission('create_branches');
+  const canCreateDepartment = isSuperAdmin || hasPermission('create_departments');
+  const canCreateDesignation = isSuperAdmin || hasPermission('create_designations');
 
   const modeParam = searchParams.get('mode');
   const [onboardingMode, setOnboardingMode] = useState<'single' | 'bulk'>('single');
@@ -33,7 +37,6 @@ function CreateEmployeeContent() {
 
   const [currentStep, setCurrentStep] = useState<number>(1);
 
-  const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -71,6 +74,7 @@ function CreateEmployeeContent() {
     branch_id: '',
     department_id: '',
     designation_id: '',
+    role_id: '',
     tenant_role_id: '',
     shift_id: '',
     reporting_to_id: '',
@@ -106,36 +110,68 @@ function CreateEmployeeContent() {
       }
     }
 
-    const savedCompanyId = localStorage.getItem('companyId') || localStorage.getItem('selectedCompanyId');
-    if (savedCompanyId) {
-      setCompanyId(savedCompanyId);
-      setEmpForm(prev => ({ ...prev, companyId: savedCompanyId }));
+    const activeCid = contextCompanyId || (typeof window !== 'undefined' ? (localStorage.getItem('companyId') || localStorage.getItem('selectedCompanyId')) : null);
+    if (activeCid) {
+      setEmpForm(prev => ({ ...prev, companyId: activeCid }));
     }
 
-    fetchMetadata();
+    fetchMetadata(activeCid || undefined);
   }, []);
 
-  const fetchMetadata = async () => {
+  // Synchronize whenever context company changes from global Header
+  useEffect(() => {
+    if (contextCompanyId) {
+      setEmpForm(prev => ({
+        ...prev,
+        companyId: contextCompanyId,
+        branch_id: '',
+        department_id: '',
+        designation_id: '',
+        role_id: '',
+        tenant_role_id: '',
+        shift_id: ''
+      }));
+      fetchMetadata(contextCompanyId);
+      fetchEmployeesList(contextCompanyId);
+      fetchRolesForCompany(contextCompanyId);
+    }
+  }, [contextCompanyId]);
+
+  const activeCompanyId = contextCompanyId || (typeof window !== 'undefined' ? (localStorage.getItem('companyId') || localStorage.getItem('selectedCompanyId')) : null);
+
+  const fetchEmployeesList = async (targetCid?: string) => {
+    try {
+      const cid = targetCid || activeCompanyId;
+      const url = getUrl('/api/v1/employees', cid && cid !== 'all' ? cid : null);
+      const res = await fetch(url, { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.employees || []);
+        setEmployees(list);
+      }
+    } catch (e) {
+      console.error('Error fetching employees list:', e);
+    }
+  };
+
+  const fetchMetadata = async (targetCid?: string | null) => {
     setIsLoading(true);
     try {
+      const cid = targetCid || activeCompanyId;
       const [compRes, empRes, branchRes, deptRes, desigRes, roleRes, shiftRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/companies`, { headers: getHeaders() }),
-        fetch(`${API_BASE}/api/v1/employees`, { headers: getHeaders() }),
-        fetch(`${API_BASE}/api/v1/branches`, { headers: getHeaders() }),
-        fetch(`${API_BASE}/api/v1/departments`, { headers: getHeaders() }),
-        fetch(`${API_BASE}/api/v1/designations`, { headers: getHeaders() }),
-        fetch(getUrl('/api/v1/roles'), { headers: getHeaders() }),
-        fetch(`${API_BASE}/api/v1/shifts`, { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/employees', cid && cid !== 'all' ? cid : null), { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/branches', cid && cid !== 'all' ? cid : null), { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/departments', cid && cid !== 'all' ? cid : null), { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/designations', cid && cid !== 'all' ? cid : null), { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/roles', cid && cid !== 'all' ? cid : null), { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/shifts', cid && cid !== 'all' ? cid : null), { headers: getHeaders() }),
       ]);
 
       if (compRes.ok) {
         const data = await compRes.json();
         const list = Array.isArray(data) ? data : (data.companies || []);
         setCompanies(list);
-        if (!companyId && list.length > 0) {
-          setCompanyId(list[0].id);
-          setEmpForm(prev => ({ ...prev, companyId: list[0].id }));
-        }
       }
       if (empRes.ok) {
         const data = await empRes.json();
@@ -168,18 +204,18 @@ function CreateEmployeeContent() {
     }
   };
 
-  const handleCompanyChange = (newId: string) => {
-    setCompanyId(newId);
-    setEmpForm(prev => ({
-      ...prev,
-      companyId: newId,
-      branch_id: '',
-      department_id: '',
-      designation_id: '',
-      tenant_role_id: '',
-      shift_id: ''
-    }));
-    if (newId) localStorage.setItem('companyId', newId);
+  const fetchRolesForCompany = async (targetCid?: string | null) => {
+    try {
+      const cid = targetCid || activeCompanyId;
+      const url = getUrl('/api/v1/roles', cid && cid !== 'all' ? cid : null);
+      const res = await fetch(url, { headers: getHeaders() });
+      if (res.ok) {
+        const d = await res.json();
+        setTenantRoles(Array.isArray(d) ? d : (d.roles || d.tenantRoles || d.data || []));
+      }
+    } catch (e) {
+      console.error('Error fetching roles for company:', e);
+    }
   };
 
   const deduplicateOptions = (options: { value: string; label: string }[], currentValue?: string) => {
@@ -209,7 +245,13 @@ function CreateEmployeeContent() {
     return result;
   };
 
-  const activeCompanyId = isSuperAdmin ? (empForm.companyId || companyId) : companyId;
+  // Whenever activeCompanyId becomes valid and employees are empty or changed, ensure list and roles are fetched
+  useEffect(() => {
+    if (activeCompanyId && activeCompanyId !== 'all') {
+      fetchEmployeesList(activeCompanyId);
+      fetchRolesForCompany(activeCompanyId);
+    }
+  }, [activeCompanyId]);
 
   const safeBranches = Array.isArray(branches) ? branches : [];
   const safeDepartments = Array.isArray(departments) ? departments : [];
@@ -222,24 +264,226 @@ function CreateEmployeeContent() {
     ? safeBranches.filter(b => b?.company_id === activeCompanyId)
     : safeBranches;
   const filteredDepartments = empForm.branch_id
-    ? safeDepartments.filter(d => d?.branch_id === empForm.branch_id || !d?.branch_id)
-    : ((activeCompanyId && activeCompanyId !== 'all') ? safeDepartments.filter(d => d?.company_id === activeCompanyId) : safeDepartments);
+    ? safeDepartments.filter(d => d?.branch_id === empForm.branch_id)
+    : [];
   const filteredDesignations = empForm.department_id
     ? safeDesignations.filter(ds => ds?.department_id === empForm.department_id)
-    : ((activeCompanyId && activeCompanyId !== 'all') ? safeDesignations.filter(ds => ds?.company_id === activeCompanyId) : safeDesignations);
+    : [];
   const filteredRoles = (activeCompanyId && activeCompanyId !== 'all') ? safeRoles.filter(r => r?.company_id === activeCompanyId) : safeRoles;
   const filteredShifts = (activeCompanyId && activeCompanyId !== 'all') ? safeShifts.filter(s => s?.company_id === activeCompanyId) : safeShifts;
   const filteredEmployees = (activeCompanyId && activeCompanyId !== 'all') ? safeEmployees.filter(e => e?.company_id === activeCompanyId) : safeEmployees;
 
-  // Real-time Duplicate Check
+  // Real-time server duplicate check states
+  const [serverDuplicateEmail, setServerDuplicateEmail] = useState<any>(null);
+  const [serverDuplicateEmpId, setServerDuplicateEmpId] = useState<any>(null);
+
+  // Debounced API check against /api/v1/employees/check-duplicate
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const email = empForm.email.trim();
+      const empId = empForm.emp_id_code.trim();
+      if (!email && !empId) {
+        setServerDuplicateEmail(null);
+        setServerDuplicateEmpId(null);
+        return;
+      }
+      try {
+        const params = new URLSearchParams();
+        if (email) params.set('email', email);
+        if (empId) params.set('emp_id_code', empId);
+        if (activeCompanyId && activeCompanyId !== 'all') params.set('companyId', activeCompanyId);
+        
+        const res = await fetch(`${API_BASE}/api/v1/employees/check-duplicate?${params.toString()}`, {
+          headers: getHeaders(),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setServerDuplicateEmail(data.duplicateEmail || null);
+          setServerDuplicateEmpId(data.duplicateEmpId || null);
+        }
+      } catch (err) {
+        console.error('Check duplicate error:', err);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [empForm.email, empForm.emp_id_code, activeCompanyId]);
+
+  // Real-time Duplicate Check for Employee ID Code (Server + Local)
   const duplicateEmp = useMemo(() => {
     if (!empForm.emp_id_code.trim()) return null;
+    if (serverDuplicateEmpId) return serverDuplicateEmpId;
+    const cleanId = empForm.emp_id_code.trim().toLowerCase();
     const targetCompanyId = activeCompanyId;
-    return safeEmployees.find(e =>
-      e.emp_id_code?.trim().toLowerCase() === empForm.emp_id_code.trim().toLowerCase() &&
-      (targetCompanyId ? String(e.company_id) === String(targetCompanyId) : true)
-    );
-  }, [empForm.emp_id_code, activeCompanyId, safeEmployees]);
+    return safeEmployees.find(e => {
+      if (!e.emp_id_code) return false;
+      const eCode = String(e.emp_id_code).trim().toLowerCase();
+      const match = eCode === cleanId || eCode.replace(/[^a-z0-9]/gi, '') === cleanId.replace(/[^a-z0-9]/gi, '');
+      const companyMatch = targetCompanyId && targetCompanyId !== 'all' ? String(e.company_id) === String(targetCompanyId) : true;
+      return match && companyMatch;
+    }) || null;
+  }, [empForm.emp_id_code, serverDuplicateEmpId, activeCompanyId, safeEmployees]);
+
+  // Real-time Duplicate Check for Email (Server + Local)
+  const duplicateEmailEmp = useMemo(() => {
+    if (!empForm.email.trim()) return null;
+    if (serverDuplicateEmail) return serverDuplicateEmail;
+    const cleanEmail = empForm.email.trim().toLowerCase();
+    return safeEmployees.find(e => {
+      const empEmail = String(e.email || '').trim().toLowerCase();
+      const personalEmail = String(e.personal_email || '').trim().toLowerCase();
+      return empEmail === cleanEmail || personalEmail === cleanEmail;
+    }) || null;
+  }, [empForm.email, serverDuplicateEmail, safeEmployees]);
+
+  // Quick Add modal states for Branch, Department, Designation
+  const [quickAddModal, setQuickAddModal] = useState<'branch' | 'department' | 'designation' | null>(null);
+  const [quickAddForm, setQuickAddForm] = useState({
+    name: '',
+    address: '',
+    description: '',
+  });
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
+
+  // Prevent background scrolling when quick add modal is open
+  useEffect(() => {
+    if (quickAddModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [quickAddModal]);
+
+  const handleOpenQuickAddBranch = () => {
+    if (!canCreateBranch) {
+      showToast('⚠️ You do not have permission to create branches.', 'error');
+      return;
+    }
+    if (!activeCompanyId || activeCompanyId === 'all') {
+      showToast('⚠️ Please select a company first.', 'error');
+      return;
+    }
+    setQuickAddForm({ name: '', address: '', description: '' });
+    setQuickAddModal('branch');
+  };
+
+  const handleOpenQuickAddDepartment = () => {
+    if (!canCreateDepartment) {
+      showToast('⚠️ You do not have permission to create departments.', 'error');
+      return;
+    }
+    if (!activeCompanyId || activeCompanyId === 'all') {
+      showToast('⚠️ Please select a company first.', 'error');
+      return;
+    }
+    if (!empForm.branch_id) {
+      showToast('⚠️ Please select or create a Branch first before adding a Department.', 'error');
+      return;
+    }
+    setQuickAddForm({ name: '', address: '', description: '' });
+    setQuickAddModal('department');
+  };
+
+  const handleOpenQuickAddDesignation = () => {
+    if (!canCreateDesignation) {
+      showToast('⚠️ You do not have permission to create designations.', 'error');
+      return;
+    }
+    if (!activeCompanyId || activeCompanyId === 'all') {
+      showToast('⚠️ Please select a company first.', 'error');
+      return;
+    }
+    if (!empForm.branch_id) {
+      showToast('⚠️ Please select a Branch first before adding a Designation.', 'error');
+      return;
+    }
+    if (!empForm.department_id) {
+      showToast('⚠️ Please select or create a Department first before adding a Designation.', 'error');
+      return;
+    }
+    setQuickAddForm({ name: '', address: '', description: '' });
+    setQuickAddModal('designation');
+  };
+
+  const handleQuickAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickAddForm.name.trim()) {
+      showToast('⚠️ Please enter a name.', 'error');
+      return;
+    }
+    setQuickAddLoading(true);
+    try {
+      if (quickAddModal === 'branch') {
+        const res = await fetch(`${API_BASE}/api/v1/branches`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({
+            companyId: activeCompanyId,
+            name: quickAddForm.name.trim(),
+            address: quickAddForm.address.trim()
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.branch) {
+          showToast(`✅ Branch "${data.branch.name}" created successfully!`, 'success');
+          setBranches(prev => [...prev, data.branch]);
+          setEmpForm(prev => ({ ...prev, branch_id: data.branch.id }));
+          setQuickAddModal(null);
+        } else {
+          showToast(data.error || 'Failed to create branch.', 'error');
+        }
+      } else if (quickAddModal === 'department') {
+        const res = await fetch(`${API_BASE}/api/v1/departments`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({
+            companyId: activeCompanyId,
+            branch_id: empForm.branch_id,
+            name: quickAddForm.name.trim(),
+            description: quickAddForm.description.trim()
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.department) {
+          showToast(`✅ Department "${data.department.name}" created successfully!`, 'success');
+          setDepartments(prev => [...prev, data.department]);
+          setEmpForm(prev => ({ ...prev, department_id: data.department.id }));
+          setQuickAddModal(null);
+        } else {
+          showToast(data.error || 'Failed to create department.', 'error');
+        }
+      } else if (quickAddModal === 'designation') {
+        const res = await fetch(`${API_BASE}/api/v1/designations`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({
+            companyId: activeCompanyId,
+            branch_id: empForm.branch_id,
+            department_id: empForm.department_id,
+            name: quickAddForm.name.trim(),
+            description: quickAddForm.description.trim()
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.designation) {
+          showToast(`✅ Designation "${data.designation.name}" created successfully!`, 'success');
+          setDesignations(prev => [...prev, data.designation]);
+          setEmpForm(prev => ({ ...prev, designation_id: data.designation.id }));
+          setQuickAddModal(null);
+        } else {
+          showToast(data.error || 'Failed to create designation.', 'error');
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast('⚠️ Error connecting to server: ' + err.message, 'error');
+    } finally {
+      setQuickAddLoading(false);
+    }
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -262,8 +506,11 @@ function CreateEmployeeContent() {
     const s1Filled = step1Fields.filter(k => !!String((empForm as any)[k] || '').trim()).length;
     const s1Pct = Math.round((s1Filled / step1Fields.length) * 100);
 
-    const step2Fields = ['emp_id_code', 'companyId', 'branch_id', 'department_id', 'designation_id', 'shift_id', 'tenant_role_id', 'reporting_to_id', 'joining_date'];
-    const s2Filled = step2Fields.filter(k => !!String((empForm as any)[k] || '').trim()).length;
+    const step2Fields = ['emp_id_code', 'shift_id', 'joining_date', 'branch_id', 'department_id', 'designation_id', 'role_id'];
+    const s2Filled = step2Fields.filter(k => {
+      if (k === 'role_id') return !!(empForm.role_id || empForm.tenant_role_id);
+      return !!String((empForm as any)[k] || '').trim();
+    }).length;
     const s2Pct = Math.round((s2Filled / step2Fields.length) * 100);
 
     const step3Fields = ['ctc', 'basic_salary', 'bank_name', 'bank_acc_no', 'ifsc_code', 'pan_number'];
@@ -299,8 +546,16 @@ function CreateEmployeeContent() {
         showToast('⚠️ Please enter Work / Personal Email', 'error');
         return false;
       }
+      if (duplicateEmailEmp) {
+        showToast(`❌ Email is already assigned to ${duplicateEmailEmp.first_name} ${duplicateEmailEmp.last_name || ''} (ID: ${duplicateEmailEmp.emp_id_code || 'N/A'})`, 'error');
+        return false;
+      }
       if (!empForm.phone.trim()) {
         showToast('⚠️ Please enter Mobile Phone Number', 'error');
+        return false;
+      }
+      if (empForm.phone.trim().length !== 10) {
+        showToast('⚠️ Mobile phone number must be exactly 10 digits', 'error');
         return false;
       }
     } else if (stepNumber === 2) {
@@ -308,8 +563,20 @@ function CreateEmployeeContent() {
         showToast('⚠️ Please enter Employee ID / Code', 'error');
         return false;
       }
+      if (empForm.emp_id_code.trim().length > 15) {
+        showToast('⚠️ Employee ID / Code cannot exceed 15 characters', 'error');
+        return false;
+      }
       if (duplicateEmp) {
-        showToast(`❌ Employee ID is already assigned to ${duplicateEmp.first_name} ${duplicateEmp.last_name}`, 'error');
+        showToast(`❌ Employee ID "${empForm.emp_id_code}" is already assigned to ${duplicateEmp.first_name} ${duplicateEmp.last_name || ''}`, 'error');
+        return false;
+      }
+      if (!empForm.shift_id) {
+        showToast('⚠️ Please select Assigned Shift', 'error');
+        return false;
+      }
+      if (!empForm.joining_date) {
+        showToast('⚠️ Please select Date of Joining', 'error');
         return false;
       }
       if (!empForm.branch_id) {
@@ -324,12 +591,8 @@ function CreateEmployeeContent() {
         showToast('⚠️ Please select Designation', 'error');
         return false;
       }
-      if (!empForm.shift_id) {
-        showToast('⚠️ Please select Assigned Shift', 'error');
-        return false;
-      }
-      if (!empForm.joining_date) {
-        showToast('⚠️ Please select Date of Joining', 'error');
+      if (!empForm.role_id && !empForm.tenant_role_id) {
+        showToast('⚠️ Please select an Access Role', 'error');
         return false;
       }
     }
@@ -361,6 +624,7 @@ function CreateEmployeeContent() {
     try {
       const payload = {
         ...empForm,
+        role_id: empForm.role_id || empForm.tenant_role_id || null,
         email: empForm.email.replace(/\s+/g, ''),
         companyId: targetCompanyId,
       };
@@ -392,10 +656,10 @@ function CreateEmployeeContent() {
 
   // CSV Template Downloader
   const downloadSampleCsv = () => {
-    const csvContent = "emp_id_code,first_name,last_name,email,phone,joining_date,branch_name,department_name,designation_name\n" +
-      "EMP-201,Rahul,Sharma,rahul.s@example.com,9876543210,2026-01-15,Head Office,Engineering,Senior Software Engineer\n" +
-      "EMP-202,Priya,Verma,priya.v@example.com,9876543211,2026-02-01,Regional Office,Human Resources,HR Manager\n" +
-      "EMP-203,Suresh,Kumar,suresh.k@example.com,9876543212,2026-02-15,Head Office,Finance,Accounts Executive";
+    const csvContent = "emp_id_code,first_name,last_name,email,phone,joining_date,branch_name,department_name,designation_name,role_name\n" +
+      "EMP-201,Rahul,Sharma,rahul.s@example.com,9876543210,2026-01-15,Head Office,Engineering,Senior Software Engineer,Developer\n" +
+      "EMP-202,Priya,Verma,priya.v@example.com,9876543211,2026-02-01,Regional Office,Human Resources,HR Manager,HR\n" +
+      "EMP-203,Suresh,Kumar,suresh.k@example.com,9876543212,2026-02-15,Head Office,Finance,Accounts Executive,Finance Staff";
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -461,7 +725,8 @@ function CreateEmployeeContent() {
         const joiningDate = getColValue(5, ['join', 'doj', 'date']);
         const branchName = getColValue(6, ['branch', 'office', 'location']);
         const deptName = getColValue(7, ['dept', 'department']);
-        const desigName = getColValue(8, ['desig', 'designation', 'title', 'role']);
+        const desigName = getColValue(8, ['desig', 'designation', 'title']);
+        const roleName = getColValue(9, ['role', 'role_name', 'access']);
 
         return {
           emp_id_code: empIdCode,
@@ -473,6 +738,7 @@ function CreateEmployeeContent() {
           branch_name: branchName,
           department_name: deptName,
           designation_name: desigName,
+          role_name: roleName,
         };
       }).filter(Boolean);
 
@@ -504,20 +770,20 @@ function CreateEmployeeContent() {
     }
   };
 
-  const stylishInputClass = "w-full px-3.5 py-2.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/40 text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 outline-none shadow-2xs";
+  const stylishInputClass = "w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/15 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 outline-none shadow-xs";
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="space-y-6 animate-fadeIn w-full font-sans">
+    <div className="space-y-6 animate-fadeIn w-full font-sans">
       <DashboardPageHeader
         title="Employee Directory"
         actionMessage=""
         actionError=""
         companies={companies}
-        companyId={companyId}
-        handleCompanyChange={handleCompanyChange}
+        companyId={activeCompanyId}
+        handleCompanyChange={() => {}}
         isSuperAdmin={isSuperAdmin}
         email={email}
-        hideCompanySelect={false}
+        hideCompanySelect={true}
         hideUserBadge={true}
       />
 
@@ -584,12 +850,12 @@ function CreateEmployeeContent() {
             {/* Top Bar: Step Title + Overall Progress Percentage */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
               <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-extrabold text-xs border border-blue-200 dark:border-blue-900">
-                  Step {currentStep}/4
+                <span className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-extrabold text-xs border border-blue-200 dark:border-blue-900 inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-2xs">
+                  Step {currentStep} of 4
                 </span>
                 <div>
                   <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <span>{STEPPER_STEPS[currentStep - 1].icon}</span> {STEPPER_STEPS[currentStep - 1].title}
+                    <span>{STEPPER_STEPS[currentStep - 1].icon}</span> Step {currentStep}: {STEPPER_STEPS[currentStep - 1].title}
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium">
                     {STEPPER_STEPS[currentStep - 1].subtitle}
@@ -655,7 +921,7 @@ function CreateEmployeeContent() {
                             ? 'text-emerald-700 dark:text-emerald-300'
                             : 'text-slate-600 dark:text-slate-400'
                         }`}>
-                          {step.title}
+                          Step {step.id}: {step.title}
                         </p>
                         <span className="text-[10px] font-bold text-slate-400 block">
                           {isCompleted ? '✓ Done' : `${stepPct}%`}
@@ -686,22 +952,47 @@ function CreateEmployeeContent() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 items-start">
-                  {/* Photo Upload Box */}
-                  <div className="w-full flex flex-col items-center justify-between p-3 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/30 text-center space-y-3">
-                    <div className="w-full h-56 sm:h-60 rounded-xl bg-slate-900/5 dark:bg-slate-950/60 overflow-hidden flex items-center justify-center relative border border-slate-300/80 dark:border-slate-700/80 shadow-inner p-1">
+                  {/* Photo Upload Box - Clickable inside & button */}
+                  <div className="w-full flex flex-col items-center justify-between p-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-950/30 text-center space-y-3">
+                    <label
+                      htmlFor="emp_photo_input"
+                      className="w-full h-56 sm:h-60 rounded-xl bg-slate-900/5 dark:bg-slate-950/60 overflow-hidden flex flex-col items-center justify-center relative border-2 border-slate-300/90 dark:border-slate-700/90 shadow-inner p-1 cursor-pointer group hover:border-blue-500 hover:bg-blue-50/20 transition-all duration-200"
+                    >
+                      <input
+                        id="emp_photo_input"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
                       {empForm.emp_image ? (
-                        <img src={empForm.emp_image} alt="Profile" className="w-full h-full object-contain rounded-lg transition-all duration-300" />
+                        <div className="w-full h-full relative group">
+                          <img
+                            src={empForm.emp_image}
+                            alt="Profile"
+                            className="w-full h-full object-contain rounded-lg transition-all duration-300 group-hover:opacity-75"
+                          />
+                          <div className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex flex-col items-center justify-center text-white">
+                            <span className="text-xl mb-1">📸</span>
+                            <span className="text-[11px] font-black bg-blue-600 px-2.5 py-1 rounded-md shadow-md">Click inside to change</span>
+                          </div>
+                        </div>
                       ) : (
-                        <div className="flex flex-col items-center gap-1 text-slate-400">
-                          <span className="text-3xl">📷</span>
-                          <span className="text-[10px] font-bold">No Photo Uploaded</span>
+                        <div className="flex flex-col items-center gap-1.5 text-slate-400 group-hover:text-blue-600 transition-colors p-3">
+                          <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-2xl shadow-2xs group-hover:scale-110 transition-transform">
+                            📷
+                          </div>
+                          <span className="text-xs font-black text-slate-700 dark:text-slate-200">Click inside to upload</span>
+                          <span className="text-[10px] font-semibold text-slate-400">JPG, PNG or WEBP (Max 5MB)</span>
                         </div>
                       )}
-                    </div>
+                    </label>
                     <div className="w-full">
-                      <label className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-blue-600 dark:text-blue-400 text-xs font-bold cursor-pointer transition-all border border-blue-200 dark:border-blue-900">
+                      <label
+                        htmlFor="emp_photo_input"
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-blue-600 dark:text-blue-400 text-xs font-bold cursor-pointer transition-all border border-blue-200 dark:border-blue-900"
+                      >
                         <span>📤</span> {empForm.emp_image ? 'Change Photo' : 'Upload Full Photo'}
-                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                       </label>
                     </div>
                   </div>
@@ -710,7 +1001,7 @@ function CreateEmployeeContent() {
                   <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
                     <div>
                       <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        First Name *
+                        First Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="text"
@@ -723,7 +1014,7 @@ function CreateEmployeeContent() {
 
                     <div>
                       <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Last Name *
+                        Last Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="text"
@@ -736,33 +1027,47 @@ function CreateEmployeeContent() {
 
                     <div>
                       <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Work / Personal Email *
+                        Work / Personal Email <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="email"
                         value={empForm.email}
                         onChange={(e) => setEmpForm({ ...empForm, email: e.target.value.toLowerCase().replace(/\s+/g, '') })}
                         placeholder="rahul@company.com"
-                        className={stylishInputClass}
+                        className={`${stylishInputClass} ${duplicateEmailEmp ? 'border-rose-500 bg-rose-50/20 dark:bg-rose-950/20 text-rose-900 dark:text-rose-100 ring-2 ring-rose-500/20' : ''}`}
                       />
+                      {duplicateEmailEmp && (
+                        <div className="mt-1.5 p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-[11px] font-bold flex items-start gap-1.5 animate-fadeIn">
+                          <span className="shrink-0">⚠️</span>
+                          <span>
+                            This email is already assigned to <span className="underline font-black">{duplicateEmailEmp.first_name} {duplicateEmailEmp.last_name}</span> {duplicateEmailEmp.emp_id_code ? `(ID: ${duplicateEmailEmp.emp_id_code})` : ''}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div>
                       <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Mobile Phone *
+                        Mobile Phone <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
-                        type="text"
+                        type="tel"
                         value={empForm.phone}
-                        onChange={(e) => setEmpForm({ ...empForm, phone: e.target.value })}
-                        placeholder="+91 9876543210"
+                        onChange={(e) => setEmpForm({ ...empForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        placeholder="9876543210"
+                        maxLength={10}
                         className={stylishInputClass}
                       />
+                      {empForm.phone && empForm.phone.length > 0 && empForm.phone.length < 10 && (
+                        <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                          ⚠️ 10-digit mobile number required ({empForm.phone.length}/10 digits entered)
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Gender *
+                        Gender <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <select
                         value={empForm.gender}
@@ -781,6 +1086,7 @@ function CreateEmployeeContent() {
                       </label>
                       <input
                         type="date"
+                        max={new Date().toISOString().split('T')[0]}
                         value={empForm.dob}
                         onChange={(e) => setEmpForm({ ...empForm, dob: e.target.value })}
                         className={stylishInputClass}
@@ -825,7 +1131,7 @@ function CreateEmployeeContent() {
 
                     <div>
                       <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Employment Type *
+                        Employment Type <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <select
                         value={empForm.employment_type}
@@ -858,78 +1164,33 @@ function CreateEmployeeContent() {
                   </span>
                 </div>
 
+                {/* ROW 1: Employee ID / Code, Assigned Shift, Date of Joining */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
                   <div>
                     <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Employee ID / Code *
+                      Employee ID / Code <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
+                      maxLength={15}
                       value={empForm.emp_id_code}
-                      onChange={(e) => setEmpForm({ ...empForm, emp_id_code: e.target.value })}
-                      placeholder="e.g. EMP-101"
-                      className={`${stylishInputClass} ${duplicateEmp ? 'border-amber-500 bg-amber-50/50 text-amber-900 font-bold' : ''}`}
+                      onChange={(e) => setEmpForm({ ...empForm, emp_id_code: e.target.value.slice(0, 15) })}
+                      placeholder="e.g. VS-1001 or 1027"
+                      className={`${stylishInputClass} ${duplicateEmp ? 'border-rose-500 bg-rose-50/30 dark:bg-rose-950/20 text-rose-900 dark:text-rose-100 font-bold ring-2 ring-rose-500/20' : ''}`}
                     />
                     {duplicateEmp && (
-                      <div className="mt-1 p-1.5 rounded-lg bg-amber-100 text-[10px] font-bold text-amber-800">
-                        ⚠️ ID Assigned to {duplicateEmp.first_name} {duplicateEmp.last_name}
+                      <div className="mt-1.5 p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-[11px] font-bold flex items-start gap-1.5 animate-fadeIn">
+                        <span className="shrink-0">⚠️</span>
+                        <span>
+                          Employee ID &ldquo;<span className="underline font-black">{empForm.emp_id_code}</span>&rdquo; is already assigned to <span className="underline font-black">{duplicateEmp.first_name} {duplicateEmp.last_name}</span> {duplicateEmp.email ? `(${duplicateEmp.email})` : ''}
+                        </span>
                       </div>
                     )}
                   </div>
 
-                  {isSuperAdmin && (
-                    <div>
-                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Company *
-                      </label>
-                      <SearchableSelect
-                        options={companies.map(c => ({ value: c.id, label: c.name }))}
-                        value={empForm.companyId}
-                        onChange={(val) => handleCompanyChange(val)}
-                        placeholder="Select Company"
-                      />
-                    </div>
-                  )}
-
                   <div>
                     <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Branch / Office *
-                    </label>
-                    <SearchableSelect
-                      options={deduplicateOptions(filteredBranches.map(b => ({ value: b.id, label: b.name })), empForm.branch_id)}
-                      value={empForm.branch_id}
-                      onChange={(val) => setEmpForm({ ...empForm, branch_id: val, department_id: '', designation_id: '' })}
-                      placeholder="Select Branch"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Department *
-                    </label>
-                    <SearchableSelect
-                      options={deduplicateOptions(filteredDepartments.map(d => ({ value: d.id, label: d.name })), empForm.department_id)}
-                      value={empForm.department_id}
-                      onChange={(val) => setEmpForm({ ...empForm, department_id: val, designation_id: '' })}
-                      placeholder="Select Department"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Designation *
-                    </label>
-                    <SearchableSelect
-                      options={deduplicateOptions(filteredDesignations.map(ds => ({ value: ds.id, label: ds.name })), empForm.designation_id)}
-                      value={empForm.designation_id}
-                      onChange={(val) => setEmpForm({ ...empForm, designation_id: val })}
-                      placeholder="Select Designation"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Assigned Shift *
+                      Assigned Shift <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <SearchableSelect
                       options={deduplicateOptions(filteredShifts.map(s => ({ value: s.id, label: `${s.name} (${s.start_time} - ${s.end_time})` })), empForm.shift_id)}
@@ -941,13 +1202,160 @@ function CreateEmployeeContent() {
 
                   <div>
                     <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Date of Joining *
+                      Date of Joining <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="date"
                       value={empForm.joining_date}
                       onChange={(e) => setEmpForm({ ...empForm, joining_date: e.target.value })}
                       className={stylishInputClass}
+                    />
+                  </div>
+                </div>
+
+                {/* ROW 2: Branch, Department */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Branch / Office <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1 min-w-0">
+                        <SearchableSelect
+                          options={deduplicateOptions(filteredBranches.map(b => ({ value: b.id, label: b.name })), empForm.branch_id)}
+                          value={empForm.branch_id}
+                          onChange={(val) => setEmpForm({ ...empForm, branch_id: val, department_id: '', designation_id: '' })}
+                          placeholder="Select Branch"
+                        />
+                      </div>
+                      {canCreateBranch && (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            onClick={handleOpenQuickAddBranch}
+                            title="Add Branch"
+                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white border border-blue-200 dark:border-blue-900 shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
+                          >
+                            +
+                          </button>
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow transition-opacity group-hover:opacity-100 z-30">
+                            Add Branch
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Department <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1 min-w-0">
+                        <SearchableSelect
+                          options={deduplicateOptions(filteredDepartments.map(d => ({ value: d.id, label: d.name })), empForm.department_id)}
+                          value={empForm.department_id}
+                          onChange={(val) => setEmpForm({ ...empForm, department_id: val, designation_id: '' })}
+                          placeholder={empForm.branch_id ? "Select Department" : "Select Branch first"}
+                          disabled={!empForm.branch_id}
+                        />
+                      </div>
+                      {canCreateDepartment && (!empForm.branch_id ? (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            onClick={handleOpenQuickAddDepartment}
+                            title="Select Branch first to add Department"
+                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 text-lg font-bold cursor-pointer active:scale-95 opacity-60"
+                          >
+                            +
+                          </button>
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow transition-opacity group-hover:opacity-100 z-30">
+                            Select Branch first
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            onClick={handleOpenQuickAddDepartment}
+                            title="Add Department"
+                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white border border-blue-200 dark:border-blue-900 shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
+                          >
+                            +
+                          </button>
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow transition-opacity group-hover:opacity-100 z-30">
+                            Add Department
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 3: Designation, Role */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Designation <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1 min-w-0">
+                        <SearchableSelect
+                          options={deduplicateOptions(filteredDesignations.map(ds => ({ value: ds.id, label: ds.name })), empForm.designation_id)}
+                          value={empForm.designation_id}
+                          onChange={(val) => setEmpForm({ ...empForm, designation_id: val })}
+                          placeholder={
+                            !empForm.branch_id
+                              ? "Select Branch & Dept first"
+                              : !empForm.department_id
+                              ? "Select Department first"
+                              : "Select Designation"
+                          }
+                          disabled={!empForm.department_id}
+                        />
+                      </div>
+                      {canCreateDesignation && (!empForm.branch_id || !empForm.department_id ? (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            onClick={handleOpenQuickAddDesignation}
+                            title="Select Branch & Department first to add Designation"
+                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 text-lg font-bold cursor-pointer active:scale-95 opacity-60"
+                          >
+                            +
+                          </button>
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow transition-opacity group-hover:opacity-100 z-30">
+                            Select Branch &amp; Dept first
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            onClick={handleOpenQuickAddDesignation}
+                            title="Add Designation"
+                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white border border-blue-200 dark:border-blue-900 shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
+                          >
+                            +
+                          </button>
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow transition-opacity group-hover:opacity-100 z-30">
+                            Add Designation
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Role <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <SearchableSelect
+                      options={deduplicateOptions(filteredRoles.map(r => ({ value: r.id, label: r.name })), empForm.role_id || empForm.tenant_role_id)}
+                      value={empForm.role_id || empForm.tenant_role_id}
+                      onChange={(val) => setEmpForm({ ...empForm, role_id: val, tenant_role_id: val })}
+                      placeholder="Select Access Role"
                     />
                   </div>
                 </div>
@@ -1164,7 +1572,7 @@ function CreateEmployeeContent() {
               ) : (
                 <button
                   type="submit"
-                  disabled={isSaving || !!duplicateEmp}
+                  disabled={isSaving || !!duplicateEmp || !!duplicateEmailEmp}
                   className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer border-0 disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {isSaving ? 'Creating...' : '✨ Submit Profile'}
@@ -1385,6 +1793,130 @@ function CreateEmployeeContent() {
             </div>
           )}
         </div>
+      )}
+
+      {/* QUICK ADD MODAL RENDERED VIA PORTAL TO COVER ENTIRE VIEWPORT (SIDEBAR + HEADER) */}
+      {quickAddModal && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn font-sans">
+          {/* Backdrop Click Dismiss */}
+          <div className="fixed inset-0 bg-transparent cursor-pointer" onClick={() => setQuickAddModal(null)} />
+
+          <div className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-base font-bold">
+                  {quickAddModal === 'branch' ? '🏢' : quickAddModal === 'department' ? '🏬' : '💼'}
+                </span>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">
+                    {quickAddModal === 'branch'
+                      ? 'Quick Add Branch'
+                      : quickAddModal === 'department'
+                      ? 'Quick Add Department'
+                      : 'Quick Add Designation'}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Add immediately into currently active company context
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickAddModal(null)}
+                className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-sm font-bold cursor-pointer transition-colors border-0"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickAddSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  {quickAddModal === 'branch'
+                    ? 'Branch Name'
+                    : quickAddModal === 'department'
+                    ? 'Department Name'
+                    : 'Designation Title'}{' '}
+                  <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  required
+                  value={quickAddForm.name}
+                  onChange={(e) => setQuickAddForm({ ...quickAddForm, name: e.target.value })}
+                  placeholder={
+                    quickAddModal === 'branch'
+                      ? 'e.g. Hyderabad Hitech City'
+                      : quickAddModal === 'department'
+                      ? 'e.g. Product Engineering'
+                      : 'e.g. Senior Full Stack Engineer'
+                  }
+                  className={stylishInputClass}
+                />
+              </div>
+
+              {quickAddModal === 'branch' && (
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Branch Address / Location
+                  </label>
+                  <input
+                    type="text"
+                    value={quickAddForm.address}
+                    onChange={(e) => setQuickAddForm({ ...quickAddForm, address: e.target.value })}
+                    placeholder="e.g. 4th Floor, Tech Park, Madhapur"
+                    className={stylishInputClass}
+                  />
+                </div>
+              )}
+
+              {(quickAddModal === 'department' || quickAddModal === 'designation') && (
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Description (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={quickAddForm.description}
+                    onChange={(e) => setQuickAddForm({ ...quickAddForm, description: e.target.value })}
+                    placeholder="e.g. Core development and system engineering"
+                    className={stylishInputClass}
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setQuickAddModal(null)}
+                  disabled={quickAddLoading}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition-colors border-0 cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={quickAddLoading || !quickAddForm.name.trim()}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-md shadow-blue-600/20 transition-all border-0 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {quickAddLoading ? (
+                    <>
+                      <span className="animate-spin text-xs">⏳</span>
+                      <span>Creating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>✨</span>
+                      <span>Save &amp; Select</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

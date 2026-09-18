@@ -150,7 +150,7 @@ export const LoginScreen = () => {
         <View style={styles.formCard}>
           <View style={styles.formCardInner}>
             <Text style={styles.welcomeHeading}>Welcome Back 👋</Text>
-            <Text style={styles.welcomeSub}>Sign in to access your HR dashboard & attendance</Text>
+            <Text style={styles.welcomeSub}>Log in to access your HR dashboard & attendance</Text>
 
             <View style={styles.formFields}>
               {/* Username/Email Input */}
@@ -211,10 +211,13 @@ export const LoginScreen = () => {
               {/* Main Action Button */}
               <TouchableOpacity style={styles.submitButton} onPress={handleLogin} disabled={loading}>
                 {loading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <View style={styles.btnInner}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <Text style={styles.submitBtnText}>Logging in...</Text>
+                  </View>
                 ) : (
                   <View style={styles.btnInner}>
-                    <Text style={styles.submitBtnText}>Sign In to Dashboard</Text>
+                    <Text style={styles.submitBtnText}>Login</Text>
                     <View style={styles.arrowCircle}>
                       <ArrowRight size={16} color="#4F46E5" />
                     </View>

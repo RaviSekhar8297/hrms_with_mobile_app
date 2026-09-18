@@ -5,6 +5,7 @@ import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface Company {
   id: string;
@@ -20,6 +21,7 @@ interface Company {
 
 export default function CompaniesPage() {
   const { showToast } = useDashboard();
+  const { hasPermission } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -29,6 +31,7 @@ export default function CompaniesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Search and Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +52,10 @@ export default function CompaniesPage() {
   });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const canView = isSuperAdmin || hasPermission('view_companies');
+  const canCreate = isSuperAdmin || hasPermission('create_companies');
+  const canEdit = isSuperAdmin || hasPermission('edit_companies');
+  const canDelete = isSuperAdmin || hasPermission('delete_companies');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -128,8 +135,29 @@ export default function CompaniesPage() {
 
   const handleSaveCompany = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyForm.name || !companyForm.subdomain) {
-      showToast('Corporate Name and Subdomain are required', 'error');
+    if (!companyForm.name.trim()) {
+      showToast('Corporate Name is required', 'error');
+      return;
+    }
+
+    if (companyForm.name.trim().length > 50) {
+      showToast('Corporate Name cannot exceed 50 characters', 'error');
+      return;
+    }
+
+    // Duplicate check across companies
+    const cleanName = companyForm.name.trim().toLowerCase();
+    const isDuplicate = companies.some(c => 
+      c.id !== selectedCompanyId &&
+      c.name.trim().toLowerCase() === cleanName
+    );
+    if (isDuplicate) {
+      showToast(`A company with the name "${companyForm.name.trim()}" already exists`, 'error');
+      return;
+    }
+
+    if (!companyForm.subdomain.trim()) {
+      showToast('Subdomain is required', 'error');
       return;
     }
 
@@ -138,6 +166,7 @@ export default function CompaniesPage() {
       : getUrl('/api/v1/companies');
     const method = editMode ? 'PUT' : 'POST';
 
+    setIsSaving(true);
     try {
       const res = await fetch(endpoint, {
         method,
@@ -154,6 +183,8 @@ export default function CompaniesPage() {
       }
     } catch (err) {
       showToast('Failed to save company record', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -195,6 +226,15 @@ export default function CompaniesPage() {
     const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  if (roles.length > 0 && !canView) {
+    return (
+      <div className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20 p-8 text-center">
+        <h3 className="text-sm font-bold text-red-700 dark:text-red-400">Access Denied</h3>
+        <p className="text-xs text-red-600 dark:text-red-500 mt-1">You do not have permission to view companies.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn select-none relative">
@@ -249,7 +289,7 @@ export default function CompaniesPage() {
               </select>
             </div>
 
-            {isSuperAdmin && (
+            {canCreate && (
               <button
                 onClick={openAddDrawer}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
@@ -384,16 +424,18 @@ export default function CompaniesPage() {
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditDrawer(c)}
-                          title="Modify company details"
-                          className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-blue-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group"
-                        >
-                          <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                          </svg>
-                        </button>
-                        {isSuperAdmin && (
+                        {canEdit && (
+                          <button
+                            onClick={() => openEditDrawer(c)}
+                            title="Modify company details"
+                            className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-blue-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group"
+                          >
+                            <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                            </svg>
+                          </button>
+                        )}
+                        {canDelete && (
                           <button
                             onClick={() => setDeletingCompany(c)}
                             title="Delete company"
@@ -431,13 +473,20 @@ export default function CompaniesPage() {
         <form onSubmit={handleSaveCompany} className="space-y-5">
 
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              Company Corporate Name *
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                Company Corporate Name *
+              </label>
+              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                {companyForm.name.length}/50
+              </span>
+            </div>
             <input
-              type="text" placeholder="e.g. Acme Corp Inc"
+              type="text"
+              placeholder="e.g. Acme Corp Inc"
+              maxLength={50}
               value={companyForm.name}
-              onChange={e => setCompanyForm({ ...companyForm, name: e.target.value })}
+              onChange={e => setCompanyForm({ ...companyForm, name: e.target.value.slice(0, 50) })}
               className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200 font-medium"
             />
           </div>
@@ -606,8 +655,18 @@ export default function CompaniesPage() {
           )}
 
           <div className="pt-2">
-            <button type="submit" className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white shadow-md shadow-blue-600/20 active:scale-[0.99] transition-all duration-200 cursor-pointer">
-              {editMode ? "Save Changes" : "Register Corporate Tenant"}
+            <button 
+              type="submit" 
+              disabled={isSaving}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white shadow-md shadow-blue-600/20 active:scale-[0.99] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isSaving && (
+                <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+              )}
+              {isSaving ? (editMode ? "Saving Changes..." : "Registering...") : (editMode ? "Save Changes" : "Register Corporate Tenant")}
             </button>
           </div>
         </form>
