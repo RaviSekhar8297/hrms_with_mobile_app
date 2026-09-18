@@ -1620,9 +1620,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* 🥞 ANIMATED TOASTS STACK PANEL (TOP RIGHT or MIDDLE RIGHT on /dashboard/roles) */}
+      {/* 🥞 ANIMATED TOASTS STACK PANEL (TOP RIGHT or MIDDLE RIGHT on /dashboard/roles & /dashboard/attendance/rules) */}
       <div className={`fixed right-6 z-[999999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-sans transition-all duration-300 ${
-        pathname?.includes('/dashboard/roles')
+        pathname?.includes('/dashboard/roles') || pathname?.includes('/dashboard/attendance/rules') || pathname?.includes('/rules')
           ? 'top-1/2 -translate-y-1/2'
           : 'top-6'
       }`}>
