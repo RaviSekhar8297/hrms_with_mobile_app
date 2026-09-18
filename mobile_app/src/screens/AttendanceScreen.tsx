@@ -172,6 +172,9 @@ export const AttendanceScreen: React.FC<AttendanceProps> = ({ onBack }) => {
   };
 
   const handlePunch = async () => {
+    // 0. Always fetch freshest company policy from server before punching
+    await fetchAttendancePolicy();
+
     if (attendancePolicy.allow_mobile_punch === false) {
       Alert.alert(
         'Mobile Punch Restricted',

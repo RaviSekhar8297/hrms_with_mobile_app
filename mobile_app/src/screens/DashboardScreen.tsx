@@ -355,6 +355,9 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
   const handleTogglePunch = async () => {
+    // 0. Always fetch freshest company policy from server before punching
+    await fetchAttendancePolicy();
+
     // 1. Check Allow Mobile Punch Policy
     if (attendancePolicy.allow_mobile_punch === false) {
       Alert.alert(
