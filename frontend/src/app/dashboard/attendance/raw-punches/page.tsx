@@ -10,6 +10,7 @@ import { usePermissions, DataScope } from '../../hooks/usePermissions';
 import { useDashboard } from '../../components/DashboardContext';
 import SlideDrawer from '../../components/SlideDrawer';
 import { Upload } from 'lucide-react';
+import ModernPagination from '../../components/ModernPagination';
 
 export default function RawPunchLogsPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
@@ -564,52 +565,20 @@ export default function RawPunchLogsPage() {
           </table>
         </div>
 
-        {/* PAGINATION FOOTER */}
+        {/* 🚀 MODERN ELEGANT PAGINATION */}
         {totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs">
-            <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 font-medium">
-              <span>Showing <strong className="text-slate-800 dark:text-slate-200 font-mono">{startIndex + 1}</strong> to <strong className="text-slate-800 dark:text-slate-200 font-mono">{endIndex}</strong> of <strong className="text-slate-800 dark:text-slate-200 font-mono">{totalItems}</strong> entries</span>
-              
-              <div className="flex items-center gap-1.5 ml-2">
-                <span className="text-[11px] font-semibold text-slate-400">Rows:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 font-mono font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
-                >
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                  <option value={200}>200</option>
-                  <option value={500}>500</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-              >
-                Previous
-              </button>
-
-              <span className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 text-indigo-600 dark:text-indigo-400 font-mono font-bold">
-                Page {currentPage} of {totalPages}
-              </span>
-
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <ModernPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[25, 50, 100, 200, 500]}
+            itemLabel="entries"
+          />
         )}
       </div>
 

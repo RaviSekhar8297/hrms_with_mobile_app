@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { useDashboard } from '../components/DashboardContext';
 import { getHeaders, getUrl } from '../utils/api';
+import ModernPagination from '../components/ModernPagination';
 
 interface Company {
   id: string;
@@ -1306,100 +1307,18 @@ export default function PayrollStructurePage() {
 
         {/* 🚀 MODERN ELEGANT PAGINATION CONTROLS */}
         {!loading && filteredStructures.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 mt-2 border-t border-slate-200/80 dark:border-slate-800 text-xs font-['DM_Sans',sans-serif]">
-            {/* Left: Rows Per Page Selector & Summary info */}
-            <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 text-xs font-semibold">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={e => setPageSize(Number(e.target.value))}
-                className="bg-slate-100 dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 rounded-xl px-3 py-1.5 font-extrabold text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all cursor-pointer"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-
-              <span className="text-slate-500 dark:text-slate-400 text-xs font-medium ml-1">
-                Showing <strong className="text-slate-900 dark:text-slate-100 font-extrabold">{startIndex + 1}</strong> to{' '}
-                <strong className="text-slate-900 dark:text-slate-100 font-extrabold">{endIndex}</strong> of{' '}
-                <strong className="text-slate-900 dark:text-slate-100 font-extrabold">{totalItems}</strong> entries
-              </span>
-            </div>
-
-            {/* Right: Page Pills & Jumpers */}
-            <div className="flex items-center gap-1.5">
-              {/* First Page Button */}
-              <button
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                className="h-8 w-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-black hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer flex items-center justify-center text-xs shrink-0"
-                title="First Page"
-              >
-                «
-              </button>
-
-              {/* Previous Button */}
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer text-xs"
-              >
-                Previous
-              </button>
-
-              {/* Page Number Pills */}
-              <div className="flex items-center gap-1">
-                {(() => {
-                  const pages = [];
-                  const maxButtons = 5;
-                  let startPage = Math.max(1, currentPage - 2);
-                  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-                  
-                  if (endPage - startPage + 1 < maxButtons) {
-                    startPage = Math.max(1, endPage - maxButtons + 1);
-                  }
-
-                  for (let p = startPage; p <= endPage; p++) {
-                    pages.push(
-                      <button
-                        key={p}
-                        onClick={() => setCurrentPage(p)}
-                        className={`h-8 min-w-[32px] px-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
-                          currentPage === p
-                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 ring-2 ring-indigo-400/40'
-                            : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    );
-                  }
-                  return pages;
-                })()}
-              </div>
-
-              {/* Next Button */}
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer text-xs"
-              >
-                Next
-              </button>
-
-              {/* Last Page Button */}
-              <button
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                className="h-8 w-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-black hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer flex items-center justify-center text-xs shrink-0"
-                title="Last Page"
-              >
-                »
-              </button>
-            </div>
-          </div>
+          <ModernPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[10, 25, 50, 100]}
+            itemLabel="entries"
+          />
         )}
       </div>
 

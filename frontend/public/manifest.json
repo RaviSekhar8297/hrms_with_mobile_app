@@ -1,7 +1,7 @@
 {
-  "name": "Brihaspathi Enterprise HRMS",
-  "short_name": "Brihaspathi HRMS",
-  "description": "Brihaspathi Technologies Enterprise HRMS Platform with Live Attendance & Location Tracking",
+  "name": "Ravi Enterprise HRMS",
+  "short_name": "Ravi HRMS",
+  "description": "Enterprise HRMS Platform with Live Attendance & Location Tracking",
   "start_url": "/dashboard",
   "display": "standalone",
   "orientation": "portrait",
@@ -9,10 +9,20 @@
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "/globe.svg",
-      "sizes": "192x192 512x512",
+      "src": "/icon.svg",
+      "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }

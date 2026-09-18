@@ -6,6 +6,7 @@ import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import { usePermissions } from '../hooks/usePermissions';
+import ModernPagination from '../components/ModernPagination';
 
 interface Company {
   id: string;
@@ -36,6 +37,14 @@ export default function CompaniesPage() {
   // Search and Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, pageSize]);
 
   // Deletion interactive toast state
   const [deletingCompany, setDeletingCompany] = useState<Company | null>(null);
@@ -227,6 +236,13 @@ export default function CompaniesPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // Pagination calculation
+  const totalItems = filteredCompanies.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedCompanies = filteredCompanies.slice(startIndex, endIndex);
+
   if (roles.length > 0 && !canView) {
     return (
       <div className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20 p-8 text-center">
@@ -328,7 +344,7 @@ export default function CompaniesPage() {
                     Syncing tenant instances...
                   </td>
                 </tr>
-              ) : filteredCompanies.map(c => {
+              ) : paginatedCompanies.map(c => {
                 const initials = c.name ? c.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'CO';
                 
                 return (
@@ -466,6 +482,22 @@ export default function CompaniesPage() {
             </tbody>
           </table>
         </div>
+
+        {/* 🚀 MODERN ELEGANT PAGINATION */}
+        {!loading && filteredCompanies.length > 0 && (
+          <ModernPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[10, 25, 50, 100]}
+            itemLabel="companies"
+          />
+        )}
       </div>
 
       {/* Slide Drawer for Onboarding & Editing */}

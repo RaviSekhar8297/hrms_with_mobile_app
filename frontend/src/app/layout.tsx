@@ -3,8 +3,17 @@ import "./globals.css";
 import FetchPatcher from "./FetchPatcher";
 
 export const metadata: Metadata = {
-  title: "HRMS Portal",
+  title: "Ravi HRMS - Enterprise Portal",
   description: "Enterprise HR Management System Console",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+      { url: "/icon.png", sizes: "192x192", type: "image/png" }
+    ],
+    shortcut: "/icon.svg",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -16,6 +25,9 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
 
       <head>
+        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <link rel="alternate icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#2563eb" />
         <meta name="mobile-web-app-capable" content="yes" />

@@ -7,6 +7,7 @@ import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { usePermissions } from '../hooks/usePermissions';
+import ModernPagination from '../components/ModernPagination';
 
 interface Company {
   id: string;
@@ -65,7 +66,7 @@ export default function DesignationsPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 16;
+  const [pageSize, setPageSize] = useState(16);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -89,14 +90,14 @@ export default function DesignationsPage() {
   );
 
   const totalItems = filteredDesignations.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedDesignations = filteredDesignations.slice(startIndex, endIndex);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [companyId, searchTerm]);
+  }, [companyId, searchTerm, pageSize]);
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -630,51 +631,20 @@ export default function DesignationsPage() {
           </div>
         )}
 
-        {/* Pagination Bar */}
+        {/* 🚀 MODERN ELEGANT PAGINATION */}
         {!loading && totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              Showing <span className="font-bold text-slate-700 dark:text-slate-200">{totalItems > 0 ? startIndex + 1 : 0}</span> to{' '}
-              <span className="font-bold text-slate-700 dark:text-slate-200">{endIndex}</span> of{' '}
-              <span className="font-bold text-slate-700 dark:text-slate-200">{totalItems}</span> designations
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage(1)}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                title="First Page"
-              >
-                « First
-              </button>
-              <button
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                ‹ Prev
-              </button>
-              <span className="px-3 py-1.5 text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg border border-indigo-200/60 dark:border-indigo-800/60">
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                Next ›
-              </button>
-              <button
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage(totalPages)}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Last Page"
-              >
-                Last »
-              </button>
-            </div>
-          </div>
+          <ModernPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[8, 16, 32, 64]}
+            itemLabel="designations"
+          />
         )}
       </div>
 

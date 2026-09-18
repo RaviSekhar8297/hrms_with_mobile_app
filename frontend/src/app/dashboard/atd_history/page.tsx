@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useDashboard } from '../components/DashboardContext';
 import { getHeaders } from '../utils/api';
 import { usePermissions } from '../hooks/usePermissions';
+import ModernPagination from '../components/ModernPagination';
 
 interface Employee {
   id: string;
@@ -800,35 +801,21 @@ export default function AttendanceHistoryPage() {
           </div>
         )}
 
-        {/* Footer & Pagination Bar */}
+        {/* 🚀 MODERN ELEGANT PAGINATION */}
         {!loading && paginatedEmployees.length > 0 && (
-          <div className="p-4 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-slate-600 dark:text-slate-400">
-            <div>
-              Showing {totalEntries === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
-              {Math.min(currentPage * pageSize, totalEntries)} of {totalEntries} Entries
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-              >
-                Previous
-              </button>
-
-              <span className="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs">
-                {currentPage} / {totalPages}
-              </span>
-
-              <button
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
+          <div className="p-4 bg-slate-50/80 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800">
+            <ModernPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={totalEntries}
+              startIndex={(currentPage - 1) * pageSize}
+              endIndex={Math.min(currentPage * pageSize, totalEntries)}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[10, 25, 50, 100]}
+              itemLabel="entries"
+            />
           </div>
         )}
       </div>

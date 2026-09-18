@@ -6,6 +6,7 @@ import { getHeaders, getUrl, API_BASE } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import ModernPagination from '../../components/ModernPagination';
 
 interface Employee {
   id: string;
@@ -54,6 +55,10 @@ export default function AttendancePermissionsPage() {
   const [viewScope, setViewScope] = useState<'my' | 'team'>('my');
   const [searchQuery, setSearchQuery] = useState('');
   const [policy, setPolicy] = useState<any>(null);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -373,6 +378,17 @@ export default function AttendancePermissionsPage() {
     return empName.includes(q) || empCode.includes(q) || reason.includes(q) || status.includes(q) || date.includes(q) || permType.includes(q);
   });
 
+  // Pagination calculation
+  const totalItems = filteredRequests.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, viewScope, activeCompanyId, pageSize]);
+
   const pendingCount = requests.filter(r => r.status === 'PENDING').length;
   const approvedCount = requests.filter(r => r.status === 'APPROVED').length;
   const rejectedCount = requests.filter(r => r.status === 'REJECTED').length;
@@ -548,7 +564,7 @@ export default function AttendancePermissionsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredRequests.map((reqItem) => {
+                paginatedRequests.map((reqItem) => {
                   const isPending = reqItem.status === 'PENDING';
                   const isManagerView = viewScope === 'team';
                   const isSelfRequest = (currentEmployee && reqItem.employee_id === currentEmployee.id) || (me && reqItem.employee_id === me.id);
@@ -653,6 +669,22 @@ export default function AttendancePermissionsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* 🚀 MODERN ELEGANT PAGINATION */}
+        {filteredRequests.length > 0 && (
+          <ModernPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[10, 25, 50, 100]}
+            itemLabel="requests"
+          />
+        )}
       </div>
 
       {/* APPLY / EDIT PERMISSION SLIDE DRAWER */}

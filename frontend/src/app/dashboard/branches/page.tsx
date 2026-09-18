@@ -7,6 +7,7 @@ import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { usePermissions } from '../hooks/usePermissions';
+import ModernPagination from '../components/ModernPagination';
 
 interface Company {
   id: string;
@@ -43,6 +44,14 @@ export default function BranchesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingBranch, setDeletingBranch] = useState<Branch | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, pageSize]);
 
   // Form states
   const [branchForm, setBranchForm] = useState({ name: '', address: '', companyId: '', status: 'ACTIVE' });
@@ -206,9 +215,16 @@ export default function BranchesPage() {
   };
 
   const filteredBranches = branches.filter(b => 
-    b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    b.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     b.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Pagination calculation
+  const totalItems = filteredBranches.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedBranches = filteredBranches.slice(startIndex, endIndex);
 
   if (roles.length > 0 && !canView) {
     return (
@@ -299,7 +315,7 @@ export default function BranchesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {filteredBranches.map(b => (
+            {paginatedBranches.map(b => (
               <div 
                 key={b.id} 
                 style={{ boxShadow: 'rgba(14, 30, 37, 0.12) 0px 2px 4px 0px, rgba(14, 30, 37, 0.32) 0px 2px 16px 0px' }}
@@ -378,6 +394,22 @@ export default function BranchesPage() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* 🚀 MODERN ELEGANT PAGINATION */}
+        {!loading && filteredBranches.length > 0 && (
+          <ModernPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[8, 12, 24, 48]}
+            itemLabel="branches"
+          />
         )}
       </div>
 

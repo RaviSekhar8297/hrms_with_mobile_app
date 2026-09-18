@@ -8,6 +8,7 @@ import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Edit2, Trash2 } from 'lucide-react';
+import ModernPagination from '../../components/ModernPagination';
 
 export default function AttendanceRegularizationPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
@@ -49,6 +50,10 @@ export default function AttendanceRegularizationPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingReqId, setDeletingReqId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [form, setForm] = useState({
     attendance_date: new Date().toISOString().split('T')[0],
@@ -306,6 +311,17 @@ export default function AttendanceRegularizationPage() {
     return empName.includes(q) || empCode.includes(q) || reason.includes(q) || status.includes(q) || date.includes(q) || punchType.includes(q);
   });
 
+  // Pagination calculation
+  const totalItems = filteredRequests.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, viewScope, activeCompanyId, pageSize]);
+
   const pendingCount = safeRequests.filter(r => r?.status === 'PENDING').length;
   const approvedCount = safeRequests.filter(r => r?.status === 'APPROVED').length;
   const rejectedCount = safeRequests.filter(r => r?.status === 'REJECTED').length;
@@ -480,7 +496,7 @@ export default function AttendanceRegularizationPage() {
                   </td>
                 </tr>
               ) : (
-                filteredRequests.map((req) => {
+                paginatedRequests.map((req) => {
                   const punchType = req.punch_type || (req.requested_out ? 'CHECK_OUT' : 'CHECK_IN');
                   return (
                     <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
@@ -609,6 +625,22 @@ export default function AttendanceRegularizationPage() {
             </tbody>
           </table>
         </div>
+
+        {/* 🚀 MODERN ELEGANT PAGINATION */}
+        {!isLoading && filteredRequests.length > 0 && (
+          <ModernPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[10, 25, 50, 100]}
+            itemLabel="requests"
+          />
+        )}
       </div>
 
       {/* APPLY REGULARIZATION DRAWER */}

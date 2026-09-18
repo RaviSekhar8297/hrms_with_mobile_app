@@ -6,6 +6,7 @@ import { getHeaders, API_BASE } from '../../utils/api';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { getDeviceModel } from '../../utils/deviceUtils';
+import ModernPagination from '../../components/ModernPagination';
 
 interface DeviceItem {
   employee_id: string;
@@ -460,6 +461,24 @@ export default function DeviceBindingPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* 🚀 MODERN ELEGANT PAGINATION */}
+            {!loading && filteredDevices.length > 0 && (
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+                <ModernPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  pageSize={pageSize}
+                  totalItems={totalItems}
+                  startIndex={startIndex}
+                  endIndex={Math.min(startIndex + pageSize, totalItems)}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                  pageSizeOptions={[10, 25, 50, 100]}
+                  itemLabel="device bindings"
+                />
               </div>
             )}
           </div>

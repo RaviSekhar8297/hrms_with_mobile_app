@@ -1628,12 +1628,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       }`}>
         {toasts.map((toast) => (
           <div key={toast.id} className="pointer-events-auto animate-toast">
-            <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border-y border-r border-slate-200/90 dark:border-slate-800 shadow-2xl backdrop-blur-2xl transition-all ${
+            <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-2xl transition-all border-2 ${
               toast.type === 'error'
-                ? 'border-l-4 border-l-rose-500 shadow-rose-500/10'
+                ? 'border-rose-500 shadow-rose-500/20'
                 : toast.type === 'info'
-                ? 'border-l-4 border-l-blue-500 shadow-blue-500/10'
-                : 'border-l-4 border-l-emerald-500 shadow-emerald-500/10'
+                ? 'border-blue-500 shadow-blue-500/20'
+                : 'border-emerald-500 shadow-emerald-500/20'
             }`}>
               <div className="flex items-center gap-3">
                 <span
