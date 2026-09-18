@@ -164,7 +164,7 @@ function PasswordUpdateForm() {
       color: string;
     }[] = [];
 
-    const starColors = ['#ffffff', '#ffffff', '#ffffff', '#f0f4ff', '#fff9c4', '#c7d2fe'];
+    const starColors = ['#ffffff', '#ffffff', '#eef2ff', '#e0e7ff', '#c7d2fe', '#fde68a'];
 
     for (let i = 0; i < 140; i++) {
       const isStar = Math.random() > 0.7;
@@ -264,7 +264,7 @@ function PasswordUpdateForm() {
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
 
-    const colors = ['#ff0080', '#ffd700', '#00ff88', '#40e0d0', '#7b68ee', '#ff8c00'];
+    const colors = ['#6366f1', '#8b5cf6', '#d946ef', '#f59e0b', '#10b981', '#38bdf8'];
     let pieces: { x: number; y: number; w: number; h: number; c: string; vy: number; vx: number; r: number; vr: number }[] = [];
 
     for (let i = 0; i < 160; i++) {
@@ -360,7 +360,7 @@ function PasswordUpdateForm() {
     if (newPassword.length === 0) return { text: 'Empty', color: 'text-slate-400', progressColor: 'bg-slate-200', percent: '0%' };
     if (passwordStrength <= 1) return { text: 'Weak password', color: 'text-rose-500', progressColor: 'bg-rose-500', percent: '25%' };
     if (passwordStrength === 2) return { text: 'Fair security', color: 'text-amber-500', progressColor: 'bg-amber-500', percent: '50%' };
-    if (passwordStrength === 3) return { text: 'Good security', color: 'text-[#0f62fe]', progressColor: 'bg-[#0f62fe]', percent: '75%' };
+    if (passwordStrength === 3) return { text: 'Good security', color: 'text-indigo-400', progressColor: 'bg-indigo-400', percent: '75%' };
     return { text: 'Strong security', color: 'text-emerald-500', progressColor: 'bg-emerald-500', percent: '100%' };
   };
 
@@ -461,11 +461,19 @@ function PasswordUpdateForm() {
                 router.replace('/login');
               }
             }}
-            className="top-chip hover:bg-white/20 transition-all cursor-pointer flex items-center gap-1 font-bold text-xs"
+            className="top-chip hover:bg-white/20 transition-all cursor-pointer flex items-center gap-1.5 font-semibold text-xs"
           >
-            ← Back to Login
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+            </svg>
+            Back to Login
           </button>
-          <span className="top-chip">🗓️ {joiningDate}</span>
+          <span className="top-chip flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+            </svg>
+            {joiningDate}
+          </span>
         </div>
       </header>
 
@@ -490,7 +498,12 @@ function PasswordUpdateForm() {
                     <span>{userInitials}</span>
                   </div>
                 )}
-                <span className="chip chip1">🎉 New Joiner</span>
+                <span className="chip chip1">
+                  <svg className="inline w-3.5 h-3.5 -mt-0.5 mr-1 text-indigo-300" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+                  </svg>
+                  New Joiner
+                </span>
                 <span className="spark s1">✦</span>
                 <span className="spark s2">✦</span>
                 <span className="spark s3">✦</span>
@@ -543,21 +556,33 @@ function PasswordUpdateForm() {
               <h3>Our Core Hubs</h3>
               <div className="branches-grid">
                 <div className="branch" style={{ '--d': '2.0s' } as React.CSSProperties}>
-                  <span className="b-icon">🏢</span>
+                  <span className="b-icon">
+                    <svg className="w-4.5 h-4.5 text-indigo-200" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                    </svg>
+                  </span>
                   <div>
                     <b>Hyderabad</b>
                     <small>Head Office</small>
                   </div>
                 </div>
                 <div className="branch" style={{ '--d': '2.15s' } as React.CSSProperties}>
-                  <span className="b-icon">💻</span>
+                  <span className="b-icon">
+                    <svg className="w-4.5 h-4.5 text-indigo-200" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m6.75 7.5 3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0 0 21 18V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v12a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                  </span>
                   <div>
                     <b>Bengaluru</b>
                     <small>R&D Center</small>
                   </div>
                 </div>
                 <div className="branch" style={{ '--d': '2.3s' } as React.CSSProperties}>
-                  <span className="b-icon">📈</span>
+                  <span className="b-icon">
+                    <svg className="w-4.5 h-4.5 text-indigo-200" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+                    </svg>
+                  </span>
                   <div>
                     <b>Mumbai</b>
                     <small>Finance Hub</small>
@@ -577,7 +602,10 @@ function PasswordUpdateForm() {
                   setStage('PASSWORD_RESET');
                 }}
               >
-                Let&apos;s Get Started 🚀
+                Let&apos;s Get Started
+                <svg className="inline w-4 h-4 ml-2 -mt-0.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                </svg>
               </button>
             </div>
           </section>
@@ -586,51 +614,58 @@ function PasswordUpdateForm() {
       ) : (
         /* 🌟 STAGE 2: CHANGE PASSWORD FORM (HIGH CONTRAST GLASS CARD) */
         <main className="wrap-form animate-fade-up max-w-lg mx-auto my-auto relative z-20 w-full px-4 py-8">
-          <div className="bg-[#12102e]/95 backdrop-blur-2xl border-2 border-indigo-500/40 rounded-3xl p-8 sm:p-10 text-white shadow-2xl shadow-indigo-950/90 relative overflow-hidden text-left">
+          <div className="bg-[#12102e]/85 backdrop-blur-2xl border border-white/10 rounded-2xl p-7 sm:p-9 text-white shadow-[0_24px_64px_-16px_rgba(0,0,0,0.75)] relative overflow-hidden text-left">
             
             {/* Header Badge */}
-            <div className="flex items-center justify-between pb-6 mb-6 border-b border-indigo-500/20">
+            <div className="flex items-center justify-between pb-6 mb-6 border-b border-white/[0.08]">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-600 to-pink-600 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-indigo-500/30 border border-white/20">
-                  🔐
+                <div className="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-[0_8px_20px_-6px_rgba(79,70,229,0.6)]">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                  </svg>
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-white tracking-tight font-outfit">
+                  <h2 className="text-xl font-semibold text-white tracking-[-0.01em] font-outfit">
                     Update Account Password
                   </h2>
-                  <p className="text-xs text-indigo-200 font-semibold mt-0.5">
-                    First Time Security Configuration for <strong className="text-amber-300">{displayName}</strong>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">
+                    First Time Security Configuration for <strong className="text-indigo-300">{displayName}</strong>
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setStage('WELCOME')}
-                className="px-3 py-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-xs font-bold text-indigo-200 hover:text-white transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
               >
-                ← Back
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                </svg>
+                Back
               </button>
             </div>
 
             {error && (
-              <div className="p-3.5 mb-5 rounded-xl bg-rose-950/80 border border-rose-500/50 text-rose-200 text-xs font-bold flex items-start gap-2.5">
-                <span className="text-base">⚠️</span>
-                <span className="pt-0.5">{error}</span>
+              <div className="p-3.5 mb-5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-200 text-xs font-medium flex items-start gap-2.5">
+                <svg className="w-4 h-4 mt-px shrink-0 text-rose-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008ZM12 3l9 16.5H3L12 3Z" />
+                </svg>
+                <span className="pt-0.5 leading-relaxed">{error}</span>
               </div>
             )}
 
             <form onSubmit={handleSubmitPasswordReset} className="space-y-5">
               
               {/* Username Badge Display (Readonly) */}
-              <div className="p-3 rounded-xl bg-indigo-950/60 border border-indigo-500/30 flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase text-indigo-300 tracking-wider">Account Email</span>
-                <span className="text-xs font-mono font-bold text-amber-300">{username}</span>
+              <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between">
+                <span className="text-[10.5px] font-semibold uppercase text-slate-400 tracking-[0.08em]">Account Email</span>
+                <span className="text-xs font-mono font-medium text-indigo-300">{username}</span>
               </div>
 
               {/* New Password Input */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-indigo-200 tracking-wider block font-outfit">
-                  New Permanent Password <span className="text-pink-400">*</span>
+                <label className="text-[11px] font-semibold uppercase text-slate-300 tracking-[0.08em] block font-outfit">
+                  New Permanent Password <span className="text-rose-400">*</span>
                 </label>
                 <div className="relative flex items-center">
                   <input
@@ -640,24 +675,33 @@ function PasswordUpdateForm() {
                     value={newPassword}
                     onChange={e => handlePasswordChange(e.target.value)}
                     style={{ color: '#ffffff', backgroundColor: '#0f172a' }}
-                    className="w-full py-3.5 px-4 pr-12 rounded-xl border-2 border-indigo-500/50 text-white font-mono text-base tracking-[0.2em] outline-none focus:border-indigo-400 focus:bg-[#050515] focus:ring-4 focus:ring-indigo-500/30 placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal transition-all shadow-md"
+                    className="w-full tracking-[0.2em] placeholder:text-sm placeholder:font-sans placeholder:tracking-normal"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3.5 text-slate-300 hover:text-white transition-colors cursor-pointer text-base p-1"
+                    className="absolute right-3.5 flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
                   >
-                    {showNewPassword ? '👁️' : '🙈'}
+                    {showNewPassword ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      </svg>
+                    )}
                   </button>
                 </div>
 
                 {/* Password Strength Meter */}
                 <div className="mt-1 px-1">
-                  <div className="flex justify-between items-center text-[10.5px] font-bold mb-1">
-                    <span className="text-slate-300">Password Strength:</span>
+                  <div className="flex justify-between items-center text-[10.5px] font-semibold mb-1.5">
+                    <span className="text-slate-400">Password Strength:</span>
                     <span className={strengthInfo.color}>{strengthInfo.text}</span>
                   </div>
-                  <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden border border-white/10">
+                  <div className="h-1.5 w-full bg-white/[0.06] rounded-full overflow-hidden">
                     <div
                       className={`h-full ${strengthInfo.progressColor} transition-all duration-300`}
                       style={{ width: strengthInfo.percent }}
@@ -668,8 +712,8 @@ function PasswordUpdateForm() {
 
               {/* Confirm Password Input */}
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-indigo-200 tracking-wider block font-outfit">
-                  Confirm New Password <span className="text-pink-400">*</span>
+                <label className="text-[11px] font-semibold uppercase text-slate-300 tracking-[0.08em] block font-outfit">
+                  Confirm New Password <span className="text-rose-400">*</span>
                 </label>
                 <div className="relative flex items-center">
                   <input
@@ -679,14 +723,23 @@ function PasswordUpdateForm() {
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     style={{ color: '#ffffff', backgroundColor: '#0f172a' }}
-                    className="w-full py-3.5 px-4 pr-12 rounded-xl border-2 border-indigo-500/50 text-white font-mono text-base tracking-[0.2em] outline-none focus:border-indigo-400 focus:bg-[#050515] focus:ring-4 focus:ring-indigo-500/30 placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal transition-all shadow-md"
+                    className="w-full tracking-[0.2em] placeholder:text-sm placeholder:font-sans placeholder:tracking-normal"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3.5 text-slate-300 hover:text-white transition-colors cursor-pointer text-base p-1"
+                    className="absolute right-3.5 flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
                   >
-                    {showConfirmPassword ? '👁️' : '🙈'}
+                    {showConfirmPassword ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
@@ -699,10 +752,10 @@ function PasswordUpdateForm() {
                     <button
                       type="submit"
                       disabled={!isFormValid || loading}
-                      className={`w-full py-4 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg ${
+                      className={`w-full py-3.5 px-6 rounded-[11px] font-semibold text-[13.5px] transition-all flex items-center justify-center gap-2 ${
                         isFormValid && !loading
-                          ? 'bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 hover:from-indigo-600 hover:to-pink-700 text-white cursor-pointer shadow-indigo-500/25 active:scale-[0.99]'
-                          : 'bg-slate-800/90 text-slate-400 border border-slate-700/60 cursor-not-allowed opacity-80'
+                          ? 'bg-brand-600 hover:bg-brand-700 text-white cursor-pointer shadow-[0_10px_28px_-8px_rgba(79,70,229,0.65)] active:scale-[0.99]'
+                          : 'bg-white/[0.06] text-slate-500 border border-white/10 cursor-not-allowed'
                       }`}
                     >
                       {loading ? (
@@ -713,7 +766,12 @@ function PasswordUpdateForm() {
                           </svg>
                         </>
                       ) : (
-                        <span>Set Password & Proceed 🚀</span>
+                        <span className="flex items-center gap-2">
+                          Set Password & Proceed
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                          </svg>
+                        </span>
                       )}
                     </button>
                   );
@@ -746,7 +804,7 @@ function PasswordUpdateForm() {
         }
 
         .welcome-root-scope {
-          background: linear-gradient(135deg, #0f0c29, #302b63, #24243e, #141432);
+          background: linear-gradient(135deg, #0b0d1a, #171a33, #1b1533, #0e1024);
           background-size: 300% 300%;
           animation: gradientShift 14s ease infinite;
         }
@@ -756,16 +814,24 @@ function PasswordUpdateForm() {
           color: #ffffff !important;
           -webkit-text-fill-color: #ffffff !important;
           background-color: #0f172a !important;
-          border-color: rgba(99, 102, 241, 0.5) !important;
+          border: 1px solid rgba(255, 255, 255, 0.14) !important;
+          border-radius: 11px !important;
+          padding: 13px 46px 13px 15px !important;
+          font-size: 0.875rem !important;
+          font-weight: 500 !important;
+          font-family: inherit !important;
+          outline: none !important;
+          box-shadow: none !important;
+          transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease !important;
         }
 
         .welcome-root-scope input[type="text"]:focus,
         .welcome-root-scope input[type="password"]:focus {
           color: #ffffff !important;
           -webkit-text-fill-color: #ffffff !important;
-          background-color: #050515 !important;
+          background-color: #0b1020 !important;
           border-color: #818cf8 !important;
-          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.35) !important;
+          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25) !important;
         }
 
         .welcome-root-scope input:-webkit-autofill,
@@ -798,14 +864,14 @@ function PasswordUpdateForm() {
         .orb {
           position: fixed;
           border-radius: 50%;
-          filter: blur(80px);
-          opacity: 0.4;
+          filter: blur(90px);
+          opacity: 0.22;
           z-index: 0;
           animation: orbFloat 12s ease-in-out infinite;
         }
-        .orb1 { width: 380px; height: 380px; background: #7b68ee; top: -100px; left: -100px; }
-        .orb2 { width: 320px; height: 320px; background: #ff0080; bottom: -80px; right: -80px; animation-delay: -4s; }
-        .orb3 { width: 240px; height: 240px; background: #00c9a7; top: 45%; left: 55%; animation-delay: -8s; }
+        .orb1 { width: 380px; height: 380px; background: #4f46e5; top: -100px; left: -100px; }
+        .orb2 { width: 320px; height: 320px; background: #7c3aed; bottom: -80px; right: -80px; animation-delay: -4s; }
+        .orb3 { width: 240px; height: 240px; background: #0891b2; top: 45%; left: 55%; animation-delay: -8s; }
 
         @keyframes orbFloat {
           0%, 100% { transform: translate(0, 0) scale(1); }
@@ -830,26 +896,26 @@ function PasswordUpdateForm() {
         }
         .brand { display: flex; align-items: center; gap: 16px; text-align: left; }
         .brand img {
-          width: 88px; height: 88px; border-radius: 50%; background: #fff; padding: 6px; object-fit: contain;
-          box-shadow: 0 0 26px rgba(255,215,0,.45);
-          animation: logoSpinIn 1s cubic-bezier(.68,-.55,.27,1.55) .2s both, logoGlow 2.8s ease-in-out 1.4s infinite;
+          width: 72px; height: 72px; border-radius: 20px; background: #fff; padding: 6px; object-fit: contain;
+          box-shadow: 0 0 26px rgba(129,140,248,.35);
+          animation: logoSpinIn .9s cubic-bezier(.68,-.55,.27,1.55) .2s both, logoGlow 3.2s ease-in-out 1.4s infinite;
         }
         .company-logo-fallback {
-          width: 88px; height: 88px; border-radius: 50%; background: linear-gradient(135deg, #7b68ee, #ff0080);
-          color: white; font-size: 34px; font-weight: 800; display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 0 26px rgba(255,215,0,.45);
-          animation: logoSpinIn 1s cubic-bezier(.68,-.55,.27,1.55) .2s both, logoGlow 2.8s ease-in-out 1.4s infinite;
+          width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg, #4f46e5, #7c3aed);
+          color: white; font-size: 28px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 0 26px rgba(129,140,248,.35);
+          animation: logoSpinIn .9s cubic-bezier(.68,-.55,.27,1.55) .2s both, logoGlow 3.2s ease-in-out 1.4s infinite;
         }
         @keyframes logoSpinIn { from { transform: rotate(-200deg) scale(0); opacity: 0; } }
         @keyframes logoGlow {
-          0%, 100% { box-shadow: 0 0 0 4px rgba(255,215,0,.35), 0 0 24px rgba(255,215,0,.35); }
-          50% { box-shadow: 0 0 0 8px rgba(255,215,0,.15), 0 0 44px rgba(255,215,0,.65); }
+          0%, 100% { box-shadow: 0 0 0 3px rgba(129,140,248,.25), 0 0 20px rgba(129,140,248,.25); }
+          50% { box-shadow: 0 0 0 6px rgba(129,140,248,.1), 0 0 34px rgba(129,140,248,.45); }
         }
-        .brand h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: #fff; }
-        .brand p { font-size: .68rem; letter-spacing: 3px; text-transform: uppercase; color: #9aa0c3; }
+        .brand h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #fff; }
+        .brand p { font-size: .64rem; letter-spacing: 2.5px; text-transform: uppercase; color: #8b91b5; }
         .top-chip {
-          padding: 9px 20px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; font-size: .75rem;
-          letter-spacing: 2px; text-transform: uppercase; color: #cfd2ea; backdrop-filter: blur(8px);
+          padding: 8px 16px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; font-size: .72rem;
+          letter-spacing: 1.5px; text-transform: uppercase; color: #c6cbe4; backdrop-filter: blur(8px);
           animation: fadeUp .8s ease .4s both;
         }
 
@@ -868,24 +934,24 @@ function PasswordUpdateForm() {
           border-radius: 28px; transform-style: preserve-3d; transition: transform .25s ease; cursor: pointer;
         }
         .photo-card::before {
-          content: ''; position: absolute; inset: -4px; border-radius: 32px; z-index: -1;
-          background: conic-gradient(from var(--angle), #ff0080, #ffd700, #00ff88, #40e0d0, #7b68ee, #ff0080);
-          animation: rotateAngle 10s linear infinite;
+          content: ''; position: absolute; inset: -3px; border-radius: 30px; z-index: -1;
+          background: conic-gradient(from var(--angle), #6366f1, #8b5cf6, #d946ef, #8b5cf6, #6366f1);
+          animation: rotateAngle 12s linear infinite;
         }
         @keyframes rotateAngle { to { --angle: 360deg; } }
         .photo-card::after {
           content: ''; position: absolute; inset: 0; border-radius: 28px; pointer-events: none;
-          background: radial-gradient(circle at var(--gx,50%) var(--gy,50%), rgba(255,255,255,.22), transparent 55%);
+          background: radial-gradient(circle at var(--gx,50%) var(--gy,50%), rgba(255,255,255,.18), transparent 55%);
         }
         .photo-card img {
           width: 100%; height: 100%; object-fit: cover; object-position: top center; border-radius: 28px;
-          border: 5px solid #14122b; display: block;
+          border: 4px solid #101426; display: block;
         }
         .avatar-fallback {
-          width: 100%; height: 100%; border-radius: 28px; border: 5px solid #14122b;
-          background: linear-gradient(135deg, #1e1b4b, #311b92, #4a148c);
+          width: 100%; height: 100%; border-radius: 28px; border: 4px solid #101426;
+          background: linear-gradient(135deg, #1e1b4b, #312e81, #4c1d95);
           display: flex; align-items: center; justify-content: center;
-          color: #ffd700; font-size: 5rem; font-weight: 800; text-shadow: 0 0 30px rgba(255,215,0,0.5);
+          color: #c7d2fe; font-size: 4.5rem; font-weight: 700; text-shadow: 0 0 30px rgba(129,140,248,0.45);
         }
 
         .overlay {
@@ -897,19 +963,19 @@ function PasswordUpdateForm() {
           font-size: 1.6rem; font-weight: 700; background: linear-gradient(90deg,#fff,#bcd6ff);
           -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        .overlay p { font-size: .76rem; letter-spacing: 3px; text-transform: uppercase; color: #ffd700; margin-top: 4px; }
+        .overlay p { font-size: .76rem; letter-spacing: 2.5px; text-transform: uppercase; color: #a5b4fc; margin-top: 4px; }
 
         .chip {
-          position: absolute; padding: 9px 18px; border-radius: 999px; font-size: .74rem; font-weight: 600;
-          background: rgba(20,18,43,.85); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.2);
-          box-shadow: 0 10px 26px rgba(0,0,0,.4);
+          position: absolute; padding: 9px 18px; border-radius: 999px; font-size: .74rem; font-weight: 500;
+          background: rgba(15,17,32,.72); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14);
+          box-shadow: 0 10px 26px rgba(0,0,0,.35);
           animation: popIn .6s cubic-bezier(.68,-.55,.27,1.55) both, bob 4s ease-in-out 2s infinite;
         }
         .chip1 { top: 22px; left: -26px; animation-delay: 1.25s, 2s; }
         .chip2 { top: 64px; right: -30px; animation-delay: 1.45s, 2.4s; }
         .chip3 { bottom: 110px; left: -34px; animation-delay: 1.65s, 2.8s; }
 
-        .spark { position: absolute; color: #ffd700; font-size: 1.2rem; animation: twinkle 2.2s ease infinite; text-shadow: 0 0 12px #ffd700; }
+        .spark { position: absolute; color: #a5b4fc; font-size: 1.2rem; animation: twinkle 2.2s ease infinite; text-shadow: 0 0 12px rgba(129,140,248,.8); }
         .s1 { top: -18px; right: 40px; }
         .s2 { bottom: -14px; left: 34px; animation-delay: .7s; }
         .s3 { top: 40%; right: -22px; animation-delay: 1.3s; }
@@ -917,57 +983,55 @@ function PasswordUpdateForm() {
 
         .right {
           min-height: 0; overflow-y: auto; padding: 16px 18px 36px 6px; text-align: left;
-          scrollbar-width: thin; scrollbar-color: rgba(123,104,238,.6) transparent;
+          scrollbar-width: thin; scrollbar-color: rgba(99,102,241,.6) transparent;
         }
         .right::-webkit-scrollbar { width: 6px; }
         .right::-webkit-scrollbar-track { background: transparent; }
-        .right::-webkit-scrollbar-thumb { background: linear-gradient(#7b68ee,#ff0080); border-radius: 99px; }
+        .right::-webkit-scrollbar-thumb { background: linear-gradient(#6366f1,#8b5cf6); border-radius: 99px; }
 
         .script {
-          font-size: 2.8rem; line-height: 1.15; font-weight: 800;
-          background: linear-gradient(90deg,#ffd700,#ff8c00,#ffd700); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          font-size: 2.4rem; line-height: 1.18; font-weight: 700;
+          background: linear-gradient(90deg,#e0e7ff,#a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
           animation: fadeUp .8s ease .5s both;
         }
-        .greet { font-size: 2.1rem; font-weight: 800; margin-top: 2px; animation: fadeUp .8s ease .7s both; color: #fff; }
+        .greet { font-size: 1.9rem; font-weight: 700; margin-top: 2px; animation: fadeUp .8s ease .7s both; color: #fff; }
         .wave { display: inline-block; animation: wave 1.8s ease-in-out 1.4s infinite; transform-origin: 70% 70%; }
         @keyframes wave { 0%,100% { transform: rotate(0); } 20% { transform: rotate(24deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(20deg); } 80% { transform: rotate(-6deg); } }
 
-        .typing-wrap { min-height: 26px; margin-top: 12px; font-size: .98rem; font-weight: 300; color: #cfd2ea; animation: fadeUp .8s ease .9s both; }
-        .cursor { display: inline-block; width: 2px; height: 1em; background: #ffd700; vertical-align: -2px; margin-left: 2px; animation: blink .8s step-end infinite; }
+        .typing-wrap { min-height: 26px; margin-top: 12px; font-size: .94rem; font-weight: 400; color: #c6cbe4; animation: fadeUp .8s ease .9s both; }
+        .cursor { display: inline-block; width: 2px; height: 1em; background: #a5b4fc; vertical-align: -2px; margin-left: 2px; animation: blink .8s step-end infinite; }
         @keyframes blink { 50% { opacity: 0; } }
 
         .sec { margin-top: 30px; animation: fadeUp .8s ease var(--d,1.2s) both; }
-        .sec h3 { display: flex; align-items: center; gap: 12px; font-size: .75rem; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #9aa0c3; }
-        .sec h3::after { content: ''; height: 1px; width: 70px; background: linear-gradient(90deg,#7b68ee,transparent); transform: scaleX(0); transform-origin: left; animation: grow .8s ease calc(var(--d,1.2s) + .3s) forwards; }
+        .sec h3 { display: flex; align-items: center; gap: 12px; font-size: .72rem; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #8b91b5; }
+        .sec h3::after { content: ''; height: 1px; width: 70px; background: linear-gradient(90deg,#6366f1,transparent); transform: scaleX(0); transform-origin: left; animation: grow .8s ease calc(var(--d,1.2s) + .3s) forwards; }
         @keyframes grow { to { transform: scaleX(1); } }
 
-        .about p { margin-top: 12px; font-size: .9rem; font-weight: 300; line-height: 1.75; color: #c9ccec; border-left: 3px solid #7b68ee; padding-left: 16px; }
-        .about b { color: #ffd700; font-weight: 600; }
+        .about p { margin-top: 12px; font-size: .88rem; font-weight: 400; line-height: 1.75; color: #c3c8e6; border-left: 3px solid #6366f1; padding-left: 16px; }
+        .about b { color: #c7d2fe; font-weight: 600; }
 
         .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-top: 16px; }
         .stat { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 16px 8px; text-align: center; transition: transform .3s, background .3s, border-color .3s; }
-        .stat:hover { transform: translateY(-5px); background: rgba(255,255,255,.1); border-color: rgba(255,215,0,.4); }
-        .stat .num { font-size: 1.7rem; font-weight: 800; background: linear-gradient(90deg,#ffd700,#ff8c00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .stat small { display: block; margin-top: 2px; font-size: .64rem; letter-spacing: 1.5px; text-transform: uppercase; color: #9aa0c3; }
+        .stat:hover { transform: translateY(-5px); background: rgba(255,255,255,.1); border-color: rgba(129,140,248,.45); }
+        .stat .num { font-size: 1.6rem; font-weight: 700; background: linear-gradient(90deg,#e0e7ff,#a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat small { display: block; margin-top: 2px; font-size: .64rem; letter-spacing: 1.5px; text-transform: uppercase; color: #8b91b5; }
 
         .branches-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-top: 16px; }
         .branch { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); animation: fadeUp .6s ease var(--d) both; transition: transform .3s, border-color .3s, box-shadow .3s; }
-        .branch:hover { transform: translateY(-5px) scale(1.02); border-color: rgba(123,104,238,.6); box-shadow: 0 14px 30px rgba(123,104,238,.25); }
-        .b-icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; font-size: 1.15rem; border-radius: 12px; background: linear-gradient(135deg,rgba(123,104,238,.35),rgba(255,0,128,.3)); }
+        .branch:hover { transform: translateY(-5px) scale(1.02); border-color: rgba(99,102,241,.55); box-shadow: 0 14px 30px rgba(79,70,229,.28); }
+        .b-icon { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; font-size: 1.15rem; border-radius: 12px; background: linear-gradient(135deg,rgba(99,102,241,.4),rgba(139,92,246,.3)); color: #c7d2fe; }
         .branch b { font-size: .86rem; font-weight: 600; display: block; color: #fff; }
-        .branch small { font-size: .62rem; letter-spacing: 1.5px; text-transform: uppercase; color: #9aa0c3; }
+        .branch small { font-size: .62rem; letter-spacing: 1.5px; text-transform: uppercase; color: #8b91b5; }
 
         .cta-row { display: flex; gap: 16px; margin-top: 34px; flex-wrap: wrap; animation: fadeUp .8s ease 2.9s both; }
-        .btn { padding: 14px 34px; border: none; border-radius: 999px; font-family: inherit; font-size: .9rem; font-weight: 600; letter-spacing: 1px; cursor: pointer; transition: transform .3s, box-shadow .3s; position: relative; overflow: hidden; }
-        .btn-p { color: #fff; background: linear-gradient(90deg,#7b68ee,#ff0080); box-shadow: 0 10px 30px rgba(255,0,128,.35); }
-        .btn-p::before { content: ''; position: absolute; top: 0; left: -120%; width: 50%; height: 100%; transform: skewX(-20deg); background: linear-gradient(120deg,transparent,rgba(255,255,255,.35),transparent); transition: left .6s ease; }
-        .btn-p:hover::before { left: 130%; }
-        .btn-p:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 16px 42px rgba(255,0,128,.5); }
+        .btn { padding: 13px 30px; border: none; border-radius: 12px; font-family: inherit; font-size: .85rem; font-weight: 600; letter-spacing: .3px; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease; }
+        .btn-p { color: #fff; background: #4f46e5; box-shadow: 0 10px 28px -8px rgba(79,70,229,.6); }
+        .btn-p:hover { transform: translateY(-2px); background-color: #4338ca; box-shadow: 0 16px 36px -10px rgba(79,70,229,.65); }
 
         .marquee { position: relative; z-index: 2; flex: 0 0 auto; overflow: hidden; padding: 13px 0; border-top: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.2); animation: fadeUp 1s ease 1s both; }
         .track { display: flex; gap: 56px; width: max-content; white-space: nowrap; animation: scroll 24s linear infinite; }
         .track span { font-size: .7rem; letter-spacing: 4px; color: #6f74a0; text-transform: uppercase; }
-        .track em { color: #ffd700; font-style: normal; }
+        .track em { color: #a5b4fc; font-style: normal; }
         @keyframes scroll { to { transform: translateX(-50%); } }
 
         @media(max-width:980px){
@@ -976,8 +1040,8 @@ function PasswordUpdateForm() {
           .photo-card { height: auto; aspect-ratio: 4/5; width: 100%; }
           .right { overflow: visible; padding: 0 4px; }
           .branches-grid { grid-template-columns: 1fr 1fr; }
-          .greet { font-size: 1.6rem; }
-          .script { font-size: 2.2rem; }
+          .greet { font-size: 1.5rem; }
+          .script { font-size: 2rem; }
           .top-chip { display: none; }
         }
         @media(max-width:520px){
@@ -994,7 +1058,8 @@ export default function PasswordUpdatePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen w-full flex items-center justify-center bg-[#0f0c29] text-white font-bold uppercase tracking-wider text-xs">
+        <div className="min-h-screen w-full flex flex-col items-center justify-center gap-3 bg-[#0b0d1a] text-slate-300 text-xs font-medium">
+          <div className="h-5 w-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
           Loading Onboarding Context...
         </div>
       }

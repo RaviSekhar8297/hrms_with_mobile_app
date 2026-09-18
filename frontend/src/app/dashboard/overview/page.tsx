@@ -780,10 +780,14 @@ export default function OverviewPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-3">
               
               {/* 1. Today's Birthdays Card */}
-              <div className="p-4 rounded-2xl border border-pink-200/80 dark:border-pink-900/50 bg-gradient-to-br from-pink-50/90 via-purple-50/40 to-pink-100/50 dark:from-pink-950/40 dark:via-purple-950/20 dark:to-pink-900/30 shadow-2xs flex flex-col justify-between space-y-3">
+              <div className="p-4 rounded-2xl border border-pink-200/70 dark:border-pink-900/40 bg-pink-50/70 dark:bg-pink-950/25 shadow-2xs flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between border-b border-pink-200/60 dark:border-pink-900/40 pb-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">🎂</span>
+                    <span className="w-7 h-7 rounded-lg bg-pink-600/10 text-pink-600 dark:text-pink-400 flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.53 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.53 18 9.473 18 10.608v2.513M15 8.25v-1.5m-6 1.5v-1.5m12 9.75-1.5.75a3.354 3.354 0 0 1-3 0 3.354 3.354 0 0 0-3 0 3.354 3.354 0 0 1-3 0 3.354 3.354 0 0 0-3 0 3.354 3.354 0 0 1-3 0L3 16.5m15-4.871V18a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 18v-6.892M12 6.75c.621 0 1.125-.504 1.125-1.125S12.621 4.5 12 4.5s-1.125.504-1.125 1.125S11.379 6.75 12 6.75Z" />
+                      </svg>
+                    </span>
                     <h4 className="text-xs font-black uppercase tracking-wider text-pink-700 dark:text-pink-300 font-outfit">
                       Today's Birthdays
                     </h4>
@@ -809,7 +813,7 @@ export default function OverviewPage() {
                               {event.empImage ? (
                                 <img src={event.empImage} alt={event.employeeName} className="w-10 h-10 rounded-full object-cover ring-2 ring-pink-400 shrink-0" />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                <div className="w-10 h-10 rounded-full bg-pink-500 text-white font-semibold text-xs flex items-center justify-center shrink-0">
                                   {event.employeeName ? event.employeeName.charAt(0) : 'E'}
                                 </div>
                               )}
@@ -917,10 +921,14 @@ export default function OverviewPage() {
               </div>
 
               {/* 2. Today's Work Anniversaries Card */}
-              <div className="p-4 rounded-2xl border border-purple-200/80 dark:border-purple-900/50 bg-gradient-to-br from-purple-50/90 via-amber-50/40 to-purple-100/50 dark:from-purple-950/40 dark:via-amber-950/20 dark:to-purple-900/30 shadow-2xs flex flex-col justify-between space-y-3">
+              <div className="p-4 rounded-2xl border border-purple-200/70 dark:border-purple-900/40 bg-purple-50/70 dark:bg-purple-950/25 shadow-2xs flex flex-col justify-between space-y-3">
                 <div className="flex items-center justify-between border-b border-purple-200/60 dark:border-purple-900/40 pb-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">🏆</span>
+                    <span className="w-7 h-7 rounded-lg bg-purple-600/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 0 0 7.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 0 0 2.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 0 1 2.916.52 6.003 6.003 0 0 1-5.395 4.972m0 0a6.726 6.726 0 0 1-2.749 1.35m0 0a6.772 6.772 0 0 1-3.044 0" />
+                      </svg>
+                    </span>
                     <h4 className="text-xs font-black uppercase tracking-wider text-purple-700 dark:text-purple-300 font-outfit">
                       Work Anniversaries
                     </h4>
@@ -946,7 +954,7 @@ export default function OverviewPage() {
                               {event.empImage ? (
                                 <img src={event.empImage} alt={event.employeeName} className="w-10 h-10 rounded-full object-cover ring-2 ring-purple-400 shrink-0" />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-amber-500 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                <div className="w-10 h-10 rounded-full bg-purple-500 text-white font-semibold text-xs flex items-center justify-center shrink-0">
                                   {event.employeeName ? event.employeeName.charAt(0) : 'E'}
                                 </div>
                               )}
@@ -2074,11 +2082,11 @@ function EmployeeDashboard({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
         
         {/* Left 2 Cols: Good Morning Banner (LIGHT THEME FOR NON-SUPERADMIN) */}
-        <div className="lg:col-span-2 rounded-3xl border border-indigo-100 dark:border-slate-800 bg-gradient-to-br from-indigo-50/90 via-purple-50/80 to-blue-50/70 dark:bg-slate-900 p-6 md:p-8 relative overflow-hidden flex flex-col justify-between shadow-xs text-slate-800 dark:text-slate-100 group transition-all duration-300">
+        <div className="lg:col-span-2 rounded-2xl border border-indigo-600/10 dark:border-slate-800 bg-indigo-600/[0.04] dark:bg-slate-900 p-6 md:p-8 relative overflow-hidden flex flex-col justify-between shadow-[0_1px_3px_rgba(16,24,40,0.05)] text-slate-800 dark:text-slate-100 group transition-all duration-300">
           
           {/* Background blur rings */}
-          <div className="absolute right-0 top-0 -mt-8 -mr-8 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
+          <div className="absolute right-0 top-0 -mt-8 -mr-8 w-64 h-64 bg-indigo-500/[0.07] rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-600" />
           
           <div className="flex justify-between items-start gap-4 z-10">
             <div className="space-y-3 text-left w-full">
@@ -2094,12 +2102,12 @@ function EmployeeDashboard({
                     className="w-14 h-14 md:w-16 md:h-16 rounded-2xl object-cover ring-4 ring-indigo-500/20 shadow-md shrink-0"
                   />
                 ) : (
-                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-indigo-700 via-purple-700 to-pink-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0 ring-4 ring-indigo-500/20">
+                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-indigo-600 text-white font-semibold text-2xl flex items-center justify-center shadow-md shrink-0 ring-4 ring-indigo-500/15">
                     {displayName ? displayName.charAt(0) : 'U'}
                   </div>
                 )}
                 <div>
-                  <h1 className="text-2xl md:text-3xl lg:text-4xl font-black uppercase tracking-tight font-outfit text-slate-950 dark:text-white drop-shadow-xs">
+                  <h1 className="text-2xl md:text-3xl font-semibold tracking-[-0.015em] font-outfit text-slate-950 dark:text-white">
                     {displayName.toUpperCase()}
                   </h1>
                   <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold leading-relaxed max-w-md mt-0.5">
@@ -2111,35 +2119,48 @@ function EmployeeDashboard({
           </div>
 
           {/* Bottom Branch, Department & Designation Chips */}
-          <div className="flex flex-wrap items-center gap-3 mt-6 pt-2 z-10">
+          <div className="flex flex-wrap items-center gap-2.5 mt-6 pt-2 z-10">
             {/* Branch */}
-            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 shadow-2xs text-xs font-bold">
-              <span className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center text-sm">📍</span>
+            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-500 dark:text-slate-400 shadow-2xs">
+              <span className="w-6 h-6 rounded-lg bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                </svg>
+              </span>
               <span>
-                Branch: <strong className="font-black uppercase text-slate-900 dark:text-white tracking-wider">{me?.branch_name || 'Main Branch'}</strong>
+                Branch: <strong className="font-semibold text-slate-900 dark:text-white">{me?.branch_name || 'Main Branch'}</strong>
               </span>
             </span>
 
             {/* Department */}
-            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-blue-500/10 text-blue-800 dark:text-blue-300 border border-blue-500/20 shadow-2xs text-xs font-bold">
-              <span className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center text-sm">🏢</span>
+            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-500 dark:text-slate-400 shadow-2xs">
+              <span className="w-6 h-6 rounded-lg bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                </svg>
+              </span>
               <span>
-                Department: <strong className="font-black uppercase text-slate-900 dark:text-white tracking-wider">{me?.department_name || 'Pending'}</strong>
+                Department: <strong className="font-semibold text-slate-900 dark:text-white">{me?.department_name || 'Pending'}</strong>
               </span>
             </span>
 
             {/* Designation */}
-            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-purple-500/10 text-purple-800 dark:text-purple-300 border border-purple-500/20 shadow-2xs text-xs font-bold">
-              <span className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center text-sm">💼</span>
+            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-500 dark:text-slate-400 shadow-2xs">
+              <span className="w-6 h-6 rounded-lg bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z" />
+                </svg>
+              </span>
               <span>
-                Designation: <strong className="font-black uppercase text-slate-900 dark:text-white tracking-wider">{me?.designation_name || 'Pending'}</strong>
+                Designation: <strong className="font-semibold text-slate-900 dark:text-white">{me?.designation_name || 'Pending'}</strong>
               </span>
             </span>
           </div>
         </div>
 
         {/* Right 1 Col: Today's Attendance Punch Card */}
-        <div className="rounded-3xl border border-indigo-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-6 shadow-lg shadow-indigo-950/5 flex flex-col justify-between text-left transition-all duration-300 hover:shadow-xl hover:border-indigo-200 dark:hover:border-indigo-900/50 group">
+        <div className="rounded-2xl border border-[#e4e7ec] dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-[0_1px_3px_rgba(16,24,40,0.05)] flex flex-col justify-between text-left transition-all duration-300 hover:shadow-[0_4px_16px_-4px_rgba(16,24,40,0.1)] hover:border-indigo-600/20 dark:hover:border-indigo-900/50 group">
           <div>
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
               <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
@@ -2176,7 +2197,7 @@ function EmployeeDashboard({
               </div>
 
               {/* Fingerprint Graphic */}
-              <div className="w-15 h-15 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-blue-500/10 dark:from-indigo-500/20 dark:to-blue-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shadow-md shrink-0 group-hover:scale-105 transition-transform duration-300">
+              <div className="w-15 h-15 rounded-2xl bg-indigo-600/[0.06] dark:bg-indigo-500/[0.12] text-indigo-600 dark:text-indigo-400 border border-indigo-600/15 flex items-center justify-center shadow-sm shrink-0 group-hover:scale-105 transition-transform duration-300">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11c0 1.341.17 2.643.49 3.882" />
                 </svg>
@@ -2206,10 +2227,10 @@ function EmployeeDashboard({
                 <button
                   onClick={openMarkAttendanceModal}
                   disabled={punching}
-                  className={`flex-1 py-3 px-5 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-md disabled:opacity-60 ${
+                  className={`flex-1 py-3 px-5 rounded-xl text-[11px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 ${
                     checkedIn
-                      ? 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-rose-500/20'
-                      : 'bg-gradient-to-r from-indigo-600 via-indigo-650 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-indigo-500/25'
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
                   }`}
                 >
                   {punching ? (
@@ -2226,7 +2247,7 @@ function EmployeeDashboard({
               {canViewAttendance && (
                 <Link
                   href="/dashboard/attendance"
-                  className="py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-center flex items-center justify-center shadow-xs"
+                  className="py-3 px-4 rounded-xl text-[11px] font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-center flex items-center justify-center"
                 >
                   TIMELINE
                 </Link>
@@ -2688,10 +2709,10 @@ function EmployeeDashboard({
 
                     return isMyEvent ? (
                       /* 🌟 CELEBRANT SPECIAL HERO BANNER FOR LOGGED-IN BIRTHDAY PERSON */
-                      <div key={event.eventId} className="p-4 rounded-2xl bg-gradient-to-br from-pink-500/15 via-purple-500/10 to-indigo-500/15 border-2 border-pink-500/50 shadow-md shadow-pink-500/10 animate-fade-up space-y-3">
+                      <div key={event.eventId} className="p-4 rounded-2xl bg-pink-500/[0.08] border border-pink-500/40 dark:border-pink-800/70 shadow-sm animate-fade-up space-y-3">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 text-white font-extrabold text-lg flex items-center justify-center shadow-md animate-bounce">
+                            <div className="w-11 h-11 rounded-full bg-pink-500 text-white font-semibold text-lg flex items-center justify-center shadow-sm">
                               🎂
                             </div>
                             <div>
@@ -2784,7 +2805,7 @@ function EmployeeDashboard({
                               <div className={`flex ${isLoggedUser ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[90%] p-2.5 rounded-xl text-xs space-y-0.5 border ${
                                   isLoggedUser 
-                                    ? 'bg-gradient-to-r from-pink-500/15 to-purple-500/15 border-pink-400/60 dark:border-pink-800 text-right' 
+                                    ? 'bg-pink-500/10 border-pink-500/30 dark:border-pink-800 text-right' 
                                     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-left shadow-2xs'
                                 }`}>
                                   <div className={`flex items-center gap-1.5 text-[10px] font-black ${isLoggedUser ? 'justify-end' : 'justify-start'}`}>
@@ -2808,13 +2829,13 @@ function EmployeeDashboard({
                       </div>
                     ) : (
                       /* 🎈 COLLEAGUE INTERACTIVE BIRTHDAY CARD */
-                      <div key={event.eventId} className="p-4 rounded-2xl border border-pink-100 dark:border-slate-800 bg-gradient-to-br from-pink-50/70 via-purple-50/30 to-indigo-50/30 dark:from-slate-800/80 dark:via-slate-850 dark:to-slate-900 shadow-2xs hover:shadow-md transition-all duration-300 space-y-3 relative overflow-hidden">
+                      <div key={event.eventId} className="p-4 rounded-2xl border border-pink-100 dark:border-slate-800 bg-pink-50/60 dark:bg-slate-800/60 shadow-2xs hover:shadow-md transition-all duration-300 space-y-3 relative overflow-hidden">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             {event.empImage ? (
                               <img src={event.empImage} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-pink-500/30 shadow-xs" alt="avatar" />
                             ) : (
-                              <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-pink-500/30">
+                              <div className="w-11 h-11 rounded-full bg-pink-500 text-white font-semibold text-sm flex items-center justify-center shrink-0 ring-2 ring-pink-400/30">
                                 {event.employeeName ? event.employeeName.charAt(0) : 'E'}
                               </div>
                             )}
@@ -3025,10 +3046,10 @@ function EmployeeDashboard({
 
                     return isMyEvent ? (
                       /* 🏆 CELEBRANT SPECIAL HERO BANNER FOR WORK ANNIVERSARY PERSON */
-                      <div key={event.eventId} className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/15 via-purple-500/10 to-indigo-500/15 border-2 border-amber-500/50 shadow-md shadow-amber-500/10 animate-fade-up space-y-3">
+                      <div key={event.eventId} className="p-4 rounded-2xl bg-amber-500/[0.08] border border-amber-500/40 dark:border-amber-800/70 shadow-sm animate-fade-up space-y-3">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 to-purple-600 text-white font-extrabold text-lg flex items-center justify-center shadow-md animate-bounce">
+                            <div className="w-11 h-11 rounded-full bg-amber-500 text-white font-semibold text-lg flex items-center justify-center shadow-sm">
                               🏆
                             </div>
                             <div>
@@ -3121,7 +3142,7 @@ function EmployeeDashboard({
                               <div className={`flex ${isLoggedUser ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[90%] p-2.5 rounded-xl text-xs space-y-0.5 border ${
                                   isLoggedUser 
-                                    ? 'bg-gradient-to-r from-amber-500/15 to-purple-500/15 border-amber-400/60 dark:border-amber-800 text-right' 
+                                    ? 'bg-amber-500/10 border-amber-500/30 dark:border-amber-800 text-right' 
                                     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-left shadow-2xs'
                                 }`}>
                                   <div className={`flex items-center gap-1.5 text-[10px] font-black ${isLoggedUser ? 'justify-end' : 'justify-start'}`}>
@@ -3145,13 +3166,13 @@ function EmployeeDashboard({
                       </div>
                     ) : (
                       /* 🎖️ COLLEAGUE INTERACTIVE WORK ANNIVERSARY CARD */
-                      <div key={event.eventId} className="p-4 rounded-2xl border border-purple-100 dark:border-slate-800 bg-gradient-to-br from-purple-50/70 via-indigo-50/30 to-amber-50/30 dark:from-slate-800/80 dark:via-slate-850 dark:to-slate-900 shadow-2xs hover:shadow-md transition-all duration-300 space-y-3 relative overflow-hidden">
+                      <div key={event.eventId} className="p-4 rounded-2xl border border-purple-100 dark:border-slate-800 bg-purple-50/60 dark:bg-slate-800/60 shadow-2xs hover:shadow-md transition-all duration-300 space-y-3 relative overflow-hidden">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             {event.empImage ? (
                               <img src={event.empImage} className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-purple-500/30 shadow-xs" alt="avatar" />
                             ) : (
-                              <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-purple-500/30">
+                              <div className="w-11 h-11 rounded-full bg-purple-500 text-white font-semibold text-sm flex items-center justify-center shrink-0 ring-2 ring-purple-400/30">
                                 {event.employeeName ? event.employeeName.charAt(0) : 'E'}
                               </div>
                             )}
@@ -3363,10 +3384,12 @@ function EmployeeDashboard({
         </div>
 
         {/* 3. Need Help? (Light Soft Theme) */}
-        <div className="rounded-3xl border border-indigo-200/80 dark:border-slate-800 bg-gradient-to-br from-indigo-50/90 via-slate-50 to-blue-50/80 dark:from-slate-900 dark:to-slate-800 p-6 shadow-sm text-left flex flex-col justify-between transition-all duration-300 hover:shadow-md text-slate-800 dark:text-white group">
+        <div className="rounded-2xl border border-[#e4e7ec] dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-[0_1px_3px_rgba(16,24,40,0.05)] text-left flex flex-col justify-between transition-all duration-300 hover:shadow-[0_4px_16px_-4px_rgba(16,24,40,0.1)] text-slate-800 dark:text-white group">
           <div>
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center text-xl mb-4 backdrop-blur-md shadow-2xs group-hover:scale-110 transition-transform">
-              🎧
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center mb-4 shadow-2xs group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.712 4.33a9.027 9.027 0 0 1 1.652 1.306c.51.51.944 1.064 1.306 1.652M16.712 4.33l-3.448 4.138m3.448-4.138a9.014 9.014 0 0 0-9.424 0M19.67 7.288l-4.138 3.448m4.138-3.448a9.014 9.014 0 0 1 0 9.424m-4.138-5.976a3.736 3.736 0 0 0-.88-1.388 3.737 3.737 0 0 0-1.388-.88m2.268 2.268a3.765 3.765 0 0 1 0 2.528m-2.268-4.796a3.765 3.765 0 0 0-2.528 0m4.796 4.796c-.181.506-.475.982-.88 1.388a3.736 3.736 0 0 1-1.388.88m2.268-2.268 4.138 3.448m0 0a9.027 9.027 0 0 1-1.306 1.652c-.51.51-1.064.944-1.652 1.306m0 0-3.448-4.138m3.448 4.138a9.014 9.014 0 0 1-9.424 0m5.976-4.138a3.765 3.765 0 0 1-2.528 0m0 0a3.736 3.736 0 0 1-1.388-.88 3.737 3.737 0 0 1-.88-1.388m2.268 2.268L7.288 19.67m0 0a9.024 9.024 0 0 1-1.652-1.306 9.027 9.027 0 0 1-1.306-1.652m0 0 4.138-3.448M4.33 16.712a9.014 9.014 0 0 1 0-9.424m4.138 5.976a3.765 3.765 0 0 1 0-2.528m0 0c.181-.506.475-.982.88-1.388a3.736 3.736 0 0 1 1.388-.88m-2.268 2.268L4.33 7.288m6.406 1.18L7.288 4.33m0 0a9.024 9.024 0 0 0-1.652 1.306A9.025 9.025 0 0 0 4.33 7.288" />
+              </svg>
             </div>
             <h4 className="text-base font-black uppercase tracking-wider text-slate-900 dark:text-white font-outfit">
               Need Help?
@@ -3377,7 +3400,7 @@ function EmployeeDashboard({
           </div>
 
           <div className="mt-6">
-            <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 border-0 text-xs font-black text-white shadow-md shadow-indigo-500/20 transition-all text-center cursor-pointer active:scale-98">
+            <button className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 border-0 text-xs font-semibold text-white transition-all text-center cursor-pointer">
               Create Support Ticket
             </button>
           </div>
@@ -3535,7 +3558,7 @@ function EmployeeDashboard({
                   className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 ${
                     isSubmittingPunch || !capturedSelfie
                       ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-300/40 dark:border-slate-700/40 cursor-not-allowed shadow-none'
-                      : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 hover:scale-[1.01] cursor-pointer'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
                   }`}
                 >
                   {isSubmittingPunch
@@ -3559,7 +3582,7 @@ function EmployeeDashboard({
             <div>
               <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-600 text-white flex items-center justify-center text-2xl font-bold shadow-md animate-bounce">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl font-semibold shadow-sm">
                     {celebrantModalEvent.eventType === 'BIRTHDAY' ? '🎂' : '🏆'}
                   </div>
                   <div>
@@ -3622,7 +3645,7 @@ function EmployeeDashboard({
                       return isLoggedUser ? (
                         /* 🌟 RIGHT ALIGNED CHAT BUBBLE FOR LOGGED IN USER (YOU) */
                         <div key={w.id} className="flex flex-col items-end animate-fadeIn">
-                          <div className="max-w-[85%] p-3 rounded-2xl rounded-tr-xs bg-gradient-to-br from-pink-500/15 via-purple-500/10 to-indigo-500/15 dark:from-pink-950/60 dark:to-indigo-950/60 border-2 border-pink-400/60 dark:border-pink-800/80 shadow-xs text-xs space-y-1">
+                          <div className="max-w-[85%] p-3 rounded-2xl rounded-tr-xs bg-pink-500/10 dark:bg-pink-950/30 border border-pink-500/40 dark:border-pink-800/80 shadow-xs text-xs space-y-1">
                             <div className="flex items-center justify-end gap-2 border-b border-pink-200/50 dark:border-pink-900/40 pb-1.5">
                               <span className="text-[10px] text-slate-400 dark:text-slate-400 font-semibold">
                                 {new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

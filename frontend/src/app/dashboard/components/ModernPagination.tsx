@@ -50,13 +50,13 @@ export const ModernPagination: React.FC<ModernPaginationProps> = ({
 
   return (
     <div
-      className={`flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 mt-2 border-t border-slate-200/80 dark:border-slate-800 text-xs font-['DM_Sans',sans-serif] ${className}`}
+      className={`flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 mt-2 border-t border-[#eaecf0] dark:border-white/[0.06] text-xs ${className}`}
     >
       {/* Left: Rows Per Page Selector & Summary info */}
-      <div className="flex flex-wrap items-center gap-3 text-slate-500 dark:text-slate-400 text-xs font-semibold">
+      <div className="flex flex-wrap items-center gap-3 text-slate-500 dark:text-slate-400 text-xs">
         {onPageSizeChange && (
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Rows per page:</span>
+            <span className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-400 dark:text-slate-500">Rows per page:</span>
             <select
               value={pageSize}
               onChange={(e) => {
@@ -64,7 +64,7 @@ export const ModernPagination: React.FC<ModernPaginationProps> = ({
                 onPageSizeChange(newSize);
                 onPageChange(1);
               }}
-              className="bg-slate-100 dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 rounded-xl px-3 py-1.5 font-extrabold text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+              className="pagination-select cursor-pointer"
             >
               {pageSizeOptions.map((opt) => (
                 <option key={opt} value={opt}>
@@ -75,10 +75,10 @@ export const ModernPagination: React.FC<ModernPaginationProps> = ({
           </div>
         )}
 
-        <span className="text-slate-500 dark:text-slate-400 text-xs font-medium ml-1">
-          Showing <strong className="text-slate-900 dark:text-slate-100 font-extrabold">{totalItems > 0 ? startIndex + 1 : 0}</strong> to{' '}
-          <strong className="text-slate-900 dark:text-slate-100 font-extrabold">{endIndex}</strong> of{' '}
-          <strong className="text-slate-900 dark:text-slate-100 font-extrabold">{totalItems}</strong> {itemLabel}
+        <span className="text-slate-500 dark:text-slate-400 text-xs font-normal ml-1">
+          Showing <strong className="text-slate-800 dark:text-slate-100 font-semibold tabular-nums">{totalItems > 0 ? startIndex + 1 : 0}</strong> to{' '}
+          <strong className="text-slate-800 dark:text-slate-100 font-semibold tabular-nums">{endIndex}</strong> of{' '}
+          <strong className="text-slate-800 dark:text-slate-100 font-semibold tabular-nums">{totalItems}</strong> {itemLabel}
         </span>
       </div>
 
@@ -88,7 +88,7 @@ export const ModernPagination: React.FC<ModernPaginationProps> = ({
         <button
           onClick={() => onPageChange(1)}
           disabled={validCurrentPage === 1}
-          className="h-8 w-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-black hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer flex items-center justify-center text-xs shrink-0"
+          className="h-8 w-8 rounded-lg border border-[#e4e7ec] dark:border-white/[0.08] bg-transparent text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-white/[0.06] hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer flex items-center justify-center text-xs shrink-0"
           title="First Page"
         >
           «
@@ -98,7 +98,7 @@ export const ModernPagination: React.FC<ModernPaginationProps> = ({
         <button
           onClick={() => onPageChange(Math.max(validCurrentPage - 1, 1))}
           disabled={validCurrentPage === 1}
-          className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer text-xs"
+          className="px-3 py-1.5 rounded-lg border border-[#e4e7ec] dark:border-white/[0.08] bg-transparent text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-white/[0.06] hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer text-xs"
         >
           Previous
         </button>
@@ -109,10 +109,10 @@ export const ModernPagination: React.FC<ModernPaginationProps> = ({
             <button
               key={p}
               onClick={() => onPageChange(p)}
-              className={`h-8 min-w-[32px] px-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+              className={`h-8 min-w-[32px] px-2 rounded-lg text-xs transition-colors cursor-pointer flex items-center justify-center tabular-nums ${
                 validCurrentPage === p
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 ring-2 ring-indigo-400/40'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'bg-brand-600 text-white font-semibold shadow-[0_1px_2px_rgba(16,24,40,0.08),0_1px_3px_rgba(16,24,40,0.06)]'
+                  : 'bg-transparent text-slate-600 dark:text-slate-300 font-medium border border-[#e4e7ec] dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.06]'
               }`}
             >
               {p}
@@ -124,7 +124,7 @@ export const ModernPagination: React.FC<ModernPaginationProps> = ({
         <button
           onClick={() => onPageChange(Math.min(validCurrentPage + 1, validTotalPages))}
           disabled={validCurrentPage >= validTotalPages}
-          className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer text-xs"
+          className="px-3 py-1.5 rounded-lg border border-[#e4e7ec] dark:border-white/[0.08] bg-transparent text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-white/[0.06] hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer text-xs"
         >
           Next
         </button>
@@ -133,7 +133,7 @@ export const ModernPagination: React.FC<ModernPaginationProps> = ({
         <button
           onClick={() => onPageChange(validTotalPages)}
           disabled={validCurrentPage >= validTotalPages}
-          className="h-8 w-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-black hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer flex items-center justify-center text-xs shrink-0"
+          className="h-8 w-8 rounded-lg border border-[#e4e7ec] dark:border-white/[0.08] bg-transparent text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-white/[0.06] hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer flex items-center justify-center text-xs shrink-0"
           title="Last Page"
         >
           »

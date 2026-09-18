@@ -172,26 +172,34 @@ export default function NotificationBell() {
     switch (type) {
       case 'SUCCESS':
         return (
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0 border border-emerald-500/20">
-            ✓
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-500/15">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
           </div>
         );
       case 'DANGER':
         return (
-          <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-sm shrink-0 border border-rose-500/20">
-            ✕
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 shrink-0 border border-rose-500/15">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
           </div>
         );
       case 'WARNING':
         return (
-          <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm shrink-0 border border-amber-500/20">
-            ⚠️
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 border border-amber-500/15">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008ZM12 3l9 16.5H3L12 3Z" />
+            </svg>
           </div>
         );
       default:
         return (
-          <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm shrink-0 border border-indigo-500/20">
-            🔔
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600/10 text-brand-600 dark:text-brand-400 shrink-0 border border-brand-600/15">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+            </svg>
           </div>
         );
     }
@@ -205,17 +213,17 @@ export default function NotificationBell() {
           setIsOpen(!isOpen);
           if (!isOpen) fetchNotifications();
         }}
-        className="relative p-2.5 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center active:scale-95 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+        className="relative p-2 rounded-[10px] border border-[#e4e7ec] dark:border-white/[0.08] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer flex items-center justify-center active:scale-95"
         title="Notifications"
         aria-label="Notifications"
       >
-        <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
         </svg>
 
         {/* 🔴 UNREAD BADGE */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-600 px-1.5 text-[10px] font-black text-white shadow-md shadow-rose-600/30 animate-pulse">
+          <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9.5px] font-semibold text-white shadow-sm">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -223,13 +231,13 @@ export default function NotificationBell() {
 
       {/* 📥 NOTIFICATION DROPDOWN DRAWER */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl z-50 overflow-hidden text-left animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute right-0 mt-2.5 w-80 sm:w-96 rounded-xl bg-card border border-[#e4e7ec] dark:border-white/[0.08] shadow-[0_24px_64px_-16px_rgba(16,24,40,0.28)] dark:shadow-[0_24px_64px_-16px_rgba(0,0,0,0.65)] z-50 overflow-hidden text-left animate-slideDown">
           {/* Header */}
-          <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/80">
+          <div className="p-4 border-b border-[#eaecf0] dark:border-white/[0.06] flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white">Notifications</h3>
+              <h3 className="text-[13px] font-semibold text-slate-900 dark:text-white">Notifications</h3>
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300">
+                <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-brand-600/10 text-brand-700 dark:text-brand-300">
                   {unreadCount} new
                 </span>
               )}
@@ -238,7 +246,7 @@ export default function NotificationBell() {
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                className="text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 cursor-pointer transition-colors"
               >
                 Mark all as read
               </button>
@@ -246,13 +254,15 @@ export default function NotificationBell() {
           </div>
 
           {/* Notifications List (Last 3 Days) */}
-          <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+          <div className="max-h-[380px] overflow-y-auto divide-y divide-[#f2f4f7] dark:divide-white/[0.05]">
             {recentNotifications.length === 0 ? (
               <div className="p-8 text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto text-xl">
-                  🔔
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 dark:bg-white/[0.06] text-slate-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                  </svg>
                 </div>
-                <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
                   No notifications in the last 3 days
                 </p>
                 <p className="text-[11px] text-slate-400 dark:text-slate-500">
@@ -264,10 +274,10 @@ export default function NotificationBell() {
                 <div
                   key={item.id}
                   onClick={() => handleItemClick(item)}
-                  className={`p-4 transition-all flex items-start gap-3.5 cursor-pointer relative group ${
+                  className={`p-4 transition-colors flex items-start gap-3.5 cursor-pointer relative group ${
                     !item.is_read
-                      ? 'bg-indigo-50/60 dark:bg-indigo-950/30 hover:bg-indigo-50 dark:hover:bg-indigo-950/50'
-                      : 'opacity-50 hover:opacity-90 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      ? 'bg-brand-600/[0.05] dark:bg-brand-400/[0.07] hover:bg-brand-600/10 dark:hover:bg-brand-400/10'
+                      : 'opacity-60 hover:opacity-100 hover:bg-slate-50 dark:hover:bg-white/[0.03]'
                   }`}
                 >
                   {/* Icon */}
@@ -279,8 +289,8 @@ export default function NotificationBell() {
                       <h4
                         className={`text-xs truncate ${
                           !item.is_read
-                            ? 'font-black text-slate-900 dark:text-white'
-                            : 'font-normal text-slate-400 dark:text-slate-500'
+                            ? 'font-semibold text-slate-900 dark:text-white'
+                            : 'font-normal text-slate-500 dark:text-slate-400'
                         }`}
                       >
                         {item.title}
@@ -288,7 +298,7 @@ export default function NotificationBell() {
                       <span
                         className={`text-[10px] shrink-0 ${
                           !item.is_read
-                            ? 'font-bold text-indigo-600 dark:text-indigo-400'
+                            ? 'font-medium text-brand-600 dark:text-brand-400'
                             : 'font-normal text-slate-400 dark:text-slate-500'
                         }`}
                       >
@@ -299,7 +309,7 @@ export default function NotificationBell() {
                     <p
                       className={`text-[11px] leading-snug line-clamp-2 ${
                         !item.is_read
-                          ? 'font-bold text-slate-800 dark:text-slate-100'
+                          ? 'font-normal text-slate-600 dark:text-slate-300'
                           : 'font-normal text-slate-400 dark:text-slate-500'
                       }`}
                     >
@@ -310,7 +320,7 @@ export default function NotificationBell() {
                       <p
                         className={`text-[10px] mt-1 ${
                           !item.is_read
-                            ? 'font-extrabold text-indigo-600 dark:text-indigo-400'
+                            ? 'font-medium text-brand-600 dark:text-brand-400'
                             : 'font-normal text-slate-400 dark:text-slate-500'
                         }`}
                       >
@@ -323,14 +333,14 @@ export default function NotificationBell() {
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     {!item.is_read && (
                       <span
-                        className="w-2.5 h-2.5 rounded-full bg-indigo-600 shadow-xs"
+                        className="w-2 h-2 rounded-full bg-brand-600"
                         title="Unread"
                       />
                     )}
 
                     <button
                       onClick={(e) => handleDelete(item.id, e)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-md hover:bg-slate-200/60 dark:hover:bg-slate-800"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.06]"
                       title="Delete"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

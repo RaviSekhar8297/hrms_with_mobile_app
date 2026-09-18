@@ -48,11 +48,13 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
 
   if (!isSuperAdmin) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-blue-950/60 dark:to-indigo-950/50 border border-blue-200/80 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 shadow-2xs">
-        <div className="hidden sm:flex w-5 h-5 rounded-md bg-blue-600 text-white items-center justify-center text-[11px] font-extrabold shadow-xs flex-shrink-0">
-          🏢
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-slate-100/80 dark:bg-white/[0.05] border border-[#e4e7ec] dark:border-white/[0.08] text-slate-700 dark:text-slate-200">
+        <div className="hidden sm:flex w-5 h-5 rounded-md bg-brand-600 text-white items-center justify-center flex-shrink-0">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+          </svg>
         </div>
-        <span className="text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase truncate max-w-[85px] xs:max-w-[120px] sm:max-w-[210px] md:max-w-[280px]">
+        <span className="text-[11px] sm:text-[11.5px] font-semibold tracking-wide uppercase truncate max-w-[85px] xs:max-w-[120px] sm:max-w-[210px] md:max-w-[280px]">
           {companyName || 'Company Tenant'}
         </span>
       </div>
@@ -60,14 +62,16 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
   }
 
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-blue-950/60 dark:to-indigo-950/50 border border-blue-300/80 dark:border-blue-700/60 text-blue-700 dark:text-blue-300 shadow-2xs">
-      <div className="hidden sm:flex w-5 h-5 rounded-md bg-blue-600 text-white items-center justify-center text-[11px] font-extrabold shadow-xs flex-shrink-0">
-        🏢
+    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] bg-slate-100/80 dark:bg-white/[0.05] border border-[#e4e7ec] dark:border-white/[0.08] text-slate-700 dark:text-slate-200">
+      <div className="hidden sm:flex w-5 h-5 rounded-md bg-brand-600 text-white items-center justify-center flex-shrink-0">
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+        </svg>
       </div>
       <select
         value={companyId || 'all'}
         onChange={(e) => setCompanyId(e.target.value === 'all' ? null : e.target.value)}
-        className="bg-transparent text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase text-blue-700 dark:text-blue-300 focus:outline-none cursor-pointer pr-0.5 py-0.5 truncate max-w-[90px] xs:max-w-[130px] sm:max-w-[220px] md:max-w-[300px]"
+        className="header-company-select uppercase truncate max-w-[90px] xs:max-w-[130px] sm:max-w-[220px] md:max-w-[300px]"
       >
         <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold uppercase">
           -- All Companies --
@@ -234,14 +238,14 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       style={{ fontFamily: '"Inter", "DM Sans", sans-serif' }}
-      className="flex h-16 flex-shrink-0 items-center justify-between rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm px-2.5 sm:px-4 md:px-6 transition-colors duration-200 z-20 w-full"
+      className="flex h-16 flex-shrink-0 items-center justify-between rounded-2xl border bg-card px-3 sm:px-4 md:px-5 transition-colors duration-200 z-20 w-full"
     >
       {/* 👈 Left Header Section: Mobile Menu + Company Badge + Live Clock */}
       <div className="flex items-center gap-3">
         {/* Mobile Hamburger Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-xs cursor-pointer"
+          className="md:hidden p-2 rounded-[10px] border border-[#e4e7ec] dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
           title="Toggle Navigation Menu"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -253,13 +257,13 @@ export const Header: React.FC<HeaderProps> = ({
         <HeaderCompanySelector companyName={companyName} isSuperAdmin={isSuperAdmin} />
 
         {/* Live Date & Clock Display Badge */}
-        <div className="hidden lg:flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/70 text-slate-700 dark:text-slate-200 select-none shadow-2xs">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" title="System Clock Active" />
+        <div className="hidden lg:flex items-center gap-2.5 px-3.5 py-1.5 rounded-[10px] bg-slate-100/80 dark:bg-white/[0.05] border border-[#e4e7ec] dark:border-white/[0.08] text-slate-700 dark:text-slate-200 select-none">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" title="System Clock Active" />
           <div className="flex flex-col text-left leading-tight">
-            <span className="text-xs sm:text-sm font-black font-mono tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+            <span className="text-xs sm:text-[13px] font-semibold font-mono tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
               {currentTime ? currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : ''}
             </span>
-            <span className="text-[10.5px] font-extrabold text-slate-500 dark:text-slate-400 tracking-tight">
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 tracking-tight">
               {currentTime ? currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : ''}
             </span>
           </div>
@@ -273,7 +277,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="hidden md:block relative flex-1 max-w-xs sm:max-w-md mx-2">
           <div className="relative flex items-center">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none z-10 text-slate-400">
-              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
             </span>
@@ -303,7 +307,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }
               }}
               placeholder="Search modules, pages, employees..."
-              className="w-full py-2.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-md text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-medium outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-blue-500/15 transition-all duration-200 shadow-inner"
+              className="w-full py-2.5 text-xs"
             />
             <div className="absolute right-2.5 flex items-center gap-1">
               {searchQuery ? (
@@ -312,12 +316,12 @@ export const Header: React.FC<HeaderProps> = ({
                     setSearchQuery('');
                     setShowSearchDropdown(false);
                   }}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-1 font-bold cursor-pointer transition-colors"
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] cursor-pointer transition-colors"
                 >
                   ✕
                 </button>
               ) : (
-                <kbd className="hidden sm:inline-block px-2 py-0.5 text-[9.5px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-200/80 dark:bg-slate-800 rounded-lg border border-slate-300/60 dark:border-slate-700 shadow-2xs">
+                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/[0.06] rounded-md border border-[#e4e7ec] dark:border-white/[0.08]">
                   Ctrl K
                 </kbd>
               )}
@@ -328,16 +332,16 @@ export const Header: React.FC<HeaderProps> = ({
           {showSearchDropdown && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-              <div className="absolute left-1/2 -translate-x-1/2 mt-2.5 w-[92vw] sm:w-[500px] max-h-[480px] overflow-y-auto rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl p-4 shadow-2xl shadow-slate-900/15 z-50 animate-in fade-in slide-in-from-top-2 duration-200 no-scrollbar space-y-4 font-sans">
+              <div className="absolute left-1/2 -translate-x-1/2 mt-2.5 w-[92vw] sm:w-[500px] max-h-[480px] overflow-y-auto rounded-2xl border border-[#e4e7ec] dark:border-white/[0.08] bg-card p-4 shadow-[0_24px_64px_-16px_rgba(16,24,40,0.28)] dark:shadow-[0_24px_64px_-16px_rgba(0,0,0,0.65)] z-50 animate-fadeIn no-scrollbar space-y-4 font-sans">
                 
                 {/* Modules & Pages Section */}
                 {filteredNav.length > 0 && (
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between px-2 pb-1 border-b border-slate-100 dark:border-slate-800">
-                      <span className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5">
-                        <span>⚡</span> Modules & Pages
+                    <div className="flex items-center justify-between px-2 pb-2 border-b border-[#eaecf0] dark:border-white/[0.06]">
+                      <span className="text-[10.5px] font-semibold uppercase text-slate-400 dark:text-slate-500 tracking-[0.08em]">
+                        Modules & Pages
                       </span>
-                      <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">
                         {filteredNav.length} FOUND
                       </span>
                     </div>
@@ -347,13 +351,15 @@ export const Header: React.FC<HeaderProps> = ({
                           key={nav.path}
                           href={nav.path}
                           onClick={() => setShowSearchDropdown(false)}
-                          className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-blue-50/80 dark:hover:bg-slate-800/80 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-150 group"
+                          className="flex items-center justify-between px-2 py-1.5 rounded-[10px] text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-white/[0.05] hover:text-slate-900 dark:hover:text-slate-50 transition-colors duration-150 group"
                         >
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-sm shrink-0">{nav.icon || '📄'}</span>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-white/[0.06] text-[13px] shrink-0">{nav.icon || '📄'}</span>
                             <span className="truncate max-w-[320px]">{nav.label}</span>
                           </div>
-                          <span className="text-[10px] text-slate-300 dark:text-slate-600 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all">➜</span>
+                          <svg className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:text-brand-500 group-hover:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
+                          </svg>
                         </Link>
                       ))}
                     </div>
@@ -362,37 +368,37 @@ export const Header: React.FC<HeaderProps> = ({
 
                 {/* Employees Section */}
                 {filteredEmployees.length > 0 && (
-                  <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between px-2 pb-1">
-                      <span className="text-[10.5px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5">
-                        <span>👥</span> Employees Directory
+                  <div className="space-y-1.5 pt-1 border-t border-[#eaecf0] dark:border-white/[0.06]">
+                    <div className="flex items-center justify-between px-2 pb-2">
+                      <span className="text-[10.5px] font-semibold uppercase text-slate-400 dark:text-slate-500 tracking-[0.08em]">
+                        Employees Directory
                       </span>
-                      <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60">
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">
                         {filteredEmployees.length} MATCHES
                       </span>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       {filteredEmployees.map((emp) => (
                         <Link
                           key={emp.id}
                           href={`/dashboard/employees/${emp.id}`}
                           onClick={() => setShowSearchDropdown(false)}
-                          className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-indigo-50/80 hover:to-purple-50/50 dark:hover:from-indigo-950/40 dark:hover:to-purple-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-150 group shadow-2xs hover:shadow-xs border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/30"
+                          className="flex items-center justify-between gap-3 px-2 py-2 rounded-[10px] text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-white/[0.05] transition-colors duration-150 group"
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600/10 text-brand-700 dark:bg-brand-400/10 dark:text-brand-300 font-semibold text-xs shrink-0">
                               {emp.first_name ? emp.first_name.charAt(0).toUpperCase() : 'E'}
                             </div>
                             <div className="text-left min-w-0 flex-1">
-                              <p className="leading-tight font-black text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
+                              <p className="leading-tight font-medium text-slate-800 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 truncate">
                                 {emp.first_name} {emp.last_name}
                               </p>
-                              <p className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 truncate">
+                              <p className="text-[10.5px] font-normal text-slate-400 dark:text-slate-500 truncate">
                                 {emp.email || emp.emp_id_code}
                               </p>
                             </div>
                           </div>
-                          <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-1 rounded-xl border border-indigo-200 dark:border-indigo-800/60 shadow-2xs shrink-0 whitespace-nowrap truncate max-w-[170px]">
+                          <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/[0.06] px-2 py-1 rounded-md shrink-0 whitespace-nowrap truncate max-w-[170px]">
                             {emp.designation_name || 'Employee'}
                           </span>
                         </Link>
@@ -403,8 +409,12 @@ export const Header: React.FC<HeaderProps> = ({
 
                 {filteredNav.length === 0 && filteredEmployees.length === 0 && (
                   <div className="py-8 text-center space-y-2">
-                    <span className="text-2xl">🔍</span>
-                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-white/[0.06] text-slate-400">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                      </svg>
+                    </div>
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
                       No matching modules or employees found
                     </p>
                     <p className="text-[11px] text-slate-400">
@@ -414,16 +424,16 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
 
                 {/* Dropdown Footer Shortcuts */}
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2">
+                <div className="pt-2 border-t border-[#eaecf0] dark:border-white/[0.06] flex items-center justify-between text-[10px] font-medium text-slate-400 dark:text-slate-500 px-2">
                   <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1">
-                      <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 font-mono">↵</kbd> Select
+                      <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-white/[0.06] rounded-md border border-[#e4e7ec] dark:border-white/[0.08] font-mono">↵</kbd> Select
                     </span>
                     <span className="flex items-center gap-1">
-                      <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 font-mono">ESC</kbd> Close
+                      <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-white/[0.06] rounded-md border border-[#e4e7ec] dark:border-white/[0.08] font-mono">ESC</kbd> Close
                     </span>
                   </div>
-                  <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-blue-500">
+                  <span className="text-[9.5px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500">
                     Enterprise Search Console
                   </span>
                 </div>
@@ -440,7 +450,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* 🌓 Quick Dark/Light Theme Switcher */}
         <button
           onClick={toggleTheme}
-          className="flex p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
+          className="flex p-2 rounded-[10px] border border-[#e4e7ec] dark:border-white/[0.08] text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
           title={`Switch to ${theme === 'nordic-light' ? 'Slate Dark' : 'Nordic Light'} mode`}
         >
           {theme === 'nordic-light' ? (
@@ -448,7 +458,7 @@ export const Header: React.FC<HeaderProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21m8.25-9h-2.25M5.25 12H3m15.364 6.364l-1.591-1.591M6.75 6.75L5.159 5.159m12.728 0l-1.591 1.591M6.75 17.25l-1.591 1.591M12 8.25a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5z" />
             </svg>
           ) : (
-            <svg className="w-4.5 h-4.5 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+            <svg className="w-4.5 h-4.5 text-brand-400" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
             </svg>
           )}
@@ -457,7 +467,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* ⚙️ Personalization Settings Cog */}
         <button
           onClick={() => setSettingsOpen(true)}
-          className="hidden sm:flex p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-850 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
+          className="hidden sm:flex p-2 rounded-[10px] border border-[#e4e7ec] dark:border-white/[0.08] text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
           title="UI Personalization & Aesthetic Settings"
         >
           <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
@@ -473,31 +483,31 @@ export const Header: React.FC<HeaderProps> = ({
         <div ref={profileMenuRef} className="relative shrink-0">
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 bg-slate-100/70 dark:bg-slate-800/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 p-1 sm:pl-3.5 sm:pr-2 sm:py-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 select-none transition-all cursor-pointer shadow-xs shrink-0"
+            className="flex items-center gap-2 bg-transparent hover:bg-slate-50 dark:hover:bg-white/[0.05] p-1 sm:pl-3 sm:pr-1.5 sm:py-1 rounded-[10px] border border-[#e4e7ec] dark:border-white/[0.08] select-none transition-all cursor-pointer shrink-0"
           >
             {/* 1. NAMES ON LEFT */}
             <div className="hidden sm:flex flex-col text-right">
-              <span className="text-xs font-black tracking-tight leading-none text-slate-800 dark:text-slate-100">
+              <span className="text-xs font-semibold tracking-tight leading-none text-slate-800 dark:text-slate-100">
                 {(userFullName || (email ? email.split('@')[0] : 'ADMIN')).toUpperCase()}
               </span>
-              <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 tracking-wider uppercase mt-1 leading-none">
+              <span className="text-[9px] font-medium text-slate-400 dark:text-slate-500 tracking-[0.08em] uppercase mt-1 leading-none">
                 {(designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).toUpperCase()}
               </span>
             </div>
 
             {/* 2. IMAGE / CAPITAL INITIAL BADGE ON RIGHT */}
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white font-extrabold text-xs uppercase shadow-sm flex-shrink-0 overflow-hidden">
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white font-semibold text-xs uppercase flex-shrink-0 overflow-hidden">
               {profilePhoto && !imageError ? (
                 <img
                   src={profilePhoto}
                   alt="Profile"
-                  className="w-full h-full object-cover rounded-xl"
+                  className="w-full h-full object-cover rounded-lg"
                   onError={() => setImageError(true)}
                 />
               ) : (
                 <span>{(userFullName || (email ? email.split('@')[0] : 'U')).charAt(0).toUpperCase()}</span>
               )}
-              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 z-10" />
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0f172a] z-10" />
             </div>
 
             <svg
@@ -518,15 +528,15 @@ export const Header: React.FC<HeaderProps> = ({
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
               <div 
-                className="absolute right-0 mt-3 w-48 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#111827] shadow-xl shadow-slate-900/10 z-50 animate-toast overflow-hidden p-1.5 space-y-1 font-sans"
+                className="absolute right-0 mt-2.5 w-48 rounded-xl border border-[#e4e7ec] dark:border-white/[0.08] shadow-[0_16px_40px_-12px_rgba(16,24,40,0.24)] dark:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.6)] z-50 animate-toast overflow-hidden p-1 space-y-0.5 font-sans"
                 style={{ backgroundColor: theme === 'nordic-light' ? '#ffffff' : '#111827' }}
               >
                 <Link
                   href="/dashboard/profile"
                   onClick={() => setShowProfileMenu(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 font-bold text-xs transition-all duration-150 group cursor-pointer"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-200 hover:text-brand-700 dark:hover:text-brand-300 font-medium text-xs transition-colors duration-150 group cursor-pointer"
                 >
-                  <User className="w-4 h-4 text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors shrink-0" />
+                  <User className="w-4 h-4 text-slate-400 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors shrink-0" />
                   <span>Profile</span>
                 </Link>
 
@@ -535,7 +545,7 @@ export const Header: React.FC<HeaderProps> = ({
                     setShowProfileMenu(false);
                     handleLogout();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold text-xs transition-all duration-150 group cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-xs transition-colors duration-150 group cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 text-rose-500 transition-transform group-hover:translate-x-0.5 shrink-0" />
                   <span>Sign Out</span>

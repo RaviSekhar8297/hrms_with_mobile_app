@@ -374,10 +374,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!authorized) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Verifying session security...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f6f9] dark:bg-[#090d16] text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200">
+        <div className="flex flex-col items-center gap-5">
+          <div className="relative flex h-12 w-12 items-center justify-center">
+            <div className="absolute inset-0 rounded-2xl bg-brand-600/10" />
+            <div className="h-6 w-6 animate-spin rounded-full border-[2.5px] border-brand-600 border-t-transparent" />
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 text-[13px] font-medium tracking-tight">Verifying session security...</p>
         </div>
       </div>
     );
@@ -1041,7 +1044,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div style={{ backgroundColor: '#f4f6f9' }} className="flex h-screen w-screen overflow-hidden text-foreground transition-colors duration-200 font-sans p-3 gap-3">
+    <div className="bg-background flex h-screen w-screen overflow-hidden text-foreground transition-colors duration-200 font-sans p-3 md:p-4 gap-3 md:gap-4">
 
       {/* 🖥️ LEFT SIDEBAR (Desktop) */}
       {layout === 'sidebar' && (
@@ -1066,15 +1069,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-slate-950/55 backdrop-blur-[2px] transition-opacity"
             onClick={() => setMobileMenuOpen(false)}
           />
 
           <aside
-            style={{ fontFamily: '"DM Sans", sans-serif' }}
-            className="relative flex flex-col w-64 max-w-xs h-full bg-card border-r border-slate-200 dark:border-slate-800 p-4 shadow-xl z-50 animate-slideRight"
+            style={{ fontFamily: '"Inter", sans-serif' }}
+            className="relative flex flex-col w-72 max-w-[85vw] h-full bg-card border-r border-[#e4e7ec] dark:border-white/[0.07] p-4 shadow-2xl z-50 animate-slideRight"
           >
-            <div className="flex h-14 items-center justify-between border-b border-slate-100 dark:border-slate-800 mb-4 px-2">
+            <div className="flex h-14 items-center justify-between border-b border-[#eef0f4] dark:border-white/[0.06] mb-4 px-1">
               {companyLogo && !logoError ? (
                 <div className="flex items-center h-full py-1">
                   <img
@@ -1086,19 +1089,24 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </div>
               ) : (
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-700 text-white font-black text-sm shadow-md flex-shrink-0">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden bg-brand-600 text-white font-bold text-sm shadow-sm flex-shrink-0">
                     {companyName.charAt(0).toUpperCase()}
                   </div>
-                  <span className="font-extrabold text-xs tracking-wider uppercase text-slate-800 dark:text-slate-100 truncate max-w-[130px]">
-                    {companyName}
-                  </span>
+                  <div className="flex flex-col text-left">
+                    <span className="font-bold text-[13px] tracking-tight text-slate-800 dark:text-slate-100 truncate max-w-[140px]">
+                      {companyName}
+                    </span>
+                    <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                      Enterprise HRMS
+                    </span>
+                  </div>
                 </div>
               )}
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-pointer"
+                className="p-2 rounded-xl border border-[#e4e7ec] dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.04] text-slate-400 dark:text-slate-500 cursor-pointer transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -1130,10 +1138,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               />
             </div>
 
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
+            <div className="border-t border-[#eef0f4] dark:border-white/[0.06] pt-4 mt-2">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-rose-200 dark:border-rose-950/20 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-400 text-xs font-extrabold cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-rose-200/80 dark:border-rose-500/20 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-semibold transition-colors cursor-pointer"
               >
                 Sign Out
               </button>
@@ -1143,7 +1151,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       {/* 🚀 MAIN CONTENT CONTAINER */}
-      <div style={{ backgroundColor: '#f4f6f9' }} className="flex flex-1 flex-col h-full overflow-hidden gap-3 min-w-0">
+      <div className="flex flex-1 flex-col h-full overflow-hidden gap-3 md:gap-4 min-w-0">
         {/* TOP HEADER BAR */}
         <Header
           companyName={companyName}
@@ -1164,7 +1172,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         />
 
         {/* 🚀 MAIN BODY AREA */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative no-scrollbar rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-gradient-to-br from-slate-50 via-indigo-50/20 to-slate-100/90 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 shadow-sm">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative no-scrollbar rounded-2xl border border-[#e4e7ec] dark:border-white/[0.07] bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04),0_4px_12px_-2px_rgba(16,24,40,0.05)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.24),0_10px_28px_-8px_rgba(0,0,0,0.4)]">
           {bodyLoading ? (
             <div className="w-full h-full flex flex-col gap-6 animate-fadeIn p-2">
               <div className="h-9 w-1/4 rounded-xl shimmer-loading" />
@@ -1191,90 +1199,74 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 select-none touch-none"
           style={{ transform: `translate(calc(-50% + ${fabPos.x}px), ${fabPos.y}px)` }}
         >
-          <div className="relative group">
-            {/* Animated Ambient Pulsing Aura Glow */}
-            <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 blur-md opacity-75 group-hover:opacity-100 transition-all duration-500 animate-pulse" />
-            
-            <button
-              onMouseDown={handleMouseDown}
-              onTouchStart={handleTouchStart}
-              onClick={handleFabClick}
-              className="relative flex items-center justify-center gap-2.5 px-4 py-2.5 sm:px-6 sm:py-3 rounded-full border border-white/40 dark:border-slate-700/60 bg-gradient-to-r from-slate-900/90 via-indigo-950/90 to-slate-900/90 dark:from-slate-900/95 dark:via-blue-950/95 dark:to-slate-900/95 text-white shadow-2xl backdrop-blur-2xl hover:scale-105 active:scale-95 transition-all duration-300 cursor-grab active:cursor-grabbing overflow-hidden"
-            >
-              {/* Shimmer Light Beam Effect */}
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-              
-              {/* Unique Animated Launcher Icon Badge */}
-              <div className="relative flex items-center justify-center w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 text-white shadow-md group-hover:rotate-12 transition-transform duration-300">
-                <svg className="w-4 h-4 group-hover:scale-110 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" rx="2" />
-                  <rect x="14" y="3" width="7" height="7" rx="2" />
-                  <rect x="14" y="14" width="7" height="7" rx="2" />
-                  <rect x="3" y="14" width="7" height="7" rx="2" />
-                </svg>
-                {/* Micro Sparkle Indicator */}
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              </div>
-
-              <div className="flex flex-col text-left leading-none">
-                <span className="hidden sm:inline text-[11px] tracking-wider uppercase font-black text-white group-hover:text-blue-300 transition-colors">
-                  App Universe
-                </span>
-                <span className="hidden sm:inline text-[8.5px] font-extrabold text-blue-200/80 tracking-tight mt-0.5">
-                  LAUNCHER DOCK
-                </span>
-              </div>
-
-              <span className="sm:hidden text-xs font-black tracking-wider uppercase text-white">Apps</span>
-            </button>
-          </div>
+          <button
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onClick={handleFabClick}
+            className="group relative flex items-center justify-center gap-2.5 px-4 py-2.5 sm:px-5 sm:py-3 rounded-full border border-white/10 bg-slate-900/95 text-white shadow-[0_10px_34px_-8px_rgba(15,23,42,0.55)] backdrop-blur-xl hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 cursor-grab active:cursor-grabbing"
+          >
+            <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-white/10 text-white group-hover:bg-brand-600 transition-colors duration-200">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="2" />
+                <rect x="14" y="3" width="7" height="7" rx="2" />
+                <rect x="14" y="14" width="7" height="7" rx="2" />
+                <rect x="3" y="14" width="7" height="7" rx="2" />
+              </svg>
+            </span>
+            <span className="hidden sm:inline text-[11px] font-semibold tracking-wide uppercase text-white/90 group-hover:text-white transition-colors">App Launcher</span>
+            <span className="sm:hidden text-xs font-semibold tracking-wide uppercase text-white">Apps</span>
+          </button>
         </div>
       )}
 
-      {/* 🎛️ MORE APPS POP-UP DRAWER (Light-Themed Spacious Orbital Universe with Lucide Icons & Live Search) */}
+      {/* 🎛️ MORE APPS POP-UP (Light-Themed Launcher with Live Search) */}
       {moreAppsOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center pb-2 sm:pb-3 pointer-events-none">
-          {/* Normal clear background without heavy blur */}
-          <div className="fixed inset-0 bg-slate-900/15 backdrop-blur-none pointer-events-auto transition-opacity duration-300" onClick={() => setMoreAppsOpen(false)} />
+          {/* Soft dim backdrop */}
+          <div className="fixed inset-0 bg-slate-950/45 backdrop-blur-[2px] pointer-events-auto transition-opacity duration-300" onClick={() => setMoreAppsOpen(false)} />
 
-          {/* Orbital Modal Container - Light Glassmorphic Card (Width increased to max-w-[820px]) */}
+          {/* Launcher Modal Container */}
           <div
-            className="relative z-50 w-[95vw] max-w-[820px] sm:w-[800px] bg-white/95 text-slate-900 backdrop-blur-2xl rounded-[2.5rem] border border-slate-200/90 shadow-[0_25px_90px_rgba(0,0,0,0.18)] animate-scaleUp flex flex-col overflow-hidden pointer-events-auto transition-all duration-300 ease-out font-sans select-none mb-1"
+            className="relative z-50 w-[95vw] max-w-[820px] sm:w-[800px] bg-card text-slate-900 dark:text-slate-100 rounded-3xl border border-[#e4e7ec] dark:border-white/[0.08] shadow-[0_24px_80px_-12px_rgba(15,23,42,0.32)] animate-scaleUp flex flex-col overflow-hidden pointer-events-auto font-sans select-none mb-1"
             style={{
               maxHeight: '88vh'
             }}
           >
             {/* Popover Header with Search & View Switcher */}
-            <div className="flex items-center justify-between border-b border-slate-200/80 px-6 py-3.5 flex-shrink-0 bg-slate-50/80">
+            <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 border-b border-[#eef0f4] dark:border-white/[0.06] px-5 sm:px-6 py-4 flex-shrink-0 bg-[#fafbfc] dark:bg-white/[0.02]">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 shadow-md shadow-purple-500/20 text-white font-bold text-lg">
-                  ✨
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 shadow-sm text-white flex-shrink-0">
+                  <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="2" />
+                    <rect x="14" y="3" width="7" height="7" rx="2" />
+                    <rect x="14" y="14" width="7" height="7" rx="2" />
+                    <rect x="3" y="14" width="7" height="7" rx="2" />
+                  </svg>
                 </div>
                 <div className="flex flex-col text-left">
-                  <h3 className="text-sm sm:text-base font-black tracking-tight text-slate-900 font-sans flex items-center gap-2">
-                    <span>App Universe</span>
-                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-mono font-extrabold border border-indigo-200">ORBITAL</span>
+                  <h3 className="text-sm sm:text-[15px] font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">
+                    App Directory
                   </h3>
-                  <span className="text-[10px] text-slate-400 font-bold tracking-wider uppercase">
-                    Interactive HRMS Ecosystem
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium tracking-wide uppercase">
+                    All modules at a glance
                   </span>
                 </div>
               </div>
 
               {/* Real-time Integrated Search Input Bar */}
-              <div className="relative flex-1 max-w-[280px] mx-3">
+              <div className="relative flex-1 max-w-[280px] order-3 sm:order-none w-full sm:w-auto">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search modules..."
                   value={appSearch}
                   onChange={(e) => setAppSearch(e.target.value)}
-                  className="w-full pl-9 pr-8 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 placeholder-slate-400 transition-all"
+                  className="w-full pl-9 pr-8 py-2 rounded-xl border border-[#e4e7ec] dark:border-white/[0.08] bg-card text-xs font-medium outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/12 text-slate-800 dark:text-slate-100 placeholder-slate-400 transition-all"
                 />
                 {appSearch && (
                   <button
                     onClick={() => setAppSearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1 cursor-pointer font-bold"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-1 cursor-pointer font-semibold"
                   >
                     ✕
                   </button>
@@ -1283,30 +1275,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
               {/* View Mode Toggle & Close Button */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200 text-[11px] font-bold">
+                <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-white/[0.05] border border-[#e4e7ec] dark:border-white/[0.06] text-[11px] font-semibold">
                   <button
                     onClick={() => setLauncherMode('orbital')}
-                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${launcherMode === 'orbital'
-                        ? 'bg-indigo-600 text-white shadow-xs font-bold'
-                        : 'text-slate-500 hover:text-slate-800'
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${launcherMode === 'orbital'
+                        ? 'bg-card text-slate-900 dark:text-white shadow-sm font-semibold'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                       }`}
                   >
-                    <span>🌌 Orbital</span>
+                    <span>Orbital</span>
                   </button>
                   <button
                     onClick={() => setLauncherMode('grid')}
-                    className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${launcherMode === 'grid'
-                        ? 'bg-indigo-600 text-white shadow-xs font-bold'
-                        : 'text-slate-500 hover:text-slate-800'
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${launcherMode === 'grid'
+                        ? 'bg-card text-slate-900 dark:text-white shadow-sm font-semibold'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                       }`}
                   >
-                    <span>📱 Grid</span>
+                    <span>Grid</span>
                   </button>
                 </div>
 
                 <button
                   onClick={() => setMoreAppsOpen(false)}
-                  className="w-8 h-8 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer font-black"
+                  className="w-8 h-8 rounded-xl border border-[#e4e7ec] dark:border-white/[0.08] bg-card text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] flex items-center justify-center transition-all cursor-pointer font-semibold"
                 >
                   ✕
                 </button>
@@ -1315,23 +1307,25 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
             {/* Content Area */}
             {launcherMode === 'orbital' ? (
-              <div className="relative w-full h-[400px] sm:h-[440px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-slate-50/50 via-indigo-50/20 to-slate-50/80">
+              <div className="relative w-full h-[400px] sm:h-[440px] flex items-center justify-center overflow-hidden bg-[#fafbfc] dark:bg-white/[0.015]">
                 {/* SVG Concentric Arc Rings with Large Non-Overlapping Gaps */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 750 400" preserveAspectRatio="xMidYMid meet">
                   {/* Outer Ring 3 - R = 310 */}
-                  <path d="M 65 360 A 310 310 0 0 1 685 360" stroke="rgba(99, 102, 241, 0.25)" strokeDasharray="6 6" fill="none" strokeWidth="1.5" />
+                  <path d="M 65 360 A 310 310 0 0 1 685 360" stroke="rgba(148, 163, 184, 0.3)" strokeDasharray="5 7" fill="none" strokeWidth="1.4" />
                   {/* Middle Ring 2 - R = 215 */}
-                  <path d="M 160 360 A 215 215 0 0 1 590 360" stroke="rgba(168, 85, 247, 0.35)" fill="none" strokeWidth="1.5" />
+                  <path d="M 160 360 A 215 215 0 0 1 590 360" stroke="rgba(148, 163, 184, 0.26)" fill="none" strokeWidth="1.4" />
                   {/* Inner Ring 1 - R = 125 */}
-                  <path d="M 250 360 A 125 125 0 0 1 500 360" stroke="rgba(59, 130, 246, 0.3)" strokeDasharray="4 4" fill="none" strokeWidth="1.5" />
+                  <path d="M 250 360 A 125 125 0 0 1 500 360" stroke="rgba(148, 163, 184, 0.22)" strokeDasharray="4 6" fill="none" strokeWidth="1.4" />
                 </svg>
 
-                {/* Central Bottom Hub Anchor (Matching Hugging Emoji!) */}
+                {/* Central Bottom Hub Anchor */}
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
-                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-tr from-amber-400 via-amber-300 to-yellow-200 border-4 border-white shadow-[0_0_40px_rgba(251,191,36,0.5)] flex items-center justify-center text-3xl sm:text-4xl animate-bounce">
-                    🤗
+                  <div className="w-14 h-14 rounded-2xl bg-brand-600 border border-white/25 shadow-[0_10px_30px_-8px_rgba(79,70,229,0.55)] flex items-center justify-center text-white">
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-950 mt-1">HRMS CORE</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 mt-2">HRMS Core</span>
                 </div>
 
                 {/* Orbiting App Badges / Nodes with Harmonic Smooth Arc Motion (Zero Scrambling/Stacking) */}
@@ -1366,26 +1360,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       item.label.toLowerCase().includes(appSearch.toLowerCase()) ||
                       item.tab.toLowerCase().includes(appSearch.toLowerCase());
 
-                    const gradientStyles = [
-                      'from-blue-500 to-indigo-600 shadow-blue-500/40',
-                      'from-fuchsia-500 via-purple-500 to-pink-500 shadow-purple-500/40',
-                      'from-emerald-400 to-teal-600 shadow-emerald-500/40',
-                      'from-amber-400 to-orange-500 shadow-amber-500/40',
-                      'from-indigo-500 to-violet-600 shadow-indigo-500/40',
-                      'from-cyan-400 to-blue-600 shadow-cyan-500/40',
-                      'from-emerald-500 to-green-600 shadow-green-500/40',
-                      'from-violet-500 to-purple-600 shadow-violet-500/40',
-                      'from-rose-500 to-pink-600 shadow-rose-500/40',
-                      'from-sky-400 to-blue-600 shadow-sky-500/40',
-                      'from-purple-600 to-indigo-700 shadow-purple-500/40',
-                      'from-blue-600 to-cyan-600 shadow-blue-500/40',
-                      'from-teal-500 to-emerald-600 shadow-teal-500/40',
-                      'from-indigo-500 to-purple-600 shadow-indigo-500/40',
-                      'from-pink-500 to-rose-600 shadow-pink-500/40'
-                    ];
-
-                    const colorStyle = gradientStyles[idx % gradientStyles.length];
-
                     return (
                       <div
                         key={item.tab}
@@ -1400,16 +1374,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                         <Link
                           href={`/dashboard/${item.tab}`}
                           onClick={() => setMoreAppsOpen(false)}
-                          className={`relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${colorStyle} border-2 border-white shadow-lg transition-all duration-300 group-hover:scale-125 group-hover:z-50 cursor-pointer text-white`}
+                          className="relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-card border border-[#e4e7ec] dark:border-white/[0.1] shadow-[0_2px_8px_-2px_rgba(16,24,40,0.12)] transition-all duration-300 group-hover:scale-110 group-hover:border-brand-400 group-hover:shadow-[0_10px_24px_-6px_rgba(79,70,229,0.35)] group-hover:z-50 cursor-pointer text-slate-600 dark:text-slate-300"
                         >
                           <div className="flex items-center justify-center">
                             {getLucideIcon(item.tab, item.icon)}
                           </div>
 
                           {/* Hover Tooltip Badge (Single cleanly positioned tooltip) */}
-                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 whitespace-nowrap bg-slate-900 text-white font-extrabold text-xs px-3 py-1.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-1.5">
-                            <span>{item.label}</span>
-                            <span className="text-indigo-400 font-mono text-[10px]">➜</span>
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 whitespace-nowrap bg-slate-900 text-white font-semibold text-[11px] px-3 py-1.5 rounded-lg shadow-xl">
+                            {item.label}
                           </div>
                         </Link>
                       </div>
@@ -1432,14 +1405,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                         href={`/dashboard/${item.tab}`}
                         onClick={() => setMoreAppsOpen(false)}
                         className={`group flex flex-col items-center text-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer ${currentTab === item.tab
-                            ? 'bg-indigo-50 border-indigo-400 text-indigo-700 shadow-xs'
-                            : 'border-slate-200 bg-slate-50/70 hover:border-indigo-300 hover:bg-white text-slate-800'
+                            ? 'bg-brand-50 dark:bg-brand-500/10 border-brand-300 dark:border-brand-500/30 text-brand-700 dark:text-brand-300 shadow-[0_4px_14px_-4px_rgba(79,70,229,0.28)]'
+                            : 'border-[#e4e7ec] dark:border-white/[0.07] bg-[#fafbfc] dark:bg-white/[0.02] hover:border-brand-300 dark:hover:border-brand-500/30 hover:bg-card dark:hover:bg-white/[0.04] text-slate-800 dark:text-slate-200'
                           }`}
                       >
-                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center text-xl mb-1.5 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-2xs">
+                        <div className="w-10 h-10 rounded-xl bg-card dark:bg-white/[0.04] border border-[#e4e7ec] dark:border-white/[0.08] text-slate-600 dark:text-slate-300 flex items-center justify-center text-xl mb-2 group-hover:scale-105 group-hover:border-brand-300 group-hover:text-brand-600 transition-all shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
                           {getLucideIcon(item.tab, item.icon)}
                         </div>
-                        <span className="text-xs font-extrabold text-slate-800 group-hover:text-indigo-600 line-clamp-2">
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 group-hover:text-brand-700 dark:group-hover:text-brand-300 line-clamp-2">
                           {item.label}
                         </span>
                       </Link>
@@ -1454,31 +1427,31 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       {/* 🎨 PERSONALIZATION SETTINGS DRAWER */}
       {settingsOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setSettingsOpen(false)} />
-          <aside className="relative w-80 h-full bg-card border-l border-slate-200 dark:border-slate-800 p-6 shadow-2xl z-50 flex flex-col justify-between animate-slideIn select-none overflow-hidden font-sans">
+          <div className="fixed inset-0 bg-slate-950/55 backdrop-blur-[2px]" onClick={() => setSettingsOpen(false)} />
+          <aside className="relative w-80 h-full bg-card border-l border-[#e4e7ec] dark:border-white/[0.07] p-6 shadow-2xl z-50 flex flex-col justify-between animate-slideIn select-none overflow-hidden font-sans">
             <div className="flex-1 overflow-y-auto pr-1 no-scrollbar space-y-6">
               <div>
-                <div className="flex items-center justify-between border-b border-slate-200/50 dark:border-slate-800 pb-4 mb-6">
+                <div className="flex items-center justify-between border-b border-[#eef0f4] dark:border-white/[0.06] pb-4 mb-6">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-md text-white">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 shadow-sm text-white">
                       <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-2.22 1.124l-3.147 3.146a.5.5 0 01-.708-.708l3.146-3.147a3 3 0 001.124-2.22V11.75a3.75 3.75 0 117.5 0v1.894a3 3 0 001.124 2.22l3.147 3.146a.5.5 0 01-.708.708l-3.147-3.146a3 3 0 00-2.22-1.124H9.53z" />
                       </svg>
                     </div>
                     <div className="flex flex-col text-left">
-                      <h3 className="text-sm font-black tracking-tight text-slate-800 dark:text-slate-100">
+                      <h3 className="text-sm font-bold tracking-tight text-slate-800 dark:text-slate-100">
                         Personalize UI
                       </h3>
-                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold tracking-wider uppercase">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium tracking-wide uppercase">
                         Aesthetics Console
                       </span>
                     </div>
                   </div>
                   <button
                     onClick={() => setSettingsOpen(false)}
-                    className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                    className="p-2 rounded-xl border border-[#e4e7ec] dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-white/[0.05] text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer transition-colors"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -1488,8 +1461,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   {/* Navigation Style */}
                   <div>
                     <div className="flex items-center gap-1.5 mb-2.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                      <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
+                      <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                         Navigation Mode
                       </label>
                     </div>
@@ -1499,12 +1472,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           setLayout('sidebar');
                           setSettingsOpen(false);
                         }}
-                        className={`py-2.5 px-3.5 rounded-xl border text-xs font-extrabold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${layout === 'sidebar'
-                            ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500'
+                        className={`py-2.5 px-3.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${layout === 'sidebar'
+                            ? 'border-brand-500 bg-brand-500/10 text-brand-600 dark:text-brand-400 ring-1 ring-brand-500/20'
+                            : 'border-[#e4e7ec] dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.04] text-slate-500 dark:text-slate-400'
                           }`}
                       >
-                        <span className="text-base">🗂️</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <rect x="3" y="4" width="18" height="16" rx="3" />
+                          <path d="M9 4v16" />
+                        </svg>
                         <span>Sidebar</span>
                       </button>
                       <button
@@ -1512,12 +1488,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           setLayout('bottom-dock');
                           setSettingsOpen(false);
                         }}
-                        className={`py-2.5 px-3.5 rounded-xl border text-xs font-extrabold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${layout === 'bottom-dock'
-                            ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500'
+                        className={`py-2.5 px-3.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${layout === 'bottom-dock'
+                            ? 'border-brand-500 bg-brand-500/10 text-brand-600 dark:text-brand-400 ring-1 ring-brand-500/20'
+                            : 'border-[#e4e7ec] dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.04] text-slate-500 dark:text-slate-400'
                           }`}
                       >
-                        <span className="text-base">⚓</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <rect x="3" y="4" width="18" height="16" rx="3" />
+                          <path d="M8 16h8" />
+                        </svg>
                         <span>Bottom Dock</span>
                       </button>
                     </div>
@@ -1526,8 +1505,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   {/* Color Palette */}
                   <div>
                     <div className="flex items-center gap-1.5 mb-2.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                      <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
+                      <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                         Theme Mode
                       </label>
                     </div>
@@ -1538,14 +1517,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           setSettingsOpen(false);
                         }}
                         className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${theme === 'slate-dark'
-                            ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                            ? 'border-brand-500 bg-brand-500/10 ring-1 ring-brand-500/20'
+                            : 'border-[#e4e7ec] dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.04]'
                           }`}
                       >
-                        <div className="h-5 w-10 rounded bg-[#0b0f19] mb-2 border border-slate-700 shadow-xs" />
-                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">Slate Dark</span>
+                        <div className="h-5 w-10 rounded-md bg-[#0b0f19] mb-2 border border-slate-700 shadow-sm" />
+                        <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300">Slate Dark</span>
                         {theme === 'slate-dark' && (
-                          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-white text-[8px] font-black">✓</span>
+                          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-white text-[8px] font-bold">✓</span>
                         )}
                       </button>
 
@@ -1555,14 +1534,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           setSettingsOpen(false);
                         }}
                         className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${theme === 'nordic-light'
-                            ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                            ? 'border-brand-500 bg-brand-500/10 ring-1 ring-brand-500/20'
+                            : 'border-[#e4e7ec] dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.04]'
                           }`}
                       >
-                        <div className="h-5 w-10 rounded bg-[#f8fafc] mb-2 border border-slate-300 shadow-xs" />
-                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">Nordic Light</span>
+                        <div className="h-5 w-10 rounded-md bg-[#f8fafc] mb-2 border border-slate-300 shadow-sm" />
+                        <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300">Nordic Light</span>
                         {theme === 'nordic-light' && (
-                          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-white text-[8px] font-black">✓</span>
+                          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-white text-[8px] font-bold">✓</span>
                         )}
                       </button>
                     </div>
@@ -1571,8 +1550,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   {/* Typography Font */}
                   <div>
                     <div className="flex items-center gap-1.5 mb-2.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                      <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
+                      <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                         Typography Font
                       </label>
                     </div>
@@ -1584,14 +1563,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                             setFont(f);
                             setSettingsOpen(false);
                           }}
-                          className={`w-full py-2.5 px-3.5 rounded-xl border text-left text-xs font-extrabold transition-all cursor-pointer flex justify-between items-center ${font === f
-                              ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
-                              : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                          className={`w-full py-2.5 px-3.5 rounded-xl border text-left text-xs font-semibold transition-all cursor-pointer flex justify-between items-center ${font === f
+                              ? 'border-brand-500 bg-brand-500/10 text-brand-600 dark:text-brand-400 ring-1 ring-brand-500/20'
+                              : 'border-[#e4e7ec] dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/[0.04]'
                             }`}
                         >
                           <span style={{ fontFamily: f }}>{f}</span>
                           {font === f && (
-                            <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5 text-brand-500" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                             </svg>
                           )}
@@ -1603,7 +1582,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            <div className="border-t border-slate-200/50 dark:border-slate-800 pt-4 mt-4 flex-shrink-0 bg-card">
+            <div className="border-t border-[#eef0f4] dark:border-white/[0.06] pt-4 mt-4 flex-shrink-0 bg-card">
               <button
                 onClick={() => {
                   setLayout('sidebar');
@@ -1611,7 +1590,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   setFont('Poppins');
                   setSettingsOpen(false);
                 }}
-                className="w-full py-2.5 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs font-extrabold hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 transition-colors cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-3.5 rounded-xl border border-[#e4e7ec] dark:border-white/[0.08] text-slate-600 dark:text-slate-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
                 <span>Reset Default Styles</span>
               </button>
@@ -1628,29 +1607,33 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       }`}>
         {toasts.map((toast) => (
           <div key={toast.id} className="pointer-events-auto animate-toast">
-            <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-2xl transition-all border-2 ${
-              toast.type === 'error'
-                ? 'border-rose-500 shadow-rose-500/20'
-                : toast.type === 'info'
-                ? 'border-blue-500 shadow-blue-500/20'
-                : 'border-emerald-500 shadow-emerald-500/20'
-            }`}>
+            <div className="relative flex items-center justify-between gap-3 pl-5 pr-3 py-3 rounded-xl bg-card border border-[#e4e7ec] dark:border-white/[0.08] shadow-[0_12px_32px_-8px_rgba(16,24,40,0.22)] dark:shadow-[0_14px_36px_-8px_rgba(0,0,0,0.55)] overflow-hidden">
+              {/* Type accent bar */}
+              <span
+                className={`absolute left-0 top-0 bottom-0 w-1 ${
+                  toast.type === 'error'
+                    ? 'bg-rose-500'
+                    : toast.type === 'info'
+                    ? 'bg-blue-500'
+                    : 'bg-emerald-500'
+                }`}
+              />
               <div className="flex items-center gap-3">
                 <span
-                  className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border text-sm font-black ${
+                  className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-semibold ${
                     toast.type === 'error'
-                      ? 'bg-rose-50 dark:bg-rose-950/80 border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400'
+                      ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20 text-rose-600 dark:text-rose-400'
                       : toast.type === 'info'
-                      ? 'bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400'
-                      : 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400'
+                      ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/20 text-blue-600 dark:text-blue-400'
+                      : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                   }`}
                 >
                   {toast.type === 'error' ? '✕' : toast.type === 'info' ? 'ℹ' : '✓'}
                 </span>
                 <div>
-                  <p className="text-xs font-bold leading-snug text-slate-900 dark:text-slate-100">{toast.message}</p>
+                  <p className="text-xs font-semibold leading-snug text-slate-900 dark:text-slate-100">{toast.message}</p>
                   <span
-                    className={`text-[9.5px] font-extrabold uppercase tracking-wider block mt-0.5 ${
+                    className={`text-[9.5px] font-semibold uppercase tracking-wider block mt-0.5 ${
                       toast.type === 'error'
                         ? 'text-rose-600 dark:text-rose-400'
                         : toast.type === 'info'
@@ -1664,7 +1647,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </div>
               <button
                 onClick={() => dismissToast(toast.id)}
-                className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer border border-slate-200/80 dark:border-slate-700/50"
+                className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer border border-[#e4e7ec] dark:border-white/[0.06]"
               >
                 ✕
               </button>

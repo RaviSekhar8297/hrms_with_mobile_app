@@ -851,14 +851,14 @@ export default function RecruitmentDashboard() {
       {/* PAGE HEADER */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-outfit">Recruitment & ATS Pipeline</h1>
+              <h1 className="text-2xl font-semibold text-slate-900 dark:text-white tracking-[-0.015em] font-outfit">Recruitment & ATS Pipeline</h1>
               <span className="px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                 Live Console
               </span>
@@ -877,7 +877,7 @@ export default function RecruitmentDashboard() {
                 setNewJob({ title: '', department_id: '', location: '', employment_type: 'Full-Time', experience_range: '', headcount: 1, salary_range: '', currency: 'INR', description: '', interview_rounds: [] });
                 setShowCreateJobModal(true);
               }}
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-indigo-500/25 transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
             >
               + Create New Job Opening
             </button>
@@ -886,7 +886,7 @@ export default function RecruitmentDashboard() {
           {activeTab === 'ats' && (
             <button 
               onClick={() => setShowAddCandidateModal(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-indigo-500/25 transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
             >
               + Add Candidate
             </button>
@@ -918,7 +918,7 @@ export default function RecruitmentDashboard() {
                 }}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
                   isActive
-                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white border-blue-600 shadow-md shadow-blue-600/25 scale-[1.02]'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                     : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100/90'
                 }`}
               >
@@ -943,7 +943,7 @@ export default function RecruitmentDashboard() {
             onClick={() => setActiveTab('jobs')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
               activeTab === 'jobs'
-                ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white border-blue-600 shadow-md shadow-blue-600/25 scale-[1.02]'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                 : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100/90'
             }`}
           >
@@ -1009,7 +1009,7 @@ export default function RecruitmentDashboard() {
                   <div key={round.id} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-2xs hover:shadow-md transition-all group flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-center mb-2.5">
-                        <div className="w-8 h-8 bg-gradient-to-tr from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border border-blue-100 dark:border-blue-900/50 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400">
+                        <div className="w-8 h-8 bg-indigo-600/[0.06] dark:bg-indigo-500/[0.1] border border-indigo-500/15 dark:border-indigo-900/50 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                         </div>
                         <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[9px] font-black text-slate-500 dark:text-slate-400 tracking-wider uppercase truncate max-w-[100px]">{round.round_type}</span>
@@ -1063,7 +1063,7 @@ export default function RecruitmentDashboard() {
               </div>
             ))}
             
-            <div className="col-span-1 lg:col-span-4 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-800 p-10 min-h-[400px] flex flex-col items-center justify-center text-slate-400 shadow-sm relative overflow-hidden">
+            <div className="col-span-1 lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-10 min-h-[400px] flex flex-col items-center justify-center text-slate-400 shadow-sm relative overflow-hidden">
                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03]"></div>
                <svg className="w-16 h-16 mb-4 text-slate-300 dark:text-slate-700 animate-bounce" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                <p className="font-bold text-lg text-slate-500 dark:text-slate-400">Detailed Analytics Dashboard Coming Soon</p>
@@ -1215,7 +1215,7 @@ export default function RecruitmentDashboard() {
                         >
                           {/* Candidate Bio Info */}
                           <div className="flex items-center gap-4 cursor-pointer group" onClick={() => openCandidateProfile(app)}>
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white flex items-center justify-center font-black text-base shadow-sm shrink-0 border border-white/20">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-semibold text-base shadow-sm shrink-0 border border-white/20">
                               {app.first_name?.[0]}{app.last_name?.[0] || ''}
                             </div>
                             <div>
@@ -1253,7 +1253,7 @@ export default function RecruitmentDashboard() {
                                   setSelectedCandidate(app);
                                   setShowScheduleModal(true);
                                 }}
-                                className="px-4 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm shadow-amber-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                                className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white transition-all cursor-pointer flex items-center gap-1.5"
                               >
                                 <span>📹 Schedule Interview</span>
                               </button>
@@ -1264,7 +1264,7 @@ export default function RecruitmentDashboard() {
                                 type="button"
                                 disabled={movingAppId === app.application_id}
                                 onClick={() => handleMoveCandidateToStage(app.application_id, nextStage)}
-                                className="px-4.5 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md shadow-indigo-500/20 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-75 disabled:cursor-not-allowed"
+                                className="px-4.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-75 disabled:cursor-not-allowed"
                               >
                                 {movingAppId === app.application_id ? (
                                   <span className="flex items-center gap-2">
@@ -1311,9 +1311,9 @@ export default function RecruitmentDashboard() {
             <div className="relative w-full max-w-[550px] bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col animate-slideInRight">
               
               {/* DRAWER HEADER */}
-              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-900 dark:to-slate-850">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-[#fafbfc] dark:bg-slate-900">
                 <div className="flex gap-4 items-center">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center text-xl font-black shadow-md shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl font-semibold shadow-sm shrink-0">
                     {selectedCandidate.first_name?.[0]}{selectedCandidate.last_name?.[0] || ''}
                   </div>
                   <div>
@@ -1521,14 +1521,14 @@ export default function RecruitmentDashboard() {
 
               {/* CANDIDATE DRAWER FOOTER ACTION BAR */}
               {selectedCandidate.status?.toUpperCase() === 'APPLIED' && (
-                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 flex justify-between items-center shrink-0">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-[#fafbfc] dark:bg-slate-900 flex justify-between items-center shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Candidate details reviewed?</span>
                   </div>
                   <button
                     onClick={() => handleMoveCandidateToStage(selectedCandidate.application_id, 'SCREENING')}
-                    className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2"
                   >
                     <span>Move to Screening</span>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
@@ -1537,12 +1537,12 @@ export default function RecruitmentDashboard() {
               )}
 
               {['SCREENING', 'INTERVIEWING'].includes(selectedCandidate.status?.toUpperCase()) && (
-                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-900 dark:to-slate-800 flex justify-between items-center shrink-0 gap-2">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-[#fafbfc] dark:bg-slate-900 flex justify-between items-center shrink-0 gap-2">
                   <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Candidate Evaluation Complete?</span>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleMoveCandidateToStage(selectedCandidate.application_id, 'SELECTED')}
-                      className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <span>⭐ Mark Selected</span>
                     </button>
@@ -1557,7 +1557,7 @@ export default function RecruitmentDashboard() {
               )}
 
               {['SELECTED', 'OFFERED'].includes(selectedCandidate.status?.toUpperCase()) && (
-                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-slate-900 dark:to-slate-800 flex justify-between items-center shrink-0 gap-2">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-[#fafbfc] dark:bg-slate-900 flex justify-between items-center shrink-0 gap-2">
                   <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Final Hiring Action:</span>
                   <div className="flex gap-2">
                     <button
@@ -1579,7 +1579,7 @@ export default function RecruitmentDashboard() {
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowScheduleModal(false)}></div>
             <div className="relative bg-white dark:bg-slate-900 w-full max-w-[550px] max-h-[90vh] rounded-[32px] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-zoomIn flex flex-col">
               
-              <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-indigo-500/5 to-transparent flex justify-between items-start flex-shrink-0">
+              <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 bg-indigo-500/[0.04] flex justify-between items-start flex-shrink-0">
                 <div>
                   <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-3 shadow-inner">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -1676,7 +1676,7 @@ export default function RecruitmentDashboard() {
               
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3 flex-shrink-0">
                 <button onClick={() => setShowScheduleModal(false)} className="px-6 py-2.5 font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl text-sm transition-all cursor-pointer">Cancel</button>
-                <button onClick={handleCreateRoundAndSchedule} className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-xl text-sm shadow-lg shadow-indigo-500/30 active:scale-95 transition-all cursor-pointer">Confirm Schedule</button>
+                <button onClick={handleCreateRoundAndSchedule} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition-all cursor-pointer">Confirm Schedule</button>
               </div>
             </div>
           </div>

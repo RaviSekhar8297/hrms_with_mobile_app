@@ -4402,8 +4402,28 @@ app.post('/api/v1/attendance/punches', auth_1.authenticateToken, async (req, res
         const requirePunchApproval = empRecord.require_punch_approval ?? true;
         const uaCheck = req.headers['user-agent'] || '';
         const isMobileDevice = (source || '').toUpperCase() === 'MOBILE' || uaCheck.includes('Android') || uaCheck.includes('iPhone') || uaCheck.includes('iPad') || uaCheck.includes('Mobile');
-        if (isMobileDevice && allowMobilePunch === false) {
-            return res.status(403).json({ error: 'Mobile check-in is restricted for your account. Please use Office Web or Biometric device.' });
+        // 🔒 Enforce Company Attendance Policy Flags (allow_mobile_punch, allow_web_punch, require_selfie, require_gps)
+        const policyCheck = await (0, db_1.query)('SELECT allow_mobile_punch, allow_web_punch, require_selfie, require_gps FROM hrms.attendance_policies WHERE company_id = $1 AND is_active = true LIMIT 1', [finalCompanyId]);
+        const activePolicy = policyCheck.rows[0] || {};
+        const isPolicyMobilePunchAllowed = activePolicy.allow_mobile_punch !== undefined && activePolicy.allow_mobile_punch !== null ? activePolicy.allow_mobile_punch : true;
+        const isPolicyWebPunchAllowed = activePolicy.allow_web_punch !== undefined && activePolicy.allow_web_punch !== null ? activePolicy.allow_web_punch : true;
+        const isPolicySelfieRequired = activePolicy.require_selfie === true;
+        const isPolicyGpsRequired = activePolicy.require_gps === true;
+        if (isMobileDevice) {
+            if (!isPolicyMobilePunchAllowed || allowMobilePunch === false) {
+                return res.status(403).json({ error: 'Mobile check-in is disabled by company policy or restricted for your account. Please use Office Web or Biometric device.' });
+            }
+        }
+        else {
+            if (!isPolicyWebPunchAllowed) {
+                return res.status(403).json({ error: 'Web clock-in is disabled by company policy. Please use Mobile App or Biometric device.' });
+            }
+        }
+        if (isPolicySelfieRequired && (!image_url || String(image_url).trim().length < 10)) {
+            return res.status(400).json({ error: 'Selfie photo verification is mandatory as per company attendance policy. Please capture a live selfie.' });
+        }
+        if (isPolicyGpsRequired && (latitude === undefined || latitude === null || latitude === '' || longitude === undefined || longitude === null || longitude === '')) {
+            return res.status(400).json({ error: 'GPS location verification is mandatory as per company attendance policy. Please enable device location.' });
         }
         // Auto add location_name and device_model columns if missing & ensure image_url is TEXT
         await (0, db_1.query)(`ALTER TABLE hrms.attendance_raw_punches ADD COLUMN IF NOT EXISTS location_name TEXT`).catch(() => { });
@@ -4490,10 +4510,10 @@ app.post('/api/v1/attendance/punches', auth_1.authenticateToken, async (req, res
             source || 'WEB',
             direction,
             actualIp || null,
-            latitude ? parseFloat(latitude) : null,
-            longitude ? parseFloat(longitude) : null,
+            isPolicyGpsRequired && latitude ? parseFloat(latitude) : null,
+            isPolicyGpsRequired && longitude ? parseFloat(longitude) : null,
             image_url || null,
-            finalLocationName,
+            isPolicyGpsRequired ? finalLocationName : null,
             devModel || null
         ]);
         const punchDate = String(punch_time).split(' ')[0].split('T')[0];
@@ -5129,6 +5149,13 @@ app.get('/api/v1/attendance/policies', auth_1.authenticateToken, async (req, res
         if (requestedCid === 'all')
             requestedCid = undefined;
         let targetCompanyId = requestedCid || req.user?.companyId;
+        const userEmpId = req.user?.employeeId || req.user?.id;
+        if (!targetCompanyId && userEmpId) {
+            const empComp = await (0, db_1.query)('SELECT company_id FROM hrms.employees WHERE id::text = $1', [userEmpId]);
+            if (empComp.rows.length > 0) {
+                targetCompanyId = empComp.rows[0].company_id;
+            }
+        }
         if (!targetCompanyId && isSuperAdmin) {
             const firstComp = await (0, db_1.query)('SELECT id FROM hrms.companies ORDER BY name ASC LIMIT 1');
             if (firstComp.rows.length > 0) {

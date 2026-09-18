@@ -1002,7 +1002,7 @@ export default function DedicatedEmployeeEditPage() {
                 {formData.emp_image ? (
                   <img src={formData.emp_image} alt="Profile" className="w-22 h-22 rounded-2xl object-cover border-2 border-blue-500/80 shadow-md group-hover:scale-105 transition-all duration-300" />
                 ) : (
-                  <div className="w-22 h-22 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white flex items-center justify-center text-2xl font-black shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-all duration-300">
+                  <div className="w-22 h-22 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl font-semibold shadow-sm group-hover:scale-105 transition-all duration-300">
                     {getInitials()}
                   </div>
                 )}
@@ -1102,7 +1102,7 @@ export default function DedicatedEmployeeEditPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full md:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 text-white text-xs font-black shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-75 disabled:cursor-not-allowed"
+                className="w-full md:w-auto px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-75 disabled:cursor-not-allowed"
               >
                 {saving ? (
                   <>
@@ -1509,7 +1509,7 @@ export default function DedicatedEmployeeEditPage() {
               </div>
 
               {/* 🔐 SECURITY CREDENTIALS & PASSWORD RESET CARD */}
-              <div className="p-4 rounded-xl border-2 border-indigo-500/40 dark:border-indigo-500/40 bg-gradient-to-r from-indigo-50/40 via-purple-50/20 to-blue-50/40 dark:from-indigo-950/20 dark:via-purple-950/20 dark:to-blue-950/20 shadow-sm space-y-3 mt-4">
+              <div className="p-4 rounded-xl border border-indigo-500/25 bg-indigo-500/[0.05] dark:bg-indigo-500/[0.08] shadow-sm space-y-3 mt-4">
                 <div className="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/40 pb-2.5">
                   <div className="flex items-center gap-2.5">
                     <span className="text-xl">🔐</span>
@@ -1909,7 +1909,7 @@ export default function DedicatedEmployeeEditPage() {
               </div>
 
               {/* 🎯 MAIN MONTHLY SALARY AUTO-CALCULATOR INPUT - COMPACT EXECUTIVE HERO BOX */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10 border border-blue-500/30 shadow-xs">
+              <div className="p-4 sm:p-5 rounded-2xl bg-indigo-600/[0.06] border border-indigo-500/25 shadow-xs">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div>
                     <label className="block text-xs font-black text-blue-700 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -2371,7 +2371,7 @@ export default function DedicatedEmployeeEditPage() {
               </div>
 
               {/* 🏆 FULL-WIDTH HERO TAKE-HOME & TOTAL CTC BANNER AT THE BOTTOM */}
-              <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-lg border border-emerald-500/30 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="p-5 rounded-2xl bg-emerald-700 text-white shadow-sm border border-emerald-600/40 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-2xl bg-white/20 backdrop-blur-md text-white">
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -2881,7 +2881,7 @@ export default function DedicatedEmployeeEditPage() {
                 saving
                   ? 'bg-indigo-600 text-white cursor-wait shadow-md opacity-90'
                   : hasEmployeeChanges
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white cursor-pointer shadow-md hover:shadow-lg active:scale-95'
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
                   : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none opacity-60'
               }`}
               title={!hasEmployeeChanges ? 'No changes detected to save' : 'Click to save employee profile changes'}

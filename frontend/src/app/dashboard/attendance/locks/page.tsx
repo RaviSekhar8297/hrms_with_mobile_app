@@ -256,7 +256,7 @@ export default function AttendanceLocksPage() {
       ) : (
         <div className="space-y-6">
           {/* EXPLANATORY HEADER BANNER (LIGHT SLEEK AESTHETIC STYLE) */}
-          <div className="bg-gradient-to-r from-indigo-50/90 via-purple-50/70 to-blue-50/90 dark:from-slate-900 dark:via-indigo-950/60 dark:to-slate-900 rounded-3xl p-6 shadow-2xs border border-indigo-100/90 dark:border-indigo-900/50 relative overflow-hidden">
+          <div className="bg-indigo-600/[0.04] dark:bg-slate-900 rounded-3xl p-6 shadow-2xs border border-indigo-500/15 dark:border-indigo-900/50 relative overflow-hidden">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
               <div className="space-y-2 max-w-3xl">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/80 dark:bg-indigo-950/80 border border-indigo-200/80 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[10.5px] font-extrabold uppercase tracking-wider">
@@ -282,7 +282,7 @@ export default function AttendanceLocksPage() {
                     });
                     setIsDrawerOpen(true);
                   }}
-                  className="px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black uppercase tracking-wider shadow-md shadow-indigo-600/20 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer flex items-center gap-2 shrink-0 self-start md:self-auto"
+                  className="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center gap-2 shrink-0 self-start md:self-auto"
                 >
                   <Plus size={15} className="stroke-[3]" />
                   <span>+ Lock New Month</span>

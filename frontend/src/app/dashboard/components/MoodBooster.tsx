@@ -132,7 +132,7 @@ export default function MoodBooster({ userName }: MoodBoosterProps) {
     if (!isOpen || !mounted) return null;
 
     return createPortal(
-      <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 sm:p-6 overflow-hidden font-sans select-none">
+      <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/60 backdrop-blur-[3px] p-4 sm:p-6 overflow-hidden font-sans select-none">
         
         {/* Main Gift & Popup Card Container */}
         <div className="relative w-full max-w-2xl flex flex-col md:flex-row items-center justify-center gap-6">
@@ -149,7 +149,7 @@ export default function MoodBooster({ userName }: MoodBoosterProps) {
           >
             {/* Gift Tag Floating Above Mascot */}
             <div className={`transition-all duration-300 -mb-2 z-30 ${animStep === 'revealed' ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}>
-              <span className="px-3 py-1 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 text-white font-black text-xs uppercase shadow-lg flex items-center gap-1.5 animate-pulse">
+              <span className="px-3 py-1 rounded-full bg-rose-500 text-white font-semibold text-xs uppercase shadow-md flex items-center gap-1.5">
                 <Gift className="w-3.5 h-3.5" />
                 <span>{current.giftTag}</span>
               </span>
@@ -171,27 +171,27 @@ export default function MoodBooster({ userName }: MoodBoosterProps) {
               />
             </div>
 
-            <span className="text-xs font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest bg-amber-950/80 px-3.5 py-1 rounded-full border border-amber-600/60 shadow-md -mt-2">
+            <span className="text-xs font-semibold text-amber-300 uppercase tracking-[0.08em] bg-slate-900/85 px-3.5 py-1 rounded-full border border-amber-500/30 shadow-md -mt-2">
               {animStep === 'walking' ? 'Walking In... 🚶' : animStep === 'opening' ? 'Opening Gift... 🎁✨' : 'Buddy Gift Opened! 🎁'}
             </span>
           </div>
 
           {/* 💬 POPUP CARD (Erupts/Expands OUT OF the Gift Box after it opens) */}
           <div
-            className={`w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border-2 border-amber-400/80 dark:border-amber-600/70 shadow-[0_25px_80px_rgba(0,0,0,0.6)] p-6 sm:p-7 relative z-10 transition-all duration-500 ease-out origin-left ${
+            className={`w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-amber-300/70 dark:border-amber-500/25 shadow-[0_24px_64px_-16px_rgba(16,24,40,0.55)] p-6 sm:p-7 relative z-10 transition-all duration-500 ease-out origin-left ${
               animStep === 'revealed'
                 ? 'scale-100 opacity-100 translate-x-0'
                 : 'scale-0 opacity-0 -translate-x-12'
             }`}
           >
             {/* Ambient Background Glows inside Card */}
-            <div className="absolute -top-16 -right-16 w-40 h-40 bg-amber-400/20 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-16 -left-16 w-40 h-40 bg-rose-500/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -top-16 -right-16 w-40 h-40 bg-amber-400/15 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-16 -left-16 w-40 h-40 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
 
             {/* Header Bar */}
-            <div className="flex items-center justify-between relative z-10 border-b border-slate-100 dark:border-slate-800/80 pb-3 mb-4">
+            <div className="flex items-center justify-between relative z-10 border-b border-[#eaecf0] dark:border-white/[0.06] pb-3 mb-4">
               <div className="flex items-center gap-2">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${current.badgeColor}`}>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-[0.04em] border ${current.badgeColor}`}>
                   {current.icon}
                   <span>{current.badge}</span>
                 </span>
@@ -199,26 +199,26 @@ export default function MoodBooster({ userName }: MoodBoosterProps) {
 
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
                 title="Close"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4.5 h-4.5" />
               </button>
             </div>
 
             {/* Content Body */}
             <div className="space-y-4 relative z-10">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2 font-outfit">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white tracking-[-0.01em] flex items-center gap-2 font-outfit">
                 <span>{current.title}</span>
-                <Sparkles className="w-5 h-5 text-amber-500 animate-spin shrink-0" />
+                <Sparkles className="w-4.5 h-4.5 text-amber-500 animate-spin-slow shrink-0" />
               </h3>
 
-              <p className="text-sm font-extrabold text-slate-700 dark:text-slate-200 leading-relaxed">
+              <p className="text-sm font-normal text-slate-600 dark:text-slate-300 leading-relaxed">
                 "{current.message}"
               </p>
 
               {current.subtext && (
-                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                <div className="pt-2 border-t border-[#eaecf0] dark:border-white/[0.06] flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
                   <span>💡</span>
                   <span>{current.subtext}</span>
                 </div>
@@ -226,12 +226,12 @@ export default function MoodBooster({ userName }: MoodBoosterProps) {
             </div>
 
             {/* Footer Action Buttons */}
-            <div className="flex items-center justify-between pt-5 mt-5 border-t border-slate-100 dark:border-slate-800 relative z-10 gap-2">
+            <div className="flex items-center justify-between pt-5 mt-5 border-t border-[#eaecf0] dark:border-white/[0.06] relative z-10 gap-2">
               <button
                 onClick={handleShuffle}
                 disabled={isShuffling || animStep !== 'revealed'}
                 type="button"
-                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-xs font-black transition-all cursor-pointer border border-amber-300 dark:border-amber-700/60 active:scale-95 disabled:opacity-50 shadow-2xs"
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-[10px] bg-amber-500/10 hover:bg-amber-500/15 text-amber-700 dark:text-amber-300 text-xs font-semibold transition-colors cursor-pointer border border-amber-500/20 active:scale-95 disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isShuffling ? 'animate-spin' : ''}`} />
                 <span>Cheer Me Again! 🎲</span>
@@ -240,7 +240,7 @@ export default function MoodBooster({ userName }: MoodBoosterProps) {
               <button
                 onClick={() => setIsOpen(false)}
                 type="button"
-                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-black transition-all cursor-pointer shadow-md shadow-indigo-600/20 active:scale-95 border-0"
+                className="px-5 py-2.5 rounded-[10px] bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors cursor-pointer active:scale-95 border-0"
               >
                 I'm Energized! 🚀
               </button>
@@ -261,11 +261,11 @@ export default function MoodBooster({ userName }: MoodBoosterProps) {
       <button
         onClick={handleOpen}
         type="button"
-        className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 dark:from-amber-950/40 dark:via-rose-950/40 dark:to-indigo-950/40 border border-amber-300/80 dark:border-amber-700/60 hover:border-amber-400 text-amber-700 dark:text-amber-300 font-extrabold text-xs shadow-2xs hover:shadow-md hover:scale-105 transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 shrink-0"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-[#e4e7ec] dark:border-white/[0.08] text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 shrink-0"
         title="Mood Booster & Instant Cheer Up"
       >
-        <span className="text-sm animate-bounce">🎈</span>
-        <span className="hidden sm:inline font-black tracking-tight bg-gradient-to-r from-amber-600 to-rose-600 dark:from-amber-400 dark:to-rose-400 bg-clip-text text-transparent">
+        <Sparkles className="w-4 h-4 text-amber-500" />
+        <span className="hidden sm:inline font-medium text-xs">
           Cheer
         </span>
       </button>
