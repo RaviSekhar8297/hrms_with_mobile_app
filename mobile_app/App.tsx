@@ -21,6 +21,9 @@ import { AttendanceRequestsScreen } from './src/screens/AttendanceRequestsScreen
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { AIAssistantScreen } from './src/screens/AIAssistantScreen';
 import { AnalyticsScreen } from './src/screens/AnalyticsScreen';
+import { CompanyScreen } from './src/screens/CompanyScreen';
+import { HolidaysScreen } from './src/screens/HolidaysScreen';
+import { WeekOffsScreen } from './src/screens/WeekOffsScreen';
 
 type ScreenType =
   | 'Dashboard'
@@ -36,6 +39,9 @@ type ScreenType =
   | 'Onboarding'
   | 'AIAssistant'
   | 'Analytics'
+  | 'Company'
+  | 'Holidays'
+  | 'WeekOffs'
   | 'Profile';
 
 const MainNavigator = () => {
@@ -79,6 +85,12 @@ const MainNavigator = () => {
       return <AIAssistantScreen onBack={() => setCurrentScreen('Dashboard')} />;
     case 'Analytics':
       return <AnalyticsScreen onBack={() => setCurrentScreen('Dashboard')} />;
+    case 'Company':
+      return <CompanyScreen onBack={() => setCurrentScreen('Dashboard')} />;
+    case 'Holidays':
+      return <HolidaysScreen onBack={() => setCurrentScreen('Dashboard')} />;
+    case 'WeekOffs':
+      return <WeekOffsScreen onBack={() => setCurrentScreen('Dashboard')} />;
     case 'Profile':
       return <ProfileScreen onBack={() => setCurrentScreen('Dashboard')} />;
     case 'Dashboard':

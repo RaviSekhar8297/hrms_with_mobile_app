@@ -15,6 +15,7 @@ import {
   Pressable,
 } from 'react-native';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
 import { apiClient, getImageUrl } from '../config/api';
 import {
@@ -28,7 +29,8 @@ import {
   DollarSign,
   UserCheck,
   Building,
-  FileCheck,
+  Building2,
+  Palmtree,
   UserPlus,
   TrendingUp,
   MapPin,
@@ -40,6 +42,8 @@ import {
   AlertTriangle,
   X,
   Sparkles,
+  Camera,
+  RefreshCw,
 } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -63,6 +67,21 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
     startTime: '09:30',
     endTime: '18:30',
   });
+  const [currentCoords, setCurrentCoords] = useState<{ latitude: number | null; longitude: number | null }>({
+    latitude: null,
+    longitude: null,
+  });
+  const [attendancePolicy, setAttendancePolicy] = useState<{
+    allow_mobile_punch: boolean;
+    allow_web_punch: boolean;
+    require_selfie: boolean;
+    require_gps: boolean;
+  }>({
+    allow_mobile_punch: true,
+    allow_web_punch: true,
+    require_selfie: false,
+    require_gps: false,
+  });
 
   // 2. Modals States
   const [punchModalVisible, setPunchModalVisible] = useState(false);
@@ -71,6 +90,11 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
     time: '',
     location: '',
   });
+
+  // Selfie Camera Modal States
+  const [selfieModalVisible, setSelfieModalVisible] = useState(false);
+  const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
+  const [isCapturingSelfie, setIsCapturingSelfie] = useState(false);
 
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [remainingShiftText, setRemainingShiftText] = useState('');
@@ -188,12 +212,20 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
-  // Fetch Policy (location_tracking_interval_mins / location_tracking_interval_min)
+  // Fetch Policy (location_tracking_interval_mins, allow_mobile_punch, require_selfie, require_gps)
   const fetchAttendancePolicy = async () => {
     try {
       const res = await apiClient.get('/api/v1/attendance/policies').catch(() => null);
       if (res?.data) {
         const policyObj = res.data.policy || (Array.isArray(res.data.policies) ? res.data.policies[0] : null) || (Array.isArray(res.data.data) ? res.data.data[0] : res.data);
+        if (policyObj) {
+          setAttendancePolicy({
+            allow_mobile_punch: policyObj.allow_mobile_punch !== undefined && policyObj.allow_mobile_punch !== null ? Boolean(policyObj.allow_mobile_punch) : true,
+            allow_web_punch: policyObj.allow_web_punch !== undefined && policyObj.allow_web_punch !== null ? Boolean(policyObj.allow_web_punch) : true,
+            require_selfie: Boolean(policyObj.require_selfie),
+            require_gps: Boolean(policyObj.require_gps),
+          });
+        }
         const interval = policyObj?.location_tracking_interval_mins ?? policyObj?.location_tracking_interval_min;
         if (interval !== undefined && interval !== null && !isNaN(Number(interval)) && Number(interval) > 0) {
           setTrackingIntervalMins(Number(interval));
@@ -228,6 +260,7 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
         if (loc?.coords) {
           const lat = loc.coords.latitude;
           const lng = loc.coords.longitude;
+          setCurrentCoords({ latitude: lat, longitude: lng });
           
           // Instant Lat/Lng coordinate display
           const coordText = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
@@ -290,30 +323,107 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
     } catch (e) {}
   };
 
+  const takeSelfie = async () => {
+    try {
+      setIsCapturingSelfie(true);
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to capture your live attendance selfie.');
+        setIsCapturingSelfie(false);
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        cameraType: ImagePicker.CameraType.front,
+        allowsEditing: false,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const base64Str = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        setCapturedSelfie(base64Str);
+      }
+    } catch (err: any) {
+      console.error('Camera capture error:', err);
+      Alert.alert('Camera Error', err?.message || 'Failed to open camera');
+    } finally {
+      setIsCapturingSelfie(false);
+    }
+  };
+
   const handleTogglePunch = async () => {
+    // 1. Check Allow Mobile Punch Policy
+    if (attendancePolicy.allow_mobile_punch === false) {
+      Alert.alert(
+        'Mobile Punch Restricted',
+        'Mobile check-in is disabled by company policy. Please use Web Portal or Office Biometric device.'
+      );
+      return;
+    }
+
+    // 2. Check GPS Policy
+    if (attendancePolicy.require_gps && (!currentCoords.latitude || !currentCoords.longitude)) {
+      await fetchDeviceLocation();
+      if (!currentCoords.latitude || !currentCoords.longitude) {
+        Alert.alert(
+          'GPS Location Required',
+          'Device GPS location coordinates are mandatory for clocking in/out as per company policy. Please enable location services.'
+        );
+        return;
+      }
+    }
+
+    // 3. Check Live Selfie Policy
+    if (attendancePolicy.require_selfie) {
+      setCapturedSelfie(null);
+      setSelfieModalVisible(true);
+      return;
+    }
+
+    // Direct punch if selfie not required
+    await executePunch(null);
+  };
+
+  const executePunch = async (selfieBase64: string | null) => {
     setLoading(true);
     const newStatus = !punchedIn;
     const nowISO = new Date().toISOString();
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     try {
-      const payload = {
+      const isGpsRequired = attendancePolicy.require_gps === true;
+
+      const payload: any = {
         direction: newStatus ? 'IN' : 'OUT',
         punch_type: newStatus ? 'IN' : 'OUT',
         timestamp: nowISO,
         punch_time: nowISO,
-        location: locationName,
-        location_name: locationName,
+        location: isGpsRequired ? locationName : null,
+        location_name: isGpsRequired ? locationName : null,
         source: 'MOBILE',
       };
 
+      if (isGpsRequired && currentCoords.latitude && currentCoords.longitude) {
+        payload.latitude = currentCoords.latitude;
+        payload.longitude = currentCoords.longitude;
+      }
+
+      if (selfieBase64) {
+        payload.image_url = selfieBase64;
+      }
+
       const res = await apiClient.post('/api/v1/attendance/punches', payload);
       if (res?.data) {
+        setSelfieModalVisible(false);
+        setCapturedSelfie(null);
         setPunchedIn(newStatus);
         setPunchTime(nowTime);
 
-        if (newStatus) {
-          // Immediately trigger initial location ping upon Punch IN
+        if (newStatus && isGpsRequired) {
+          // Immediately trigger initial location ping upon Punch IN only if GPS is required
           sendLocationTrackingPing();
         }
 
@@ -321,7 +431,7 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
         setPunchModalData({
           type: newStatus ? 'IN' : 'OUT',
           time: nowTime,
-          location: locationName,
+          location: isGpsRequired ? locationName : 'GPS Disabled by Policy',
         });
         setPunchModalVisible(true);
       }
@@ -439,10 +549,12 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
           <View style={styles.punchBottomSplit}>
             <View style={styles.locationSide}>
               <View style={styles.locationTitleRow}>
-                <MapPin size={16} color="#4F46E5" />
-                <View style={styles.livePulseDot} />
+                <MapPin size={16} color={attendancePolicy.require_gps ? "#4F46E5" : "#94A3B8"} />
+                {attendancePolicy.require_gps && <View style={styles.livePulseDot} />}
               </View>
-              <Text style={styles.fullLocationText}>{locationName}</Text>
+              <Text style={styles.fullLocationText}>
+                {attendancePolicy.require_gps ? locationName : 'GPS Geofencing Not Required'}
+              </Text>
             </View>
 
             <View style={styles.punchBtnSide}>
@@ -541,25 +653,36 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
             </View>
           </TouchableOpacity>
 
-          {/* Assets */}
-          <TouchableOpacity style={styles.appCard} onPress={() => onNavigate('Assets')}>
-            <View style={[styles.appIconBg, { backgroundColor: '#E0E7FF' }]}>
-              <Building size={22} color="#4338CA" />
+          {/* Company */}
+          <TouchableOpacity style={styles.appCard} onPress={() => onNavigate('Company')}>
+            <View style={[styles.appIconBg, { backgroundColor: '#EFF6FF' }]}>
+              <Building2 size={22} color="#2563EB" />
             </View>
             <View style={styles.appTextContainer}>
-              <Text style={styles.appTitle} numberOfLines={1}>My Assets</Text>
-              <Text style={styles.appSub} numberOfLines={1}>Laptops & Hardware</Text>
+              <Text style={styles.appTitle} numberOfLines={1}>Company</Text>
+              <Text style={styles.appSub} numberOfLines={1}>Profile & Branches</Text>
             </View>
           </TouchableOpacity>
 
-          {/* Documents */}
-          <TouchableOpacity style={styles.appCard} onPress={() => onNavigate('Documents')}>
-            <View style={[styles.appIconBg, { backgroundColor: '#CCFBF1' }]}>
-              <FileCheck size={22} color="#0D9488" />
+          {/* Holidays */}
+          <TouchableOpacity style={styles.appCard} onPress={() => onNavigate('Holidays')}>
+            <View style={[styles.appIconBg, { backgroundColor: '#FDF2F8' }]}>
+              <Palmtree size={22} color="#DB2777" />
             </View>
             <View style={styles.appTextContainer}>
-              <Text style={styles.appTitle} numberOfLines={1}>Documents</Text>
-              <Text style={styles.appSub} numberOfLines={1}>Letters & Policies</Text>
+              <Text style={styles.appTitle} numberOfLines={1}>Holidays</Text>
+              <Text style={styles.appSub} numberOfLines={1}>Festival Calendar</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Week Offs */}
+          <TouchableOpacity style={styles.appCard} onPress={() => onNavigate('WeekOffs')}>
+            <View style={[styles.appIconBg, { backgroundColor: '#FEF3C7' }]}>
+              <Coffee size={22} color="#D97706" />
+            </View>
+            <View style={styles.appTextContainer}>
+              <Text style={styles.appTitle} numberOfLines={1}>Week Offs</Text>
+              <Text style={styles.appSub} numberOfLines={1}>Roster & Policy</Text>
             </View>
           </TouchableOpacity>
 
@@ -709,6 +832,114 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
                   {logoutCountdown !== null ? `Logging out in ${logoutCountdown}s...` : 'Proceed to Logout'}
                 </Text>
               </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 7. LIVE SELFIE CAMERA CAPTURE POPUP MODAL */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={selfieModalVisible}
+        onRequestClose={() => {
+          if (!loading) setSelfieModalVisible(false);
+        }}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => { if (!loading) setSelfieModalVisible(false); }}>
+          <Pressable style={styles.selfieModalCard} onPress={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <View style={styles.selfieModalHeader}>
+              <View style={styles.selfieHeaderIconBadge}>
+                <Camera size={22} color="#4F46E5" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.selfieModalTitle}>Live Selfie Verification</Text>
+                <Text style={styles.selfieModalSubtitle}>
+                  Attendance policy requires a live photo to clock {punchedIn ? 'OUT' : 'IN'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSelfieModalVisible(false)}
+                disabled={loading}
+                style={styles.selfieCloseBtn}
+              >
+                <X size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Selfie Preview or Camera Placeholder */}
+            <View style={styles.selfiePreviewContainer}>
+              {capturedSelfie ? (
+                <View style={styles.selfieImageWrapper}>
+                  <Image source={{ uri: capturedSelfie }} style={styles.selfiePreviewImage} resizeMode="cover" />
+                  <View style={styles.selfieVerifiedBadge}>
+                    <CheckCircle size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+                    <Text style={styles.selfieVerifiedText}>Photo Captured</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.selfiePlaceholderBox}>
+                  <View style={styles.selfieCircleCameraIcon}>
+                    <Camera size={44} color="#6366F1" />
+                  </View>
+                  <Text style={styles.selfiePlaceholderTitle}>Take a Selfie to Punch</Text>
+                  <Text style={styles.selfiePlaceholderText}>
+                    Please ensure your face is clearly visible and within good lighting.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Actions */}
+            <View style={styles.selfieActionRow}>
+              {capturedSelfie ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.selfieRetakeBtn}
+                    onPress={takeSelfie}
+                    disabled={loading || isCapturingSelfie}
+                  >
+                    <RefreshCw size={18} color="#475569" style={{ marginRight: 6 }} />
+                    <Text style={styles.selfieRetakeBtnText}>Retake</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.selfieConfirmBtn,
+                      !punchedIn ? { backgroundColor: '#10B981' } : { backgroundColor: '#EF4444' },
+                    ]}
+                    onPress={() => executePunch(capturedSelfie)}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <CheckCircle size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                        <Text style={styles.selfieConfirmBtnText}>
+                          Punch {!punchedIn ? 'IN' : 'OUT'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.selfieCaptureBtn}
+                  onPress={takeSelfie}
+                  disabled={isCapturingSelfie}
+                >
+                  {isCapturingSelfie ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Camera size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                      <Text style={styles.selfieCaptureBtnText}>Open Camera & Take Selfie</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </Pressable>
         </Pressable>
@@ -1177,5 +1408,158 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontWeight: '700',
     fontSize: 13,
+  },
+  /* SELFIE CAMERA MODAL STYLING */
+  selfieModalCard: {
+    width: '90%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  selfieModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selfieHeaderIconBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selfieModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  selfieModalSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  selfieCloseBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  selfiePreviewContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 8,
+  },
+  selfiePlaceholderBox: {
+    width: '100%',
+    height: 210,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  selfieCircleCameraIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  selfiePlaceholderTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+  selfiePlaceholderText: {
+    fontSize: 11.5,
+    color: '#64748B',
+    textAlign: 'center',
+    maxWidth: 240,
+  },
+  selfieImageWrapper: {
+    width: '100%',
+    height: 230,
+    borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#000000',
+  },
+  selfiePreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  selfieVerifiedBadge: {
+    position: 'absolute',
+    bottom: 10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  selfieVerifiedText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  selfieActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  selfieCaptureBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4F46E5',
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  selfieCaptureBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  selfieRetakeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 13,
+    borderRadius: 14,
+  },
+  selfieRetakeBtnText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  selfieConfirmBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    borderRadius: 14,
+  },
+  selfieConfirmBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

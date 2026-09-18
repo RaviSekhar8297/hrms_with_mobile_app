@@ -126,9 +126,10 @@ export default function AttendanceRulesPage() {
     permission_affects_late: false,
     permission_affects_early_exit: false,
     allow_permission_carry_forward: false,
-    allow_self_punch: true,
-    require_location_gps: false,
-    auto_approve_regularization: false,
+    allow_mobile_punch: true,
+    allow_web_punch: true,
+    require_selfie: false,
+    require_gps: false,
     is_period_locked: false,
     lock_month: String(new Date().getMonth() + 1),
     lock_year: String(new Date().getFullYear()),
@@ -224,9 +225,10 @@ export default function AttendanceRulesPage() {
             permission_affects_late: p.permission_affects_late ?? true,
             permission_affects_early_exit: p.permission_affects_early_exit ?? true,
             allow_permission_carry_forward: p.allow_permission_carry_forward ?? false,
-            allow_self_punch: p.allow_self_punch ?? true,
-            require_location_gps: p.require_location_gps ?? false,
-            auto_approve_regularization: p.auto_approve_regularization ?? false,
+            allow_mobile_punch: p.allow_mobile_punch !== undefined ? p.allow_mobile_punch : true,
+            allow_web_punch: p.allow_web_punch !== undefined ? p.allow_web_punch : true,
+            require_selfie: p.require_selfie !== undefined ? p.require_selfie : false,
+            require_gps: p.require_gps !== undefined ? p.require_gps : false,
             is_period_locked: p.is_period_locked ?? false,
             lock_month: String(p.lock_month || (new Date().getMonth() + 1)),
             lock_year: String(p.lock_year || new Date().getFullYear()),
@@ -635,8 +637,8 @@ export default function AttendanceRulesPage() {
               </div>
             </div>
 
-            {/* CARD 3: PAYROLL ATTENDANCE CYCLE CUTOFF DATES */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4">
+            {/* CARD 3: PAYROLL ATTENDANCE CYCLE CUTOFF DATES (FULL WIDTH) */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4 lg:col-span-2">
               <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <span className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center text-sm font-bold">
                   📅
@@ -701,72 +703,135 @@ export default function AttendanceRulesPage() {
               </div>
             </div>
 
-            {/* CARD 4: SYSTEM POLICY FLAGS (WITH Sleek TOGGLES) */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-sm font-bold">
-                  ⚙️
-                </span>
-                <div>
-                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                    System Policy Flags
-                  </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">Self-service & GPS verification controls</p>
+            {/* CARD 4: SYSTEM POLICY FLAGS (2x2 GRID OF CONTROLS) */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-4 lg:col-span-2">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-sm font-bold">
+                    ⚙️
+                  </span>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                      System Policy Flags
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-medium">Punch channels, mandatory live selfie verification, and GPS tracking controls</p>
+                  </div>
                 </div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+                  Database Policy Controls
+                </span>
               </div>
 
-              <div className="space-y-3">
-                {/* Toggle 1 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {/* 1. ALLOW MOBILE PUNCH */}
                 <div
-                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, allow_self_punch: !prev.allow_self_punch })); }}
-                  className={`flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 transition-all select-none ${canEdit ? 'hover:bg-slate-100/60 dark:hover:bg-slate-800/50 cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
+                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, allow_mobile_punch: !prev.allow_mobile_punch })); }}
+                  className={`flex items-center justify-between p-4 rounded-xl border transition-all select-none ${
+                    policyForm.allow_mobile_punch
+                      ? 'border-indigo-500/40 bg-indigo-50/20 dark:bg-indigo-950/20'
+                      : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40'
+                  } ${canEdit ? 'hover:shadow-xs cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
                 >
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      ALLOW MOBILE & WEB SELF PUNCHING
-                    </span>
-                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                      EMPLOYEES CAN MARK IN/OUT DIRECTLY FROM EMPLOYEE PORTAL
+                  <div className="space-y-1 pr-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📱</span>
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors uppercase tracking-wide">
+                        ALLOW MOBILE PUNCH
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                      Enable employees to clock in / out using the mobile application.
                     </p>
+                    <span className="inline-block text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                      column: allow_mobile_punch
+                    </span>
                   </div>
-                  <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out flex-shrink-0 ${policyForm.allow_self_punch ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${policyForm.allow_self_punch ? 'translate-x-5' : 'translate-x-0'}`} />
+                  <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out flex-shrink-0 ${policyForm.allow_mobile_punch ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${policyForm.allow_mobile_punch ? 'translate-x-5' : 'translate-x-0'}`} />
                   </div>
                 </div>
 
-                {/* Toggle 2 */}
+                {/* 2. ALLOW WEB PUNCH */}
                 <div
-                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, require_location_gps: !prev.require_location_gps })); }}
-                  className={`flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 transition-all select-none ${canEdit ? 'hover:bg-slate-100/60 dark:hover:bg-slate-800/50 cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
+                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, allow_web_punch: !prev.allow_web_punch })); }}
+                  className={`flex items-center justify-between p-4 rounded-xl border transition-all select-none ${
+                    policyForm.allow_web_punch
+                      ? 'border-indigo-500/40 bg-indigo-50/20 dark:bg-indigo-950/20'
+                      : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40'
+                  } ${canEdit ? 'hover:shadow-xs cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
                 >
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      REQUIRE MOBILE LOCATION GPS
-                    </span>
-                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                      VALIDATE GEOFENCE COORDINATES DURING SELF ATTENDANCE
+                  <div className="space-y-1 pr-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">💻</span>
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors uppercase tracking-wide">
+                        ALLOW WEB PUNCH
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                      Enable employees to clock in / out from their web dashboard.
                     </p>
+                    <span className="inline-block text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                      column: allow_web_punch
+                    </span>
                   </div>
-                  <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out flex-shrink-0 ${policyForm.require_location_gps ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${policyForm.require_location_gps ? 'translate-x-5' : 'translate-x-0'}`} />
+                  <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out flex-shrink-0 ${policyForm.allow_web_punch ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${policyForm.allow_web_punch ? 'translate-x-5' : 'translate-x-0'}`} />
                   </div>
                 </div>
 
-                {/* Toggle 3 */}
+                {/* 3. REQUIRE SELFIE */}
                 <div
-                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, auto_approve_regularization: !prev.auto_approve_regularization })); }}
-                  className={`flex items-center justify-between p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 transition-all select-none ${canEdit ? 'hover:bg-slate-100/60 dark:hover:bg-slate-800/50 cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
+                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, require_selfie: !prev.require_selfie })); }}
+                  className={`flex items-center justify-between p-4 rounded-xl border transition-all select-none ${
+                    policyForm.require_selfie
+                      ? 'border-emerald-500/40 bg-emerald-50/20 dark:bg-emerald-950/20'
+                      : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40'
+                  } ${canEdit ? 'hover:shadow-xs cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
                 >
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      AUTO-APPROVE REGULARIZATIONS
-                    </span>
-                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                      AUTOMATICALLY ACCEPT REGULARIZATION IF MANAGER DOES NOT ACT IN 48H
+                  <div className="space-y-1 pr-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📸</span>
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors uppercase tracking-wide">
+                        REQUIRE SELFIE
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                      Open live selfie camera popup; compressed photo saved in <span className="font-mono font-semibold">image_url</span>.
                     </p>
+                    <span className="inline-block text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                      column: require_selfie
+                    </span>
                   </div>
-                  <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out flex-shrink-0 ${policyForm.auto_approve_regularization ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${policyForm.auto_approve_regularization ? 'translate-x-5' : 'translate-x-0'}`} />
+                  <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out flex-shrink-0 ${policyForm.require_selfie ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${policyForm.require_selfie ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </div>
+                </div>
+
+                {/* 4. REQUIRE GPS */}
+                <div
+                  onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, require_gps: !prev.require_gps })); }}
+                  className={`flex items-center justify-between p-4 rounded-xl border transition-all select-none ${
+                    policyForm.require_gps
+                      ? 'border-blue-500/40 bg-blue-50/20 dark:bg-blue-950/20'
+                      : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40'
+                  } ${canEdit ? 'hover:shadow-xs cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
+                >
+                  <div className="space-y-1 pr-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📍</span>
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors uppercase tracking-wide">
+                        REQUIRE GPS
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                      Requires GPS location coordinates when marking punch. If disabled, GPS is optional.
+                    </p>
+                    <span className="inline-block text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                      column: require_gps
+                    </span>
+                  </div>
+                  <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out flex-shrink-0 ${policyForm.require_gps ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${policyForm.require_gps ? 'translate-x-5' : 'translate-x-0'}`} />
                   </div>
                 </div>
               </div>

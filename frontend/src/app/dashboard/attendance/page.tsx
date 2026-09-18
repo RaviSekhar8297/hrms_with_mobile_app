@@ -323,6 +323,21 @@ export default function AttendancePage() {
         ':' + pad(d.getSeconds()) +
         diff + pad(tzOffset / 60) + ':' + pad(tzOffset % 60);
 
+      const isMobileDevice = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const punchSource = isMobileDevice ? 'MOBILE' : 'WEB';
+
+      if (!isMobileDevice && policyForm?.allow_web_punch === false) {
+        setPunchMessage({ type: 'error', text: 'Web portal clock-in is disabled by company policy. Please use Mobile App or Biometric device.' });
+        setIsSubmittingPunch(false);
+        return;
+      }
+
+      if (isMobileDevice && policyForm?.allow_mobile_punch === false) {
+        setPunchMessage({ type: 'error', text: 'Mobile clock-in is disabled by company policy. Please use Web Portal or Biometric device.' });
+        setIsSubmittingPunch(false);
+        return;
+      }
+
       if (policyForm?.require_selfie && !capturedSelfie) {
         setPunchMessage({ type: 'error', text: 'Selfie photo verification is mandatory as per company attendance rules.' });
         setIsSubmittingPunch(false);
@@ -334,9 +349,6 @@ export default function AttendancePage() {
         setIsSubmittingPunch(false);
         return;
       }
-
-      const isMobileDevice = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-      const punchSource = isMobileDevice ? 'MOBILE' : 'WEB';
 
       const cid = localStorage.getItem('companyId') || companyId;
 
@@ -753,8 +765,8 @@ export default function AttendancePage() {
           max_single_permission_minutes: String(data.policy.max_single_permission_minutes || 120),
           permission_affects_late: !!data.policy.permission_affects_late,
           permission_affects_early_exit: !!data.policy.permission_affects_early_exit,
-          allow_mobile_punch: !!data.policy.allow_mobile_punch,
-          allow_web_punch: !!data.policy.allow_web_punch,
+          allow_mobile_punch: data.policy.allow_mobile_punch !== undefined && data.policy.allow_mobile_punch !== null ? !!data.policy.allow_mobile_punch : true,
+          allow_web_punch: data.policy.allow_web_punch !== undefined && data.policy.allow_web_punch !== null ? !!data.policy.allow_web_punch : true,
           require_selfie: !!data.policy.require_selfie,
           require_gps: !!data.policy.require_gps,
           enforce_device_binding: !!data.policy.enforce_device_binding,

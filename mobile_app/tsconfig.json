@@ -1,10 +1,13 @@
 {
   "compilerOptions": {
     "target": "es2020",
-    "lib": ["es2020", "dom"],
+    "lib": [
+      "es2020",
+      "dom"
+    ],
     "jsx": "react-native",
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,5 +16,9 @@
   "include": [
     "src/**/*",
     "App.tsx"
-  ]
+  ],
+  "exclude": [
+    "node_modules"
+  ],
+  "extends": "expo/tsconfig.base"
 }
