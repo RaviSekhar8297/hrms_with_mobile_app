@@ -308,7 +308,7 @@ export default function CompaniesPage() {
             {canCreate && (
               <button
                 onClick={openAddDrawer}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:shadow-[#07518a]/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
               >
                 <span className="flex h-4.5 w-4.5 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors flex-shrink-0">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
@@ -339,9 +339,11 @@ export default function CompaniesPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-850/60">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider">
-                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent mr-2.5 align-middle" />
-                    Syncing tenant instances...
+                  <td colSpan={8} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2.5">
+                      <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Syncing tenant instances...</span>
+                    </div>
                   </td>
                 </tr>
               ) : paginatedCompanies.map(c => {
@@ -690,7 +692,7 @@ export default function CompaniesPage() {
             <button 
               type="submit" 
               disabled={isSaving}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-xs font-bold text-white shadow-md shadow-blue-600/20 active:scale-[0.99] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-xs font-bold text-white shadow-md shadow-[#07518a]/20 active:scale-[0.99] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isSaving && (
                 <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">

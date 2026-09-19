@@ -1,6 +1,6 @@
 {
-  "name": "Ravi Enterprise HRMS",
-  "short_name": "Ravi HRMS",
+  "name": "HRMS",
+  "short_name": "HRMS",
   "description": "Enterprise HRMS Platform with Live Attendance & Location Tracking",
   "start_url": "/dashboard",
   "display": "standalone",

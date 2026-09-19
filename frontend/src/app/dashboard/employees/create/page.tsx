@@ -9,12 +9,13 @@ import SearchableSelect from '../../components/SearchableSelect';
 import { getHeaders, API_BASE, getUrl } from '../../utils/api';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { DatePickerSimple } from '@/components/ui/custom-controls';
 
 const STEPPER_STEPS = [
-  { id: 1, title: 'Personal Details', subtitle: 'Identity & contact', icon: '👤' },
-  { id: 2, title: 'Job & Hierarchy', subtitle: 'Branch, dept & shift', icon: '🏢' },
-  { id: 3, title: 'Bank & Financials', subtitle: 'Salary, bank & PAN', icon: '💳' },
-  { id: 4, title: 'Address & Contact', subtitle: 'Address & emergency', icon: '📍' },
+  { id: 1, title: 'Personal Details', subtitle: 'Identity & contact', icon: '' },
+  { id: 2, title: 'Job & Hierarchy', subtitle: 'Branch, dept & shift', icon: '' },
+  { id: 3, title: 'Bank & Financials', subtitle: 'Salary, bank & PAN', icon: '' },
+  { id: 4, title: 'Address & Contact', subtitle: 'Address & emergency', icon: '' },
 ] as const;
 
 function CreateEmployeeContent() {
@@ -770,7 +771,7 @@ function CreateEmployeeContent() {
     }
   };
 
-  const stylishInputClass = "w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/15 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 outline-none shadow-xs";
+  const stylishInputClass = "stylish-input w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border-[#07518a] focus:ring-4 focus:ring-[#07518a]/15 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 outline-none shadow-xs";
 
   return (
     <div className="space-y-6 animate-fadeIn w-full font-sans">
@@ -812,24 +813,24 @@ function CreateEmployeeContent() {
             <button
               type="button"
               onClick={() => setOnboardingMode('single')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer border-0 ${
+              className={`inline-flex items-center px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer border-0 ${
                 onboardingMode === 'single'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/20'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-700/50'
               }`}
             >
-              <span>👤</span> Single Profile Form
+              Single Profile
             </button>
             <button
               type="button"
               onClick={() => setOnboardingMode('bulk')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer border-0 ${
+              className={`inline-flex items-center px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer border-0 ${
                 onboardingMode === 'bulk'
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/20'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-700/50'
               }`}
             >
-              <span>📁</span> Bulk CSV Upload
+              Bulk CSV Upload
             </button>
           </div>
 
@@ -850,12 +851,12 @@ function CreateEmployeeContent() {
             {/* Top Bar: Step Title + Overall Progress Percentage */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/80">
               <div className="flex items-center gap-2.5">
-                <span className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-extrabold text-xs border border-blue-200 dark:border-blue-900 inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-2xs">
+                <span className="px-3 py-1.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] font-extrabold text-xs border border-[#07518a]/20 dark:border-[#07518a]/30 inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-2xs">
                   Step {currentStep} of 4
                 </span>
                 <div>
                   <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <span>{STEPPER_STEPS[currentStep - 1].icon}</span> Step {currentStep}: {STEPPER_STEPS[currentStep - 1].title}
+                    {STEPPER_STEPS[currentStep - 1].icon ? <span>{STEPPER_STEPS[currentStep - 1].icon}</span> : null} Step {currentStep}: {STEPPER_STEPS[currentStep - 1].title}
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium">
                     {STEPPER_STEPS[currentStep - 1].subtitle}
@@ -864,8 +865,8 @@ function CreateEmployeeContent() {
               </div>
 
               <div className="flex items-center gap-2 sm:justify-end">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Overall Completion:</span>
-                <span className="text-xs font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-900">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Complete Percentage:</span>
+                <span className="text-xs font-black text-[#07518a] dark:text-[#38bdf8] bg-[#07518a]/10 dark:bg-[#07518a]/20 px-2.5 py-1 rounded-lg border border-[#07518a]/20 dark:border-[#07518a]/30">
                   {stepPercentages.overall}% Filled
                 </span>
               </div>
@@ -875,7 +876,7 @@ function CreateEmployeeContent() {
             <div className="relative w-full space-y-3">
               <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden shadow-inner">
                 <div
-                  className="h-full rounded-full bg-indigo-600 transition-all duration-500 ease-out shadow-xs"
+                  className="h-full rounded-full bg-[#07518a] transition-all duration-500 ease-out shadow-xs"
                   style={{ width: `${Math.max(5, ((currentStep - 1) / 3) * 100)}%` }}
                 />
               </div>
@@ -898,7 +899,7 @@ function CreateEmployeeContent() {
                       }}
                       className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all duration-200 cursor-pointer text-left ${
                         isActive
-                          ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-500/80 dark:border-blue-500 shadow-xs ring-1 ring-blue-500/20 scale-[1.01]'
+                          ? 'bg-[#07518a]/10 dark:bg-[#07518a]/20 border-[#07518a] shadow-xs ring-1 ring-[#07518a]/20 scale-[1.01]'
                           : isCompleted
                           ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300/80 dark:border-emerald-800 hover:bg-emerald-50/70'
                           : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-200/60 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/60'
@@ -908,7 +909,7 @@ function CreateEmployeeContent() {
                         isCompleted
                           ? 'bg-emerald-500 text-white shadow-xs'
                           : isActive
-                          ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-500/20'
+                          ? 'bg-[#07518a] text-white shadow-xs ring-2 ring-[#07518a]/20'
                           : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                       }`}>
                         {isCompleted ? '✓' : step.id}
@@ -916,7 +917,7 @@ function CreateEmployeeContent() {
                       <div className="truncate min-w-0 flex-1">
                         <p className={`text-[11px] font-extrabold truncate ${
                           isActive
-                            ? 'text-blue-600 dark:text-blue-400'
+                            ? 'text-[#07518a] dark:text-[#38bdf8]'
                             : isCompleted
                             ? 'text-emerald-700 dark:text-emerald-300'
                             : 'text-slate-600 dark:text-slate-400'
@@ -942,7 +943,7 @@ function CreateEmployeeContent() {
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                      <span>👤</span> Step 1: Personal Details & Identity
+                      Step 1: Personal Details & Identity
                     </h3>
                     <p className="text-[11px] text-slate-400 font-medium">Basic identity, phone, email & photo</p>
                   </div>
@@ -1080,18 +1081,13 @@ function CreateEmployeeContent() {
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Date of Birth
-                      </label>
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split('T')[0]}
-                        value={empForm.dob}
-                        onChange={(e) => setEmpForm({ ...empForm, dob: e.target.value })}
-                        className={stylishInputClass}
-                      />
-                    </div>
+                    <DatePickerSimple
+                      label="Date of Birth"
+                      placeholder="Select Date of Birth"
+                      maxDate={new Date().toISOString().split('T')[0]}
+                      value={empForm.dob}
+                      onChange={(val) => setEmpForm((prev) => ({ ...prev, dob: val }))}
+                    />
 
                     <div>
                       <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -1155,7 +1151,7 @@ function CreateEmployeeContent() {
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                      <span>🏢</span> Step 2: Organization & Job Hierarchy
+                      Step 2: Organization & Job Hierarchy
                     </h3>
                     <p className="text-[11px] text-slate-400 font-medium">Branch, department, shift & role assignment</p>
                   </div>
@@ -1200,17 +1196,16 @@ function CreateEmployeeContent() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Date of Joining <span className="text-rose-500 font-bold ml-0.5">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={empForm.joining_date}
-                      onChange={(e) => setEmpForm({ ...empForm, joining_date: e.target.value })}
-                      className={stylishInputClass}
-                    />
-                  </div>
+                  <DatePickerSimple
+                    label={
+                      <span>
+                        Date of Joining <span className="text-rose-500 font-bold ml-0.5">*</span>
+                      </span>
+                    }
+                    placeholder="Select Date of Joining"
+                    value={empForm.joining_date}
+                    onChange={(val) => setEmpForm((prev) => ({ ...prev, joining_date: val }))}
+                  />
                 </div>
 
                 {/* ROW 2: Branch, Department */}
@@ -1234,7 +1229,7 @@ function CreateEmployeeContent() {
                             type="button"
                             onClick={handleOpenQuickAddBranch}
                             title="Add Branch"
-                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white border border-blue-200 dark:border-blue-900 shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
+                            className="h-[42px] w-[42px] shrink-0 flex items-center justify-center rounded-xl bg-[#07518a] hover:bg-[#064270] text-white border border-[#07518a] shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
                           >
                             +
                           </button>
@@ -1266,7 +1261,7 @@ function CreateEmployeeContent() {
                             type="button"
                             onClick={handleOpenQuickAddDepartment}
                             title="Select Branch first to add Department"
-                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 text-lg font-bold cursor-pointer active:scale-95 opacity-60"
+                            className="h-[42px] w-[42px] shrink-0 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 text-lg font-bold cursor-pointer active:scale-95 opacity-60"
                           >
                             +
                           </button>
@@ -1280,7 +1275,7 @@ function CreateEmployeeContent() {
                             type="button"
                             onClick={handleOpenQuickAddDepartment}
                             title="Add Department"
-                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white border border-blue-200 dark:border-blue-900 shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
+                            className="h-[42px] w-[42px] shrink-0 flex items-center justify-center rounded-xl bg-[#07518a] hover:bg-[#064270] text-white border border-[#07518a] shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
                           >
                             +
                           </button>
@@ -1321,7 +1316,7 @@ function CreateEmployeeContent() {
                             type="button"
                             onClick={handleOpenQuickAddDesignation}
                             title="Select Branch & Department first to add Designation"
-                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 text-lg font-bold cursor-pointer active:scale-95 opacity-60"
+                            className="h-[42px] w-[42px] shrink-0 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 text-lg font-bold cursor-pointer active:scale-95 opacity-60"
                           >
                             +
                           </button>
@@ -1335,7 +1330,7 @@ function CreateEmployeeContent() {
                             type="button"
                             onClick={handleOpenQuickAddDesignation}
                             title="Add Designation"
-                            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white border border-blue-200 dark:border-blue-900 shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
+                            className="h-[42px] w-[42px] shrink-0 flex items-center justify-center rounded-xl bg-[#07518a] hover:bg-[#064270] text-white border border-[#07518a] shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
                           >
                             +
                           </button>
@@ -1368,7 +1363,7 @@ function CreateEmployeeContent() {
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                      <span>💳</span> Step 3: Salary, Bank & Statutory Info
+                      Step 3: Salary, Bank & Statutory Info
                     </h3>
                     <p className="text-[11px] text-slate-400 font-medium">Salary CTC, bank account, IFSC & PAN</p>
                   </div>
@@ -1469,7 +1464,7 @@ function CreateEmployeeContent() {
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
                     <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                      <span>📍</span> Step 4: Address & Emergency Contact
+                      Step 4: Address & Emergency Contact
                     </h3>
                     <p className="text-[11px] text-slate-400 font-medium">Residential address & emergency contact</p>
                   </div>
@@ -1565,7 +1560,7 @@ function CreateEmployeeContent() {
                 <button
                   type="button"
                   onClick={handleNextStep}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer border-0 flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 cursor-pointer border-0 flex items-center gap-1.5 transition-all"
                 >
                   Next ➔
                 </button>
@@ -1603,7 +1598,7 @@ function CreateEmployeeContent() {
             <button
               type="button"
               onClick={downloadSampleCsv}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all border-0 flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold shadow-md shadow-blue-600/20 transition-all border-0 flex items-center gap-2 cursor-pointer"
             >
               <span>📥</span> Download Sample CSV Template
             </button>
@@ -1629,7 +1624,7 @@ function CreateEmployeeContent() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-indigo-600/[0.05] dark:bg-indigo-500/[0.08] border border-indigo-500/25 dark:border-indigo-900 space-y-1.5">
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-900 space-y-1.5">
               <span className="text-[11px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300 block">
                 ⚡ Automatic Ingestion Settings
               </span>
@@ -1708,7 +1703,7 @@ function CreateEmployeeContent() {
               type="button"
               disabled={!bulkFile || bulkUploading}
               onClick={handleBulkUpload}
-              className="px-7 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all cursor-pointer border-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-7 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-600/30 transition-all cursor-pointer border-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {bulkUploading ? (
                 <>

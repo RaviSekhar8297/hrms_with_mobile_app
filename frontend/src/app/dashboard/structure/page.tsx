@@ -889,7 +889,7 @@ export default function PayrollStructurePage() {
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="structure-page-container font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full text-left">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="structure-page-container font-['DM_Sans',sans-serif] space-y-3.5 animate-fadeIn w-full text-left">
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet" />
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
@@ -920,10 +920,10 @@ export default function PayrollStructurePage() {
       />
 
       {/* Action Header bar */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3.5 bg-white dark:bg-slate-900 px-4 py-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
         <div className="flex items-center gap-3.5">
-          <div className="h-10 w-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40 shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+          <div className="h-9 w-9 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] flex items-center justify-center border border-[#07518a]/20 dark:border-[#07518a]/30 shrink-0">
+            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
           </div>
@@ -951,7 +951,7 @@ export default function PayrollStructurePage() {
               placeholder="Search Emp ID or Name..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="!pl-10 pr-4 py-2 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
+              className="!pl-10 pr-4 py-2 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a] focus:bg-white dark:focus:bg-slate-900 transition-all"
             />
           </div>
 
@@ -959,7 +959,7 @@ export default function PayrollStructurePage() {
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-xs font-extrabold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer shrink-0"
+            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-xs font-extrabold text-slate-700 dark:text-slate-200 outline-none focus:border-[#07518a] cursor-pointer shrink-0"
             title="Filter by Salary Year"
           >
             {yearOptions.map(yr => (
@@ -983,7 +983,7 @@ export default function PayrollStructurePage() {
             <button
               onClick={() => router.push('/dashboard/structure/new')}
               title="Add New Salary Structure"
-              className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-all cursor-pointer flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0"
+              className="p-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white transition-all cursor-pointer flex items-center justify-center shadow-md shadow-[#07518a]/20 flex-shrink-0"
             >
               <svg className="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -996,9 +996,11 @@ export default function PayrollStructurePage() {
       {/* Table Container displaying ALL COLUMNS */}
       <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center space-y-3">
-            <div className="w-8 h-8 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-500">Loading master salary structure records...</p>
+          <div className="py-16 text-center">
+            <div className="flex flex-col items-center justify-center gap-2.5">
+              <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading master salary structure records...</span>
+            </div>
           </div>
         ) : filteredStructures.length === 0 ? (
           /* NO RECORDS FOUND EMPTY STATE */
@@ -1105,8 +1107,8 @@ export default function PayrollStructurePage() {
                               disabled={isInactive}
                               className={`p-2 rounded-xl border transition-all duration-200 flex items-center justify-center group ${
                                 isInactive
-                                  ? 'bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-400 dark:text-indigo-500 border-indigo-200/60 dark:border-indigo-900/40 cursor-not-allowed'
-                                  : 'bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white border-indigo-200/80 dark:border-indigo-900/50 cursor-pointer shadow-2xs'
+                                  ? 'bg-[#07518a]/5 dark:bg-[#07518a]/10 text-[#07518a]/40 dark:text-[#07518a]/40 border-[#07518a]/20 cursor-not-allowed'
+                                  : 'bg-[#07518a]/10 dark:bg-[#07518a]/20 hover:bg-[#07518a] text-[#07518a] dark:text-[#38bdf8] hover:text-white border-[#07518a]/30 dark:border-[#07518a]/40 cursor-pointer shadow-2xs'
                               }`}
                               title={isInactive ? "Inactive Employee — Editing Disabled" : `Edit structure for ${s.name}`}
                             >
@@ -1143,7 +1145,7 @@ export default function PayrollStructurePage() {
                         <span className={`font-bold uppercase tracking-tight text-xs ${isInactive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
                           {s.name}
                         </span>
-                        <span className={`font-mono text-[10.5px] font-extrabold ${isInactive ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                        <span className={`font-mono text-[10.5px] font-extrabold ${isInactive ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-[#07518a] dark:text-[#38bdf8]'}`}>
                           {s.empId}
                         </span>
                       </div>
@@ -1166,7 +1168,7 @@ export default function PayrollStructurePage() {
                     <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.employerEsi)}</td>
                     <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.variablePay)}</td>
                     <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">₹{formatAmount(s.retentionBonus)}</td>
-                    <td className="py-2.5 px-3.5 text-right font-bold text-indigo-600 dark:text-indigo-400">₹{formatAmount(s.netSalary)}</td>
+                    <td className="py-2.5 px-3.5 text-right font-bold text-[#07518a] dark:text-[#38bdf8]">₹{formatAmount(s.netSalary)}</td>
                     <td className="py-2.5 px-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400">₹{formatAmount(s.monthlyCtc)}</td>
 
                     

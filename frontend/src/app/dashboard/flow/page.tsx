@@ -250,8 +250,8 @@ export default function WorkFlowGuidePage() {
         {/* Dynamic Database Roles Grid */}
         {loading ? (
           <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-2 shadow-sm">
-            <div className="w-8 h-8 border-4 border-indigo-200 dark:border-indigo-900 border-t-indigo-600 rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading company database roles...</p>
+            <div className="w-8 h-8 border-2 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-[#07518a] dark:text-[#38bdf8] uppercase tracking-wider">Loading company database roles...</p>
           </div>
         ) : dbRoles.length === 0 ? (
           <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-slate-400 shadow-sm">
@@ -270,8 +270,8 @@ export default function WorkFlowGuidePage() {
                   onClick={() => setSelectedRoleId(role.id)}
                   className={`p-4 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
                     isSelected
-                      ? 'bg-gradient-to-br from-indigo-50/90 via-blue-50/40 to-purple-50/90 dark:from-indigo-950/60 dark:via-indigo-900/40 dark:to-slate-900 border-2 border-indigo-600 dark:border-indigo-500 shadow-xl shadow-indigo-500/15 scale-[1.04]'
-                      : 'bg-white/90 dark:bg-slate-900/90 border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs hover:shadow-md hover:scale-[1.01]'
+                      ? 'bg-gradient-to-br from-[#07518a]/15 via-blue-50/40 to-slate-50 dark:from-[#07518a]/30 dark:via-[#07518a]/15 dark:to-slate-900 border-2 border-[#07518a] shadow-xl shadow-[#07518a]/15 scale-[1.04]'
+                      : 'bg-white/90 dark:bg-slate-900/90 border-slate-200/90 dark:border-slate-800 hover:border-[#07518a] dark:hover:border-[#07518a] shadow-xs hover:shadow-md hover:scale-[1.01]'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -282,14 +282,14 @@ export default function WorkFlowGuidePage() {
                        role.name.toLowerCase().includes('payroll') ? '💰' : '👤'}
                     </span>
                     {isSelected && (
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-600 text-white shadow-2xs">
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-[#07518a] text-white shadow-2xs">
                         ACTIVE ROLE
                       </span>
                     )}
                   </div>
                   <div>
                     <div className="flex items-center justify-between">
-                      <h3 className={`text-xs font-black uppercase tracking-wider truncate ${isSelected ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                      <h3 className={`text-xs font-black uppercase tracking-wider truncate ${isSelected ? 'text-[#07518a] dark:text-[#38bdf8]' : 'text-slate-800 dark:text-slate-200'}`}>
                         {role.name}
                       </h3>
                     </div>

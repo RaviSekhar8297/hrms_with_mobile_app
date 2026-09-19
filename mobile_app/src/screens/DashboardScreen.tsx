@@ -94,6 +94,7 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
   // Selfie Camera Modal States
   const [selfieModalVisible, setSelfieModalVisible] = useState(false);
   const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
+  const [capturedSelfieUri, setCapturedSelfieUri] = useState<string | null>(null);
   const [isCapturingSelfie, setIsCapturingSelfie] = useState(false);
 
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
@@ -336,15 +337,19 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
       const result = await ImagePicker.launchCameraAsync({
         cameraType: ImagePicker.CameraType.front,
         allowsEditing: false,
-        aspect: [1, 1],
-        quality: 0.5,
+        quality: 0.3,
         base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        // Store local file URI for instantaneous native image preview
+        setCapturedSelfieUri(asset.uri);
+        // Store base64 data for the backend API payload
         const base64Str = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
         setCapturedSelfie(base64Str);
+        // Open verification modal directly with the captured photo preview
+        setSelfieModalVisible(true);
       }
     } catch (err: any) {
       console.error('Camera capture error:', err);
@@ -382,7 +387,8 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
     // 3. Check Live Selfie Policy
     if (attendancePolicy.require_selfie) {
       setCapturedSelfie(null);
-      setSelfieModalVisible(true);
+      setCapturedSelfieUri(null);
+      await takeSelfie();
       return;
     }
 
@@ -422,6 +428,7 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
       if (res?.data) {
         setSelfieModalVisible(false);
         setCapturedSelfie(null);
+        setCapturedSelfieUri(null);
         setPunchedIn(newStatus);
         setPunchTime(nowTime);
 
@@ -484,7 +491,7 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
       const mins = diffMins % 60;
       setRemainingShiftText(`Remaining Shift: ${hours > 0 ? `${hours} Hours ` : ''}${mins} Minutes`);
     } else {
-      setRemainingShiftText('Are you sure you want to log out of your session?');
+      setRemainingShiftText('');
     }
 
     // ALWAYS open Logout Modal with 5-second countdown option
@@ -800,16 +807,18 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
             </View>
 
             <Text style={styles.warningModalTitle}>
-              {logoutCountdown !== null ? 'Logging Out...' : 'Shift Incomplete Warning ⚠️'}
+              {logoutCountdown !== null ? 'Logging Out...' : 'Shift Incomplete Warning'}
             </Text>
 
             <View style={styles.warningInfoBox}>
               <Text style={styles.warningShiftName}>{shiftDetails.name} ({shiftDetails.startTime} - {shiftDetails.endTime})</Text>
-              <Text style={styles.warningRemainingText}>{remainingShiftText}</Text>
+              {remainingShiftText ? (
+                <Text style={styles.warningRemainingText}>{remainingShiftText}</Text>
+              ) : null}
               <Text style={styles.warningMsgText}>
                 {logoutCountdown !== null
                   ? `Logging out automatically in ${logoutCountdown} seconds... Click 'Cancel Logout' below if you changed your mind.`
-                  : 'Your daily shift is not complete yet. If you log out now, automatic background location tracking will stop and your shift hours may be affected.'}
+                  : 'Your required 9 working hours have not yet been completed.\nIf you log out now, your attendance for today may be marked as incomplete and could affect your attendance calculation.'}
               </Text>
             </View>
 
@@ -863,7 +872,11 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => setSelfieModalVisible(false)}
+                onPress={() => {
+                  setSelfieModalVisible(false);
+                  setCapturedSelfie(null);
+                  setCapturedSelfieUri(null);
+                }}
                 disabled={loading}
                 style={styles.selfieCloseBtn}
               >
@@ -873,30 +886,36 @@ export const DashboardScreen: React.FC<DashboardProps> = ({ onNavigate }) => {
 
             {/* Selfie Preview or Camera Placeholder */}
             <View style={styles.selfiePreviewContainer}>
-              {capturedSelfie ? (
-                <View style={styles.selfieImageWrapper}>
-                  <Image source={{ uri: capturedSelfie }} style={styles.selfiePreviewImage} resizeMode="cover" />
-                  <View style={styles.selfieVerifiedBadge}>
-                    <CheckCircle size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <Text style={styles.selfieVerifiedText}>Photo Captured</Text>
+              <View style={styles.selfieImageWrapper}>
+                {(capturedSelfieUri || capturedSelfie) ? (
+                  <Image
+                    source={{ uri: capturedSelfieUri || capturedSelfie! }}
+                    style={styles.selfiePreviewImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.selfiePlaceholderBox}>
+                    <View style={styles.selfieCircleCameraIcon}>
+                      <Camera size={44} color="#6366F1" />
+                    </View>
+                    <Text style={styles.selfiePlaceholderTitle}>Take a Selfie to Punch</Text>
+                    <Text style={styles.selfiePlaceholderText}>
+                      Please ensure your face is clearly visible and within good lighting.
+                    </Text>
                   </View>
-                </View>
-              ) : (
-                <View style={styles.selfiePlaceholderBox}>
-                  <View style={styles.selfieCircleCameraIcon}>
-                    <Camera size={44} color="#6366F1" />
-                  </View>
-                  <Text style={styles.selfiePlaceholderTitle}>Take a Selfie to Punch</Text>
-                  <Text style={styles.selfiePlaceholderText}>
-                    Please ensure your face is clearly visible and within good lighting.
-                  </Text>
+                )}
+              </View>
+              {(capturedSelfieUri || capturedSelfie) && (
+                <View style={styles.selfieSuccessBar}>
+                  <CheckCircle size={15} color="#059669" style={{ marginRight: 6 }} />
+                  <Text style={styles.selfieSuccessText}>Selfie captured successfully</Text>
                 </View>
               )}
             </View>
 
             {/* Actions */}
             <View style={styles.selfieActionRow}>
-              {capturedSelfie ? (
+              {(capturedSelfieUri || capturedSelfie) ? (
                 <>
                   <TouchableOpacity
                     style={styles.selfieRetakeBtn}
@@ -1493,29 +1512,31 @@ const styles = StyleSheet.create({
   },
   selfieImageWrapper: {
     width: '100%',
-    height: 230,
+    height: 240,
     borderRadius: 18,
     overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#000000',
+    backgroundColor: '#0F172A',
   },
   selfiePreviewImage: {
     width: '100%',
-    height: '100%',
+    height: 240,
+    borderRadius: 18,
   },
-  selfieVerifiedBadge: {
-    position: 'absolute',
-    bottom: 10,
-    alignSelf: 'center',
+  selfieSuccessBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.92)',
+    justifyContent: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingVertical: 7,
+    borderRadius: 12,
+    marginTop: 10,
+    width: '100%',
   },
-  selfieVerifiedText: {
-    color: '#FFFFFF',
+  selfieSuccessText: {
+    color: '#065F46',
     fontSize: 12,
     fontWeight: '700',
   },

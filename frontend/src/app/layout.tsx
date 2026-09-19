@@ -3,7 +3,7 @@ import "./globals.css";
 import FetchPatcher from "./FetchPatcher";
 
 export const metadata: Metadata = {
-  title: "Ravi HRMS - Enterprise Portal",
+  title: "HRMS",
   description: "Enterprise HR Management System Console",
   icons: {
     icon: [
@@ -29,11 +29,11 @@ export default function RootLayout({
         <link rel="alternate icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#2563eb" />
+        <meta name="theme-color" content="#07518a" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Brihaspathi HRMS" />
+        <meta name="apple-mobile-web-app-title" content="HRMS" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />

@@ -252,14 +252,14 @@ export default function LoginPage() {
     <div data-login-container="true" className="min-h-screen h-screen w-full flex flex-col font-sans bg-[#f4f7fa] text-slate-900 select-none overflow-hidden relative">
       
       {/* 🖼️ FULL-WIDTH EDGE-TO-EDGE 3D HRMS GRAPHIC BACKGROUND WITH SOFT OPACITY */}
-      <div className="absolute inset-0 z-0 overflow-hidden w-full h-full">
+      <div className="absolute inset-0 z-0 overflow-hidden w-full h-full bg-[#f4f7fa]">
         <img
           src="/hrms_login_3d_light_graphic.jpg"
           alt="Brihaspathi Enterprise HRMS Platform"
-          className="w-full h-full object-cover sm:object-contain opacity-45 sm:opacity-30"
+          className="w-full h-full object-cover sm:object-contain opacity-50 sm:opacity-35 transition-opacity duration-700"
         />
-        {/* Soft Ambient Veil for Card Contrast */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#eef1f6]/70 via-transparent to-[#eef1f6]/60 pointer-events-none" />
+        {/* Soft Ambient Overlay */}
+        <div className="absolute inset-0 bg-slate-950/5 pointer-events-none" />
       </div>
 
       {/* 🚀 MAIN CONTENT AREA: CENTERED FLOATING GLASS CONSOLE */}
@@ -267,43 +267,32 @@ export default function LoginPage() {
         
         {/* Centered Light Glassmorphic Sign-In Card with Soft Borders */}
         <div className="w-full sm:w-[400px] xl:w-[420px] shrink-0 my-auto">
-          <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-7 sm:p-8 border border-[#e4e7ec] shadow-[0_8px_16px_-6px_rgba(16,24,40,0.06),0_32px_64px_-16px_rgba(16,24,40,0.18)] space-y-6 relative overflow-hidden transition-all duration-300 text-slate-900 animate-scaleUp">
+          <div className="bg-white/85 backdrop-blur-2xl rounded-2xl p-7 sm:p-8 shadow-[0_20px_50px_rgba(15,23,42,0.12)] border border-slate-200/90 space-y-6 relative overflow-hidden transition-all duration-300 text-slate-900">
             
             {/* Header Titles (Welcome Back & Sign in to your HRMS) */}
-            <div className="text-center space-y-2.5">
-              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-white shadow-[0_8px_20px_-6px_rgba(79,70,229,0.55)]">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-                </svg>
-              </div>
-              <div className="space-y-1">
-                <h2 className="text-[22px] sm:text-2xl font-semibold tracking-[-0.02em] text-slate-900 font-sans">
-                  Welcome Back
-                </h2>
-                <p className="text-[13px] text-slate-500">
-                  Sign in to your HRMS
-                </p>
-              </div>
+            <div className="text-center space-y-1 pt-1">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 font-sans">
+                Welcome Back
+              </h2>
+              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                Sign in to your HRMS
+              </p>
             </div>
 
             {/* Alert Error / Success Messages */}
             {error && (
-              <div className="flex items-start gap-2.5 rounded-xl border border-rose-500/20 bg-rose-500/[0.06] p-3 text-xs text-rose-700 animate-fadeIn">
-                <svg className="w-4 h-4 mt-px shrink-0 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008ZM12 3l9 16.5H3L12 3Z" />
-                </svg>
-                <div className="flex-1 font-medium leading-relaxed">{error}</div>
-                <button type="button" onClick={() => setError('')} className="shrink-0 text-rose-400 hover:text-rose-700 font-semibold cursor-pointer">&times;</button>
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-start gap-2.5 text-xs animate-fadeIn shadow-sm">
+                <span className="text-rose-500 text-sm mt-0.5">⚠️</span>
+                <div className="flex-1 font-semibold">{error}</div>
+                <button type="button" onClick={() => setError('')} className="text-rose-400 hover:text-rose-700 font-bold">&times;</button>
               </div>
             )}
 
             {successMessage && (
-              <div className="flex items-start gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-3 text-xs text-emerald-700 animate-fadeIn">
-                <svg className="w-4 h-4 mt-px shrink-0 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                <div className="flex-1 font-medium leading-relaxed">{successMessage}</div>
-                <button type="button" onClick={() => setSuccessMessage('')} className="shrink-0 text-emerald-400 hover:text-emerald-700 font-semibold cursor-pointer">&times;</button>
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-start gap-2.5 text-xs animate-fadeIn shadow-sm">
+                <span className="text-emerald-500 text-sm mt-0.5">✓</span>
+                <div className="flex-1 font-semibold">{successMessage}</div>
+                <button type="button" onClick={() => setSuccessMessage('')} className="text-emerald-400 hover:text-emerald-700 font-bold">&times;</button>
               </div>
             )}
 
@@ -320,7 +309,7 @@ export default function LoginPage() {
                   placeholder="Username or Email ID (max 40 chars)"
                   value={username}
                   onChange={(e) => setUsername(e.target.value.slice(0, 40))}
-                  className="login-input w-full h-12 py-3 pl-4 pr-11 rounded-[11px] border border-[#d0d5dd] bg-white text-[13.5px] font-medium text-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400 placeholder:text-[13px] placeholder:font-normal"
+                  className="w-full h-12 py-3 px-4 pr-11 rounded-xl bg-slate-100/90 border border-slate-300/80 text-slate-900 font-medium text-sm sm:text-base outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs sm:placeholder:text-sm shadow-inner"
                 />
                 <div className="absolute right-3.5 text-slate-400 pointer-events-none">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -340,7 +329,7 @@ export default function LoginPage() {
                   placeholder="Password (max 20 chars)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value.slice(0, 20))}
-                  className="login-input w-full h-12 py-3 pl-4 pr-11 rounded-[11px] border border-[#d0d5dd] bg-white text-[13.5px] font-medium text-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400 placeholder:text-[13px] placeholder:font-normal"
+                  className="w-full h-12 py-3 px-4 pr-11 rounded-xl bg-slate-100/90 border border-slate-300/80 text-slate-900 font-medium text-sm sm:text-base outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs sm:placeholder:text-sm shadow-inner"
                 />
                 <button
                   type="button"
@@ -372,7 +361,7 @@ export default function LoginPage() {
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="sr-only peer" 
                     />
-                    <div className="w-4 h-4 rounded-[5px] border border-[#d0d5dd] bg-white peer-checked:bg-brand-600 peer-checked:border-brand-600 group-hover:border-brand-500 peer-focus-visible:ring-4 peer-focus-visible:ring-brand-600/10 transition-all duration-200 flex items-center justify-center">
+                    <div className="w-4 h-4 rounded-md border-2 border-slate-300/90 bg-slate-100 peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-indigo-600 peer-checked:border-blue-600 group-hover:border-blue-500 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500/30 transition-all duration-200 shadow-sm flex items-center justify-center">
                       <svg 
                         className={`w-3 h-3 text-white transition-transform duration-200 ${rememberMe ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} 
                         fill="none" 
@@ -384,12 +373,12 @@ export default function LoginPage() {
                       </svg>
                     </div>
                   </div>
-                  <span className="group-hover:text-slate-900 transition-colors text-[12.5px] font-medium text-slate-600">Keep me signed in</span>
+                  <span className="group-hover:text-slate-900 transition-colors text-xs sm:text-sm font-medium text-slate-600">Keep me signed in</span>
                 </label>
                 <a 
                   href="#" 
                   onClick={(e) => { e.preventDefault(); alert('Please contact your HR Administrator to reset your credentials.'); }}
-                  className="text-brand-600 hover:text-brand-700 transition-colors font-semibold hover:underline text-[12.5px]"
+                  className="text-blue-600 hover:text-blue-700 transition-colors font-medium hover:underline text-xs sm:text-sm"
                 >
                   Forgot Password?
                 </a>
@@ -399,7 +388,7 @@ export default function LoginPage() {
               <button 
                 type="submit" 
                 disabled={loading} 
-                className="w-full h-12 px-6 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-[13px] tracking-[0.02em] rounded-[11px] shadow-[0_8px_20px_-6px_rgba(79,70,229,0.5)] active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-1"
+                className="w-full h-12 py-3.5 px-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed uppercase tracking-wider mt-1"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
@@ -415,8 +404,8 @@ export default function LoginPage() {
 
             {/* Social SSO Divider */}
             <div className="relative my-3 text-center">
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-[#eaecf0]" />
-              <span className="relative px-3 font-medium text-[10px] bg-white rounded-full text-slate-400 uppercase tracking-[0.14em]">
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-slate-300/70" />
+              <span className="relative px-3 font-bold text-[10px] bg-white/90 rounded-full text-slate-500 uppercase tracking-widest border border-slate-200">
                 Sign in with
               </span>
             </div>
@@ -426,7 +415,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => router.push('/company_setup')}
-                className="flex items-center justify-center h-11 rounded-[11px] bg-white border border-[#e4e7ec] hover:border-[#d0d5dd] hover:bg-slate-50 transition-colors cursor-pointer"
+                className="flex items-center justify-center py-2.5 px-3 rounded-xl bg-white/90 border border-slate-200 hover:bg-white hover:border-blue-400 transition-all cursor-pointer shadow-xs"
                 title="Sign in with Google"
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -440,7 +429,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => alert('Apple ID SSO configured.')}
-                className="flex items-center justify-center h-11 rounded-[11px] bg-white border border-[#e4e7ec] hover:border-[#d0d5dd] hover:bg-slate-50 transition-colors cursor-pointer text-slate-900"
+                className="flex items-center justify-center py-2.5 px-3 rounded-xl bg-white/90 border border-slate-200 hover:bg-white hover:border-blue-400 transition-all cursor-pointer shadow-xs text-slate-900"
                 title="Sign in with Apple"
               >
                 <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
@@ -451,7 +440,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => alert('Microsoft SSO configured.')}
-                className="flex items-center justify-center h-11 rounded-[11px] bg-white border border-[#e4e7ec] hover:border-[#d0d5dd] hover:bg-slate-50 transition-colors cursor-pointer"
+                className="flex items-center justify-center py-2.5 px-3 rounded-xl bg-white/90 border border-slate-200 hover:bg-white hover:border-blue-400 transition-all cursor-pointer shadow-xs"
                 title="Sign in with Microsoft"
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 23 23">

@@ -474,7 +474,7 @@ export default function RolesPage() {
 
             <button
               onClick={() => setDrawerOpen(true)}
-              className="inline-flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:shadow-indigo-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer group flex-shrink-0"
+              className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-black shadow-md shadow-[#07518a]/30 hover:shadow-lg hover:shadow-[#07518a]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer group flex-shrink-0"
             >
               <span className="flex h-5 w-5 items-center justify-center rounded-lg bg-white/20 group-hover:bg-white/30 transition-all">
                 <svg className="w-3.5 h-3.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -489,24 +489,9 @@ export default function RolesPage() {
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-20 shadow-xl flex flex-col items-center justify-center gap-4 text-center animate-fadeIn min-h-[420px]">
-          <div className="relative">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center shadow-inner">
-              <svg className="animate-spin h-7 w-7 text-indigo-600 dark:text-indigo-400" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-              </svg>
-            </div>
-            <div className="absolute -inset-1 rounded-2xl bg-indigo-500/20 blur-md -z-10 animate-pulse" />
-          </div>
-          <div>
-            <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-              Loading Role Access Policies...
-            </h4>
-            <p className="text-xs text-slate-400 font-medium mt-1">
-              Synchronizing permissions matrix and role assignments
-            </p>
-          </div>
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-20 shadow-xl flex flex-col items-center justify-center gap-2.5 text-center animate-fadeIn min-h-[420px]">
+          <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading Role Access Policies...</span>
         </div>
       ) : viewMode === 'matrix' ? (
         /* ⚡ SUPABASE-STYLE ROLE PERMISSION MATRIX TABLE */
@@ -1138,7 +1123,7 @@ export default function RolesPage() {
           <button
             type="submit"
             disabled={isCreatingRole}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-indigo-600/35 transition-all duration-200 cursor-pointer mt-4 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-2xl bg-[#07518a] hover:bg-[#064270] text-xs font-black uppercase tracking-wider text-white shadow-md shadow-[#07518a]/35 transition-all duration-200 cursor-pointer mt-4 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isCreatingRole && (
               <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
@@ -1181,7 +1166,7 @@ export default function RolesPage() {
           <button 
             type="submit" 
             disabled={isUpdatingRole}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black shadow-lg shadow-indigo-600/30 transition-all duration-200 cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-2xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-black shadow-md shadow-[#07518a]/30 transition-all duration-200 cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isUpdatingRole && (
               <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">

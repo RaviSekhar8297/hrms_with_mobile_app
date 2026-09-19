@@ -1407,7 +1407,7 @@ app.get(
 
     try {
       if (isSuperAdmin) {
-        const result = await query('SELECT id, name, company_code, subdomain, domain, branding_logo, status, established_date, created_at FROM hrms.companies ORDER BY name ASC');
+        const result = await query('SELECT id, name, company_code, subdomain, domain, branding_logo, status, established_date, created_at FROM hrms.companies ORDER BY created_at ASC');
         return res.json({ companies: result.rows });
       }
 
@@ -6753,6 +6753,10 @@ app.post('/api/v1/attendance/permissions', authenticateToken, async (req: Authen
     return res.status(400).json({ error: 'Required fields missing' });
   }
 
+  if (typeof reason === 'string' && reason.trim().length > 100) {
+    return res.status(400).json({ error: 'Reason must not exceed 100 characters' });
+  }
+
   try {
     const empCheck = await query('SELECT id FROM hrms.employees WHERE id = $1 AND company_id = $2', [employee_id, companyId]);
     if (empCheck.rows.length === 0) return res.status(400).json({ error: 'Invalid employee reference' });
@@ -6870,6 +6874,10 @@ app.put('/api/v1/attendance/permissions/:id', authenticateToken, async (req: Aut
 
   if (!permission_type || !permission_date || !from_time || !to_time || !duration_minutes || !reason) {
     return res.status(400).json({ error: 'Required fields missing' });
+  }
+
+  if (typeof reason === 'string' && reason.trim().length > 100) {
+    return res.status(400).json({ error: 'Reason cannot exceed 100 characters' });
   }
 
   try {

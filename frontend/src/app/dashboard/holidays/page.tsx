@@ -521,9 +521,9 @@ export default function HolidaysPage() {
 
         {/* ALL HOLIDAYS DIRECT UNIFIED DISPLAY GRID */}
         {isLoading ? (
-          <div className="p-12 flex flex-col items-center justify-center gap-3 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
-            <span className="text-xs font-bold text-slate-400">Loading holiday data...</span>
+          <div className="p-12 flex flex-col items-center justify-center gap-2.5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading holiday data...</span>
           </div>
         ) : activeTab === 'list' ? (
           <div>

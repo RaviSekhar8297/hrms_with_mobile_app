@@ -40,28 +40,28 @@ const Icons = {
     </svg>
   ),
   Shield: () => (
-    <svg className="w-4.5 h-4.5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+    <svg className="w-4.5 h-4.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     </svg>
   ),
   Briefcase: () => (
-    <svg className="w-4.5 h-4.5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+    <svg className="w-4.5 h-4.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
     </svg>
   ),
   Users: () => (
-    <svg className="w-4.5 h-4.5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+    <svg className="w-4.5 h-4.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
     </svg>
   ),
   Cog: () => (
-    <svg className="w-4.5 h-4.5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+    <svg className="w-4.5 h-4.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
   Code: () => (
-    <svg className="w-4 h-4 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+    <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
     </svg>
   ),
@@ -81,7 +81,7 @@ const Icons = {
     </svg>
   ),
   Scale: () => (
-    <svg className="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+    <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
     </svg>
   )
@@ -234,30 +234,30 @@ export default function CompanySetupPage() {
   if (!mounted) return null;
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col md:flex-row bg-[#f4f6f9] text-slate-800 font-sans select-none overflow-hidden z-10">
+    <div className="relative min-h-screen w-full flex flex-col md:flex-row bg-gradient-to-br from-[#f8fafc] via-[#eff6ff] to-[#e0f2fe] text-slate-800 font-sans select-none overflow-hidden z-10">
       
       {/* Abstract Wavy Background Curves matching user reference image, spanning full page */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none -z-10" preserveAspectRatio="none" viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="wave-grad-1" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#6366f1" stopOpacity="0.10" />
-            <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.06" />
+            <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.18" />
+            <stop offset="50%" stopColor="#38bdf8" stopOpacity="0.1" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="wave-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0" />
-            <stop offset="50%" stopColor="#6366f1" stopOpacity="0.07" />
-            <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.12" />
+            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0" />
+            <stop offset="50%" stopColor="#0284c7" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#0369a1" stopOpacity="0.25" />
           </linearGradient>
           <linearGradient id="wave-grad-3" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#c7d2fe" stopOpacity="0.18" />
-            <stop offset="40%" stopColor="#e0e7ff" stopOpacity="0.10" />
-            <stop offset="100%" stopColor="#eef2ff" stopOpacity="0" />
+            <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.22" />
+            <stop offset="40%" stopColor="#bae6fd" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#e0f2fe" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="wave-grad-4" x1="100%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.07" />
-            <stop offset="50%" stopColor="#6366f1" stopOpacity="0.05" />
-            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+            <stop offset="0%" stopColor="#0284c7" stopOpacity="0.16" />
+            <stop offset="50%" stopColor="#0ea5e9" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
           </linearGradient>
         </defs>
         
@@ -276,25 +276,25 @@ export default function CompanySetupPage() {
 
 
       {/* LEFT COLUMN: Clean Slate Integrated Sidebar with Animated Vertical Progress */}
-      <div className="w-full md:w-[280px] lg:w-[320px] bg-white/60 backdrop-blur-md border-b md:border-b-0 md:border-r border-[#e4e7ec] p-8 md:p-10 flex flex-col justify-between shrink-0 relative z-20">
+      <div className="w-full md:w-[280px] lg:w-[320px] bg-[#f8fafc]/30 backdrop-blur-md border-b md:border-b-0 md:border-r border-slate-200/50 p-8 md:p-10 flex flex-col justify-between shrink-0 relative z-20">
         <div className="flex flex-col gap-14">
           
           {/* Logo Header */}
           <div className="flex items-center gap-2.5">
-            <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand-600 text-white shadow-[0_8px_20px_-6px_rgba(79,70,229,0.5)]">
+            <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/10">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
             </span>
-            <span className="text-[13px] font-semibold tracking-[0.18em] uppercase text-slate-900">HRMaster</span>
+            <span className="text-[13px] font-black tracking-[0.2em] uppercase text-slate-800">HRMaster</span>
           </div>
 
           {/* Vertical Steps Timeline with animated progress line */}
           <div className="flex flex-col gap-8 relative px-1">
             {/* Elegant connecting line */}
-            <div className="absolute left-[15px] top-4 bottom-4 w-[2px] bg-slate-200/80" />
+            <div className="absolute left-[15px] top-4 bottom-4 w-[2px] bg-slate-200" />
             <div 
-              className="absolute left-[15px] top-4 w-[2px] bg-brand-600 transition-all duration-500 ease-out"
+              className="absolute left-[15px] top-4 w-[2px] bg-blue-600 transition-all duration-500 ease-out"
               style={{ height: `${Math.max(0, ((step - 1) / (stepsList.length - 1)) * 88)}%` }}
             />
 
@@ -306,7 +306,7 @@ export default function CompanySetupPage() {
                   key={s.num} 
                   className={`flex gap-4 items-center p-3.5 -mx-3 rounded-[16px] transition-all duration-350 ${
                     isActive 
-                      ? 'bg-brand-600/[0.06] shadow-sm border border-brand-600/15 scale-[1.02]' 
+                      ? 'bg-blue-50/60 shadow-sm border border-slate-200/50 scale-[1.02]' 
                       : 'border border-transparent'
                   } animate-slide-in-left`}
                   style={{ animationDelay: `${(idx + 1) * 80}ms` }}
@@ -318,11 +318,11 @@ export default function CompanySetupPage() {
                     )}
                     
                     <div 
-                      className={`w-8 h-8 rounded-full flex items-center justify-center border font-bold text-xs transition-all duration-300 ${
+                      className={`w-8 h-8 rounded-full flex items-center justify-center border font-extrabold text-xs transition-all duration-300 ${
                         isCompleted 
-                          ? 'bg-brand-600 border-brand-600 text-white shadow-sm scale-100 animate-scale-in' 
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm scale-100 animate-scale-in' 
                           : isActive 
-                            ? 'bg-white border-brand-600 text-brand-600 scale-105 relative z-10'
+                            ? 'bg-white border-blue-600 text-blue-600 scale-105 relative z-10'
                             : 'bg-white border-slate-200 text-slate-400'
                       }`}
                     >
@@ -336,10 +336,10 @@ export default function CompanySetupPage() {
                     </div>
                   </div>
                   <div className="flex flex-col mt-0.5 ml-0.5">
-                    <span className={`text-[11px] font-semibold tracking-wide uppercase transition-colors ${isActive ? 'text-brand-700' : isCompleted ? 'text-slate-700' : 'text-slate-400'}`}>
+                    <span className={`text-[11px] font-black tracking-wide uppercase transition-colors ${isActive ? 'text-blue-600' : isCompleted ? 'text-slate-700' : 'text-slate-400'}`}>
                       {s.label}
                     </span>
-                    <span className="text-[9.5px] text-slate-400 font-medium mt-0.5 leading-none">{s.desc}</span>
+                    <span className="text-[9.5px] text-slate-400 font-bold mt-0.5 leading-none">{s.desc}</span>
                   </div>
                 </div>
               );
@@ -349,7 +349,7 @@ export default function CompanySetupPage() {
 
         {/* Small copyright info */}
         <div className="hidden md:block">
-          <span className="text-[9.5px] text-slate-400 font-medium tracking-wide">HRMaster Setup Console • v1.4</span>
+          <span className="text-[9px] text-slate-400 font-bold">HRMaster Setup Console • v1.4</span>
         </div>
       </div>
 
@@ -357,29 +357,29 @@ export default function CompanySetupPage() {
       <div className="flex-1 bg-transparent p-6 md:p-12 lg:p-16 flex items-center justify-center overflow-y-auto relative z-20">
         
         {/* Simple and Professional Setup Card with highly curved angles & translucent glass backdrop */}
-        <div className={`w-full max-w-5xl bg-white/95 backdrop-blur-xl border border-[#e4e7ec] shadow-[0_8px_16px_-6px_rgba(16,24,40,0.05),0_32px_64px_-16px_rgba(16,24,40,0.12)] rounded-2xl p-6 sm:p-10 md:p-12 relative z-30 transition-all duration-500 ${
+        <div className={`w-full max-w-5xl bg-white/30 backdrop-blur-xl border border-white/45 shadow-[0_30px_60px_rgba(15,23,42,0.04)] rounded-[32px] p-6 sm:p-10 md:p-12 relative z-30 transition-all duration-500 ${
           loading ? 'loading-card-active' : ''
         }`}>
           {loading ? (
             <div className="flex flex-col items-center justify-center py-8 space-y-8 animate-[scale-in_0.35s_cubic-bezier(0.16,1,0.3,1)]">
               {/* Spinner / Pulse graphic */}
               <div className="relative w-20 h-20 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-4 border-brand-600/10" />
+                <div className="absolute inset-0 rounded-full border-4 border-blue-500/10" />
                 <div 
-                  className="absolute inset-0 rounded-full border-4 border-brand-600 border-t-transparent animate-spin" 
+                  className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" 
                   style={{ animationDuration: '1.2s' }}
                 />
-                <span className="text-sm font-semibold text-brand-600">{loadingProgress}%</span>
+                <span className="text-sm font-black text-blue-600">{loadingProgress}%</span>
               </div>
 
               {/* Progress Titles */}
               <div className="text-center space-y-2">
-                <h3 className="text-xl font-semibold text-slate-900 tracking-tight">Deploying your workspace</h3>
-                <p className="text-xs text-slate-500 font-medium max-w-sm">Please wait while we tailor your organization's dashboard environment.</p>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Deploying Your Workspace</h3>
+                <p className="text-xs text-slate-500 font-bold max-w-sm">Please wait while we tailormake your organization's dashboard environment.</p>
               </div>
 
               {/* Progress Milestones */}
-              <div className="w-full max-w-md bg-[#fafbfc] border border-[#eaecf0] rounded-2xl p-6 space-y-4 shadow-sm">
+              <div className="w-full max-w-md bg-white/60 border border-slate-200/50 rounded-2xl p-6 space-y-4 shadow-sm">
                 {[
                   { id: 0, text: 'Initializing cloud resources' },
                   { id: 1, text: 'Configuring database & schema' },
@@ -398,9 +398,9 @@ export default function CompanySetupPage() {
                             </svg>
                           </div>
                         ) : isActive ? (
-                          <div className="w-5 h-5 rounded-full bg-brand-600/10 flex items-center justify-center relative">
-                            <span className="w-2.5 h-2.5 bg-brand-600/40 rounded-full animate-ping absolute" />
-                            <span className="w-2 h-2 bg-brand-600 rounded-full" />
+                          <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center relative">
+                            <span className="w-2.5 h-2.5 bg-blue-600 rounded-full animate-ping absolute" />
+                            <span className="w-2 h-2 bg-blue-600 rounded-full" />
                           </div>
                         ) : (
                           <div className="w-5 h-5 rounded-full border border-slate-200 bg-white" />
@@ -413,10 +413,10 @@ export default function CompanySetupPage() {
                       </div>
                       
                       {isActive && (
-                        <span className="text-[10px] font-semibold text-brand-600 tracking-wider animate-pulse uppercase">In Progress</span>
+                        <span className="text-[10px] font-black text-blue-600 tracking-wider animate-pulse uppercase">In Progress</span>
                       )}
                       {isChecked && (
-                        <span className="text-[10px] font-semibold text-emerald-600 tracking-wider uppercase">Completed</span>
+                        <span className="text-[10px] font-black text-emerald-600 tracking-wider uppercase">Completed</span>
                       )}
                     </div>
                   );
@@ -424,9 +424,9 @@ export default function CompanySetupPage() {
               </div>
 
               {/* Progress bar */}
-              <div className="w-full max-w-md bg-slate-100 h-2.5 rounded-full overflow-hidden border border-[#eaecf0]">
+              <div className="w-full max-w-md bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200/50">
                 <div 
-                  className="bg-brand-600 h-full rounded-full transition-all duration-75 shadow-[0_2px_10px_-2px_rgba(79,70,229,0.6)]"
+                  className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 h-full rounded-full transition-all duration-75 shadow-lg shadow-blue-500/20"
                   style={{ width: `${loadingProgress}%` }}
                 />
               </div>
@@ -444,12 +444,12 @@ export default function CompanySetupPage() {
             {step === 1 && (
               <div className="space-y-6">
               <div className="flex items-center gap-3.5 mb-2">
-                <span className="p-3 bg-brand-600/10 text-brand-600 rounded-xl">
+                <span className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
                   <Icons.User />
                 </span>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight leading-none">Let's set up your profile</h2>
-                  <p className="text-xs text-slate-500 font-medium mt-1.5">Enter your basic credentials to launch the primary administrator account.</p>
+                  <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">Let's set up your profile</h2>
+                  <p className="text-xs text-slate-400 font-bold mt-1.5">Enter your basic credentials to launch the primary administrator account.</p>
                 </div>
               </div>
               
@@ -501,21 +501,21 @@ export default function CompanySetupPage() {
                         key={item.role}
                         type="button"
                         onClick={() => setDesignation(item.role)}
-                        className={`p-4 text-left border rounded-2xl transition-all duration-300 cursor-pointer flex items-start gap-3.5 relative overflow-hidden hover:scale-[1.01] hover:shadow-sm ${
+                        className={`p-4 text-left border rounded-[18px] transition-all duration-300 cursor-pointer flex items-start gap-3.5 relative overflow-hidden hover:scale-[1.01] hover:shadow-sm ${
                           designation === item.role 
-                            ? 'bg-brand-600/[0.06] border-brand-600/40 shadow-sm ring-1 ring-brand-600/25' 
-                            : 'bg-white border-[#e4e7ec] hover:bg-slate-50 hover:border-[#d0d5dd]'
+                            ? 'bg-blue-50/40 border-blue-500 shadow-sm ring-1 ring-blue-500' 
+                            : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                         }`}
                       >
                         {designation === item.role && (
-                          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-600 rounded-r" />
+                          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600 rounded-r" />
                         )}
                         <span className="shrink-0 mt-0.5">{item.icon}</span>
                         <div className="flex flex-col">
-                          <span className={`text-[11.5px] font-semibold leading-tight ${designation === item.role ? 'text-brand-700' : 'text-slate-700'}`}>
+                          <span className={`text-[11.5px] font-black leading-tight ${designation === item.role ? 'text-blue-700' : 'text-slate-700'}`}>
                             {item.role}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-medium mt-1.5 leading-tight">{item.desc}</span>
+                          <span className="text-[10px] text-slate-400 font-bold mt-1.5 leading-tight">{item.desc}</span>
                         </div>
                       </button>
                     ))}
@@ -529,12 +529,12 @@ export default function CompanySetupPage() {
             {step === 2 && (
               <div className="space-y-6">
               <div className="flex items-center gap-3.5 mb-2">
-                <span className="p-3 bg-brand-600/10 text-brand-600 rounded-xl">
+                <span className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
                   <Icons.Building />
                 </span>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight leading-none">Tell us about your organization</h2>
-                  <p className="text-xs text-slate-500 font-medium mt-1.5">Provide legal and corporate metadata to tailor the HR dashboard templates.</p>
+                  <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">Tell us about your organization</h2>
+                  <p className="text-xs text-slate-400 font-bold mt-1.5">Provide legal and corporate metadata to tailor the HR dashboard templates.</p>
                 </div>
               </div>
 
@@ -587,10 +587,10 @@ export default function CompanySetupPage() {
                         key={ind.name}
                         type="button"
                         onClick={() => setIndustry(ind.name)}
-                        className={`py-3.5 px-3 border rounded-2xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.01] hover:shadow-sm ${
+                        className={`py-3.5 px-3 border rounded-[18px] text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.01] hover:shadow-sm ${
                           industry === ind.name 
-                            ? 'bg-brand-600/[0.06] border-brand-600/40 text-brand-700 shadow-sm ring-1 ring-brand-600/25' 
-                            : 'bg-white border-[#e4e7ec] hover:bg-slate-50 text-slate-500'
+                            ? 'bg-blue-50/40 border-blue-500 text-blue-700 shadow-sm ring-1 ring-blue-500' 
+                            : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-500'
                         }`}
                       >
                         <span className="shrink-0">{ind.icon}</span>
@@ -608,14 +608,14 @@ export default function CompanySetupPage() {
                         key={size}
                         type="button"
                         onClick={() => setCompanySize(size)}
-                        className={`py-4 text-center border rounded-2xl text-xs font-semibold transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 hover:scale-[1.01] hover:shadow-sm ${
+                        className={`py-4 text-center border rounded-[18px] text-xs font-black transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 hover:scale-[1.01] hover:shadow-sm ${
                           companySize === size 
-                            ? 'bg-brand-600/[0.06] border-brand-600/40 text-brand-700 shadow-sm ring-1 ring-brand-600/25' 
-                            : 'bg-white border-[#e4e7ec] hover:bg-slate-50 text-slate-500'
+                            ? 'bg-blue-50/40 border-blue-500 text-blue-700 shadow-sm ring-1 ring-blue-500' 
+                            : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-500'
                         }`}
                       >
-                        <span className="text-[9px] text-slate-400 font-medium">Employees</span>
-                        <span className="text-[12px] font-semibold leading-none">{size}</span>
+                        <span className="text-[9px] text-slate-400 font-bold">Employees</span>
+                        <span className="text-[12px] font-extrabold leading-none">{size}</span>
                       </button>
                     ))}
                   </div>
@@ -628,19 +628,19 @@ export default function CompanySetupPage() {
             {step === 3 && (
               <div className="space-y-6">
               <div className="flex items-center gap-3.5 mb-2">
-                <span className="p-3 bg-brand-600/10 text-brand-600 rounded-xl">
+                <span className="p-3 bg-violet-50 text-violet-600 rounded-2xl">
                   <Icons.MapPin />
                 </span>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight leading-none">Configure office locations</h2>
-                  <p className="text-xs text-slate-500 font-medium mt-1.5">Enter office branch locations to initialize roster limits & geo-fencing rules.</p>
+                  <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">Configure Office Locations</h2>
+                  <p className="text-xs text-slate-400 font-bold mt-1.5">Enter office branch locations to initialize roster limits & geo-fencing rules.</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 
                 {/* Branch Input Box */}
-                <div className="p-4 bg-[#fafbfc] rounded-2xl border border-[#eaecf0] flex flex-col gap-3">
+                <div className="p-4 bg-white/70 rounded-2xl border border-slate-200/50 flex flex-col gap-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <label className="input-label">Branch name</label>
@@ -715,7 +715,7 @@ export default function CompanySetupPage() {
                   <button
                     type="button"
                     onClick={handleAddBranch}
-                    className="self-end px-3.5 py-2 bg-white border border-[#d0d5dd] text-slate-700 rounded-[10px] text-[10.5px] font-semibold hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer mt-1"
+                    className="self-end px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10.5px] font-black hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer mt-1"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                       <line x1="12" y1="5" x2="12" y2="19" />
@@ -728,23 +728,23 @@ export default function CompanySetupPage() {
                 {/* List of branches */}
                 {branches.length > 0 && (
                   <div className="mt-1">
-                    <h4 className="text-[9.5px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Saved Branches ({branches.length})</h4>
+                    <h4 className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 mb-2">Saved Branches ({branches.length})</h4>
                     <div className="flex flex-col gap-2 max-h-[130px] overflow-y-auto pr-1">
                       {branches.map((b, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-[#eaecf0] bg-white text-xs hover:border-[#d0d5dd] transition-all">
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/20 text-xs hover:border-slate-200 transition-all">
                           <div className="flex items-center gap-2.5">
-                            <span className="p-1.5 bg-brand-600/10 text-brand-600 rounded-lg">
+                            <span className="p-1.5 bg-blue-50 text-blue-500 rounded-lg">
                               <Icons.MapPin />
                             </span>
                             <div className="flex flex-col">
-                              <span className="font-semibold text-slate-700 leading-tight">{b.name}</span>
-                              <span className="text-[9.5px] text-slate-400 font-medium mt-0.5">{b.address}, {b.city}, {b.state}</span>
+                              <span className="font-extrabold text-slate-700 leading-tight">{b.name}</span>
+                              <span className="text-[9.5px] text-slate-400 font-bold mt-0.5">{b.address}, {b.city}, {b.state}</span>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleRemoveBranch(idx)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                               <polyline points="3 6 5 6 21 6" />
@@ -764,47 +764,47 @@ export default function CompanySetupPage() {
             {/* STEP 4: Review and Build */}
             {step === 4 && (
               <div className="text-center py-2 space-y-5">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-[0_8px_20px_-6px_rgba(16,185,129,0.25)]">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-500 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/5 animate-pulse">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
 
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 tracking-tight leading-none">Your workplace is ready to build!</h2>
-                <p className="text-xs text-slate-500 font-medium mt-1.5">Review the configuration settings summary below before deploying your environment.</p>
+                <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">Your workplace is ready to build!</h2>
+                <p className="text-xs text-slate-400 font-bold mt-1.5">Review the configuration settings summary below before deploying your environment.</p>
               </div>
 
               {/* Review summary cards grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-left pt-2">
                 
                 {/* Admin and Company config card */}
-                <div className="p-4 border border-[#eaecf0] rounded-2xl bg-[#fafbfc] flex flex-col gap-3">
+                <div className="p-4 border border-slate-200/50 rounded-2xl bg-white/70 flex flex-col gap-3">
                   <div>
-                    <span className="text-[9px] font-semibold uppercase text-slate-400 tracking-wider">Company Details</span>
-                    <h4 className="text-xs font-semibold text-slate-700 mt-1">{companyName}</h4>
-                    <p className="text-[9.5px] text-slate-400 font-medium mt-0.5">{industry} • {companySize} employees</p>
+                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Company Details</span>
+                    <h4 className="text-xs font-black text-slate-700 mt-1">{companyName}</h4>
+                    <p className="text-[9.5px] text-slate-400 font-bold mt-0.5">{industry} • {companySize} employees</p>
                   </div>
-                  <div className="h-[1px] bg-[#eaecf0]" />
+                  <div className="h-[1px] bg-slate-200" />
                   <div>
-                    <span className="text-[9px] font-semibold uppercase text-slate-400 tracking-wider">Administrator</span>
-                    <h4 className="text-xs font-semibold text-slate-700 mt-1">{fullName}</h4>
-                    <p className="text-[9.5px] text-slate-400 font-medium mt-0.5">{designation} • {phone}</p>
+                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Administrator</span>
+                    <h4 className="text-xs font-black text-slate-700 mt-1">{fullName}</h4>
+                    <p className="text-[9.5px] text-slate-400 font-bold mt-0.5">{designation} • {phone}</p>
                   </div>
                 </div>
 
                 {/* Branches card */}
-                <div className="p-4 border border-[#eaecf0] rounded-2xl bg-[#fafbfc] flex flex-col">
-                  <span className="text-[9px] font-semibold uppercase text-slate-400 tracking-wider mb-2">Saved Office Branches ({branches.length})</span>
+                <div className="p-4 border border-slate-200/50 rounded-2xl bg-white/70 flex flex-col">
+                  <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-2">Saved Office Branches ({branches.length})</span>
                   <div className="flex flex-col gap-2.5 max-h-[130px] overflow-y-auto pr-1">
                     {branches.map((b, i) => (
-                      <div key={i} className="flex gap-2 items-start border-b border-[#eaecf0] pb-2 last:border-0 last:pb-0">
-                        <span className="text-brand-600 mt-0.5">
+                      <div key={i} className="flex gap-2 items-start border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                        <span className="text-blue-500 mt-0.5">
                           <Icons.MapPin />
                         </span>
                         <div className="flex flex-col">
-                          <span className="text-xs font-semibold text-slate-700 leading-none">{b.name}</span>
-                          <span className="text-[9.5px] text-slate-400 font-medium mt-0.5 leading-tight">{b.city}, {b.state}</span>
+                          <span className="text-xs font-extrabold text-slate-700 leading-none">{b.name}</span>
+                          <span className="text-[9.5px] text-slate-400 font-bold mt-0.5 leading-tight">{b.city}, {b.state}</span>
                         </div>
                       </div>
                     ))}
@@ -818,7 +818,7 @@ export default function CompanySetupPage() {
                 type="button"
                 onClick={handleCompleteSetup}
                 disabled={loading}
-                className="w-full max-w-[240px] mx-auto py-3.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-[11px] shadow-[0_8px_20px_-6px_rgba(79,70,229,0.5)] hover:shadow-[0_12px_28px_-8px_rgba(79,70,229,0.6)] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+                className="w-full max-w-[240px] mx-auto py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black rounded-xl shadow-md shadow-emerald-500/10 hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2"
               >
                 {loading ? (
                   <>
@@ -835,12 +835,12 @@ export default function CompanySetupPage() {
 
           {/* Navigation Controls */}
           {step < 4 && (
-            <div className="flex items-center justify-between border-t border-[#eaecf0] mt-8 pt-5">
+            <div className="flex items-center justify-between border-t border-slate-200/60 mt-8 pt-5">
               <button
                 type="button"
                 onClick={handleBack}
                 disabled={step === 1}
-                className="px-5 py-2.5 border border-[#d0d5dd] bg-white text-slate-600 font-semibold rounded-[10px] text-xs hover:bg-slate-50 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-slate-200 text-slate-500 font-black rounded-lg text-xs hover:bg-slate-50 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Back
               </button>
@@ -853,7 +853,7 @@ export default function CompanySetupPage() {
                   (step === 2 && !isStep2Valid) ||
                   (step === 3 && !isStep3Valid)
                 }
-                className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-[10px] text-xs shadow-[0_8px_20px_-6px_rgba(79,70,229,0.5)] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-lg text-xs shadow-sm hover:shadow active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Continue
               </button>
@@ -870,10 +870,10 @@ export default function CompanySetupPage() {
       {/* Styled CSS override classes */}
       <style>{`
         .input-label {
-          font-size: 11px !important;
-          font-weight: 600 !important;
-          color: #344054 !important;
-          letter-spacing: 0.06em !important;
+          font-size: 9.5px !important;
+          font-weight: 800 !important;
+          color: #475569 !important;
+          letter-spacing: 0.08em !important;
           text-transform: uppercase !important;
           display: block !important;
         }
@@ -881,19 +881,19 @@ export default function CompanySetupPage() {
         input[type="text"].form-input {
           width: 100% !important;
           background-color: #ffffff !important;
-          border: 1px solid #d0d5dd !important;
-          border-radius: 11px !important;
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 10px !important;
           padding: 10px 14px !important;
-          font-size: 12.5px !important;
-          font-weight: 500 !important;
+          font-size: 12px !important;
+          font-weight: 600 !important;
           color: #0f172a !important;
           outline: none !important;
-          transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+          transition: all 0.2s ease !important;
         }
         input[type="text"].form-input:focus {
-          background-color: #ffffff !important;
-          border-color: #4f46e5 !important;
-          box-shadow: 0 0 0 4px rgba(79,70,229,0.12) !important;
+          background-color: white !important;
+          border-color: #2563eb !important;
+          box-shadow: 0 0 0 4px rgba(37,99,235,0.06) !important;
         }
 
         input[type="text"].form-input-with-icon {
@@ -903,14 +903,14 @@ export default function CompanySetupPage() {
         .form-select {
           width: 100% !important;
           background-color: #ffffff !important;
-          border: 1px solid #d0d5dd !important;
-          border-radius: 11px !important;
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 10px !important;
           padding: 10px 14px !important;
-          font-size: 12.5px !important;
-          font-weight: 500 !important;
+          font-size: 12px !important;
+          font-weight: 600 !important;
           color: #0f172a !important;
           outline: none !important;
-          transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+          transition: all 0.2s ease !important;
           cursor: pointer !important;
           background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
           background-repeat: no-repeat !important;
@@ -920,9 +920,9 @@ export default function CompanySetupPage() {
           padding-right: 32px !important;
         }
         .form-select:focus {
-          background-color: #ffffff !important;
-          border-color: #4f46e5 !important;
-          box-shadow: 0 0 0 4px rgba(79,70,229,0.12) !important;
+          background-color: white !important;
+          border-color: #2563eb !important;
+          box-shadow: 0 0 0 4px rgba(37,99,235,0.06) !important;
         }
 
         @keyframes slide-up {
@@ -956,15 +956,15 @@ export default function CompanySetupPage() {
         @keyframes pulse-ring {
           0% {
             transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.45);
+            box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45);
           }
           70% {
             transform: scale(1);
-            box-shadow: 0 0 0 8px rgba(79, 70, 229, 0);
+            box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
           }
           100% {
             transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+            box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
           }
         }
         .active-pulse {

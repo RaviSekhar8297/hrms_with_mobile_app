@@ -961,7 +961,7 @@ export default function PayrollFormulaEnginePage() {
             {activeTab !== 'calctypes' && canCreateCurrentTab && (
               <button
                 onClick={() => handleOpenDrawer()}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-550 text-white text-xs font-bold shadow-md shadow-blue-500/10 transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0 border-0"
+                className="px-4 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 transition-all duration-200 cursor-pointer flex items-center gap-1.5 flex-shrink-0 border-0"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -992,7 +992,7 @@ export default function PayrollFormulaEnginePage() {
                     }}
                     className={`py-2 px-3.5 rounded-xl text-xs font-semibold tracking-normal transition-all duration-200 cursor-pointer flex-shrink-0 border-0 ${
                       isSelected
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                        ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/20'
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                     }`}
                   >
@@ -1119,10 +1119,10 @@ export default function PayrollFormulaEnginePage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="p-12 text-center text-slate-400 font-bold uppercase tracking-wider">
+                    <td colSpan={10} className="p-12 text-center">
                       <div className="flex flex-col items-center justify-center gap-2.5">
-                        <div className="w-7 h-7 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs tracking-wider">Loading salary engine data...</span>
+                        <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading salary engine data...</span>
                       </div>
                     </td>
                   </tr>
@@ -1153,7 +1153,7 @@ export default function PayrollFormulaEnginePage() {
                             {canEditCurrentTab && (
                               <button
                                 onClick={() => handleOpenDrawer(item)}
-                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-[#07518a]/20 dark:border-[#07518a]/40 text-[#07518a] dark:text-[#38bdf8] hover:bg-[#07518a] hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
                               >
                                 Edit
                               </button>
@@ -1193,7 +1193,7 @@ export default function PayrollFormulaEnginePage() {
                             {canEditCurrentTab && (
                               <button
                                 onClick={() => handleOpenDrawer(item)}
-                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-[#07518a]/20 dark:border-[#07518a]/40 text-[#07518a] dark:text-[#38bdf8] hover:bg-[#07518a] hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
                               >
                                 Edit
                               </button>
@@ -1238,7 +1238,7 @@ export default function PayrollFormulaEnginePage() {
                             {canEditCurrentTab && (
                               <button
                                 onClick={() => handleOpenDrawer(item)}
-                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-[#07518a]/20 dark:border-[#07518a]/40 text-[#07518a] dark:text-[#38bdf8] hover:bg-[#07518a] hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
                               >
                                 Edit
                               </button>
@@ -1297,7 +1297,7 @@ export default function PayrollFormulaEnginePage() {
                             {canEditCurrentTab && (
                               <button
                                 onClick={() => handleOpenDrawer(item)}
-                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-[#07518a]/20 dark:border-[#07518a]/40 text-[#07518a] dark:text-[#38bdf8] hover:bg-[#07518a] hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
                               >
                                 Edit
                               </button>
@@ -1342,7 +1342,7 @@ export default function PayrollFormulaEnginePage() {
                             {canEditCurrentTab && (
                               <button
                                 onClick={() => handleOpenDrawer(item)}
-                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-[#07518a]/20 dark:border-[#07518a]/40 text-[#07518a] dark:text-[#38bdf8] hover:bg-[#07518a] hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
                               >
                                 Edit
                               </button>
@@ -1377,7 +1377,7 @@ export default function PayrollFormulaEnginePage() {
                             {canEditCurrentTab && (
                               <button
                                 onClick={() => handleOpenDrawer(item)}
-                                className="px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-[#07518a]/20 dark:border-[#07518a]/40 text-[#07518a] dark:text-[#38bdf8] hover:bg-[#07518a] hover:text-white text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
                               >
                                 Edit
                               </button>
@@ -2212,7 +2212,7 @@ export default function PayrollFormulaEnginePage() {
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold shadow-md shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] active:bg-[#05355a] text-white text-xs font-bold shadow-md shadow-[#07518a]/25 transition-all cursor-pointer flex items-center gap-2"
             >
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />

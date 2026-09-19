@@ -374,8 +374,11 @@ export default function PayslipPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={12} className="py-12 text-center text-slate-400 font-medium">
-                    Loading live payslips from database...
+                  <td colSpan={12} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2.5">
+                      <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading live payslips from database...</span>
+                    </div>
                   </td>
                 </tr>
               ) : paginatedPayslips.length === 0 ? (
@@ -393,12 +396,12 @@ export default function PayslipPage() {
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
                     >
                       <td className="py-3.5 px-3 font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2.5">
-                        <span className="h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 flex items-center justify-center text-xs font-bold shrink-0">
+                        <span className="h-7 w-7 rounded-full bg-[#07518a]/15 text-[#07518a] dark:bg-[#07518a]/30 dark:text-[#38bdf8] flex items-center justify-center text-xs font-bold shrink-0">
                           {(ps.first_name || 'E')[0]}
                         </span>
                         <div className="flex flex-col text-left">
                           <span className="font-bold text-slate-800 dark:text-slate-100">{ps.first_name} {ps.last_name}</span>
-                          <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 tracking-tight">{ps.emp_id_code || 'EMP101'}</span>
+                          <span className="text-[11px] font-bold text-[#07518a] dark:text-[#38bdf8] tracking-tight">{ps.emp_id_code || 'EMP101'}</span>
                         </div>
                       </td>
                       <td className="py-3.5 px-3 font-medium text-slate-600 dark:text-slate-400">
@@ -430,7 +433,7 @@ export default function PayslipPage() {
                       <td className="py-3.5 px-3 text-right font-semibold text-slate-700 dark:text-slate-200 tracking-tight">
                         ₹{(parseFloat(String(ps.sa_amount || 0)) || 0).toLocaleString('en-IN')}
                       </td>
-                      <td className="py-3.5 px-3 text-right font-extrabold text-indigo-600 dark:text-indigo-400 text-xs tracking-tight">
+                      <td className="py-3.5 px-3 text-right font-extrabold text-[#07518a] dark:text-[#38bdf8] text-xs tracking-tight">
                         ₹{(parseFloat(String(ps.net_salary)) || 0).toLocaleString('en-IN')}
                       </td>
                       <td className="py-3.5 px-3 text-center">
@@ -442,7 +445,7 @@ export default function PayslipPage() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleViewEmployeeStatement(ps.employee_id || ps.id)}
-                            className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
                           >
                             View Payslip
                           </button>
@@ -659,7 +662,7 @@ export default function PayslipPage() {
             <button
               type="submit"
               disabled={isUpdating}
-              className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold transition-all shadow-md shadow-indigo-600/20 cursor-pointer disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold transition-all shadow-md shadow-[#07518a]/20 cursor-pointer disabled:opacity-50"
             >
               {isUpdating ? 'Updating...' : 'Update Payslip'}
             </button>

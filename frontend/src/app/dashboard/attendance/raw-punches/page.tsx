@@ -9,7 +9,7 @@ import { getHeaders, API_BASE } from '../../utils/api';
 import { usePermissions, DataScope } from '../../hooks/usePermissions';
 import { useDashboard } from '../../components/DashboardContext';
 import SlideDrawer from '../../components/SlideDrawer';
-import { Upload } from 'lucide-react';
+import { Upload, Pencil, Trash2, Camera, CameraOff, MapPin, Clock, CheckCircle2, ExternalLink } from 'lucide-react';
 import ModernPagination from '../../components/ModernPagination';
 
 export default function RawPunchLogsPage() {
@@ -432,17 +432,9 @@ export default function RawPunchLogsPage() {
                     <tr key={punch.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                       <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-200">
                         <div className="flex items-center gap-3">
-                          {punch.image_url ? (
-                            <img
-                              src={punch.image_url}
-                              alt="Selfie"
-                              className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-indigo-500/20 border border-slate-200 dark:border-slate-800 shadow-2xs"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs ring-2 ring-indigo-500/20">
-                              {initialLetter}
-                            </div>
-                          )}
+                          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-violet-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs ring-2 ring-indigo-500/20">
+                            {initialLetter}
+                          </div>
                           <div>
                             <span className="font-black text-slate-850 dark:text-slate-100 text-xs block font-sans">{empName}</span>
                             {punch.emp_id_code && <span className="block text-[10px] text-slate-400 font-semibold font-mono mt-0.5">{punch.emp_id_code}</span>}
@@ -492,20 +484,29 @@ export default function RawPunchLogsPage() {
                           );
                         })()}
                       </td>
-                      <td className="py-3 px-3 text-slate-600 dark:text-slate-300 font-mono text-[11px]">
-                        {punch.ip_address || '-'}
+                      <td className="py-3 px-3 font-sans">
+                        {punch.ip_address ? (
+                          <span className="font-mono text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
+                            {punch.ip_address}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 text-[10px] font-semibold italic border border-slate-200/50 dark:border-slate-800/50">
+                            Not Captured
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-3 font-sans">
                         {punch.latitude && punch.longitude ? (
                           <button
                             type="button"
                             onClick={() => setSelectedMapPunch(punch)}
-                            className="inline-flex items-center gap-1.5 p-1.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 text-blue-650 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-[10px] font-bold transition-all cursor-pointer shadow-2xs group select-none"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-all cursor-pointer shadow-2xs group select-none text-[10.5px] font-bold"
                           >
-                            <span className="text-xs group-hover:scale-125 transition-transform">📍</span>
-                            <span className="font-mono text-[10px] font-black text-slate-800 dark:text-slate-200">
+                            <MapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform shrink-0" />
+                            <span className="font-mono text-[10.5px] font-bold">
                               {punch.location_name
-                                ? (punch.location_name.length > 20 ? punch.location_name.substring(0, 20) + '...' : punch.location_name)
+                                ? (punch.location_name.length > 22 ? punch.location_name.substring(0, 22) + '...' : punch.location_name)
                                 : `${Number(punch.latitude).toFixed(3)}, ${Number(punch.longitude).toFixed(3)}`}
                             </span>
                           </button>
@@ -513,16 +514,17 @@ export default function RawPunchLogsPage() {
                           <button
                             type="button"
                             onClick={() => setSelectedMapPunch(punch)}
-                            className="inline-flex items-center gap-1.5 p-1.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-900/40 hover:bg-indigo-100 text-[10px] font-bold transition-all cursor-pointer shadow-2xs group select-none"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/50 hover:bg-indigo-100 text-[10.5px] font-bold transition-all cursor-pointer shadow-2xs group select-none"
                           >
-                            <span className="text-xs group-hover:scale-125 transition-transform">📍</span>
-                            <span className="font-sans text-[10px] font-black text-slate-800 dark:text-slate-200">
-                              {punch.location_name.length > 20 ? punch.location_name.substring(0, 20) + '...' : punch.location_name}
+                            <MapPin className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
+                            <span className="font-sans text-[10.5px] font-bold">
+                              {punch.location_name.length > 22 ? punch.location_name.substring(0, 22) + '...' : punch.location_name}
                             </span>
                           </button>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60 text-[9.5px] font-extrabold uppercase tracking-wider select-none">
-                            <span>📟</span> Bio-Metric Punch
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60 text-[10px] font-bold tracking-tight select-none">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block shrink-0" />
+                            Office / Direct Terminal
                           </span>
                         )}
                       </td>
@@ -538,20 +540,20 @@ export default function RawPunchLogsPage() {
                               <button
                                 type="button"
                                 onClick={() => openEditModal(punch)}
-                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 hover:text-indigo-600 transition-all cursor-pointer border border-slate-200 dark:border-slate-700"
+                                className="w-7.5 h-7.5 rounded-lg bg-indigo-50/80 hover:bg-indigo-600 text-indigo-600 hover:text-white dark:bg-indigo-950/40 dark:hover:bg-indigo-600 dark:text-indigo-400 dark:hover:text-white transition-all duration-200 flex items-center justify-center border border-indigo-200/60 dark:border-indigo-800/60 shadow-2xs cursor-pointer group"
                                 title="Edit Raw Punch"
                               >
-                                ✏️
+                                <Pencil className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
                               </button>
                             )}
                             {canDelete && (
                               <button
                                 type="button"
                                 onClick={() => setDeletingPunch(punch)}
-                                className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition-all cursor-pointer border border-rose-200/60 dark:border-rose-900/40"
+                                className="w-7.5 h-7.5 rounded-lg bg-rose-50/80 hover:bg-rose-600 text-rose-600 hover:text-white dark:bg-rose-950/40 dark:hover:bg-rose-600 dark:text-rose-400 dark:hover:text-white transition-all duration-200 flex items-center justify-center border border-rose-200/60 dark:border-rose-800/60 shadow-2xs cursor-pointer group"
                                 title="Delete Raw Punch"
                               >
-                                🗑️
+                                <Trash2 className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
                               </button>
                             )}
                           </div>
@@ -582,116 +584,217 @@ export default function RawPunchLogsPage() {
         )}
       </div>
 
-      {/* EDIT PUNCH MODAL */}
-      {mounted && editingPunch && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn font-sans">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">✏️</span>
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                  Edit Raw Punch Log
-                </h3>
+      {/* EDIT PUNCH OFF-CANVAS SLIDE DRAWER */}
+      <SlideDrawer
+        isOpen={!!editingPunch}
+        onClose={() => setEditingPunch(null)}
+        title="Modify Raw Punch Record"
+        width="max-w-[520px]"
+      >
+        {editingPunch && (
+          <form onSubmit={handleUpdatePunch} className="space-y-5 text-xs">
+            {/* Employee Information Header Card */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 shadow-xs flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-violet-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-indigo-500/20">
+                {(editingPunch.employee_name || editingPunch.first_name || 'E').trim().charAt(0).toUpperCase()}
               </div>
-              <button
-                onClick={() => setEditingPunch(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer hover:bg-slate-200"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdatePunch} className="p-6 space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Employee
-                </label>
-                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-slate-800 dark:text-slate-200">
-                  {editingPunch.first_name ? `${editingPunch.first_name} ${editingPunch.last_name || ''}` : editingPunch.employee_name || 'Employee'} ({editingPunch.emp_id_code || editingPunch.employee_id})
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-black text-slate-850 dark:text-slate-100 truncate font-sans">
+                  {editingPunch.first_name ? `${editingPunch.first_name} ${editingPunch.last_name || ''}` : editingPunch.employee_name || 'Employee'}
+                </h4>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    ID: {editingPunch.emp_id_code || editingPunch.employee_id}
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                    {editingPunch.source || 'MOBILE'}
+                  </span>
                 </div>
               </div>
+            </div>
 
+            {/* Verification Live Selfie / Photo Preview Card (Requirement 4) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>Attendance Verification Selfie</span>
+                </label>
+                {editingPunch.image_url ? (
+                  <span className="inline-flex items-center gap-1 text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200/60">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    Verified Photo
+                  </span>
+                ) : (
+                  <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                    No Photo
+                  </span>
+                )}
+              </div>
+
+              {editingPunch.image_url ? (
+                <div className="relative rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-700 bg-slate-950 shadow-md group">
+                  <img
+                    src={editingPunch.image_url}
+                    alt="Attendance Selfie"
+                    className="w-full h-64 object-cover object-center"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent flex items-center justify-between">
+                    <div className="text-white">
+                      <p className="text-[11px] font-bold">Captured Live Selfie</p>
+                      <p className="text-[9.5px] text-slate-300">Recorded on mobile check-in</p>
+                    </div>
+                    <a
+                      href={editingPunch.image_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold backdrop-blur-xs transition-colors"
+                    >
+                      <span>Full View</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850/30 text-center flex flex-col items-center justify-center gap-2">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
+                    <CameraOff className="w-5 h-5 text-slate-400" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">No Image Recorded</h5>
+                    <p className="text-[11px] text-slate-400 font-medium max-w-xs mt-0.5">
+                      No live selfie was captured for this punch event (e.g. standard biometric or web check-in).
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Editable Form Fields */}
+            <div className="space-y-4 pt-1">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Punch Timestamp
+                <label className="block text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Punch Timestamp</span>
+                  <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="datetime-local"
                   value={editPunchTime}
                   onChange={(e) => setEditPunchTime(e.target.value)}
                   required
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono font-bold outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-xs shadow-2xs"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Punch Direction
+                <label className="block text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  Punch Direction <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={editDirection}
-                  onChange={(e) => setEditDirection(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold outline-none focus:border-indigo-500 cursor-pointer"
-                >
-                  <option value="IN">IN (Check In)</option>
-                  <option value="OUT">OUT (Check Out)</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditDirection('IN')}
+                    className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer ${
+                      editDirection === 'IN'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    🟢 IN (Check-In)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditDirection('OUT')}
+                    className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer ${
+                      editDirection === 'OUT'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    🔴 OUT (Check-Out)
+                  </button>
+                </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Terminal / Device ID
+                <label className="block text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  Terminal / Device Identifier
                 </label>
                 <input
                   type="text"
                   value={editDeviceId}
                   onChange={(e) => setEditDeviceId(e.target.value)}
                   placeholder="e.g. Terminal #1 or Mobile App"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-xs shadow-2xs"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Location Name / Notes
+                <label className="block text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Location Name / Address Notes</span>
                 </label>
                 <input
                   type="text"
                   value={editLocationName}
                   onChange={(e) => setEditLocationName(e.target.value)}
-                  placeholder="Optional location notes"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+                  placeholder="e.g. Jubilee Hills, Hyderabad or Main Office"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-xs shadow-2xs"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setEditingPunch(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingEdit}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer disabled:opacity-50"
-                >
-                  {isSubmittingEdit ? 'Saving...' : 'Save Changes'}
-                </button>
+              {/* Readonly Info Summary */}
+              <div className="p-3.5 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5 text-[11px]">
+                <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                  <span>Logged IP Address:</span>
+                  <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                    {editingPunch.ip_address || 'Not Captured'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                  <span>Sync Status:</span>
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-[10px]">
+                    ● SYNCED TO HRMS
+                  </span>
+                </div>
               </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setEditingPunch(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold transition-all cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingEdit}
+                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50 text-xs flex items-center gap-2"
+              >
+                {isSubmittingEdit ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+      </SlideDrawer>
 
       {/* DELETE CONFIRMATION MODAL */}
       {mounted && deletingPunch && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn font-sans">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden p-6 space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center text-xl mx-auto">
-              🗑️
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center mx-auto border border-rose-200/60 dark:border-rose-900/40">
+              <Trash2 className="w-6 h-6 text-rose-600 dark:text-rose-400" />
             </div>
             <div>
               <h3 className="text-base font-black text-slate-850 dark:text-slate-100">

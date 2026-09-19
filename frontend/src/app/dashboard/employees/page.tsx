@@ -782,7 +782,7 @@ export default function EmployeesPage() {
               {/* Bulk Upload Button - Navigates to Onboarding Hub in Bulk Mode */}
               <Link
                 href="/dashboard/employees/create?mode=bulk"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all duration-200 cursor-pointer group flex-shrink-0"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 hover:shadow-lg hover:shadow-emerald-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
               >
                 <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -794,7 +794,7 @@ export default function EmployeesPage() {
               {/* Add Employee Button */}
               <Link
                 href="/dashboard/employees/create"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all duration-200 cursor-pointer group flex-shrink-0"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:shadow-[#07518a]/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
               >
                 <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
@@ -981,9 +981,11 @@ export default function EmployeesPage() {
 
         {/* Dynamic Layout Rendering */}
         {loading ? (
-          <div className="py-24 text-center text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider">
-            <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent mr-2.5 vertical-middle" />
-            Syncing Employees...
+          <div className="py-24 text-center">
+            <div className="flex flex-col items-center justify-center gap-2.5">
+              <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Syncing Employees...</span>
+            </div>
           </div>
         ) : filteredEmployees.length === 0 ? (
           <div className="py-20 text-center text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider select-none border border-dashed border-slate-200/80 dark:border-slate-800 rounded-2xl bg-slate-50/20 dark:bg-slate-950/25">
@@ -1000,7 +1002,7 @@ export default function EmployeesPage() {
               return (
                 <div 
                   key={emp.id} 
-                  className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group overflow-hidden"
+                  className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-[#07518a] dark:hover:border-[#07518a] transition-all duration-300 flex flex-col justify-between group overflow-hidden"
                 >
                   <div>
                     {/* Top Image / Avatar Box */}
@@ -1012,7 +1014,7 @@ export default function EmployeesPage() {
                           className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" 
                         />
                       ) : (
-                        <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest transition-transform duration-500 group-hover:scale-105">
+                        <div className="w-full h-full bg-gradient-to-tr from-slate-200 via-slate-100 to-indigo-100 dark:from-slate-800 dark:to-indigo-950/60 flex items-center justify-center text-2xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest transition-transform duration-500 group-hover:scale-105">
                           {initials || 'EM'}
                         </div>
                       )}
@@ -1021,7 +1023,7 @@ export default function EmployeesPage() {
                     {/* Name & Designation (Directly below image) */}
                     <div className="text-left px-1">
                       <div className="flex items-center justify-between gap-1.5">
-                        <h4 className="text-base font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors tracking-tight truncate uppercase" title={fullName}>
+                        <h4 className="text-base font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-[#07518a] dark:group-hover:text-[#38bdf8] transition-colors tracking-tight truncate uppercase" title={fullName}>
                           {fullName}
                         </h4>
                         <span 
@@ -1134,7 +1136,7 @@ export default function EmployeesPage() {
               
               {/* Left: Avatar Preview Container */}
               <div className="relative flex-shrink-0">
-                <div className="h-16 w-16 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 text-amber-500 font-semibold text-xl flex items-center justify-center relative overflow-hidden shadow-sm">
+                <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-orange-500/20 to-yellow-500/20 border-2 border-amber-500/40 text-amber-500 font-black text-xl flex items-center justify-center relative overflow-hidden shadow-sm">
                   {empForm.emp_image ? (
                     <img src={empForm.emp_image} alt="Profile preview" className="h-full w-full object-cover" />
                   ) : (
@@ -1553,7 +1555,7 @@ export default function EmployeesPage() {
             </div>
           )}
 
-          <button type="submit" className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white transition-all duration-200 cursor-pointer mt-2">
+          <button type="submit" className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-xs font-bold text-white shadow-sm transition-all duration-200 cursor-pointer mt-2">
             {editMode ? "Save Changes" : "Onboard Employee Profile"}
           </button>
         </form>
@@ -1773,7 +1775,7 @@ export default function EmployeesPage() {
               }
               setBulkUploading(false);
             }}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
           >
             {bulkUploading ? (
               <>

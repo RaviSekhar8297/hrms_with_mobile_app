@@ -373,7 +373,7 @@ export default function AttendanceRulesPage() {
               <button
                 type="button"
                 onClick={() => setSyncDrawerOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-indigo-600/20 transition-all cursor-pointer flex items-center gap-2"
+                className="px-4 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs uppercase tracking-wider shadow-md shadow-[#07518a]/20 transition-all cursor-pointer flex items-center gap-2"
               >
                 <span>📡</span>
                 <span>Sync Biometric Data</span>
@@ -386,9 +386,9 @@ export default function AttendanceRulesPage() {
                 disabled={!isModified || isSaving}
                 className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 border ${
                   isSaving
-                    ? 'bg-blue-600 text-white border-blue-600 opacity-80 cursor-wait'
+                    ? 'bg-[#07518a] text-white border-[#07518a] opacity-80 cursor-wait'
                     : isModified
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-indigo-600/30 cursor-pointer active:scale-95 border-transparent'
+                    ? 'bg-[#07518a] hover:bg-[#064270] text-white shadow-md shadow-[#07518a]/25 cursor-pointer active:scale-95 border-transparent'
                     : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
                 }`}
               >
@@ -812,14 +812,14 @@ export default function AttendanceRulesPage() {
                   onClick={() => { if (!canEdit) return; setPolicyForm(prev => ({ ...prev, require_gps: !prev.require_gps })); }}
                   className={`flex items-center justify-between p-4 rounded-xl border transition-all select-none ${
                     policyForm.require_gps
-                      ? 'border-blue-500/40 bg-blue-50/20 dark:bg-blue-950/20'
+                      ? 'border-[#07518a]/40 bg-[#07518a]/10 dark:bg-[#07518a]/20'
                       : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40'
                   } ${canEdit ? 'hover:shadow-xs cursor-pointer group' : 'cursor-not-allowed opacity-75'}`}
                 >
                   <div className="space-y-1 pr-3">
                     <div className="flex items-center gap-2">
                       <span className="text-base">📍</span>
-                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors uppercase tracking-wide">
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 group-hover:text-[#07518a] dark:group-hover:text-[#38bdf8] transition-colors uppercase tracking-wide">
                         REQUIRE GPS
                       </span>
                     </div>
@@ -830,7 +830,7 @@ export default function AttendanceRulesPage() {
                       column: require_gps
                     </span>
                   </div>
-                  <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out flex-shrink-0 ${policyForm.require_gps ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                  <div className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-200 ease-in-out flex-shrink-0 ${policyForm.require_gps ? 'bg-[#07518a]' : 'bg-slate-300 dark:bg-slate-700'}`}>
                     <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${policyForm.require_gps ? 'translate-x-5' : 'translate-x-0'}`} />
                   </div>
                 </div>
@@ -1143,7 +1143,7 @@ export default function AttendanceRulesPage() {
             <button
               type="submit"
               disabled={isSyncing}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-[#07518a]/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSyncing ? (
                 <>

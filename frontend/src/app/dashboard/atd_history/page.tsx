@@ -536,31 +536,15 @@ export default function AttendanceHistoryPage() {
 
       {/* Controls & Filter Bar */}
       <div className="bg-white dark:bg-slate-900 p-3 sm:p-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        {/* Left Controls: Page size, Month, Year */}
+        {/* Left Controls: Month, Year */}
         <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-600 dark:text-slate-400">Show</span>
-            <select
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span className="text-slate-600 dark:text-slate-400">entries</span>
-          </div>
-
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
-
           {/* Month Selector */}
           <div className="flex items-center gap-2">
             <span className="text-slate-600 dark:text-slate-400">Month:</span>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#07518a]/20 focus:border-[#07518a] cursor-pointer"
             >
               {MONTHS.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -574,7 +558,7 @@ export default function AttendanceHistoryPage() {
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#07518a]/20 focus:border-[#07518a] cursor-pointer"
           >
             {YEARS.map((y) => (
               <option key={y} value={y}>
@@ -593,7 +577,7 @@ export default function AttendanceHistoryPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search employee..."
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 pl-9 pr-3 py-1.5 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 pl-9 pr-3 py-1.5 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#07518a]/20 focus:border-[#07518a]"
             />
             <svg
               className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
@@ -622,7 +606,7 @@ export default function AttendanceHistoryPage() {
               onClick={() => setViewMode('icon')}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'icon'
-                  ? 'bg-blue-600 text-white shadow-xs'
+                  ? 'bg-[#07518a] text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -632,7 +616,7 @@ export default function AttendanceHistoryPage() {
               onClick={() => setViewMode('name')}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'name'
-                  ? 'bg-blue-600 text-white shadow-xs'
+                  ? 'bg-[#07518a] text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -645,11 +629,11 @@ export default function AttendanceHistoryPage() {
       {/* Grid Matrix Table */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="p-16 text-center space-y-3">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Loading Attendance Matrix History...
-            </p>
+          <div className="p-16 text-center">
+            <div className="flex flex-col items-center justify-center gap-2.5">
+              <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading Attendance Matrix History...</span>
+            </div>
           </div>
         ) : paginatedEmployees.length === 0 ? (
           <div className="p-16 text-center space-y-2">

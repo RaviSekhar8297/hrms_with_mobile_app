@@ -424,21 +424,21 @@ export default function AttendanceRegularizationPage() {
                 onClick={() => setViewScope('my')}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                   viewScope === 'my'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#07518a] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-[#07518a] dark:hover:text-[#38bdf8]'
                 }`}
               >
-                👤 My Requests
+                My Requests
               </button>
               <button
                 onClick={() => setViewScope('team')}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                   viewScope === 'team'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#07518a] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-[#07518a] dark:hover:text-[#38bdf8]'
                 }`}
               >
-                👥 {regScope === 'ALL' || isSuperAdmin ? 'All Employee Approvals' : 'Team Approvals'}
+                All Requests
               </button>
             </div>
           )}
@@ -446,9 +446,9 @@ export default function AttendanceRegularizationPage() {
           {canCreate && (
             <button
               onClick={() => setDrawerOpen(true)}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
+              className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
             >
-              <span>➕</span> Apply
+              Apply
             </button>
           )}
         </div>
@@ -592,7 +592,7 @@ export default function AttendanceRegularizationPage() {
                               {canEdit && (
                                 <button
                                   onClick={() => openEditDrawer(req)}
-                                  className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950/50 dark:hover:bg-indigo-900 dark:text-indigo-400 transition-all cursor-pointer border-0"
+                                  className="p-1.5 rounded-lg bg-[#07518a]/10 hover:bg-[#07518a] text-[#07518a] hover:text-white dark:text-[#38bdf8] transition-all cursor-pointer border-0"
                                   title="Edit Request"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
@@ -809,7 +809,7 @@ export default function AttendanceRegularizationPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold border-0 shadow-md cursor-pointer disabled:opacity-50"
+              className="px-5 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white font-bold border-0 shadow-md shadow-[#07518a]/20 cursor-pointer disabled:opacity-50"
             >
               {isSaving ? 'Updating...' : 'Update Request'}
             </button>

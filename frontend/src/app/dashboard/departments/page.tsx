@@ -425,7 +425,7 @@ export default function DepartmentsPage() {
           <button 
             type="submit" 
             disabled={isSaving}
-            className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-xs font-bold text-white shadow-md shadow-[#07518a]/20 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isSaving && (
               <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
@@ -469,7 +469,7 @@ export default function DepartmentsPage() {
             {canCreate && (
               <button
                 onClick={openAddDrawer}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
                 <i className="fa-solid fa-plus text-xs"></i>
                 <span>Add Department</span>
@@ -480,9 +480,11 @@ export default function DepartmentsPage() {
 
         {/* 2. CARD FORMAT GRID VIEW */}
         {loading ? (
-          <div className="py-16 text-center text-slate-400 dark:text-slate-500 font-bold flex flex-col items-center justify-center gap-3">
-            <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
-            <span>Loading departments...</span>
+          <div className="py-20 text-center">
+            <div className="flex flex-col items-center justify-center gap-2.5">
+              <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading departments...</span>
+            </div>
           </div>
         ) : paginatedDepartments.length === 0 ? (
           <div className="py-16 text-center text-slate-400 dark:text-slate-500">

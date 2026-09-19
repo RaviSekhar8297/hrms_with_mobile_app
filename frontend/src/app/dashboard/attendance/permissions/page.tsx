@@ -7,6 +7,8 @@ import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import ModernPagination from '../../components/ModernPagination';
+import CustomDatePicker from '../../components/CustomDatePicker';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface Employee {
   id: string;
@@ -222,6 +224,11 @@ export default function AttendancePermissionsPage() {
     if (!activeCompanyId) return;
     if (!form.permission_date || !form.from_time || !form.to_time || !form.reason) {
       showToast('Please fill in all required fields.', 'error');
+      return;
+    }
+
+    if (form.reason.trim().length > 100) {
+      showToast('Reason must not exceed 100 characters.', 'error');
       return;
     }
 
@@ -441,7 +448,7 @@ export default function AttendancePermissionsPage() {
               placeholder="Search by name, date, status..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all shadow-2xs"
+              className="w-full pl-9 pr-8 py-1.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#07518a] transition-all shadow-2xs"
             />
             <svg className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -462,23 +469,23 @@ export default function AttendancePermissionsPage() {
                 onClick={() => handleScopeChange('my')}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                   viewScope === 'my'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#07518a] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-[#07518a] dark:hover:text-[#38bdf8]'
                 }`}
               >
-                👤 My Requests
+                My Requests
               </button>
               <button
                 onClick={() => handleScopeChange('team')}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                   viewScope === 'team'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#07518a] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-[#07518a] dark:hover:text-[#38bdf8]'
                 }`}
               >
-                👥 {isSuperAdmin ? 'All Employee Approvals' : 'Team Approvals'}
+                All Requests
                 {pendingCount > 0 && viewScope === 'team' && (
-                  <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[9px] font-bold">
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-bold">
                     {pendingCount}
                   </span>
                 )}
@@ -489,9 +496,9 @@ export default function AttendancePermissionsPage() {
           {canCreate && (
             <button
               onClick={handleApplyOpen}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
+              className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
             >
-              <span>➕</span> Apply Permission
+              Apply Permission
             </button>
           )}
         </div>
@@ -552,7 +559,7 @@ export default function AttendancePermissionsPage() {
                 <tr>
                   <td colSpan={10} className="py-12 text-center text-slate-400 font-medium">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-6 h-6 border-2 border-[#07518a] border-t-transparent rounded-full animate-spin" />
                       <span>Loading permission requests...</span>
                     </div>
                   </td>
@@ -592,11 +599,24 @@ export default function AttendancePermissionsPage() {
                       <td className="py-3 px-4 font-mono text-[11px] font-semibold text-slate-700 dark:text-slate-300">
                         {reqItem.from_time} - {reqItem.to_time}
                       </td>
-                      <td className="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                      <td className="py-3 px-4 font-bold text-[#07518a] dark:text-[#38bdf8]">
                         {reqItem.duration_minutes} mins
                       </td>
-                      <td className="py-3 px-4 max-w-[180px] truncate text-slate-600 dark:text-slate-400" title={reqItem.reason}>
-                        {reqItem.reason}
+                      <td className="py-3 px-4 max-w-[180px]">
+                        {reqItem.reason && reqItem.reason.length > 25 ? (
+                          <Tooltip>
+                            <TooltipTrigger className="cursor-pointer text-left block truncate">
+                              <span className="text-slate-600 dark:text-slate-400 hover:text-[#07518a] dark:hover:text-[#38bdf8] transition-colors underline decoration-dotted underline-offset-2">
+                                {reqItem.reason.slice(0, 25)}...
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs break-words whitespace-normal text-left text-xs p-2">
+                              {reqItem.reason}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className="text-slate-600 dark:text-slate-400">{reqItem.reason || '-'}</span>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${getStatusClass(reqItem.status)}`}>
@@ -628,9 +648,22 @@ export default function AttendancePermissionsPage() {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-[11px] text-slate-400 italic font-medium">
-                              {reqItem.remarks ? `"${reqItem.remarks}"` : '-'}
-                            </span>
+                            reqItem.remarks && reqItem.remarks.length > 25 ? (
+                              <Tooltip>
+                                <TooltipTrigger className="cursor-pointer max-w-[160px] inline-block truncate align-middle">
+                                  <span className="text-[11px] text-slate-500 dark:text-slate-400 italic font-medium hover:text-[#07518a] dark:hover:text-[#38bdf8] transition-colors underline decoration-dotted underline-offset-2">
+                                    &ldquo;{reqItem.remarks.slice(0, 25)}...&rdquo;
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" align="end" className="w-64 max-w-xs break-words whitespace-normal text-left text-xs p-2.5">
+                                  {reqItem.remarks}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic font-medium">
+                                {reqItem.remarks ? `"${reqItem.remarks}"` : '-'}
+                              </span>
+                            )
                           )
                         ) : (
                           // Personal View Actions: Edit and Delete for PENDING requests
@@ -639,7 +672,7 @@ export default function AttendancePermissionsPage() {
                               {canEdit && (
                                 <button
                                   onClick={() => handleEditOpen(reqItem)}
-                                  className="px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[11px] font-bold transition-all cursor-pointer"
+                                  className="px-2 py-1 rounded-lg bg-[#07518a]/10 hover:bg-[#07518a] text-[#07518a] hover:text-white dark:text-[#38bdf8] border border-[#07518a]/20 text-[11px] font-bold transition-all cursor-pointer"
                                   title="Edit Request"
                                 >
                                   ✏️ Edit
@@ -656,9 +689,22 @@ export default function AttendancePermissionsPage() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-[11px] text-slate-400 italic font-medium">
-                              {reqItem.remarks ? `"${reqItem.remarks}"` : '-'}
-                            </span>
+                            reqItem.remarks && reqItem.remarks.length > 25 ? (
+                              <Tooltip>
+                                <TooltipTrigger className="cursor-pointer max-w-[160px] inline-block truncate align-middle">
+                                  <span className="text-[11px] text-slate-500 dark:text-slate-400 italic font-medium hover:text-[#07518a] dark:hover:text-[#38bdf8] transition-colors underline decoration-dotted underline-offset-2">
+                                    &ldquo;{reqItem.remarks.slice(0, 25)}...&rdquo;
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs break-words whitespace-normal text-left text-xs p-2">
+                                  {reqItem.remarks}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic font-medium">
+                                {reqItem.remarks ? `"${reqItem.remarks}"` : '-'}
+                              </span>
+                            )
                           )
                         )}
                       </td>
@@ -704,7 +750,7 @@ export default function AttendancePermissionsPage() {
             <select
               value={form.permission_type}
               onChange={e => setForm({ ...form, permission_type: e.target.value })}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
             >
               <option value="MID_DAY">🍔 Mid-Day Personal Work</option>
               <option value="LATE_ARRIVALS">🕒 Late Arrival Permission</option>
@@ -717,12 +763,10 @@ export default function AttendancePermissionsPage() {
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Permission Date *
             </label>
-            <input
-              type="date"
-              required
+            <CustomDatePicker
               value={form.permission_date}
-              onChange={e => setForm({ ...form, permission_date: e.target.value })}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+              onChange={val => setForm({ ...form, permission_date: val })}
+              required
             />
           </div>
 
@@ -736,7 +780,7 @@ export default function AttendancePermissionsPage() {
                 required
                 value={form.from_time}
                 onChange={e => setForm({ ...form, from_time: e.target.value })}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
               />
             </div>
             <div>
@@ -748,23 +792,32 @@ export default function AttendancePermissionsPage() {
                 required
                 value={form.to_time}
                 onChange={e => setForm({ ...form, to_time: e.target.value })}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Reason for Request *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-bold text-slate-700 dark:text-slate-300">
+                Reason for Request *
+              </label>
+              <span className={`text-[10px] font-bold ${form.reason.length >= 100 ? 'text-rose-500' : 'text-slate-400'}`}>
+                {form.reason.length}/100
+              </span>
+            </div>
             <textarea
               required
               rows={3}
-              placeholder="Provide a clear, brief reason..."
+              maxLength={100}
+              placeholder="Provide a clear, brief reason (max 100 characters)..."
               value={form.reason}
-              onChange={e => setForm({ ...form, reason: e.target.value })}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+              onChange={e => setForm({ ...form, reason: e.target.value.slice(0, 100) })}
+              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
             />
+            {form.reason.length >= 100 && (
+              <p className="mt-1 text-[10px] text-amber-500 font-semibold">Maximum limit of 100 characters reached.</p>
+            )}
           </div>
 
           <div className="pt-4 flex gap-3 border-t border-slate-200 dark:border-slate-800">
@@ -781,7 +834,7 @@ export default function AttendancePermissionsPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs shadow-md shadow-[#07518a]/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>
@@ -867,7 +920,7 @@ export default function AttendancePermissionsPage() {
                   placeholder="Enter remarks..."
                   value={actionModal.remarks}
                   onChange={e => setActionModal(prev => ({ ...prev, remarks: e.target.value }))}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
                 />
               </div>
 

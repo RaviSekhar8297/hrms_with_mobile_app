@@ -1838,11 +1838,9 @@ export default function AttendancePage() {
 
             {/* Card 3: Upcoming Holidays Banner */}
             {holidaysList.length > 0 && (
-              <div className="bg-amber-500/[0.07] border border-amber-500/25 p-3.5 rounded-2xl flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs flex-shrink-0">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                  </svg>
+              <div className="bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-200/80 p-3.5 rounded-2xl flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-orange-500 text-white flex items-center justify-center font-bold text-base shadow-xs flex-shrink-0">
+                  🎉
                 </div>
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-wider text-orange-600 block">Upcoming Holiday</span>
@@ -1953,7 +1951,7 @@ export default function AttendancePage() {
                   });
                   setPunchSimulatorOpen(true);
                 }}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5 flex-shrink-0"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-colors cursor-pointer flex items-center gap-1.5 flex-shrink-0"
               >
                 Punch Simulator
               </button>
@@ -2149,7 +2147,7 @@ export default function AttendancePage() {
                       setSelectedFormCompanyId('');
                       setIsPolicyModalOpen(true);
                     }}
-                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold uppercase tracking-wider transition-all cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-all cursor-pointer active:scale-95"
                   >
                     Configure New Policy
                   </button>
@@ -2634,7 +2632,7 @@ export default function AttendancePage() {
                   <div className="flex justify-end pt-5 border-t border-slate-100 dark:border-slate-800/60">
                     <button
                       type="submit"
-                      className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer"
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-md shadow-blue-600/20 hover:shadow-lg transition-all cursor-pointer active:scale-[0.98]"
                     >
                       Save Policy Rules
                     </button>
@@ -3022,7 +3020,7 @@ export default function AttendancePage() {
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer"
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-md shadow-blue-600/20 hover:shadow-lg transition-all cursor-pointer active:scale-[0.98]"
                     >
                       Save Policy Rules
                     </button>
@@ -3426,7 +3424,7 @@ export default function AttendancePage() {
             <button
               onClick={handlePunchUpload}
               disabled={isUploadingPunches || !punchCsvFile}
-              className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isUploadingPunches ? (
                 <>
@@ -3831,13 +3829,13 @@ export default function AttendancePage() {
         >
           <div className="space-y-5 animate-fadeIn font-sans">
             {/* Light Soft Header Card */}
-            <div className="p-5 rounded-2xl bg-[#fafbfc] dark:bg-slate-900 border border-[#eaecf0] dark:border-slate-800 shadow-2xs relative overflow-hidden">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50/60 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-800/80 border border-slate-200/80 dark:border-slate-800 shadow-2xs relative overflow-hidden">
               <div className="flex items-center justify-between relative z-10">
                 <div>
-                  <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest block mb-0.5">
+                  <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest block mb-0.5">
                     Attendance Audit Details
                   </span>
-                  <h4 className="text-base font-semibold text-slate-900 dark:text-slate-100 tracking-[-0.01em] font-outfit">
+                  <h4 className="text-base font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight font-outfit">
                     {selectedDayLog.first_name ? `${selectedDayLog.first_name} ${selectedDayLog.last_name}` : (selectedDayLog.customLabel || 'Employee Record')}
                   </h4>
                   {selectedDayLog.emp_id_code && (
@@ -3939,7 +3937,7 @@ export default function AttendancePage() {
                 {/* 🌴 Apply Leave Button */}
                 <button
                   type="button"
-                  className="w-full group flex items-center justify-between p-3.5 rounded-xl border border-amber-500/25 dark:border-amber-900/40 bg-amber-500/[0.06] dark:bg-amber-500/[0.1] hover:bg-amber-500/[0.1] dark:hover:bg-amber-500/[0.15] hover:border-amber-500/40 dark:hover:border-amber-700/60 transition-all duration-200 shadow-2xs hover:shadow-md cursor-pointer"
+                  className="w-full group flex items-center justify-between p-3.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent hover:from-amber-500/20 hover:via-amber-500/10 dark:from-amber-500/20 dark:via-amber-500/10 hover:border-amber-300 dark:hover:border-amber-700/60 transition-all duration-200 shadow-2xs hover:shadow-md cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
@@ -3964,7 +3962,7 @@ export default function AttendancePage() {
                 {/* 📝 Apply Request Button */}
                 <button
                   type="button"
-                  className="w-full group flex items-center justify-between p-3.5 rounded-xl border border-indigo-500/25 dark:border-indigo-900/40 bg-indigo-500/[0.06] dark:bg-indigo-500/[0.1] hover:bg-indigo-500/[0.1] dark:hover:bg-indigo-500/[0.15] hover:border-indigo-500/40 dark:hover:border-indigo-700/60 transition-all duration-200 shadow-2xs hover:shadow-md cursor-pointer"
+                  className="w-full group flex items-center justify-between p-3.5 rounded-xl border border-indigo-200/80 dark:border-indigo-900/40 bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent hover:from-indigo-500/20 hover:via-indigo-500/10 dark:from-indigo-500/20 dark:via-indigo-500/10 hover:border-indigo-300 dark:hover:border-indigo-700/60 transition-all duration-200 shadow-2xs hover:shadow-md cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
@@ -3989,7 +3987,7 @@ export default function AttendancePage() {
                 {/* ⏱️ Apply Permission Button */}
                 <button
                   type="button"
-                  className="w-full group flex items-center justify-between p-3.5 rounded-xl border border-emerald-500/25 dark:border-emerald-900/40 bg-emerald-500/[0.06] dark:bg-emerald-500/[0.1] hover:bg-emerald-500/[0.1] dark:hover:bg-emerald-500/[0.15] hover:border-emerald-500/40 dark:hover:border-emerald-700/60 transition-all duration-200 shadow-2xs hover:shadow-md cursor-pointer"
+                  className="w-full group flex items-center justify-between p-3.5 rounded-xl border border-emerald-200/80 dark:border-emerald-900/40 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent hover:from-emerald-500/20 hover:via-emerald-500/10 dark:from-emerald-500/20 dark:via-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-700/60 transition-all duration-200 shadow-2xs hover:shadow-md cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
@@ -4161,7 +4159,7 @@ export default function AttendancePage() {
                   className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 ${
                     isSubmittingPunch || !capturedSelfie
                       ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-300/40 dark:border-slate-700/40 cursor-not-allowed shadow-none'
-                      : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
+                      : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 hover:scale-[1.01] cursor-pointer'
                   }`}
                 >
                   {isSubmittingPunch

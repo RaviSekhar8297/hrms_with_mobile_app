@@ -2,50 +2,49 @@
   <defs>
     <!-- Background Gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2563eb" />
-      <stop offset="50%" stop-color="#4f46e5" />
-      <stop offset="100%" stop-color="#7c3aed" />
+      <stop offset="0%" stop-color="#063254" />
+      <stop offset="55%" stop-color="#07518a" />
+      <stop offset="100%" stop-color="#0284c7" />
     </linearGradient>
 
-    <!-- Gloss Highlight Gradient -->
+    <!-- Gloss Top Highlight -->
     <linearGradient id="glossGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25" />
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22" />
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
     </linearGradient>
 
     <!-- Letter R Gradient -->
-    <linearGradient id="rGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="rGrad" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="100%" stop-color="#f1f5f9" />
+      <stop offset="100%" stop-color="#e6f0fa" />
+    </linearGradient>
+
+    <!-- Accent Connection Gradient -->
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#06b6d4" />
     </linearGradient>
 
     <!-- Drop Shadow Filter -->
-    <filter id="shadowFilter" x="-10%" y="-10%" width="130%" height="130%">
-      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#0f172a" flood-opacity="0.45" />
+    <filter id="subtleShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#031b2e" flood-opacity="0.45" />
     </filter>
   </defs>
 
   <!-- Outer Rounded Squircle Base -->
-  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <rect width="512" height="512" rx="124" fill="url(#bgGrad)" />
 
   <!-- Inner Soft Border -->
-  <rect x="8" y="8" width="496" height="496" rx="120" fill="none" stroke="#ffffff" stroke-opacity="0.2" stroke-width="6" />
+  <rect x="8" y="8" width="496" height="496" rx="116" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="5" />
 
-  <!-- Top Gloss Highlight -->
-  <path d="M 8 128 C 8 60, 60 8, 128 8 L 384 8 C 452 8, 504 60, 504 128 C 504 220, 8 220, 8 128 Z" fill="url(#glossGrad)" />
+  <!-- Top Subtle Gloss -->
+  <path d="M 8 124 C 8 58, 58 8, 124 8 L 388 8 C 454 8, 504 58, 504 124 C 504 210, 8 210, 8 124 Z" fill="url(#glossGrad)" />
 
-  <!-- Bold Geometric Modern Capital "R" -->
-  <g filter="url(#shadowFilter)">
-    <!-- Vertical stem -->
-    <path d="M 148 108 L 224 108 L 224 404 L 148 404 Z" fill="url(#rGrad)" />
-    
-    <!-- Top curved loop of R -->
-    <path d="M 216 108 L 316 108 C 378 108, 412 144, 412 206 C 412 268, 378 304, 316 304 L 216 304 Z M 224 174 L 224 238 L 308 238 C 336 238, 348 226, 348 206 C 348 186, 336 174, 308 174 Z" fill="url(#rGrad)" />
-    
-    <!-- Dynamic right diagonal leg of R with modern angle -->
-    <path d="M 284 278 L 380 404 L 452 404 L 344 266 C 324 276, 304 282, 284 284 Z" fill="url(#rGrad)" />
-
-    <!-- Accent dot / Sparkle in Top Right -->
-    <circle cx="396" cy="116" r="20" fill="#38bdf8" />
+  <!-- Professional HRMS Emblem: Geometric Connected 'R' -->
+  <g filter="url(#subtleShadow)">
+    <path fill-rule="evenodd" fill="url(#rGrad)" d="M 136 134 C 136 121.8 145.8 112 158 112 L 286 112 C 356 112 398 148 398 206 C 398 248 366 280 310 292 L 386 382 C 394 391 388 400 376 400 L 312 400 C 302 400 292 395 286 387 L 222 304 L 210 304 L 210 378 C 210 390.2 200.2 400 188 400 L 158 400 C 145.8 400 136 390.2 136 378 Z M 210 174 L 278 174 C 314 174 334 187 334 206 C 334 227 314 242 278 242 L 210 242 Z" />
+    <!-- Modern Tech Accent Connectivity Node -->
+    <circle cx="278" cy="208" r="16" fill="url(#accentGrad)" />
+    <circle cx="278" cy="208" r="7" fill="#ffffff" />
   </g>
 </svg>

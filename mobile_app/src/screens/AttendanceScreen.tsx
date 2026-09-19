@@ -55,6 +55,7 @@ export const AttendanceScreen: React.FC<AttendanceProps> = ({ onBack }) => {
   // Selfie Camera Modal States
   const [selfieModalVisible, setSelfieModalVisible] = useState(false);
   const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
+  const [capturedSelfieUri, setCapturedSelfieUri] = useState<string | null>(null);
   const [isCapturingSelfie, setIsCapturingSelfie] = useState(false);
 
   useEffect(() => {
@@ -153,15 +154,19 @@ export const AttendanceScreen: React.FC<AttendanceProps> = ({ onBack }) => {
       const result = await ImagePicker.launchCameraAsync({
         cameraType: ImagePicker.CameraType.front,
         allowsEditing: false,
-        aspect: [1, 1],
-        quality: 0.5,
+        quality: 0.3,
         base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        // Store local file URI for instantaneous native image preview
+        setCapturedSelfieUri(asset.uri);
+        // Store base64 data for the backend API payload
         const base64Str = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
         setCapturedSelfie(base64Str);
+        // Open verification modal directly with the captured photo preview
+        setSelfieModalVisible(true);
       }
     } catch (err: any) {
       console.error('Camera capture error:', err);
@@ -196,7 +201,8 @@ export const AttendanceScreen: React.FC<AttendanceProps> = ({ onBack }) => {
 
     if (attendancePolicy.require_selfie) {
       setCapturedSelfie(null);
-      setSelfieModalVisible(true);
+      setCapturedSelfieUri(null);
+      await takeSelfie();
       return;
     }
 
@@ -234,6 +240,7 @@ export const AttendanceScreen: React.FC<AttendanceProps> = ({ onBack }) => {
       const timeFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       setSelfieModalVisible(false);
       setCapturedSelfie(null);
+      setCapturedSelfieUri(null);
       setPunchedIn(!punchedIn);
       setLastPunchTime(`${punchType} at ${timeFormatted}`);
       Alert.alert('Success', `Successfully Punched ${punchType} at ${timeFormatted}`);
@@ -336,7 +343,11 @@ export const AttendanceScreen: React.FC<AttendanceProps> = ({ onBack }) => {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => setSelfieModalVisible(false)}
+                onPress={() => {
+                  setSelfieModalVisible(false);
+                  setCapturedSelfie(null);
+                  setCapturedSelfieUri(null);
+                }}
                 disabled={loading}
                 style={styles.selfieCloseBtn}
               >
@@ -346,30 +357,36 @@ export const AttendanceScreen: React.FC<AttendanceProps> = ({ onBack }) => {
 
             {/* Selfie Preview or Camera Placeholder */}
             <View style={styles.selfiePreviewContainer}>
-              {capturedSelfie ? (
-                <View style={styles.selfieImageWrapper}>
-                  <Image source={{ uri: capturedSelfie }} style={styles.selfiePreviewImage} resizeMode="cover" />
-                  <View style={styles.selfieVerifiedBadge}>
-                    <CheckCircle size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <Text style={styles.selfieVerifiedText}>Photo Captured</Text>
+              <View style={styles.selfieImageWrapper}>
+                {(capturedSelfieUri || capturedSelfie) ? (
+                  <Image
+                    source={{ uri: capturedSelfieUri || capturedSelfie! }}
+                    style={styles.selfiePreviewImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.selfiePlaceholderBox}>
+                    <View style={styles.selfieCircleCameraIcon}>
+                      <Camera size={44} color="#6366F1" />
+                    </View>
+                    <Text style={styles.selfiePlaceholderTitle}>Take a Selfie to Punch</Text>
+                    <Text style={styles.selfiePlaceholderText}>
+                      Please ensure your face is clearly visible and within good lighting.
+                    </Text>
                   </View>
-                </View>
-              ) : (
-                <View style={styles.selfiePlaceholderBox}>
-                  <View style={styles.selfieCircleCameraIcon}>
-                    <Camera size={44} color="#6366F1" />
-                  </View>
-                  <Text style={styles.selfiePlaceholderTitle}>Take a Selfie to Punch</Text>
-                  <Text style={styles.selfiePlaceholderText}>
-                    Please ensure your face is clearly visible and within good lighting.
-                  </Text>
+                )}
+              </View>
+              {(capturedSelfieUri || capturedSelfie) && (
+                <View style={styles.selfieSuccessBar}>
+                  <CheckCircle size={15} color="#059669" style={{ marginRight: 6 }} />
+                  <Text style={styles.selfieSuccessText}>Selfie captured successfully</Text>
                 </View>
               )}
             </View>
 
             {/* Actions */}
             <View style={styles.selfieActionRow}>
-              {capturedSelfie ? (
+              {(capturedSelfieUri || capturedSelfie) ? (
                 <>
                   <TouchableOpacity
                     style={styles.selfieRetakeBtn}
@@ -637,29 +654,31 @@ const styles = StyleSheet.create({
   },
   selfieImageWrapper: {
     width: '100%',
-    height: 230,
+    height: 240,
     borderRadius: 18,
     overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#000000',
+    backgroundColor: '#0F172A',
   },
   selfiePreviewImage: {
     width: '100%',
-    height: '100%',
+    height: 240,
+    borderRadius: 18,
   },
-  selfieVerifiedBadge: {
-    position: 'absolute',
-    bottom: 10,
-    alignSelf: 'center',
+  selfieSuccessBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.92)',
+    justifyContent: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingVertical: 7,
+    borderRadius: 12,
+    marginTop: 10,
+    width: '100%',
   },
-  selfieVerifiedText: {
-    color: '#FFFFFF',
+  selfieSuccessText: {
+    color: '#065F46',
     fontSize: 12,
     fontWeight: '700',
   },

@@ -182,16 +182,16 @@ export default function CustomDatePicker({
       {/* Input Trigger */}
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between rounded-[11px] border border-[#d0d5dd] dark:border-white/[0.1] bg-[#fcfcfd] dark:bg-white/[0.035] px-3 py-2.5 text-[12.5px] cursor-pointer outline-none transition-all duration-200 ${
+        className={`w-full flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40 px-3.5 py-2.5 text-xs cursor-pointer outline-none transition-all duration-200 ${
           disabled ? 'opacity-50 cursor-not-allowed' : ''
-        } ${isOpen ? 'border-brand-600 ring-4 ring-brand-600/10 bg-card' : 'hover:border-[#b9c0cc] dark:hover:border-white/20'}`}
+        } ${isOpen ? 'border-blue-500 ring-4 ring-blue-500/10 bg-card' : ''}`}
       >
         <div className="flex items-center gap-2">
           {/* Calendar Left Icon */}
           <svg className="w-4 h-4 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
           </svg>
-          <span className={value ? 'text-slate-800 dark:text-slate-200 font-medium' : 'text-slate-400 dark:text-slate-500'}>
+          <span className={value ? 'text-slate-800 dark:text-slate-200 font-semibold' : 'text-slate-400 dark:text-slate-550'}>
             {value ? displayFormattedDate(value) : placeholder}
           </span>
         </div>
@@ -202,7 +202,7 @@ export default function CustomDatePicker({
               e.stopPropagation();
               onChange('');
             }}
-            className="flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -213,13 +213,13 @@ export default function CustomDatePicker({
 
       {/* Calendar Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 z-50 mt-2 w-[280px] rounded-xl border border-[#e4e7ec] dark:border-white/[0.08] bg-card p-4 shadow-[0_16px_40px_-12px_rgba(16,24,40,0.24)] dark:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)] animate-fadeIn">
+        <div className="absolute left-0 z-50 mt-2 w-[280px] rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-4 shadow-xl dark:shadow-slate-950/75 animate-fadeIn">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -230,7 +230,7 @@ export default function CustomDatePicker({
               <select
                 value={month}
                 onChange={(e) => setViewMonth(new Date(year, parseInt(e.target.value), 1))}
-                className="calendar-select cursor-pointer"
+                className="bg-transparent font-black text-xs text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 px-1.5 py-1 rounded-lg"
               >
                 {monthsList.map((m, idx) => (
                   <option key={m} value={idx} className="bg-card text-slate-800 dark:text-slate-200">
@@ -242,7 +242,7 @@ export default function CustomDatePicker({
               <select
                 value={year}
                 onChange={(e) => setViewMonth(new Date(parseInt(e.target.value), month, 1))}
-                className="calendar-select cursor-pointer"
+                className="bg-transparent font-black text-xs text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 px-1.5 py-1 rounded-lg"
               >
                 {yearsRange.map((y) => (
                   <option key={y} value={y} className="bg-card text-slate-800 dark:text-slate-200">
@@ -255,7 +255,7 @@ export default function CustomDatePicker({
             <button
               type="button"
               onClick={handleNextMonth}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -266,7 +266,7 @@ export default function CustomDatePicker({
           {/* Weekday headers */}
           <div className="grid grid-cols-7 gap-1 text-center mb-1">
             {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-              <span key={day} className="text-[10px] font-semibold uppercase text-slate-400 dark:text-slate-500 tracking-[0.06em]">
+              <span key={day} className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
                 {day}
               </span>
             ))}
@@ -285,17 +285,17 @@ export default function CustomDatePicker({
                   type="button"
                   disabled={isDisabled}
                   onClick={() => !isDisabled && handleDaySelect(cell.date)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-colors font-sans mx-auto ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs transition-all font-sans mx-auto ${
                     isDisabled
                       ? 'opacity-20 cursor-not-allowed text-slate-300 dark:text-slate-700'
                       : cell.isCurrentMonth
-                      ? 'font-medium text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/[0.06]'
-                      : 'text-slate-300 dark:text-slate-600 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/[0.06]'
+                      ? 'font-bold text-slate-800 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80'
+                      : 'text-slate-300 dark:text-slate-650 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80'
                   } ${
                     selected && !isDisabled
-                      ? 'bg-brand-600 text-white font-semibold hover:bg-brand-700'
+                      ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700'
                       : today && !isDisabled
-                      ? 'border border-brand-500 text-brand-600 dark:text-brand-400 font-semibold'
+                      ? 'border border-blue-500 text-blue-600 dark:text-blue-400 font-extrabold'
                       : ''
                   }`}
                 >
@@ -306,11 +306,11 @@ export default function CustomDatePicker({
           </div>
 
           {/* Bottom Actions */}
-          <div className="flex items-center justify-between border-t border-[#eaecf0] dark:border-white/[0.06] mt-3 pt-2.5">
+          <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 mt-3 pt-2.5">
             <button
               type="button"
               onClick={handleClear}
-              className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-rose-500 hover:text-rose-600 cursor-pointer transition-colors"
+              className="text-[10.5px] font-black uppercase tracking-wider text-red-500 hover:text-red-600 cursor-pointer"
             >
               Clear
             </button>
@@ -318,11 +318,11 @@ export default function CustomDatePicker({
               type="button"
               disabled={!!(maxDate && isDateDisabled(new Date()))}
               onClick={handleToday}
-              className={`text-[10.5px] font-semibold uppercase tracking-[0.06em] ${
+              className={`text-[10.5px] font-black uppercase tracking-wider ${
                 !!(maxDate && isDateDisabled(new Date()))
                   ? 'opacity-30 cursor-not-allowed text-slate-400'
-                  : 'text-brand-600 hover:text-brand-700 dark:text-brand-400 cursor-pointer'
-              } transition-colors`}
+                  : 'text-blue-650 hover:text-blue-750 cursor-pointer'
+              }`}
             >
               Today
             </button>

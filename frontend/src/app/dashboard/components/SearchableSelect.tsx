@@ -61,15 +61,15 @@ export default function SearchableSelect({
       {/* Select Trigger element */}
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between rounded-[11px] border bg-white dark:bg-white/[0.035] border-[#d0d5dd] dark:border-white/[0.1] px-3 py-2.5 text-[12.5px] font-medium text-slate-800 dark:text-slate-100 cursor-pointer outline-none transition-all duration-200 ${
-          disabled ? 'opacity-50 cursor-not-allowed' : ''
-        } ${isOpen ? 'border-brand-600 ring-4 ring-brand-600/10' : 'hover:border-[#b9c0cc] dark:hover:border-white/20'}`}
+        className={`w-full min-h-[42px] flex items-center justify-between rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 cursor-pointer outline-none transition-all duration-200 shadow-xs ${
+          disabled ? 'opacity-50 cursor-not-allowed border-slate-200 dark:border-slate-800' : 'hover:border-slate-400 dark:hover:border-slate-600'
+        } ${isOpen ? 'border-[#07518a] ring-4 ring-[#07518a]/15 bg-white dark:bg-slate-900' : ''}`}
       >
-        <span className={selectedOption ? 'text-slate-800 dark:text-slate-100 font-semibold truncate' : 'text-slate-400 dark:text-slate-500 font-normal truncate'}>
+        <span className={selectedOption ? 'text-slate-900 dark:text-slate-100 font-bold truncate' : 'text-slate-400 dark:text-slate-500 font-semibold truncate'}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <svg
-          className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200 shrink-0 ml-1 ${isOpen ? 'rotate-180 text-brand-600 dark:text-brand-400' : ''}`}
+          className={`w-4 h-4 text-slate-500 transition-transform duration-200 shrink-0 ml-1 ${isOpen ? 'rotate-180 text-[#07518a]' : ''}`}
           fill="none"
           stroke="currentColor"
           strokeWidth="2.5"
@@ -81,7 +81,7 @@ export default function SearchableSelect({
 
       {/* Dropdown Card panel */}
       {isOpen && (
-        <div className="absolute left-0 right-0 z-[100] mt-1.5 rounded-xl border border-[#e4e7ec] dark:border-white/[0.08] bg-card p-2 shadow-[0_16px_40px_-12px_rgba(16,24,40,0.24)] dark:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)] animate-fadeIn max-h-60 flex flex-col">
+        <div className="absolute left-0 right-0 z-[100] mt-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-2xl dark:shadow-slate-950/80 animate-fadeIn max-h-60 flex flex-col">
           {/* Filter Search Input box */}
           <div className="relative mb-1.5 flex-shrink-0 flex items-center">
             <input
@@ -90,7 +90,7 @@ export default function SearchableSelect({
               placeholder="Search..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="!pl-9 !pr-8 w-full text-xs"
+              className="!pl-9 !pr-8 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-800/80 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 outline-none focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/15 transition-all font-semibold"
             />
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 pointer-events-none"
@@ -108,7 +108,7 @@ export default function SearchableSelect({
                   e.stopPropagation();
                   setSearchTerm('');
                 }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all cursor-pointer"
                 title="Clear search"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -130,19 +130,19 @@ export default function SearchableSelect({
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className={`px-3 py-2 rounded-lg text-xs transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                     opt.disabled
-                      ? 'opacity-60 cursor-not-allowed text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-white/[0.03] font-medium'
+                      ? 'opacity-60 cursor-not-allowed text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/40'
                       : opt.value === value
-                      ? 'bg-brand-600 text-white font-semibold cursor-pointer'
-                      : 'text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-white/[0.05] cursor-pointer'
+                      ? 'bg-[#07518a] text-white shadow-xs cursor-pointer'
+                      : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'
                   }`}
                 >
                   {opt.label}
                 </div>
               ))
             ) : (
-              <div className="px-3 py-2 text-center text-xs text-slate-400 dark:text-slate-500 font-normal">
+              <div className="px-3 py-2 text-center text-xs text-slate-400 dark:text-slate-500 font-medium">
                 No matching results
               </div>
             )}

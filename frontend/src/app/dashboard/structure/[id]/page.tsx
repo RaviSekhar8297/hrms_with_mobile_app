@@ -664,7 +664,7 @@ export default function EditSalaryStructurePage() {
   });
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="structure-detail-container font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full text-left pb-16">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="structure-detail-container font-['DM_Sans',sans-serif] space-y-4 animate-fadeIn w-full text-left">
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet" />
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
@@ -683,7 +683,7 @@ export default function EditSalaryStructurePage() {
       `}} />
 
       <DashboardPageHeader
-        title={isCreateMode ? 'Create New Salary Structure' : `Edit Salary Structure — ${activeForm.empId}`}
+        title={isCreateMode ? "Add New Salary Structure" : `Edit Structure - ${activeForm.name || 'Employee'}`}
         actionMessage=""
         actionError=""
         companies={companies}
@@ -718,7 +718,7 @@ export default function EditSalaryStructurePage() {
             <button
               onClick={handleSave}
               disabled={saving || (!activeForm.empId && isCreateMode)}
-              className="px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-md shadow-indigo-500/25 disabled:opacity-50"
+              className="px-6 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-md shadow-[#07518a]/25 disabled:opacity-50"
             >
               {saving ? (
                 <>
@@ -766,7 +766,7 @@ export default function EditSalaryStructurePage() {
             onClick={() => setEntryTab('single')}
             className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
               entryTab === 'single'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/20'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -780,7 +780,7 @@ export default function EditSalaryStructurePage() {
             onClick={() => setEntryTab('bulk')}
             className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
               entryTab === 'bulk'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/20'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -793,15 +793,17 @@ export default function EditSalaryStructurePage() {
       )}
 
       {loading ? (
-        <div className="py-20 text-center space-y-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800">
-          <div className="w-10 h-10 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-500">Loading salary structure configuration...</p>
+        <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800">
+          <div className="flex flex-col items-center justify-center gap-2.5">
+            <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading salary structure configuration...</span>
+          </div>
         </div>
       ) : entryTab === 'bulk' ? (
         /* BULK UPLOAD TAB VIEW */
-        <div className="space-y-6">
-          <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+        <div className="space-y-4">
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <h3 className="text-sm font-black uppercase text-slate-900 dark:text-slate-100 tracking-wider">
                   Bulk Salary Structures CSV Upload
@@ -814,7 +816,7 @@ export default function EditSalaryStructurePage() {
               <button
                 type="button"
                 onClick={handleDownloadSampleCSV}
-                className="px-4 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 text-xs font-extrabold hover:bg-indigo-100 transition-all cursor-pointer flex items-center gap-2 shrink-0 shadow-2xs"
+                className="px-4 py-2.5 rounded-xl border border-[#07518a]/30 dark:border-[#07518a]/40 bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] text-xs font-extrabold hover:bg-[#07518a] hover:text-white transition-all cursor-pointer flex items-center gap-2 shrink-0 shadow-2xs"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 12L12 16.5m0 0l4.5-4.5M12 16.5V3" />
@@ -1077,7 +1079,7 @@ export default function EditSalaryStructurePage() {
                       }}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         salaryInputMode === 'annum'
-                          ? 'bg-indigo-600 text-white shadow-xs'
+                          ? 'bg-[#07518a] text-white shadow-xs'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                       }`}
                     >
@@ -1091,7 +1093,7 @@ export default function EditSalaryStructurePage() {
                       }}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         salaryInputMode === 'month'
-                          ? 'bg-indigo-600 text-white shadow-xs'
+                          ? 'bg-[#07518a] text-white shadow-xs'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                       }`}
                     >
@@ -1452,7 +1454,7 @@ export default function EditSalaryStructurePage() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-indigo-500/25 disabled:opacity-50"
+                  className="w-full py-3 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-[#07518a]/25 disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : 'Save Salary Structure'}
                 </button>

@@ -1203,7 +1203,7 @@ app.get('/api/v1/companies', auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     try {
         if (isSuperAdmin) {
-            const result = await (0, db_1.query)('SELECT id, name, company_code, subdomain, domain, branding_logo, status, established_date, created_at FROM hrms.companies ORDER BY name ASC');
+            const result = await (0, db_1.query)('SELECT id, name, company_code, subdomain, domain, branding_logo, status, established_date, created_at FROM hrms.companies ORDER BY created_at ASC');
             return res.json({ companies: result.rows });
         }
         const userCompanyId = req.user?.companyId;
@@ -5627,6 +5627,9 @@ app.post('/api/v1/attendance/permissions', auth_1.authenticateToken, async (req,
     if (!companyId || !employee_id || !permission_type || !permission_date || !from_time || !to_time || !duration_minutes || !reason) {
         return res.status(400).json({ error: 'Required fields missing' });
     }
+    if (typeof reason === 'string' && reason.trim().length > 100) {
+        return res.status(400).json({ error: 'Reason must not exceed 100 characters' });
+    }
     try {
         const empCheck = await (0, db_1.query)('SELECT id FROM hrms.employees WHERE id = $1 AND company_id = $2', [employee_id, companyId]);
         if (empCheck.rows.length === 0)
@@ -5729,6 +5732,9 @@ app.put('/api/v1/attendance/permissions/:id', auth_1.authenticateToken, async (r
     const { permission_type, permission_date, from_time, to_time, duration_minutes, reason } = req.body;
     if (!permission_type || !permission_date || !from_time || !to_time || !duration_minutes || !reason) {
         return res.status(400).json({ error: 'Required fields missing' });
+    }
+    if (typeof reason === 'string' && reason.trim().length > 100) {
+        return res.status(400).json({ error: 'Reason cannot exceed 100 characters' });
     }
     try {
         const existingRes = await (0, db_1.query)('SELECT pr.*, e.email as emp_email FROM hrms.permission_requests pr JOIN hrms.employees e ON pr.employee_id = e.id WHERE pr.id = $1', [id]);

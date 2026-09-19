@@ -340,7 +340,7 @@ export default function OnboardingDashboard() {
             <button
               type="button"
               onClick={() => setIsInviteModalOpen(true)}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl flex items-center gap-2 transition-all cursor-pointer border-0 whitespace-nowrap"
+              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/20 flex items-center gap-2 transition-all cursor-pointer border-0 active:scale-95 whitespace-nowrap"
             >
               <span className="text-sm font-black">+</span>
               <span>Direct Candidate Invite</span>
@@ -533,9 +533,9 @@ export default function OnboardingDashboard() {
           <div className="relative w-full max-w-[520px] bg-white dark:bg-slate-900 h-full shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col animate-slideInRight">
             
             {/* DRAWER HEADER */}
-            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-[#fafbfc] dark:bg-slate-900">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-900 dark:to-slate-850">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl shadow-sm">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center text-xl font-bold shadow-md">
                   🚀
                 </div>
                 <div>
@@ -623,7 +623,7 @@ export default function OnboardingDashboard() {
                       onClick={() => setInviteForm({ ...inviteForm, candidate_type: 'EXPERIENCED' })}
                       className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
                         inviteForm.candidate_type === 'EXPERIENCED'
-                          ? 'bg-indigo-600 text-white shadow-sm'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 scale-[1.01]'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold'
                       }`}
                     >
@@ -635,7 +635,7 @@ export default function OnboardingDashboard() {
                       onClick={() => setInviteForm({ ...inviteForm, candidate_type: 'FRESHER' })}
                       className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
                         inviteForm.candidate_type === 'FRESHER'
-                          ? 'bg-indigo-600 text-white shadow-sm'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 scale-[1.01]'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold'
                       }`}
                     >

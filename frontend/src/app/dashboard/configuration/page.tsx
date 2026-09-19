@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import DashboardPageHeader from '../components/DashboardPageHeader';
 import { useDashboard } from '../components/DashboardContext';
 
 export default function GlobalConfigurationPage() {
@@ -410,7 +409,7 @@ export default function GlobalConfigurationPage() {
   };
 
   return (
-    <div style={{ fontFamily: '"DM Sans", sans-serif' }} className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-y-auto">
+    <div className="space-y-3.5 sm:space-y-4 animate-fadeIn w-full relative">
       
       {/* 🔔 FLOATING TOAST NOTIFICATIONS */}
       {toast && (
@@ -456,187 +455,172 @@ export default function GlobalConfigurationPage() {
         </div>
       )}
 
-      {/* PAGE HEADER */}
-      <div className="px-8 pt-6 pb-2">
-        <DashboardPageHeader
-          title="Talent & Operations Configuration"
-          companies={companies}
-          companyId={selectedCompanyId}
-          handleCompanyChange={(id) => setSelectedCompanyId(id)}
-          isSuperAdmin={isSuperAdmin}
-          hideCompanySelect={!isSuperAdmin}
-        />
+      {/* HERO BANNER & QUICK METRICS */}
+      <div className="relative rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-4 sm:p-5 md:p-6 shadow-xs overflow-hidden flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-5">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#07518a] via-blue-600 to-sky-500 opacity-90" />
+        
+        <div className="space-y-1 text-left">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8] bg-[#07518a]/10 dark:bg-[#07518a]/20 px-2 py-0.5 rounded-full border border-[#07518a]/20">
+              System Control Console
+            </span>
+            <span className="text-[9px] sm:text-[9.5px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">• Communications & Triggers</span>
+          </div>
+          <h2 className="text-sm sm:text-base md:text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+            Company Communication Configurations ⚙️
+          </h2>
+          <p className="text-[11.5px] sm:text-xs font-normal text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
+            Manage corporate Email SMTP gateways, Meta WhatsApp API keys, broadcast campaign templates, and automated candidate notification rules.
+          </p>
+        </div>
+
+        {/* KPI COUNTERS */}
+        <div className="grid grid-cols-1 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
+          <div className="bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-3 py-2 rounded-xl text-left shadow-2xs transition-all hover:border-blue-300 dark:hover:border-blue-700">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#07518a]"></div>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Email Gateway</span>
+            </div>
+            <div className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-0.5 flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${integrations.find(d => d.provider === 'SMTP')?.is_active ? 'bg-emerald-500 animate-pulse shadow-xs shadow-emerald-500/50' : 'bg-slate-400'}`} />
+              {integrations.find(d => d.provider === 'SMTP')?.is_active ? 'Active' : 'Not Configured'}
+            </div>
+          </div>
+
+          <div className="bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-3 py-2 rounded-xl text-left shadow-2xs transition-all hover:border-emerald-300 dark:hover:border-emerald-700">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Whatsap Gateway</span>
+            </div>
+            <div className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-0.5 flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'bg-emerald-500 animate-pulse shadow-xs shadow-emerald-500/50' : 'bg-slate-400'}`} />
+              {integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'Connected' : 'Offline'}
+            </div>
+          </div>
+
+          <div className="bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-3 py-2 rounded-xl text-left shadow-2xs transition-all hover:border-indigo-300 dark:hover:border-indigo-700">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Templates</span>
+            </div>
+            <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">
+              {campaigns.length} Configured
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* MAIN CONTENT AREA */}
-      <div className="px-8 py-4 space-y-6">
+      {/* NAVIGATION TABS */}
+      <div className="flex overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 bg-white dark:bg-slate-900 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+        {canViewEmail && (
+          <button 
+            onClick={() => setActiveTab('email')} 
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'email' 
+                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.01]' 
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Email Gateway
+          </button>
+        )}
         
-        {/* HERO BANNER & QUICK METRICS */}
-        <div className="relative rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 md:p-8 shadow-xs overflow-hidden flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 opacity-90" />
-          
-          <div className="space-y-2 text-left">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-3 py-1 rounded-full border border-blue-200/60 dark:border-blue-900/40">
-                System Control Console
-              </span>
-              <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">• Communications & Triggers</span>
+        {canViewWhatsapp && (
+          <button 
+            onClick={() => setActiveTab('whatsapp')} 
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'whatsapp' 
+                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.01]' 
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Whatsap Gateway
+          </button>
+        )}
+
+        {canViewCampaigns && (
+          <button 
+            onClick={() => setActiveTab('campaigns')} 
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'campaigns' 
+                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.01]' 
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.684A1.001 1.001 0 014.5 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.5c.4 0 .762.238.916.606l.02.048" />
+            </svg>
+            Broadcast Campaigns
+          </button>
+        )}
+
+        {canViewRules && (
+          <button 
+            onClick={() => setActiveTab('rules')} 
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'rules' 
+                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.01]' 
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Notification Rules
+          </button>
+        )}
+      </div>
+
+      {/* TAB 1: EMAIL SMTP CONFIGURATION */}
+      {activeTab === 'email' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-xs text-left space-y-4 sm:space-y-5">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pb-3.5 sm:pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Corporate SMTP Mail Gateway</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/60">
+                  {smtpList.length} Server{smtpList.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
+                Connect your corporate email provider (e.g. Gmail, Outlook, AWS SES) to send automated candidate notifications.
+              </p>
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
-              Company Communication Configurations ⚙️
-            </h2>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
-              Manage corporate Email SMTP gateways, Meta WhatsApp API keys, broadcast campaign templates, and automated candidate notification rules.
-            </p>
+            <button 
+              onClick={openNewSmtpModal}
+              className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#07518a]/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Configure New SMTP
+            </button>
           </div>
 
-          {/* KPI COUNTERS */}
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <div className="bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-4 py-3 rounded-2xl text-left shadow-2xs transition-all hover:border-blue-300 dark:hover:border-blue-700">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Email Gateway</span>
-              </div>
-              <div className="text-sm font-extrabold text-slate-900 dark:text-white mt-1 flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${integrations.find(d => d.provider === 'SMTP')?.is_active ? 'bg-emerald-500 animate-pulse shadow-xs shadow-emerald-500/50' : 'bg-slate-400'}`} />
-                {integrations.find(d => d.provider === 'SMTP')?.is_active ? 'Active' : 'Not Configured'}
-              </div>
-            </div>
-
-            <div className="bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-4 py-3 rounded-2xl text-left shadow-2xs transition-all hover:border-emerald-300 dark:hover:border-emerald-700">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">WhatsApp API</span>
-              </div>
-              <div className="text-sm font-extrabold text-slate-900 dark:text-white mt-1 flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'bg-emerald-500 animate-pulse shadow-xs shadow-emerald-500/50' : 'bg-slate-400'}`} />
-                {integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'Connected' : 'Offline'}
-              </div>
-            </div>
-
-            <div className="bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-4 py-3 rounded-2xl text-left shadow-2xs transition-all hover:border-indigo-300 dark:hover:border-indigo-700">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Templates</span>
-              </div>
-              <div className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">
-                {campaigns.length} Configured
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* NAVIGATION TABS */}
-        <div className="flex overflow-x-auto no-scrollbar gap-2 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-          {canViewEmail && (
-            <button 
-              onClick={() => setActiveTab('email')} 
-              className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                activeTab === 'email' 
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25 scale-[1.01]' 
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Email SMTP Gateway
-            </button>
-          )}
-          
-          {canViewWhatsapp && (
-            <button 
-              onClick={() => setActiveTab('whatsapp')} 
-              className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                activeTab === 'whatsapp' 
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 scale-[1.01]' 
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              WhatsApp Business API
-            </button>
-          )}
-
-          {canViewCampaigns && (
-            <button 
-              onClick={() => setActiveTab('campaigns')} 
-              className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                activeTab === 'campaigns' 
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 scale-[1.01]' 
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.684A1.001 1.001 0 014.5 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.5c.4 0 .762.238.916.606l.02.048" />
-              </svg>
-              Broadcast Campaigns
-            </button>
-          )}
-
-          {canViewRules && (
-            <button 
-              onClick={() => setActiveTab('rules')} 
-              className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                activeTab === 'rules' 
-                  ? 'bg-violet-600 text-white shadow-md shadow-violet-600/25 scale-[1.01]' 
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Notification Rules
-            </button>
-          )}
-        </div>
-
-        {/* TAB 1: EMAIL SMTP CONFIGURATION */}
-        {activeTab === 'email' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs text-left space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Corporate SMTP Mail Gateway</h3>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/60">
-                    {smtpList.length} Server{smtpList.length === 1 ? '' : 's'}
-                  </span>
-                </div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
-                  Connect your corporate email provider (e.g. Gmail, Outlook, AWS SES) to send automated candidate notifications.
-                </p>
-              </div>
-              <button 
-                onClick={openNewSmtpModal}
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-2 shrink-0"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Configure New SMTP
-              </button>
-            </div>
-
-            {smtpList.length > 0 ? (
-              <div className="space-y-4">
+          {smtpList.length > 0 ? (
+            <div className="space-y-3 sm:space-y-3.5">
                 {smtpList.map((acc: any, idx: number) => (
                   <div 
                     key={acc.id || idx} 
-                    className="p-6 border border-slate-200/80 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/90 hover:border-blue-400/50 dark:hover:border-blue-700/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group"
+                    className="p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900/90 hover:border-blue-400/50 dark:hover:border-blue-700/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-6 group"
                   >
-                    <div className="flex items-start sm:items-center gap-4.5 flex-1 min-w-0">
+                    <div className="flex items-start sm:items-center gap-3.5 sm:gap-4.5 flex-1 min-w-0">
                       {/* SLEEK ICON CONTAINER */}
-                      <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-indigo-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200/70 dark:border-blue-900/60 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-indigo-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200/70 dark:border-blue-900/60 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                         </svg>
                       </div>
 
-                      <div className="space-y-2 flex-1 min-w-0">
+                      <div className="space-y-1.5 sm:space-y-2 flex-1 min-w-0">
                         {/* TITLE & TOGGLE SWITCH ROW */}
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                           <h4 className="font-black text-sm text-slate-900 dark:text-white tracking-tight">
                             Mail Gateway {smtpList.length > 1 ? `#${idx + 1}` : ''}
                           </h4>
@@ -645,14 +629,14 @@ export default function GlobalConfigurationPage() {
                           <button
                             type="button"
                             onClick={() => handleToggleSmtpAccount(acc)}
-                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            className={`relative inline-flex h-5.5 w-10 sm:h-6 sm:w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                               acc.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
                             }`}
                             title={acc.is_active ? 'Click to Disable' : 'Click to Enable'}
                           >
                             <span
-                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                                acc.is_active ? 'translate-x-5' : 'translate-x-0'
+                              className={`pointer-events-none inline-block h-4.5 w-4.5 sm:h-5 sm:w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                acc.is_active ? 'translate-x-4.5 sm:translate-x-5' : 'translate-x-0'
                               }`}
                             />
                           </button>
@@ -669,18 +653,18 @@ export default function GlobalConfigurationPage() {
                         </div>
 
                         {/* METADATA PILLS */}
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 rounded-xl text-slate-700 dark:text-slate-300 font-medium">
-                            <span className="text-[10px] font-extrabold uppercase text-slate-400">From:</span>
-                            <span className="font-extrabold text-slate-900 dark:text-white">{acc.from_email || acc.smtp_username || 'Not specified'}</span>
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 rounded-lg sm:rounded-xl text-slate-700 dark:text-slate-300 font-medium text-[11px] sm:text-xs">
+                            <span className="text-[9.5px] sm:text-[10px] font-extrabold uppercase text-slate-400">From:</span>
+                            <span className="font-extrabold text-slate-900 dark:text-white truncate max-w-[160px] sm:max-w-none">{acc.from_email || acc.smtp_username || 'Not specified'}</span>
                           </span>
 
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 rounded-xl text-slate-700 dark:text-slate-300 font-medium">
-                            <span className="text-[10px] font-extrabold uppercase text-slate-400">Server:</span>
-                            <span className="font-extrabold text-slate-900 dark:text-white">{acc.smtp_host || 'Not set'}</span>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 rounded-lg sm:rounded-xl text-slate-700 dark:text-slate-300 font-medium text-[11px] sm:text-xs">
+                            <span className="text-[9.5px] sm:text-[10px] font-extrabold uppercase text-slate-400">Server:</span>
+                            <span className="font-extrabold text-slate-900 dark:text-white truncate max-w-[140px] sm:max-w-none">{acc.smtp_host || 'Not set'}</span>
                           </span>
 
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50/70 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-900/60 rounded-xl text-blue-700 dark:text-blue-300 font-bold text-[10.5px]">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-blue-50/70 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-900/60 rounded-lg sm:rounded-xl text-blue-700 dark:text-blue-300 font-bold text-[10px] sm:text-[10.5px]">
                             ⚡ {acc.encryption_type || 'TLS'}
                           </span>
                         </div>
@@ -688,20 +672,20 @@ export default function GlobalConfigurationPage() {
                     </div>
 
                     {/* ACTION BUTTONS */}
-                    <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center w-full md:w-auto">
+                    <div className="flex items-center gap-2 shrink-0 self-end md:self-center w-full md:w-auto">
                       <button 
                         onClick={() => openEditSmtpModal(acc)}
-                        className="flex-1 md:flex-none px-4 py-2 bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/60 hover:text-blue-600 dark:hover:text-blue-400 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                        className="flex-1 md:flex-none px-3.5 sm:px-4 py-2 bg-slate-50 dark:bg-slate-800 hover:bg-[#07518a]/10 dark:hover:bg-[#07518a]/20 hover:text-[#07518a] dark:hover:text-[#38bdf8] text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                         </svg>
-                        Edit Credentials
+                        Edit
                       </button>
 
                       <button 
                         onClick={() => setDeleteConfirm({ id: acc.id || 'smtp', type: 'email', provider: 'SMTP' })}
-                        className="px-3.5 py-2 bg-rose-50/80 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl border border-rose-200/80 dark:border-rose-900/60 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                        className="px-3 sm:px-3.5 py-2 bg-rose-50/80 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl border border-rose-200/80 dark:border-rose-900/60 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                         title="Delete Gateway"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -714,9 +698,9 @@ export default function GlobalConfigurationPage() {
                 ))}
               </div>
             ) : (
-              <div className="p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center bg-slate-50/40 dark:bg-slate-900/40 space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto border border-blue-100 dark:border-blue-900/60 shadow-xs">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+              <div className="p-8 sm:p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl text-center bg-slate-50/40 dark:bg-slate-900/40 space-y-3 sm:space-y-4">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto border border-blue-100 dark:border-blue-900/60 shadow-xs">
+                  <svg className="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                   </svg>
                 </div>
@@ -728,7 +712,7 @@ export default function GlobalConfigurationPage() {
                 </div>
                 <button 
                   onClick={openNewSmtpModal}
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer inline-flex items-center gap-2 mt-2"
+                  className="px-5 sm:px-6 py-2 sm:py-2.5 bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#07518a]/20 active:scale-95 transition-all cursor-pointer inline-flex items-center gap-2 mt-2"
                 >
                   <span>➕</span> Configure SMTP Server
                 </button>
@@ -739,8 +723,8 @@ export default function GlobalConfigurationPage() {
 
         {/* TAB 2: WHATSAPP GATEWAY */}
         {activeTab === 'whatsapp' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs text-left space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-xs text-left space-y-3.5 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pb-3.5 sm:pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white">WhatsApp Business API Integration</h3>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
@@ -749,7 +733,7 @@ export default function GlobalConfigurationPage() {
               </div>
               <button 
                 onClick={() => setShowWhatsappModal(true)}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+                className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#07518a]/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -759,26 +743,26 @@ export default function GlobalConfigurationPage() {
             </div>
 
             {integrations.find(d => d.provider === 'WHATSAPP') ? (
-              <div className="p-6 border border-slate-200/80 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/90 hover:border-emerald-400/50 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group">
-                <div className="flex items-center gap-4.5">
-                  <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-teal-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/70 dark:border-emerald-900/60 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <div className="p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900/90 hover:border-emerald-400/50 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-6 group">
+                <div className="flex items-start sm:items-center gap-3.5 sm:gap-4.5 flex-1 min-w-0">
+                  <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-teal-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/70 dark:border-emerald-900/60 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.596.596 0 01-.743-.65l.362-2.71A8.136 8.136 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                     </svg>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <h4 className="font-black text-sm text-slate-900 dark:text-white">Meta WhatsApp Gateway</h4>
+                  <div className="space-y-1.5 sm:space-y-2 flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                      <h4 className="font-black text-sm text-slate-900 dark:text-white tracking-tight">Meta WhatsApp Gateway</h4>
                       <button
                         type="button"
                         onClick={() => handleToggleIntegration('WHATSAPP', integrations.find(d => d.provider === 'WHATSAPP')?.is_active)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        className={`relative inline-flex h-5.5 w-10 sm:h-6 sm:w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                           integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
                         }`}
                       >
                         <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'translate-x-5' : 'translate-x-0'
+                          className={`pointer-events-none inline-block h-4.5 w-4.5 sm:h-5 sm:w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'translate-x-4.5 sm:translate-x-5' : 'translate-x-0'
                           }`}
                         />
                       </button>
@@ -792,33 +776,33 @@ export default function GlobalConfigurationPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 rounded-xl text-slate-700 dark:text-slate-300 text-xs">
-                        <span className="text-[10px] font-extrabold uppercase text-slate-400">Endpoint:</span>
-                        <span className="font-extrabold text-slate-900 dark:text-white truncate max-w-md">{whatsappCreds.url || 'Not set'}</span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 rounded-lg sm:rounded-xl text-slate-700 dark:text-slate-300 text-xs">
+                        <span className="text-[9.5px] sm:text-[10px] font-extrabold uppercase text-slate-400">Endpoint:</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white truncate max-w-[200px] sm:max-w-md">{whatsappCreds.url || 'Not set'}</span>
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 self-end md:self-center w-full md:w-auto">
                   <button 
                     onClick={() => setShowWhatsappModal(true)}
-                    className="px-4 py-2 bg-slate-50 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 hover:text-emerald-600 dark:hover:text-emerald-400 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="flex-1 md:flex-none px-3.5 sm:px-4 py-2 bg-slate-50 dark:bg-slate-800 hover:bg-[#07518a]/10 dark:hover:bg-[#07518a]/20 hover:text-[#07518a] dark:hover:text-[#38bdf8] text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     Edit Credentials
                   </button>
                   <button 
                     onClick={() => setDeleteConfirm({ id: 'whatsapp', type: 'whatsapp', provider: 'WHATSAPP' })}
-                    className="px-3.5 py-2 bg-rose-50/80 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl border border-rose-200/80 dark:border-rose-900/60 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-3 sm:px-3.5 py-2 bg-rose-50/80 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl border border-rose-200/80 dark:border-rose-900/60 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     Delete
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center bg-slate-50/40 dark:bg-slate-900/40 space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-100 dark:border-emerald-900/60 shadow-xs">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+              <div className="p-8 sm:p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl text-center bg-slate-50/40 dark:bg-slate-900/40 space-y-3 sm:space-y-4">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-100 dark:border-emerald-900/60 shadow-xs">
+                  <svg className="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.596.596 0 01-.743-.65l.362-2.71A8.136 8.136 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                   </svg>
                 </div>
@@ -830,7 +814,7 @@ export default function GlobalConfigurationPage() {
                 </div>
                 <button 
                   onClick={() => setShowWhatsappModal(true)}
-                  className="px-6 py-2.5 bg-emerald-600 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer mt-2"
+                  className="px-5 sm:px-6 py-2 sm:py-2.5 bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#07518a]/20 cursor-pointer mt-2"
                 >
                   Configure WhatsApp API
                 </button>
@@ -841,8 +825,8 @@ export default function GlobalConfigurationPage() {
 
         {/* TAB 3: BROADCAST CAMPAIGNS */}
         {activeTab === 'campaigns' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs text-left space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-xs text-left space-y-3.5 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pb-3.5 sm:pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Broadcast WhatsApp Campaign Templates</h3>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
@@ -851,7 +835,7 @@ export default function GlobalConfigurationPage() {
               </div>
               <button 
                 onClick={openCreateCampaignModal}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+                className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#07518a]/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -861,9 +845,9 @@ export default function GlobalConfigurationPage() {
             </div>
 
             {campaigns.length === 0 ? (
-              <div className="p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center bg-slate-50/40 dark:bg-slate-900/40 space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto border border-indigo-100 dark:border-indigo-900/60 shadow-xs">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+              <div className="p-8 sm:p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl text-center bg-slate-50/40 dark:bg-slate-900/40 space-y-3 sm:space-y-4">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto border border-indigo-100 dark:border-indigo-900/60 shadow-xs">
+                  <svg className="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.38-.09-2.072-.09C6.44 15.75 3 17.5 3 19.5V21h10.5v-1.5c0-.663-.263-1.29-.73-1.76l-.43-.4zM16.5 13.5A3.75 3.75 0 1016.5 6a3.75 3.75 0 000 7.5z" />
                   </svg>
                 </div>
@@ -875,17 +859,17 @@ export default function GlobalConfigurationPage() {
                 </div>
                 <button 
                   onClick={openCreateCampaignModal}
-                  className="px-6 py-2.5 bg-indigo-600 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer mt-2"
+                  className="px-5 sm:px-6 py-2 sm:py-2.5 bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#07518a]/20 cursor-pointer mt-2"
                 >
                   Create Campaign Template
                 </button>
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {campaigns.map((c) => {
                   const paramKeys = getParamKeys(c);
                   return (
-                    <div key={c.id} className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-400/50 dark:hover:border-indigo-700/50 transition-all flex flex-col justify-between space-y-4 shadow-2xs hover:shadow-md group">
+                    <div key={c.id} className="p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-400/50 dark:hover:border-indigo-700/50 transition-all flex flex-col justify-between space-y-3.5 sm:space-y-4 shadow-2xs hover:shadow-md group">
                       <div>
                         <div className="flex justify-between items-start">
                           <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{c.campaign_name}</h4>
@@ -898,7 +882,7 @@ export default function GlobalConfigurationPage() {
                           </span>
                         </div>
                         <div className="mt-2 flex items-center gap-2">
-                          <span className="bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg font-mono text-[10.5px] font-bold border border-indigo-200/60 dark:border-indigo-900">
+                          <span className="bg-[#07518a]/10 text-[#07518a] dark:text-[#38bdf8] px-2.5 py-1 rounded-lg font-mono text-[10.5px] font-bold border border-[#07518a]/20">
                             {c.campaign_code}
                           </span>
                         </div>
@@ -928,7 +912,7 @@ export default function GlobalConfigurationPage() {
                       <div className="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                         <button 
                           onClick={() => openEditCampaignModal(c)}
-                          className="flex-1 py-2 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 font-extrabold rounded-xl text-xs transition-colors cursor-pointer"
+                          className="flex-1 py-2 bg-[#07518a]/10 hover:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] font-extrabold rounded-xl text-xs transition-colors cursor-pointer"
                         >
                           Edit Details & Params
                         </button>
@@ -949,8 +933,8 @@ export default function GlobalConfigurationPage() {
 
         {/* TAB 4: NOTIFICATION RULES */}
         {activeTab === 'rules' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs text-left space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-xs text-left space-y-3.5 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pb-3.5 sm:pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Automated Notification Triggers</h3>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
@@ -959,7 +943,7 @@ export default function GlobalConfigurationPage() {
               </div>
               <button 
                 onClick={() => { setCurrentRule({ email_enabled: true, whatsapp_enabled: false }); setShowRuleModal(true); }}
-                className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-extrabold rounded-xl shadow-md shadow-violet-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+                className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#07518a]/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -969,9 +953,9 @@ export default function GlobalConfigurationPage() {
             </div>
 
             {rules.length === 0 ? (
-              <div className="p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center bg-slate-50/40 dark:bg-slate-900/40 space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 flex items-center justify-center mx-auto border border-violet-100 dark:border-violet-900/60 shadow-xs">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+              <div className="p-8 sm:p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl text-center bg-slate-50/40 dark:bg-slate-900/40 space-y-3 sm:space-y-4">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-[#07518a]/10 text-[#07518a] dark:text-[#38bdf8] flex items-center justify-center mx-auto border border-[#07518a]/20 shadow-xs">
+                  <svg className="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                   </svg>
                 </div>
@@ -983,20 +967,20 @@ export default function GlobalConfigurationPage() {
                 </div>
                 <button 
                   onClick={() => { setCurrentRule({ email_enabled: true, whatsapp_enabled: false }); setShowRuleModal(true); }}
-                  className="px-6 py-2.5 bg-violet-600 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer mt-2"
+                  className="px-5 sm:px-6 py-2 sm:py-2.5 bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#07518a]/20 cursor-pointer mt-2"
                 >
                   Create Trigger Rule
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto border border-slate-200/80 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/80 dark:border-slate-800 rounded-xl sm:rounded-2xl">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800">
                     <tr>
-                      <th className="p-4 font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Module & Event Trigger</th>
-                      <th className="p-4 font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Active Channels</th>
-                      <th className="p-4 font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Associated WhatsApp Template</th>
-                      <th className="p-4 font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-right">Actions</th>
+                      <th className="p-3 sm:p-4 font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Module & Event Trigger</th>
+                      <th className="p-3 sm:p-4 font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Active Channels</th>
+                      <th className="p-3 sm:p-4 font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Associated WhatsApp Template</th>
+                      <th className="p-3 sm:p-4 font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 bg-white dark:bg-slate-900">
@@ -1004,11 +988,11 @@ export default function GlobalConfigurationPage() {
                       const camp = campaigns.find(x => x.id === r.whatsapp_campaign_id);
                       return (
                         <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="p-4">
+                          <td className="p-3 sm:p-4">
                             <div className="font-black text-slate-900 dark:text-white text-sm">{r.event_code}</div>
                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{r.module || 'RECRUITMENT'}</div>
                           </td>
-                          <td className="p-4">
+                          <td className="p-3 sm:p-4">
                             <div className="flex gap-2">
                               {r.email_enabled && (
                                 <span className="bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-lg text-[10px] font-black">
@@ -1022,12 +1006,12 @@ export default function GlobalConfigurationPage() {
                               )}
                             </div>
                           </td>
-                          <td className="p-4 font-semibold text-slate-600 dark:text-slate-400">
+                          <td className="p-3 sm:p-4 font-semibold text-slate-600 dark:text-slate-400">
                             {camp ? `${camp.campaign_name} (${camp.campaign_code})` : '-'}
                           </td>
-                          <td className="p-4 text-right">
+                          <td className="p-3 sm:p-4 text-right">
                             <div className="flex items-center justify-end gap-3">
-                              <button onClick={() => { setCurrentRule(r); setShowRuleModal(true); }} className="text-blue-600 dark:text-blue-400 font-extrabold hover:underline cursor-pointer">Edit</button>
+                              <button onClick={() => { setCurrentRule(r); setShowRuleModal(true); }} className="text-[#07518a] dark:text-[#38bdf8] font-extrabold hover:underline cursor-pointer">Edit</button>
                               <button onClick={() => setDeleteConfirm({ id: r.id, type: 'rule' })} className="text-rose-500 font-extrabold hover:underline cursor-pointer">Delete</button>
                             </div>
                           </td>
@@ -1041,8 +1025,6 @@ export default function GlobalConfigurationPage() {
           </div>
         )}
 
-      </div>
-
       {/* 🛠️ MODAL 1: SMTP SETTINGS */}
       {showSmtpModal && (
         <div className="fixed inset-0 z-50 overflow-hidden font-sans">
@@ -1051,7 +1033,7 @@ export default function GlobalConfigurationPage() {
             <div className="w-full h-full bg-white dark:bg-slate-900 flex flex-col">
               <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-blue-50/60 dark:bg-blue-950/40">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-xl bg-[#07518a] text-white flex items-center justify-center font-bold">
                     ✉️
                   </div>
                   <div>
@@ -1065,19 +1047,19 @@ export default function GlobalConfigurationPage() {
               <div className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
                 <div>
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">From Email Address</label>
-                  <input type="email" value={smtpCreds.fromEmail} onChange={e => setSmtpCreds({...smtpCreds, fromEmail: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="hr@company.com" />
+                  <input type="email" value={smtpCreds.fromEmail} onChange={e => setSmtpCreds({...smtpCreds, fromEmail: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="hr@company.com" />
                 </div>
                 <div>
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">SMTP Server Host</label>
-                  <input type="text" value={smtpCreds.smtpServer} onChange={e => setSmtpCreds({...smtpCreds, smtpServer: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="smtp.gmail.com" />
+                  <input type="text" value={smtpCreds.smtpServer} onChange={e => setSmtpCreds({...smtpCreds, smtpServer: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="smtp.gmail.com" />
                 </div>
                 <div>
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">App Password / Security Token</label>
-                  <input type="password" value={smtpCreds.password} onChange={e => setSmtpCreds({...smtpCreds, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" />
+                  <input type="password" value={smtpCreds.password} onChange={e => setSmtpCreds({...smtpCreds, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="••••••••" />
                 </div>
                 <div>
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Encryption Protocol</label>
-                  <select value={smtpCreds.smtpType} onChange={e => setSmtpCreds({...smtpCreds, smtpType: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select value={smtpCreds.smtpType} onChange={e => setSmtpCreds({...smtpCreds, smtpType: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]">
                     <option value="SSL">SSL (Port 465)</option>
                     <option value="TLS">TLS (Port 587)</option>
                     <option value="None">None (Port 25)</option>
@@ -1087,7 +1069,7 @@ export default function GlobalConfigurationPage() {
 
               <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/50 dark:bg-slate-900">
                 <button onClick={() => setShowSmtpModal(false)} className="px-5 py-2.5 rounded-xl font-extrabold text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 text-xs cursor-pointer">Cancel</button>
-                <button onClick={() => handleSaveIntegration('SMTP', smtpCreds, true)} className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-blue-600 hover:bg-blue-700 text-xs shadow-md shadow-blue-600/20 cursor-pointer">Save SMTP Credentials</button>
+                <button onClick={() => handleSaveIntegration('SMTP', smtpCreds, true)} className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-[#07518a] hover:bg-[#064270] text-xs shadow-md shadow-[#07518a]/20 cursor-pointer">Save SMTP Credentials</button>
               </div>
             </div>
           </div>
@@ -1102,7 +1084,7 @@ export default function GlobalConfigurationPage() {
             <div className="w-full h-full bg-white dark:bg-slate-900 flex flex-col">
               <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-emerald-50/60 dark:bg-emerald-950/40">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-xl bg-[#07518a] text-white flex items-center justify-center font-bold">
                     💬
                   </div>
                   <div>
@@ -1116,17 +1098,17 @@ export default function GlobalConfigurationPage() {
               <div className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
                 <div>
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">API Endpoint URL</label>
-                  <input type="text" value={whatsappCreds.url} onChange={e => setWhatsappCreds({...whatsappCreds, url: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="https://graph.facebook.com/v18.0/me/messages" />
+                  <input type="text" value={whatsappCreds.url} onChange={e => setWhatsappCreds({...whatsappCreds, url: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="https://graph.facebook.com/v18.0/me/messages" />
                 </div>
                 <div>
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">API Bearer Access Token</label>
-                  <input type="password" value={whatsappCreds.apiKey} onChange={e => setWhatsappCreds({...whatsappCreds, apiKey: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="EAAB..." />
+                  <input type="password" value={whatsappCreds.apiKey} onChange={e => setWhatsappCreds({...whatsappCreds, apiKey: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="EAAB..." />
                 </div>
               </div>
 
               <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/50 dark:bg-slate-900">
                 <button onClick={() => setShowWhatsappModal(false)} className="px-5 py-2.5 rounded-xl font-extrabold text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 text-xs cursor-pointer">Cancel</button>
-                <button onClick={() => handleSaveIntegration('WHATSAPP', whatsappCreds, true)} className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 text-xs shadow-md shadow-emerald-600/20 cursor-pointer">Save WhatsApp API</button>
+                <button onClick={() => handleSaveIntegration('WHATSAPP', whatsappCreds, true)} className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-[#07518a] hover:bg-[#064270] text-xs shadow-md shadow-[#07518a]/20 cursor-pointer">Save WhatsApp API</button>
               </div>
             </div>
           </div>
@@ -1141,7 +1123,7 @@ export default function GlobalConfigurationPage() {
             <div className="w-full h-full bg-white dark:bg-slate-900 flex flex-col">
               <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-indigo-50/60 dark:bg-indigo-950/40">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-xl bg-[#07518a] text-white flex items-center justify-center font-bold">
                     📢
                   </div>
                   <div>
@@ -1157,15 +1139,15 @@ export default function GlobalConfigurationPage() {
               <div className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
                 <div>
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Campaign Name</label>
-                  <input type="text" value={currentCampaign.campaign_name || ''} onChange={e => setCurrentCampaign({...currentCampaign, campaign_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Interview Schedule Notice" />
+                  <input type="text" value={currentCampaign.campaign_name || ''} onChange={e => setCurrentCampaign({...currentCampaign, campaign_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="e.g. Interview Schedule Notice" />
                 </div>
                 <div>
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Campaign Code</label>
-                  <input type="text" value={currentCampaign.campaign_code || ''} onChange={e => setCurrentCampaign({...currentCampaign, campaign_code: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. INTERVIEW_INVITE" />
+                  <input type="text" value={currentCampaign.campaign_code || ''} onChange={e => setCurrentCampaign({...currentCampaign, campaign_code: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="e.g. INTERVIEW_INVITE" />
                 </div>
                 <div>
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Approved Template Name (Meta)</label>
-                  <input type="text" value={currentCampaign.template_name || ''} onChange={e => setCurrentCampaign({...currentCampaign, template_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. hr_interview_invite_v1" />
+                  <input type="text" value={currentCampaign.template_name || ''} onChange={e => setCurrentCampaign({...currentCampaign, template_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="e.g. hr_interview_invite_v1" />
                 </div>
 
                 {/* DYNAMIC PARAMETER KEY-VALUE BUILDER */}
@@ -1177,7 +1159,7 @@ export default function GlobalConfigurationPage() {
                     <button 
                       type="button"
                       onClick={() => setParamList([...paramList, { key: `param_${paramList.length + 1}`, val: `{{param_${paramList.length + 1}}}` }])}
-                      className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                      className="text-[11px] font-black text-[#07518a] dark:text-[#38bdf8] hover:underline cursor-pointer"
                     >
                       + Add Variable Key
                     </button>
@@ -1195,7 +1177,7 @@ export default function GlobalConfigurationPage() {
                             setParamList(copy);
                           }}
                           placeholder="Parameter Name"
-                          className="w-1/2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-1/2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono focus:outline-none focus:ring-2 focus:ring-[#07518a]"
                         />
                         <span className="text-slate-400 text-xs font-bold">=</span>
                         <input 
@@ -1207,7 +1189,7 @@ export default function GlobalConfigurationPage() {
                             setParamList(copy);
                           }}
                           placeholder="Placeholder / Expression"
-                          className="w-1/2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-1/2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]"
                         />
                         <button 
                           type="button"
@@ -1224,7 +1206,7 @@ export default function GlobalConfigurationPage() {
 
               <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/50 dark:bg-slate-900">
                 <button onClick={() => setShowCampaignModal(false)} className="px-5 py-2.5 rounded-xl font-extrabold text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 text-xs cursor-pointer">Cancel</button>
-                <button onClick={handleSaveCampaign} className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 text-xs shadow-md shadow-indigo-600/20 cursor-pointer">Save Campaign Template</button>
+                <button onClick={handleSaveCampaign} className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-[#07518a] hover:bg-[#064270] text-xs shadow-md shadow-[#07518a]/20 cursor-pointer">Save Campaign Template</button>
               </div>
             </div>
           </div>
@@ -1239,7 +1221,7 @@ export default function GlobalConfigurationPage() {
             <div className="w-full h-full bg-white dark:bg-slate-900 flex flex-col">
               <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-violet-50/60 dark:bg-violet-950/40">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-violet-600 text-white flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-xl bg-[#07518a] text-white flex items-center justify-center font-bold">
                     ⚡
                   </div>
                   <div>
@@ -1265,7 +1247,7 @@ export default function GlobalConfigurationPage() {
                     else if (selectedEvent.startsWith('HOLIDAY_')) moduleName = 'HOLIDAYS';
                     else if (selectedEvent.startsWith('VISITOR_')) moduleName = 'VISITORS';
                     setCurrentRule({...currentRule, event_code: selectedEvent, module: moduleName});
-                  }} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500">
+                  }} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]">
                     <option value="">Select Event Trigger</option>
                     <optgroup label="Leaves">
                       <option value="LEAVE_APPLIED">LEAVE_APPLIED (Notify Manager)</option>
@@ -1297,11 +1279,11 @@ export default function GlobalConfigurationPage() {
                 </div>
                 <div className="space-y-3 pt-2">
                   <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Active Notification Channels</label>
-                  <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:border-violet-300 transition-colors">
-                    <input type="checkbox" checked={!!currentRule.email_enabled} onChange={e => setCurrentRule({...currentRule, email_enabled: e.target.checked})} className="rounded text-blue-600 w-4 h-4 cursor-pointer" />
+                  <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:border-blue-300 transition-colors">
+                    <input type="checkbox" checked={!!currentRule.email_enabled} onChange={e => setCurrentRule({...currentRule, email_enabled: e.target.checked})} className="rounded text-[#07518a] w-4 h-4 cursor-pointer" />
                     <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Send Email via Corporate SMTP</span>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:border-violet-300 transition-colors">
+                  <label className="flex items-center gap-3 cursor-pointer p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/80 dark:border-slate-800 hover:border-emerald-300 transition-colors">
                     <input type="checkbox" checked={!!currentRule.whatsapp_enabled} onChange={e => setCurrentRule({...currentRule, whatsapp_enabled: e.target.checked})} className="rounded text-emerald-600 w-4 h-4 cursor-pointer" />
                     <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300">Send Broadcast via WhatsApp API</span>
                   </label>
@@ -1309,7 +1291,7 @@ export default function GlobalConfigurationPage() {
                 {currentRule.whatsapp_enabled && (
                   <div>
                     <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Associated WhatsApp Template</label>
-                    <select value={currentRule.whatsapp_campaign_id || ''} onChange={e => setCurrentRule({...currentRule, whatsapp_campaign_id: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500">
+                    <select value={currentRule.whatsapp_campaign_id || ''} onChange={e => setCurrentRule({...currentRule, whatsapp_campaign_id: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]">
                       <option value="">Select Campaign Template</option>
                       {campaigns.map(c => (
                         <option key={c.id} value={c.id}>{c.campaign_name} ({c.campaign_code})</option>
@@ -1321,7 +1303,7 @@ export default function GlobalConfigurationPage() {
 
               <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/50 dark:bg-slate-900">
                 <button onClick={() => setShowRuleModal(false)} className="px-5 py-2.5 rounded-xl font-extrabold text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 text-xs cursor-pointer">Cancel</button>
-                <button onClick={handleSaveRule} className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-violet-600 hover:bg-violet-700 text-xs shadow-md shadow-violet-600/20 cursor-pointer">Save Trigger Rule</button>
+                <button onClick={handleSaveRule} className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-[#07518a] hover:bg-[#064270] text-xs shadow-md shadow-[#07518a]/20 cursor-pointer">Save Trigger Rule</button>
               </div>
             </div>
           </div>

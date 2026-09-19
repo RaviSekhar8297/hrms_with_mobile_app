@@ -804,13 +804,13 @@ export default function ProfilePage() {
 
   const getFieldTheme = (label: string) => {
     const l = label.toLowerCase();
-    if (l.includes('name')) return 'bg-indigo-600 text-white shadow-sm';
-    if (l.includes('email') || l.includes('phone')) return 'bg-sky-600 text-white shadow-sm';
-    if (l.includes('birth') || l.includes('dob')) return 'bg-pink-600 text-white shadow-sm';
-    if (l.includes('address') || l.includes('location') || l.includes('branch')) return 'bg-emerald-600 text-white shadow-sm';
-    if (l.includes('pan') || l.includes('aadhar') || l.includes('esi') || l.includes('uan')) return 'bg-amber-500 text-white shadow-sm';
-    if (l.includes('department') || l.includes('designation') || l.includes('role')) return 'bg-violet-600 text-white shadow-sm';
-    return 'bg-indigo-500 text-white shadow-sm';
+    if (l.includes('name')) return 'bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-700 text-white shadow-md shadow-indigo-500/20';
+    if (l.includes('email') || l.includes('phone')) return 'bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-600 text-white shadow-md shadow-sky-500/20';
+    if (l.includes('birth') || l.includes('dob')) return 'bg-gradient-to-br from-pink-500 via-rose-600 to-red-600 text-white shadow-md shadow-pink-500/20';
+    if (l.includes('address') || l.includes('location') || l.includes('branch')) return 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-600 text-white shadow-md shadow-emerald-500/20';
+    if (l.includes('pan') || l.includes('aadhar') || l.includes('esi') || l.includes('uan')) return 'bg-gradient-to-br from-amber-500 via-orange-600 to-rose-600 text-white shadow-md shadow-amber-500/20';
+    if (l.includes('department') || l.includes('designation') || l.includes('role')) return 'bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700 text-white shadow-md shadow-violet-500/20';
+    return 'bg-gradient-to-br from-indigo-500 to-sky-600 text-white shadow-md shadow-indigo-500/20';
   };
 
   const renderFieldBlock = (label: string, value: string | undefined | null) => {
@@ -903,7 +903,7 @@ export default function ProfilePage() {
         <div className="w-full space-y-6">
           
           {/* 🌄 EXECUTIVE ROYAL BLUE FULL COLOR COVER HEADER */}
-          <div className="relative w-full rounded-3xl overflow-hidden bg-indigo-800 border border-indigo-600/40 shadow-sm transition-all duration-300">
+          <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 border border-blue-600/40 shadow-xl transition-all duration-300">
             
             {/* Cover Scenery Image Overlay */}
             <div 
@@ -931,9 +931,9 @@ export default function ProfilePage() {
                   
                   {/* Avatar - Clickable */}
                   <label className="relative group shrink-0 transition-all duration-500 hover:scale-105 cursor-pointer" title="Click photo to change">
-                    <div className="absolute -inset-1.5 rounded-[2.2rem] bg-indigo-400/40 opacity-70 blur-md group-hover:opacity-100 transition-all duration-500" />
+                    <div className="absolute -inset-1.5 rounded-[2.2rem] bg-gradient-to-r from-sky-400 via-indigo-400 to-pink-500 opacity-80 blur-md group-hover:opacity-100 group-hover:blur-lg transition-all duration-500" />
                     
-                    <div className="h-32 w-32 sm:h-36 sm:w-36 rounded-[2.2rem] bg-indigo-700 text-white font-semibold text-3xl sm:text-4xl flex items-center justify-center shadow-xl relative font-outfit overflow-hidden border-4 border-white group-hover:border-indigo-300 transition-all duration-500">
+                    <div className="h-32 w-32 sm:h-36 sm:w-36 rounded-[2.2rem] bg-gradient-to-br from-[#07518a] via-blue-700 to-indigo-900 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-2xl relative font-outfit overflow-hidden border-4 border-white group-hover:border-sky-300 transition-all duration-500">
                       {(empImage || myProfile?.emp_image) && !imgLoadError ? (
                         <img 
                           src={empImage || myProfile?.emp_image} 
@@ -1043,7 +1043,7 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab('overview')}
                 className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'overview'
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/20 scale-[1.02]'
                     : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
@@ -1057,7 +1057,7 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab('work')}
                 className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'work'
-                    ? 'bg-sky-600 text-white shadow-sm'
+                    ? 'bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-md shadow-sky-600/20 scale-[1.02]'
                     : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
@@ -1071,7 +1071,7 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab('education')}
                 className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'education'
-                    ? 'bg-purple-600 text-white shadow-sm'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-600/20 scale-[1.02]'
                     : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
@@ -1085,7 +1085,7 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab('skills')}
                 className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'skills'
-                    ? 'bg-teal-600 text-white shadow-sm'
+                    ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md shadow-cyan-600/20 scale-[1.02]'
                     : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
@@ -1099,7 +1099,7 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab('compliance')}
                 className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'compliance'
-                    ? 'bg-amber-600 text-white shadow-sm'
+                    ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md shadow-amber-600/20 scale-[1.02]'
                     : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
@@ -1113,7 +1113,7 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab('security')}
                 className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-300 flex items-center gap-2.5 whitespace-nowrap cursor-pointer ${
                   activeTab === 'security'
-                    ? 'bg-rose-600 text-white shadow-sm'
+                    ? 'bg-gradient-to-r from-rose-600 to-purple-600 text-white shadow-md shadow-rose-600/20 scale-[1.02]'
                     : 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
                 }`}
               >
@@ -1178,7 +1178,7 @@ export default function ProfilePage() {
               <div className={`${activeTab === 'overview' ? 'block' : 'hidden'} lg:block lg:col-span-1 space-y-6 text-left`}>
                 
                 <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full space-y-5">
-                  <div className="h-1 bg-indigo-500 absolute top-0 inset-x-0" />
+                  <div className="h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 absolute top-0 inset-x-0" />
                   
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3.5">
                     <div className="flex items-center gap-2">
@@ -1267,7 +1267,7 @@ export default function ProfilePage() {
                     
                     {/* Personal Information Card */}
                     <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-indigo-500 absolute top-0 inset-x-0" />
+                      <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 absolute top-0 inset-x-0" />
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
                         <div className="flex items-center gap-2">
                           <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">👤</span>
@@ -1344,7 +1344,7 @@ export default function ProfilePage() {
 
                     {/* Residential Address Card */}
                     <div className="rounded-3xl border border-emerald-100 dark:border-emerald-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-emerald-500 absolute top-0 inset-x-0" />
+                      <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 absolute top-0 inset-x-0" />
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
                         <div className="flex items-center gap-2">
                           <span className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-sm font-semibold">📍</span>
@@ -1377,7 +1377,7 @@ export default function ProfilePage() {
                 {activeTab === 'work' && (
                   <div className="space-y-6">
                     <div className="rounded-3xl border border-sky-100 dark:border-sky-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-sky-500 absolute top-0 inset-x-0" />
+                      <div className="h-1 bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 absolute top-0 inset-x-0" />
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
                         <div className="flex items-center gap-2">
                           <span className="p-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 text-sm font-semibold">🏢</span>
@@ -1400,7 +1400,7 @@ export default function ProfilePage() {
                 {activeTab === 'education' && (
                   <div className="space-y-6 animate-fadeIn">
                     <div className="rounded-3xl border border-purple-100 dark:border-purple-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-purple-500 absolute top-0 inset-x-0" />
+                      <div className="h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500 absolute top-0 inset-x-0" />
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
                         <div className="flex items-center gap-2">
                           <span className="p-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 text-sm font-semibold">🎓</span>
@@ -1484,7 +1484,7 @@ export default function ProfilePage() {
                 {activeTab === 'skills' && (
                   <div className="space-y-6 animate-fadeIn">
                     <div className="rounded-3xl border border-cyan-100 dark:border-cyan-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-teal-500 absolute top-0 inset-x-0" />
+                      <div className="h-1 bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-500 absolute top-0 inset-x-0" />
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
                         <div className="flex items-center gap-2">
                           <span className="p-1.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 text-sm font-semibold">⚡</span>
@@ -1567,7 +1567,7 @@ export default function ProfilePage() {
                     
                     {/* Compliance & Identifiers Card */}
                     <div className="rounded-3xl border border-amber-100 dark:border-amber-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-amber-500 absolute top-0 inset-x-0" />
+                      <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 absolute top-0 inset-x-0" />
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
                         <div className="flex items-center gap-2">
                           <span className="p-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-sm font-semibold">🛡️</span>
@@ -1605,7 +1605,7 @@ export default function ProfilePage() {
 
                     {/* Bank Accounts Card */}
                     <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-indigo-500 absolute top-0 inset-x-0" />
+                      <div className="h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 absolute top-0 inset-x-0" />
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
                         <div className="flex items-center gap-2">
                           <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">🏦</span>
@@ -1660,7 +1660,7 @@ export default function ProfilePage() {
                           ) : (
                             <div className="grid gap-4 sm:grid-cols-2">
                               {safeBankInfoList.map((bank, index) => (
-                                <div key={index} className="w-full bg-indigo-900 text-white rounded-2xl p-5 border border-indigo-500/30 shadow-sm hover:scale-[1.02] transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+                                <div key={index} className="w-full bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 text-white rounded-2xl p-5 border border-indigo-500/30 shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
                                   <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-indigo-500/10 blur-2xl group-hover:bg-indigo-500/20 transition-all" />
                                   <div className="flex justify-between items-center relative z-10">
                                     <span className="text-xs font-black tracking-widest uppercase text-indigo-200 flex items-center gap-2">
@@ -1700,8 +1700,8 @@ export default function ProfilePage() {
                 {/* 4️⃣ TAB 4: SECURITY & CREDENTIALS */}
                 {activeTab === 'security' && (
                   <div className="space-y-6">
-                    <div className="rounded-3xl border border-rose-200/90 dark:border-rose-900/50 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-sm hover:shadow-lg hover:shadow-rose-500/10 transition-all duration-500 relative overflow-hidden group w-full">
-                      <div className="h-1.5 bg-rose-500 absolute top-0 inset-x-0" />
+                    <div className="rounded-3xl border border-rose-200/90 dark:border-rose-900/50 bg-gradient-to-br from-white via-rose-50/20 to-indigo-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 p-6 sm:p-7 shadow-lg hover:shadow-2xl hover:shadow-rose-500/10 transition-all duration-500 relative overflow-hidden group w-full">
+                      <div className="h-1.5 bg-gradient-to-r from-rose-500 via-purple-500 to-indigo-500 absolute top-0 inset-x-0 animate-pulse" />
                       
                       <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-4 mb-6">
                         <div className="flex items-center gap-3">
@@ -1862,7 +1862,7 @@ export default function ProfilePage() {
                             disabled={!isSaveEnabled || updatingPassword}
                             className={`px-6 py-3 text-xs font-black rounded-2xl uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 ${
                               isSaveEnabled && !updatingPassword
-                                ? 'bg-rose-600 hover:bg-rose-700 text-white cursor-pointer'
+                                ? 'bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white shadow-lg shadow-rose-600/30 hover:scale-105 active:scale-95 cursor-pointer animate-pulse'
                                 : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none opacity-60'
                             }`}
                           >
