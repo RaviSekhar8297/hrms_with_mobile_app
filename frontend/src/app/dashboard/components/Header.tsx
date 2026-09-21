@@ -483,11 +483,21 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {/* 1. NAMES ON LEFT */}
             <div className="hidden sm:flex flex-col text-right">
-              <span className="text-xs font-black tracking-tight leading-none text-[#07518a] dark:text-[#38bdf8]">
-                {(userFullName || (email ? email.split('@')[0] : 'ADMIN')).toUpperCase()}
+              <span
+                className="text-xs font-black tracking-tight leading-none text-[#07518a] dark:text-[#38bdf8] truncate max-w-[200px]"
+                title={userFullName || email}
+              >
+                {((userFullName || (email ? email.split('@')[0] : 'ADMIN')).length > 30
+                  ? (userFullName || (email ? email.split('@')[0] : 'ADMIN')).slice(0, 30) + '...'
+                  : (userFullName || (email ? email.split('@')[0] : 'ADMIN'))).toUpperCase()}
               </span>
-              <span className="text-[9px] font-black text-slate-950 dark:text-white tracking-wider uppercase mt-1 leading-none">
-                {(designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).toUpperCase()}
+              <span
+                className="text-[9px] font-black text-slate-950 dark:text-white tracking-wider uppercase mt-1 leading-none truncate max-w-[200px]"
+                title={designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')}
+              >
+                {((designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).length > 30
+                  ? (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).slice(0, 30) + '...'
+                  : (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE'))).toUpperCase()}
               </span>
             </div>
 

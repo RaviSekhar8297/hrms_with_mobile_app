@@ -32,10 +32,13 @@ export default function LeaveTypesAndLogsPage() {
   const [typeForm, setTypeForm] = useState({
     name: '',
     code: '',
-    accrual_type: 'YEARLY',
     allotted_per_year: '12',
-    carry_forward_type: 'NONE',
-    max_carry_forward: '0',
+    monthly_accrual: false,
+    monthly_carry_forward: true,
+    monthly_carry_limit: '0',
+    yearly_accrual: true,
+    yearly_carry_forward: false,
+    yearly_carry_limit: '0',
     is_paid: true,
     is_wfh: false,
     is_active: true
@@ -149,7 +152,8 @@ export default function LeaveTypesAndLogsPage() {
           ...typeForm,
           companyId: companyId || undefined,
           allotted_per_year: Number(typeForm.allotted_per_year),
-          max_carry_forward: Number(typeForm.max_carry_forward)
+          monthly_carry_limit: Number(typeForm.monthly_carry_limit || 0),
+          yearly_carry_limit: Number(typeForm.yearly_carry_limit || 0)
         })
       });
       const data = await res.json();
@@ -241,10 +245,13 @@ export default function LeaveTypesAndLogsPage() {
     setTypeForm({
       name: lt.name || '',
       code: lt.code || '',
-      accrual_type: lt.accrual_type || 'YEARLY',
       allotted_per_year: String(lt.allotted_per_year || 12),
-      carry_forward_type: lt.carry_forward_type || 'NONE',
-      max_carry_forward: String(lt.max_carry_forward || 0),
+      monthly_accrual: lt.monthly_accrual === true || lt.accrual_type === 'MONTHLY',
+      monthly_carry_forward: lt.monthly_carry_forward !== false,
+      monthly_carry_limit: String(lt.monthly_carry_limit || 0),
+      yearly_accrual: lt.yearly_accrual !== false,
+      yearly_carry_forward: lt.yearly_carry_forward === true || (lt.carry_forward_type && lt.carry_forward_type !== 'NONE'),
+      yearly_carry_limit: String(lt.yearly_carry_limit || lt.max_carry_forward || 0),
       is_paid: lt.is_paid !== false,
       is_wfh: lt.is_wfh === true,
       is_active: lt.is_active !== false
@@ -257,10 +264,13 @@ export default function LeaveTypesAndLogsPage() {
     setTypeForm({
       name: '',
       code: '',
-      accrual_type: 'YEARLY',
       allotted_per_year: '12',
-      carry_forward_type: 'NONE',
-      max_carry_forward: '0',
+      monthly_accrual: false,
+      monthly_carry_forward: true,
+      monthly_carry_limit: '0',
+      yearly_accrual: true,
+      yearly_carry_forward: false,
+      yearly_carry_limit: '0',
       is_paid: true,
       is_wfh: false,
       is_active: true
@@ -329,86 +339,112 @@ export default function LeaveTypesAndLogsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {leaveTypes.map(lt => (
-                <div
-                  key={lt.id}
-                  className={`p-6 rounded-2xl bg-white dark:bg-slate-900 border ${
-                    lt.is_active ? 'border-slate-200 dark:border-slate-800' : 'border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 opacity-90'
-                  } shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
+              {leaveTypes.map(lt => {
+                const formatOneDecimal = (val: any) => {
+                  if (val === undefined || val === null || val === '') return '0.0';
+                  const num = Number(val);
+                  if (isNaN(num)) return '0.0';
+                  return (Math.round(num * 10) / 10).toFixed(1);
+                };
+
+                return (
+                  <div
+                    key={lt.id}
+                    className={`p-6 rounded-2xl bg-white dark:bg-slate-900 border ${
+                      lt.is_active ? 'border-slate-200 dark:border-slate-800' : 'border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 opacity-90'
+                    } shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{lt.name}</h4>
+                          <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 font-mono font-bold text-[10px]">
+                            {lt.code}
+                          </span>
+                        </div>
+                        <span className="text-xs text-slate-400 mt-0.5 block">Accrual: {lt.accrual_type}</span>
+                      </div>
+
                       <div className="flex items-center gap-2">
-                        <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{lt.name}</h4>
-                        <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 font-mono font-bold text-[10px]">
-                          {lt.code}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(lt.id, lt.is_active, lt.name)}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-extrabold cursor-pointer transition-all ${
+                            lt.is_active
+                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                          }`}
+                          title={lt.is_active ? "Click to Deactivate Policy" : "Click to Activate Policy"}
+                        >
+                          <span className="text-[10.5px] uppercase font-black tracking-wider">{lt.is_active ? 'Active' : 'Inactive'}</span>
+                          <div
+                            className={`relative inline-flex h-4.5 w-8 shrink-0 rounded-full border border-transparent transition-colors duration-200 ease-in-out ${
+                              lt.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                                lt.is_active ? 'translate-x-3.5' : 'translate-x-0'
+                              }`}
+                            />
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs border border-slate-200/60 dark:border-slate-800">
+                      <div>
+                        <span className="text-[9.5px] text-slate-400 uppercase font-bold block">Annual Quota</span>
+                        <span className="font-extrabold text-slate-800 dark:text-slate-100 text-xs">{formatOneDecimal(lt.allotted_per_year)} Days</span>
+                      </div>
+                      <div>
+                        <span className="text-[9.5px] text-slate-400 uppercase font-bold block">Monthly Carry</span>
+                        <span className="font-extrabold text-slate-800 dark:text-slate-100 text-xs block">
+                          {lt.monthly_carry_forward === false ? 'Disabled' : (Number(lt.monthly_carry_limit) > 0 ? `Cap: ${formatOneDecimal(lt.monthly_carry_limit)}` : 'Enabled')}
                         </span>
                       </div>
-                      <span className="text-xs text-slate-400 mt-0.5 block">Accrual: {lt.accrual_type}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleStatus(lt.id, lt.is_active, lt.name)}
-                        className={`px-3 py-1 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
-                          lt.is_active
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
-                        }`}
-                        title={lt.is_active ? "Click to Deactivate" : "Click to Activate"}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${lt.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                        <span>{lt.is_active ? 'Active' : 'Inactive'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Annual Quota</span>
-                      <span className="font-extrabold text-slate-800 dark:text-slate-100">{lt.allotted_per_year} Days</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block">Carry Forward</span>
-                      <span className="font-extrabold text-slate-800 dark:text-slate-100">
-                        {lt.carry_forward_type === 'NONE' ? 'Disabled' : (lt.carry_forward_type === 'ALL' ? 'Unlimited' : `${lt.max_carry_forward || 0} Days Cap`)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        lt.is_paid ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {lt.is_paid ? 'Paid Leave' : 'Unpaid Leave'}
-                      </span>
-                      {lt.is_wfh && (
-                        <span className="px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold">
-                          Work From Home
+                      <div>
+                        <span className="text-[9.5px] text-slate-400 uppercase font-bold block">Yearly Carry</span>
+                        <span className="font-extrabold text-slate-800 dark:text-slate-100 text-xs block">
+                          {lt.yearly_carry_forward === true ? (Number(lt.yearly_carry_limit) > 0 ? `Cap: ${formatOneDecimal(lt.yearly_carry_limit)}` : 'Unlimited') : (lt.carry_forward_type && lt.carry_forward_type !== 'NONE' ? `Cap: ${formatOneDecimal(lt.max_carry_forward)}` : 'Disabled')}
                         </span>
-                      )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => openEditType(lt)}
-                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950 dark:hover:text-indigo-400 transition-all flex items-center justify-center shadow-2xs"
-                        title="Edit Policy"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmModal({ open: true, item: lt })}
-                        className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-all flex items-center justify-center shadow-2xs"
-                        title="Delete Leave Type"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                          lt.is_paid ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {lt.is_paid ? 'Paid Leave' : 'Unpaid Leave'}
+                        </span>
+                        {lt.is_wfh && (
+                          <span className="px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold">
+                            Work From Home
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => openEditType(lt)}
+                          className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950 dark:hover:text-indigo-400 transition-all flex items-center justify-center shadow-2xs"
+                          title="Edit Policy"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmModal({ open: true, item: lt })}
+                          className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-all flex items-center justify-center shadow-2xs"
+                          title="Delete Leave Type"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -501,78 +537,170 @@ export default function LeaveTypesAndLogsPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Allotted / Year</label>
-              <input
-                type="number"
-                value={typeForm.allotted_per_year}
-                onChange={e => setTypeForm(prev => ({ ...prev, allotted_per_year: e.target.value }))}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Accrual Type</label>
-              <select
-                value={typeForm.accrual_type}
-                onChange={e => setTypeForm(prev => ({ ...prev, accrual_type: e.target.value }))}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs"
-              >
-                <option value="YEARLY">Yearly Upfront</option>
-                <option value="MONTHLY">Monthly Accrual</option>
-              </select>
-            </div>
+          <div>
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Allotted / Year (Annual Quota Days) *</label>
+            <input
+              type="number"
+              step="0.5"
+              value={typeForm.allotted_per_year}
+              onChange={e => setTypeForm(prev => ({ ...prev, allotted_per_year: e.target.value }))}
+              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100"
+              required
+            />
           </div>
 
-          {/* CARRY FORWARD SETTINGS */}
+          {/* MONTHLY LEAVE POLICY */}
           <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 space-y-3">
-            <label className="text-xs font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-              <i className="fa-solid fa-right-left text-indigo-500"></i>
-              <span>Carry Forward Policy</span>
+            <label className="text-xs font-extrabold text-slate-800 dark:text-slate-100 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span>🗓️</span> Monthly Accrual & Carry Policy
+              </span>
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Rule</label>
-                <select
-                  value={typeForm.carry_forward_type}
-                  onChange={e => setTypeForm(prev => ({ ...prev, carry_forward_type: e.target.value }))}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 cursor-pointer"
+            <div className="space-y-3 pt-1">
+              {/* Monthly Accrual Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">Monthly Accrual Credit</span>
+                  <span className="text-[10px] text-slate-400 block">Leaves credit every month automatically</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTypeForm(prev => ({ ...prev, monthly_accrual: !prev.monthly_accrual }))}
+                  className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                    typeForm.monthly_accrual ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
                 >
-                  <option value="NONE">Disabled (No Carry Forward)</option>
-                  <option value="LIMIT">Limited (Max Cap)</option>
-                  <option value="ALL">Unlimited (Carry Forward All)</option>
-                </select>
+                  <span className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                    typeForm.monthly_accrual ? 'translate-x-4.5' : 'translate-x-0'
+                  }`} />
+                </button>
               </div>
 
-              {typeForm.carry_forward_type === 'LIMIT' && (
+              {/* Monthly Carry Forward Toggle */}
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Max Days Cap</label>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">Monthly Carry Forward</span>
+                  <span className="text-[10px] text-slate-400 block">Unused monthly leaves carry forward to next month</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTypeForm(prev => ({ ...prev, monthly_carry_forward: !prev.monthly_carry_forward }))}
+                  className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                    typeForm.monthly_carry_forward ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                    typeForm.monthly_carry_forward ? 'translate-x-4.5' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {typeForm.monthly_carry_forward && (
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                    Max Monthly Carry Limit (0 = No limit)
+                  </label>
                   <input
                     type="number"
                     step="0.5"
-                    placeholder="e.g. 5"
-                    value={typeForm.max_carry_forward}
-                    onChange={e => setTypeForm(prev => ({ ...prev, max_carry_forward: e.target.value }))}
+                    placeholder="e.g. 1.0"
+                    value={typeForm.monthly_carry_limit}
+                    onChange={e => setTypeForm(prev => ({ ...prev, monthly_carry_limit: e.target.value }))}
                     className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
-                    required
                   />
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Paid Leave Category</span>
-            <input
-              type="checkbox"
-              checked={typeForm.is_paid}
-              onChange={e => setTypeForm(prev => ({ ...prev, is_paid: e.target.checked }))}
-              className="w-4 h-4 text-indigo-600 rounded"
-            />
+          {/* YEARLY LEAVE POLICY */}
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 space-y-3">
+            <label className="text-xs font-extrabold text-slate-800 dark:text-slate-100 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span>📅</span> Yearly Accrual & Carry Policy
+              </span>
+            </label>
+
+            <div className="space-y-3 pt-1">
+              {/* Yearly Accrual Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">Yearly Upfront Accrual</span>
+                  <span className="text-[10px] text-slate-400 block">Full annual quota allotted at start of year</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTypeForm(prev => ({ ...prev, yearly_accrual: !prev.yearly_accrual }))}
+                  className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                    typeForm.yearly_accrual ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                    typeForm.yearly_accrual ? 'translate-x-4.5' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Yearly Carry Forward Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">Yearly Carry Forward</span>
+                  <span className="text-[10px] text-slate-400 block">Unused leaves carry forward to next year at year-end</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTypeForm(prev => ({ ...prev, yearly_carry_forward: !prev.yearly_carry_forward }))}
+                  className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                    typeForm.yearly_carry_forward ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                    typeForm.yearly_carry_forward ? 'translate-x-4.5' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {typeForm.yearly_carry_forward && (
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                    Max Yearly Carry Limit / Cap (0 = Unlimited)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    placeholder="e.g. 5.0"
+                    value={typeForm.yearly_carry_limit}
+                    onChange={e => setTypeForm(prev => ({ ...prev, yearly_carry_limit: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
+          {/* Paid Leave Category Toggle Switch */}
+          <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+            <div>
+              <span className="text-xs font-extrabold text-slate-800 dark:text-slate-100 block">Paid Leave Category</span>
+              <span className="text-[11px] text-slate-400 block">Select whether this is a paid or unpaid leave category</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTypeForm(prev => ({ ...prev, is_paid: !prev.is_paid }))}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                typeForm.is_paid ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  typeForm.is_paid ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Policy Status Toggle Switch */}
           <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
             <div>
               <span className="text-xs font-extrabold text-slate-800 dark:text-slate-100 block">Policy Status</span>
@@ -581,14 +709,15 @@ export default function LeaveTypesAndLogsPage() {
             <button
               type="button"
               onClick={() => setTypeForm(prev => ({ ...prev, is_active: !prev.is_active }))}
-              className={`px-3 py-1.5 rounded-full text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
-                typeForm.is_active
-                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700'
-                  : 'bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-400 border border-rose-300 dark:border-rose-700'
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                typeForm.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${typeForm.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-              <span>{typeForm.is_active ? 'Active' : 'Inactive'}</span>
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                  typeForm.is_active ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
             </button>
           </div>
 

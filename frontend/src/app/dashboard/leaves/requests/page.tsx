@@ -6,12 +6,25 @@ import { getHeaders } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import CustomDatePicker from '../../components/CustomDatePicker';
 
 export default function LeaveRequestsPage() {
   const { showToast, companyId } = useDashboard();
   const { hasPermission, isSuperAdmin: isSuperAdminPerm, getPermissionScope } = usePermissions();
+
   const leaveScope = getPermissionScope('view_leave_requests');
-  const canSeeTeamTab = isSuperAdminPerm || leaveScope !== 'SELF';
+  const canSeeSecondTab = isSuperAdminPerm || leaveScope !== 'SELF';
+
+  const getSecondTabLabel = () => {
+    if (isSuperAdminPerm || leaveScope === 'ALL') {
+      return 'All Employee Leave Requests';
+    }
+    if (leaveScope === 'DEPARTMENT') {
+      return 'Department Leave Requests';
+    }
+    return 'Team Leave Requests';
+  };
+
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
 
@@ -24,6 +37,8 @@ export default function LeaveRequestsPage() {
 
   const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [myRequests, setMyRequests] = useState<any[]>([]);
+  const [balances, setBalances] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [holidays, setHolidays] = useState<any[]>([]);
   const [weekoffPolicy, setWeekoffPolicy] = useState<any>(null);
@@ -55,7 +70,7 @@ export default function LeaveRequestsPage() {
       try {
         parsedRoles = JSON.parse(storedRoles);
         setRoles(parsedRoles);
-      } catch (e) {}
+      } catch (e) { }
     }
     if (storedEmail) setEmail(storedEmail);
 
@@ -75,11 +90,32 @@ export default function LeaveRequestsPage() {
     fetchLeaveTypes();
     fetchHolidays();
     fetchWeekoffs();
+    fetchBalances();
+    fetchMyRequests();
   }, [companyId]);
 
   useEffect(() => {
     fetchLeaveRequests(viewScope);
   }, [viewScope, companyId]);
+
+  const fetchBalances = async () => {
+    const cid = companyId || 'all';
+    const yr = new Date().getFullYear();
+    try {
+      const res = await fetch(`/api/v1/leave-balances?companyId=${cid}&year=${yr}`, { headers: getHeaders() });
+      const data = await res.json();
+      if (res.ok) setBalances(data.balances || []);
+    } catch (e) { }
+  };
+
+  const fetchMyRequests = async () => {
+    const cid = companyId || 'all';
+    try {
+      const res = await fetch(`/api/v1/leave-requests?companyId=${cid}&scope=my`, { headers: getHeaders() });
+      const data = await res.json();
+      if (res.ok) setMyRequests(data.requests || []);
+    } catch (e) { }
+  };
 
   const fetchEmployees = async () => {
     const cid = companyId || 'all';
@@ -109,7 +145,7 @@ export default function LeaveRequestsPage() {
       const res = await fetch(`/api/v1/holidays?companyId=${cid}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setHolidays(data.holidays || []);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const fetchWeekoffs = async () => {
@@ -118,7 +154,7 @@ export default function LeaveRequestsPage() {
       const res = await fetch(`/api/v1/weekoffs?companyId=${cid}`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setWeekoffPolicy(data.policy || null);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const fetchLeaveRequests = async (scope: 'my' | 'team') => {
@@ -129,7 +165,10 @@ export default function LeaveRequestsPage() {
         headers: getHeaders()
       });
       const data = await res.json();
-      if (res.ok) setRequests(data.requests || []);
+      if (res.ok) {
+        setRequests(data.requests || []);
+        if (scope === 'my') setMyRequests(data.requests || []);
+      }
     } catch (e) {
       showToast('Error loading leave requests', 'error');
     } finally {
@@ -174,6 +213,15 @@ export default function LeaveRequestsPage() {
       showToast('Please fill all required fields', 'error');
       return;
     }
+    const currentBal = getLeaveTypeBalance(applyForm.leave_type_id);
+    if (currentBal.remaining <= 0) {
+      showToast('Insufficient leave balance. You have 0 available days for this category.', 'error');
+      return;
+    }
+    if (Number(applyForm.total_days) > currentBal.remaining) {
+      showToast(`Insufficient leave balance. You have ${currentBal.remaining} day(s) available, but requested ${applyForm.total_days} day(s).`, 'error');
+      return;
+    }
     const trimmedReason = applyForm.reason ? applyForm.reason.trim() : '';
     if (trimmedReason.length < 5 || trimmedReason.length > 100) {
       showToast('Reason must be between 5 and 100 characters', 'error');
@@ -191,6 +239,8 @@ export default function LeaveRequestsPage() {
         showToast('Leave request submitted successfully', 'success');
         setApplyDrawerOpen(false);
         fetchLeaveRequests(viewScope);
+        fetchMyRequests();
+        fetchBalances();
       } else {
         showToast(data.error || 'Failed to submit leave request', 'error');
       }
@@ -219,6 +269,7 @@ export default function LeaveRequestsPage() {
         setActionModal({ open: false, req: null, type: 'APPROVE' });
         setManagerRemarks('');
         fetchLeaveRequests(viewScope);
+        fetchBalances();
       } else {
         showToast(data.error || 'Failed to update request', 'error');
       }
@@ -233,8 +284,8 @@ export default function LeaveRequestsPage() {
     const matchesStatus = statusFilter === 'ALL' || req.status === statusFilter;
     const empName = req.employee_name || '';
     const matchesSearch = empName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          req.leave_type_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          req.reason?.toLowerCase().includes(searchTerm.toLowerCase());
+      req.leave_type_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.reason?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -248,6 +299,80 @@ export default function LeaveRequestsPage() {
       return lr.includes('manager') || lr.includes('head') || lr.includes('lead') || lr.includes('executive') || lr.includes('director') || lr.includes('supervisor');
     }) || (me && employees.some(e => e.reporting_to_id === me.id || e.reporting_to_id === me.emp_id_code))
   );
+
+  // -------------------------------------------------------------
+  // LEAVE DRAWER CALCULATION & DISABLED DATES HELPERS
+  // -------------------------------------------------------------
+  const myBalances = balances.filter(b =>
+    (b.employee_email && b.employee_email.toLowerCase() === email.toLowerCase()) ||
+    (me?.id && b.employee_id === me.id)
+  );
+
+  const getLeaveTypeBalance = (ltId: string) => {
+    const lt = leaveTypes.find(t => String(t.id) === String(ltId));
+    const balRecord = myBalances.find(b => String(b.leave_type_id) === String(ltId));
+    if (balRecord) {
+      const allotted = Number(balRecord.allotted ?? balRecord.allotted_days ?? balRecord.granted_days ?? lt?.allotted_per_year ?? 0);
+      const used = Number(balRecord.used ?? balRecord.used_days ?? 0);
+      const remaining = Number(balRecord.remaining ?? balRecord.remaining_days ?? (allotted - used));
+      return { remaining, used, allotted };
+    }
+    const allotted = lt?.allotted_per_year ? Number(lt.allotted_per_year) : 0;
+    return {
+      remaining: allotted,
+      used: 0,
+      allotted: allotted
+    };
+  };
+
+  // Build disabled dates array & reason map for CustomDatePicker
+  const disabledDates: string[] = [];
+  const disabledReasonMap: Record<string, string> = {};
+
+  // 1. Holidays
+  holidays.forEach(h => {
+    if (h.holiday_date) {
+      const dStr = h.holiday_date.split('T')[0];
+      if (!disabledDates.includes(dStr)) {
+        disabledDates.push(dStr);
+        disabledReasonMap[dStr] = `Holiday: ${h.name || 'Company Holiday'}`;
+      }
+    }
+  });
+
+  // 2. Already Applied Dates (Pending & Approved only; Rejected allowed)
+  myRequests.forEach(req => {
+    if (req.status === 'PENDING' || req.status === 'APPROVED') {
+      if (req.from_date && req.to_date) {
+        let cur = new Date(req.from_date);
+        const end = new Date(req.to_date);
+        while (cur <= end) {
+          const dStr = cur.toISOString().split('T')[0];
+          if (!disabledDates.includes(dStr)) {
+            disabledDates.push(dStr);
+            disabledReasonMap[dStr] = `Already Applied (${req.status === 'APPROVED' ? 'Approved Leave' : 'Pending Request'})`;
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+    }
+  });
+
+  // 3. Weekoff check function
+  const isDateDisabledFn = (date: Date, dateStr: string) => {
+    const day = date.getDay();
+    if (weekoffPolicy) {
+      if (weekoffPolicy.sunday_off && day === 0) {
+        disabledReasonMap[dateStr] = 'Sunday Week Off';
+        return true;
+      }
+      if (weekoffPolicy.saturday_off && day === 6) {
+        disabledReasonMap[dateStr] = 'Saturday Week Off';
+        return true;
+      }
+    }
+    return false;
+  };
 
   return (
     <div className="space-y-6 pb-12">
@@ -317,29 +442,27 @@ export default function LeaveRequestsPage() {
 
       {/* 🎛️ CONTROLS & FILTER BAR */}
       <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        
+
         {/* SCOPE SWITCHER / BADGE */}
-        {canSeeTeamTab ? (
+        {canSeeSecondTab ? (
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
             <button
               onClick={() => setViewScope('my')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                viewScope === 'my'
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${viewScope === 'my'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
-              }`}
+                }`}
             >
               My Applications
             </button>
             <button
               onClick={() => setViewScope('team')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                viewScope === 'team'
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${viewScope === 'team'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
-              }`}
+                }`}
             >
-              {leaveScope === 'ALL' || isSuperAdmin ? 'All Employee Leave Queue' : 'Team Approvals Queue'}
+              {getSecondTabLabel()}
             </button>
           </div>
         ) : (
@@ -370,11 +493,10 @@ export default function LeaveRequestsPage() {
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  statusFilter === st
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === st
                     ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
-                }`}
+                  }`}
               >
                 {st}
               </button>
@@ -463,63 +585,63 @@ export default function LeaveRequestsPage() {
                         </span>
                       </td>
 
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                        req.status === 'APPROVED'
-                          ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 border border-emerald-300'
-                          : req.status === 'REJECTED'
-                          ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-600 border border-rose-300'
-                          : 'bg-amber-100 dark:bg-amber-950/80 text-amber-600 border border-amber-300 animate-pulse'
-                      }`}>
-                        {req.status}
-                      </span>
-                    </td>
+                      <td className="p-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${req.status === 'APPROVED'
+                            ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 border border-emerald-300'
+                            : req.status === 'REJECTED'
+                              ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-600 border border-rose-300'
+                              : 'bg-amber-100 dark:bg-amber-950/80 text-amber-600 border border-amber-300 animate-pulse'
+                          }`}>
+                          {req.status}
+                        </span>
+                      </td>
 
-                    <td className="p-4 text-right">
-                      {req.status === 'PENDING' && viewScope === 'team' && (hasPermission('edit_leave_requests') || hasPermission('approve_leave_requests')) ? (
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="p-4 text-right">
+                        {req.status === 'PENDING' && viewScope === 'team' && (hasPermission('edit_leave_requests') || hasPermission('approve_leave_requests')) ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setActionModal({ open: true, req, type: 'APPROVE' })}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => setActionModal({ open: true, req, type: 'REJECT' })}
+                              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : req.status === 'PENDING' && viewScope === 'my' && (hasPermission('delete_leave_requests') || true) ? (
                           <button
-                            onClick={() => setActionModal({ open: true, req, type: 'APPROVE' })}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => setActionModal({ open: true, req, type: 'REJECT' })}
-                            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : req.status === 'PENDING' && viewScope === 'my' && (hasPermission('delete_leave_requests') || true) ? (
-                        <button
-                          onClick={async () => {
-                            if (!confirm('Are you sure you want to cancel this leave application?')) return;
-                            try {
-                              const res = await fetch(`/api/v1/leave-requests/${req.id}`, {
-                                method: 'DELETE',
-                                headers: getHeaders()
-                              });
-                              if (res.ok) {
-                                showToast('Leave application canceled successfully', 'success');
-                                fetchLeaveRequests(viewScope);
-                              } else {
-                                const err = await res.json();
-                                showToast(err.error || 'Failed to cancel request', 'error');
+                            onClick={async () => {
+                              if (!confirm('Are you sure you want to cancel this leave application?')) return;
+                              try {
+                                const res = await fetch(`/api/v1/leave-requests/${req.id}`, {
+                                  method: 'DELETE',
+                                  headers: getHeaders()
+                                });
+                                if (res.ok) {
+                                  showToast('Leave application canceled successfully', 'success');
+                                  fetchLeaveRequests(viewScope);
+                                  fetchMyRequests();
+                                } else {
+                                  const err = await res.json();
+                                  showToast(err.error || 'Failed to cancel request', 'error');
+                                }
+                              } catch (e) {
+                                showToast('Connection error', 'error');
                               }
-                            } catch (e) {
-                              showToast('Connection error', 'error');
-                            }
-                          }}
-                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 text-[11px] font-bold rounded-lg transition-all cursor-pointer"
-                        >
-                          Cancel Application
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-slate-400 italic">No action needed</span>
-                      )}
-                    </td>
-                  </tr>
+                            }}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 text-[11px] font-bold rounded-lg transition-all cursor-pointer"
+                          >
+                            Cancel Application
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">No action needed</span>
+                        )}
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -542,37 +664,82 @@ export default function LeaveRequestsPage() {
             <select
               value={applyForm.leave_type_id}
               onChange={e => setApplyForm(prev => ({ ...prev, leave_type_id: e.target.value }))}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
               required
             >
               <option value="">-- Choose Leave Category --</option>
-              {leaveTypes.map(lt => (
-                <option key={lt.id} value={lt.id}>
-                  {lt.name} ({lt.code})
-                </option>
-              ))}
+              {leaveTypes.map(lt => {
+                const bal = getLeaveTypeBalance(lt.id);
+                return (
+                  <option key={lt.id} value={lt.id}>
+                    {lt.name} ({lt.code}) — {bal.remaining} Day(s) Available
+                  </option>
+                );
+              })}
             </select>
+
+            {applyForm.leave_type_id && (() => {
+              const bal = getLeaveTypeBalance(applyForm.leave_type_id);
+              const selectedLt = leaveTypes.find(t => String(t.id) === String(applyForm.leave_type_id));
+              const isInsufficient = bal.remaining <= 0;
+              return (
+                <div className={`mt-2.5 p-3 rounded-xl flex items-center justify-between border ${
+                  isInsufficient
+                    ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900'
+                    : 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{isInsufficient ? '⚠️' : '📊'}</span>
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
+                        {selectedLt?.name} Balance
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                        Allotted: {bal.allotted} | Used: {bal.used}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-[10px] font-extrabold uppercase block ${isInsufficient ? 'text-rose-500' : 'text-indigo-500'}`}>
+                      {isInsufficient ? 'No Balance' : 'Available Leaves'}
+                    </span>
+                    <span className={`text-sm font-black font-mono ${isInsufficient ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                      {bal.remaining} Days
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">From Date *</label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={applyForm.from_date}
-                onChange={e => setApplyForm(prev => ({ ...prev, from_date: e.target.value }))}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none"
-                required
+                onChange={val => {
+                  setApplyForm(prev => {
+                    const newToDate = prev.to_date < val ? val : prev.to_date;
+                    return { ...prev, from_date: val, to_date: newToDate };
+                  });
+                }}
+                disabledDates={disabledDates}
+                disabledReasonMap={disabledReasonMap}
+                isDateDisabledFn={isDateDisabledFn}
+                placeholder="From Date"
               />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">To Date *</label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={applyForm.to_date}
-                onChange={e => setApplyForm(prev => ({ ...prev, to_date: e.target.value }))}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none"
-                required
+                onChange={val => setApplyForm(prev => ({ ...prev, to_date: val }))}
+                minDate={applyForm.from_date}
+                disabledDates={disabledDates}
+                disabledReasonMap={disabledReasonMap}
+                isDateDisabledFn={isDateDisabledFn}
+                placeholder="To Date"
+                align="right"
               />
             </div>
           </div>
@@ -614,8 +781,12 @@ export default function LeaveRequestsPage() {
           <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="submit"
-              disabled={isSaving}
-              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all"
+              disabled={isSaving || (applyForm.leave_type_id ? getLeaveTypeBalance(applyForm.leave_type_id).remaining <= 0 : false)}
+              className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg transition-all ${
+                applyForm.leave_type_id && getLeaveTypeBalance(applyForm.leave_type_id).remaining <= 0
+                  ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed text-slate-500 shadow-none'
+                  : 'bg-indigo-600 hover:bg-indigo-500 cursor-pointer'
+              }`}
             >
               {isSaving ? 'Submitting...' : 'Submit Application'}
             </button>
@@ -638,7 +809,7 @@ export default function LeaveRequestsPage() {
               <span>{actionModal.type === 'APPROVE' ? '✅' : '❌'}</span>
               {actionModal.type === 'APPROVE' ? 'Approve Leave Request' : 'Reject Leave Request'}
             </h4>
-            
+
             <p className="text-xs text-slate-500">
               You are about to {actionModal.type === 'APPROVE' ? 'approve' : 'reject'} leave for{' '}
               <strong className="text-slate-800 dark:text-slate-200">{actionModal.req?.employee_name}</strong> ({actionModal.req?.total_days} days).
@@ -661,9 +832,8 @@ export default function LeaveRequestsPage() {
               <button
                 onClick={handleProcessRequest}
                 disabled={isSaving}
-                className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg ${
-                  actionModal.type === 'APPROVE' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
-                }`}
+                className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg ${actionModal.type === 'APPROVE' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
+                  }`}
               >
                 {isSaving ? 'Processing...' : `Confirm ${actionModal.type === 'APPROVE' ? 'Approval' : 'Rejection'}`}
               </button>

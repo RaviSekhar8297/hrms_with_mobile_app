@@ -368,11 +368,15 @@ CREATE TABLE IF NOT EXISTS hrms.leave_types (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID NOT NULL REFERENCES hrms.companies(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
-    accrual_type VARCHAR(30) DEFAULT 'YEARLY' CHECK (accrual_type IN ('MONTHLY', 'YEARLY')),
+    code VARCHAR(20),
     allotted_per_year DECIMAL(5,2) NOT NULL,
-    accrued_per_month DECIMAL(4,2) DEFAULT 0.00,
-    does_carry_forward BOOLEAN DEFAULT FALSE,
-    carry_forward_limit DECIMAL(5,2) DEFAULT 0.0,
+    monthly_accrual BOOLEAN DEFAULT FALSE,
+    monthly_carry_forward BOOLEAN DEFAULT TRUE,
+    monthly_carry_limit DECIMAL(5,2) DEFAULT 0.00,
+    yearly_accrual BOOLEAN DEFAULT TRUE,
+    yearly_carry_forward BOOLEAN DEFAULT FALSE,
+    yearly_carry_limit DECIMAL(5,2) DEFAULT 0.00,
+    is_paid BOOLEAN DEFAULT TRUE,
     is_wfh BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -762,6 +766,50 @@ CREATE INDEX IF NOT EXISTS idx_employees_email_lower ON hrms.employees (LOWER(em
 CREATE INDEX IF NOT EXISTS idx_raw_punches_emp_date ON hrms.attendance_raw_punches (company_id, employee_id, punch_time DESC);
 CREATE INDEX IF NOT EXISTS idx_attendance_emp_date ON hrms.attendance (employee_id, date);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_company_status ON hrms.leave_requests (company_id, status);
+
+-- ============================================================================
+-- 18. Monthly Consolidated Attendance Summary Count
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS hrms.attendance_summary_count (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL REFERENCES hrms.companies(id) ON DELETE CASCADE,
+    employee_id UUID NOT NULL REFERENCES hrms.employees(id) ON DELETE CASCADE,
+    month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+    year INTEGER NOT NULL CHECK (year >= 2000),
+    cycle_days INTEGER DEFAULT 0,
+    month_days INTEGER DEFAULT 0,
+    working_days NUMERIC(5,2) DEFAULT 0,
+    present_days NUMERIC(5,2) DEFAULT 0,
+    half_days NUMERIC(5,2) DEFAULT 0,
+    absent_days NUMERIC(5,2) DEFAULT 0,
+    paid_leave_days NUMERIC(5,2) DEFAULT 0,
+    unpaid_leave_days NUMERIC(5,2) DEFAULT 0,
+    lop_days NUMERIC(5,2) DEFAULT 0,
+    weekoff_days NUMERIC(5,2) DEFAULT 0,
+    holiday_days NUMERIC(5,2) DEFAULT 0,
+    late_days NUMERIC(5,2) DEFAULT 0,
+    late_minutes INTEGER DEFAULT 0,
+    early_exit_days NUMERIC(5,2) DEFAULT 0,
+    early_exit_minutes INTEGER DEFAULT 0,
+    worked_minutes INTEGER DEFAULT 0,
+    overtime_minutes INTEGER DEFAULT 0,
+    approved_overtime_minutes INTEGER DEFAULT 0,
+    cycle_payable_days NUMERIC(5,2) DEFAULT 0,
+    final_payable_days NUMERIC(5,2) DEFAULT 0,
+    payable_rule JSONB DEFAULT '{
+      "components": ["PRESENT", "HALF_DAY", "WEEKOFF", "HOLIDAY", "PAID_LEAVE"],
+      "formula_type": "PRORATED_BY_MONTH",
+      "formula": "(cycle_payable_days / cycle_days) * month_days"
+    }'::jsonb,
+    processed_by UUID REFERENCES hrms.employees(id) ON DELETE SET NULL,
+    processed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_attendance_summary_count UNIQUE (company_id, year, month, employee_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_attendance_summary_count_company_period ON hrms.attendance_summary_count (company_id, year, month);
+CREATE INDEX IF NOT EXISTS idx_attendance_summary_count_employee ON hrms.attendance_summary_count (employee_id);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_emp ON hrms.leave_requests (employee_id, status);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_company_created ON hrms.audit_logs (company_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_payroll_runs_company_status ON hrms.payroll_runs (company_id, status);

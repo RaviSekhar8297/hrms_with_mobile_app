@@ -422,21 +422,19 @@ export default function AttendanceRegularizationPage() {
             <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
               <button
                 onClick={() => setViewScope('my')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
-                  viewScope === 'my'
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${viewScope === 'my'
                     ? 'bg-[#07518a] text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-[#07518a] dark:hover:text-[#38bdf8]'
-                }`}
+                  }`}
               >
                 My Requests
               </button>
               <button
                 onClick={() => setViewScope('team')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
-                  viewScope === 'team'
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${viewScope === 'team'
                     ? 'bg-[#07518a] text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-[#07518a] dark:hover:text-[#38bdf8]'
-                }`}
+                  }`}
               >
                 All Requests
               </button>
@@ -551,13 +549,12 @@ export default function AttendanceRegularizationPage() {
 
                       {/* Col 6: Status */}
                       <td className="py-3 px-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                          req.status === 'APPROVED'
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${req.status === 'APPROVED'
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                             : req.status === 'REJECTED'
-                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse'
-                        }`}>
+                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse'
+                          }`}>
                           {req.status}
                         </span>
                       </td>

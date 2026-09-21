@@ -8,7 +8,12 @@ interface CustomDatePickerProps {
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
+  minDate?: string;
   maxDate?: string;
+  disabledDates?: string[];
+  disabledReasonMap?: Record<string, string>;
+  isDateDisabledFn?: (date: Date, dateStr: string) => boolean;
+  align?: 'left' | 'right';
 }
 
 const monthsList = [
@@ -22,7 +27,12 @@ export default function CustomDatePicker({
   placeholder = 'Select date...',
   disabled = false,
   required = false,
-  maxDate
+  minDate,
+  maxDate,
+  disabledDates,
+  disabledReasonMap,
+  isDateDisabledFn,
+  align = 'left'
 }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState<Date>(new Date());
@@ -160,11 +170,26 @@ export default function CustomDatePicker({
   };
 
   const isDateDisabled = (d: Date) => {
-    if (!maxDate) return false;
-    const maxDateObj = parseLocalDate(maxDate);
     const dCopy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const maxCopy = new Date(maxDateObj.getFullYear(), maxDateObj.getMonth(), maxDateObj.getDate());
-    return dCopy.getTime() > maxCopy.getTime();
+    const dateStr = formatLocalDate(d);
+
+    if (minDate) {
+      const minDateObj = parseLocalDate(minDate);
+      const minCopy = new Date(minDateObj.getFullYear(), minDateObj.getMonth(), minDateObj.getDate());
+      if (dCopy.getTime() < minCopy.getTime()) return true;
+    }
+    if (maxDate) {
+      const maxDateObj = parseLocalDate(maxDate);
+      const maxCopy = new Date(maxDateObj.getFullYear(), maxDateObj.getMonth(), maxDateObj.getDate());
+      if (dCopy.getTime() > maxCopy.getTime()) return true;
+    }
+    if (disabledDates && disabledDates.includes(dateStr)) {
+      return true;
+    }
+    if (isDateDisabledFn && isDateDisabledFn(d, dateStr)) {
+      return true;
+    }
+    return false;
   };
 
   return (
@@ -213,7 +238,7 @@ export default function CustomDatePicker({
 
       {/* Calendar Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 z-50 mt-2 w-[280px] rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-4 shadow-xl dark:shadow-slate-950/75 animate-fadeIn">
+        <div className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} z-50 mt-2 w-[280px] rounded-2xl border border-slate-200 dark:border-slate-800 bg-card p-4 shadow-xl dark:shadow-slate-950/75 animate-fadeIn`}>
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <button
@@ -278,16 +303,19 @@ export default function CustomDatePicker({
               const selected = isSelected(cell.date);
               const today = isToday(cell.date);
               const isDisabled = isDateDisabled(cell.date);
+              const dateStr = formatLocalDate(cell.date);
+              const reason = disabledReasonMap?.[dateStr];
 
               return (
                 <button
                   key={cell.key}
                   type="button"
                   disabled={isDisabled}
+                  title={isDisabled && reason ? reason : undefined}
                   onClick={() => !isDisabled && handleDaySelect(cell.date)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-xs transition-all font-sans mx-auto ${
                     isDisabled
-                      ? 'opacity-20 cursor-not-allowed text-slate-300 dark:text-slate-700'
+                      ? 'opacity-30 cursor-not-allowed text-slate-400 dark:text-slate-600 bg-slate-100/60 dark:bg-slate-800/40 line-through decoration-rose-500/50'
                       : cell.isCurrentMonth
                       ? 'font-bold text-slate-800 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80'
                       : 'text-slate-300 dark:text-slate-650 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80'

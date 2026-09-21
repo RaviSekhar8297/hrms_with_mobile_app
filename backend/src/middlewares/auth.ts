@@ -38,6 +38,7 @@ function getKey(header: JwtHeader, callback: SigningKeyCallback) {
 export interface AuthenticatedRequest extends Request {
   user?: {
     keycloakId: string;
+    employeeId?: string;
     email?: string;
     roles: string[];
     companyId?: string;
@@ -100,19 +101,19 @@ export async function authenticateToken(
       roles: roles,
     };
 
-    // If they are a SuperAdmin, they bypass company checks. 
-    // Otherwise, we fetch their company_id and employee details from our DB using their email
-    if (!isSuper && email) {
+    // Fetch employee ID and company_id from our DB using email/code or subject
+    if (email) {
       try {
         const empQuery = await query(
-          `SELECT company_id FROM hrms.employees 
+          `SELECT id, company_id FROM hrms.employees 
            WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1))
              AND status = 'ACTIVE' LIMIT 1`,
           [email]
         );
         if (empQuery.rows.length > 0) {
+          req.user.employeeId = empQuery.rows[0].id;
           req.user.companyId = empQuery.rows[0].company_id;
-        } else {
+        } else if (!isSuper) {
           return res.status(403).json({ error: 'User is not registered as an active employee in any company' });
         }
       } catch (dbErr) {
