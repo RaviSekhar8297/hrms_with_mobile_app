@@ -731,7 +731,8 @@ export default function AttendancePage() {
   };
 
   const fetchPolicy = async () => {
-    if (!companyId) {
+    const targetCid = activeCompanyId || (typeof window !== 'undefined' ? localStorage.getItem('companyId') : null) || companyId;
+    if (!targetCid) {
       setPolicy(null);
       if (isSuperAdmin) {
         try {
@@ -749,7 +750,7 @@ export default function AttendancePage() {
       return;
     }
     try {
-      const res = await fetch(`/api/v1/attendance/policies?companyId=${companyId}`, {
+      const res = await fetch(`/api/v1/attendance/policies?companyId=${targetCid}`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -850,9 +851,9 @@ export default function AttendancePage() {
   useEffect(() => {
     fetchShifts();
     fetchEmployees();
+    fetchPolicy();
     if (activeTab === 'logs') fetchLogs();
     if (activeTab === 'punches') fetchPunches();
-    if (activeTab === 'policies') fetchPolicy();
     if (activeTab === 'regularizations') fetchRegularizations();
     if (activeTab === 'permissions') fetchPermissions();
   }, [activeCompanyId, activeTab, isSuperAdmin]);
@@ -1401,7 +1402,9 @@ export default function AttendancePage() {
                 onClick={() => {
                   setPunchModalOpen(true);
                   getGPSLocation();
-                  startCamera();
+                  if (policyForm?.require_selfie) {
+                    startCamera();
+                  }
                 }}
                 className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-2"
               >
@@ -1797,7 +1800,9 @@ export default function AttendancePage() {
                   if (canCreateAttendance) {
                     setPunchModalOpen(true);
                     getGPSLocation();
-                    startCamera();
+                    if (policyForm?.require_selfie) {
+                      startCamera();
+                    }
                   }
                 }}
                 className="w-full py-2 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
@@ -4023,11 +4028,11 @@ export default function AttendancePage() {
               <div className="flex items-center gap-2.5">
                 <span className="text-xl">📸</span>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight font-outfit">
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white font-outfit">
                     Mark Attendance (Web Punch)
                   </h3>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                    GPS Location & Selfie Verification
+                    {policyForm?.require_selfie ? 'GPS Location & Selfie Verification' : 'GPS Location Verification'}
                   </p>
                 </div>
               </div>
@@ -4090,82 +4095,97 @@ export default function AttendancePage() {
                 )}
               </div>
 
-              {/* Camera / Selfie Capture Card - Always Available */}
-              <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                  📸 Selfie Photo Verification
-                </span>
-
-                {capturedSelfie ? (
-                  <div className="space-y-2 text-center">
-                    <img
-                      src={capturedSelfie}
-                      alt="Captured Selfie Verification"
-                      className="w-48 h-36 object-cover rounded-2xl mx-auto border-2 border-emerald-500 shadow-md"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCapturedSelfie(null);
-                        startCamera();
-                      }}
-                      className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-0"
-                    >
-                      Retake Selfie Photo
-                    </button>
+              {/* Camera / Selfie Capture Card - Only required/shown if require_selfie is enabled */}
+              {policyForm?.require_selfie && (
+                <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                      📸 Selfie Photo Verification
+                    </span>
+                    <span className="text-[9px] bg-indigo-600 text-white px-2 py-0.5 rounded font-sans uppercase font-bold shrink-0 shadow-2xs">
+                      Required
+                    </span>
                   </div>
-                ) : (
-                  <div className="space-y-3 text-center">
-                    <div className="w-full h-44 rounded-2xl bg-black overflow-hidden relative flex items-center justify-center border border-slate-700 shadow-inner">
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        style={{ transform: 'scaleX(-1)' }}
-                        className="w-full h-full object-cover"
+
+                  {capturedSelfie ? (
+                    <div className="space-y-2 text-center">
+                      <img
+                        src={capturedSelfie}
+                        alt="Captured Selfie Verification"
+                        className="w-48 h-36 object-cover rounded-2xl mx-auto border-2 border-emerald-500 shadow-md"
                       />
-                      <canvas ref={canvasRef} className="hidden" />
-                      {!cameraActive && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCapturedSelfie(null);
+                          startCamera();
+                        }}
+                        className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-0"
+                      >
+                        Retake Selfie Photo
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 text-center">
+                      <div className="w-full h-44 rounded-2xl bg-black overflow-hidden relative flex items-center justify-center border border-slate-700 shadow-inner">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          style={{ transform: 'scaleX(-1)' }}
+                          className="w-full h-full object-cover"
+                        />
+                        <canvas ref={canvasRef} className="hidden" />
+                        {!cameraActive && (
+                          <button
+                            type="button"
+                            onClick={startCamera}
+                            className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors shadow-md cursor-pointer"
+                          >
+                            📷 Enable Camera
+                          </button>
+                        )}
+                      </div>
+
+                      {cameraActive && (
                         <button
                           type="button"
-                          onClick={startCamera}
-                          className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors shadow-md cursor-pointer"
+                          onClick={captureSelfie}
+                          className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-500/25 transition-all cursor-pointer hover:scale-105"
                         >
-                          📷 Enable Camera
+                          📸 Take Selfie Snapshot
                         </button>
                       )}
                     </div>
-
-                    {cameraActive && (
-                      <button
-                        type="button"
-                        onClick={captureSelfie}
-                        className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-500/25 transition-all cursor-pointer hover:scale-105"
-                      >
-                        📸 Take Selfie Snapshot
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* Submit Button */}
               <div className="pt-2">
                 <button
                   type="button"
                   onClick={submitWebPunch}
-                  disabled={isSubmittingPunch || !capturedSelfie}
+                  disabled={
+                    isSubmittingPunch ||
+                    (policyForm?.require_selfie ? !capturedSelfie : false) ||
+                    (policyForm?.require_gps ? (!punchLat || !punchLng) : false)
+                  }
                   className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 ${
-                    isSubmittingPunch || !capturedSelfie
+                    isSubmittingPunch ||
+                    (policyForm?.require_selfie ? !capturedSelfie : false) ||
+                    (policyForm?.require_gps ? (!punchLat || !punchLng) : false)
                       ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-300/40 dark:border-slate-700/40 cursor-not-allowed shadow-none'
                       : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 hover:scale-[1.01] cursor-pointer'
                   }`}
                 >
                   {isSubmittingPunch
                     ? 'Submitting Punch...'
-                    : !capturedSelfie
+                    : (policyForm?.require_selfie && !capturedSelfie)
                     ? '📸 Capture Selfie Photo First to Submit'
+                    : (policyForm?.require_gps && (!punchLat || !punchLng))
+                    ? '📍 Waiting for GPS Location to Submit'
                     : 'Submit Attendance Punch Now'}
                 </button>
               </div>
