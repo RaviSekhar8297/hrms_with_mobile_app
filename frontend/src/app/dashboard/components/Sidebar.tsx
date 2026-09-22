@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       if (isCoreGroup) {
         return (
-          <div key={groupIdx} className="mb-3 space-y-1 border-b border-slate-100 dark:border-slate-800/80 pb-3">
+          <div key={groupIdx} className="mb-1 space-y-1 border-b border-slate-100 dark:border-slate-800/80 pb-1.5">
             <div className="space-y-1">
               {visibleItems.map((item) => {
                 const isActive = checkIsActive(item.tab);

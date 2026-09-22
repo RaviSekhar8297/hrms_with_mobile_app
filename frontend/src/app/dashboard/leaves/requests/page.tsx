@@ -209,8 +209,20 @@ export default function LeaveRequestsPage() {
 
   const handleApplyLeave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!applyForm.leave_type_id || !applyForm.from_date || !applyForm.to_date) {
-      showToast('Please fill all required fields', 'error');
+    if (!applyForm.leave_type_id) {
+      showToast('Please select a leave category.', 'error');
+      return;
+    }
+    if (!applyForm.from_date) {
+      showToast('Please select From Date.', 'error');
+      return;
+    }
+    if (!applyForm.to_date) {
+      showToast('Please select To Date.', 'error');
+      return;
+    }
+    if (applyForm.to_date < applyForm.from_date) {
+      showToast('To Date cannot be earlier than From Date.', 'error');
       return;
     }
     const currentBal = getLeaveTypeBalance(applyForm.leave_type_id);
@@ -223,8 +235,16 @@ export default function LeaveRequestsPage() {
       return;
     }
     const trimmedReason = applyForm.reason ? applyForm.reason.trim() : '';
-    if (trimmedReason.length < 5 || trimmedReason.length > 100) {
-      showToast('Reason must be between 5 and 100 characters', 'error');
+    if (!trimmedReason) {
+      showToast('Please provide a reason for the leave request.', 'error');
+      return;
+    }
+    if (trimmedReason.length < 5) {
+      showToast('Reason must be at least 5 characters.', 'error');
+      return;
+    }
+    if (trimmedReason.length > 100) {
+      showToast('Reason must not exceed 100 characters.', 'error');
       return;
     }
     setIsSaving(true);
@@ -311,17 +331,57 @@ export default function LeaveRequestsPage() {
   const getLeaveTypeBalance = (ltId: string) => {
     const lt = leaveTypes.find(t => String(t.id) === String(ltId));
     const balRecord = myBalances.find(b => String(b.leave_type_id) === String(ltId));
-    if (balRecord) {
-      const allotted = Number(balRecord.allotted ?? balRecord.allotted_days ?? balRecord.granted_days ?? lt?.allotted_per_year ?? 0);
-      const used = Number(balRecord.used ?? balRecord.used_days ?? 0);
-      const remaining = Number(balRecord.remaining ?? balRecord.remaining_days ?? (allotted - used));
-      return { remaining, used, allotted };
+
+    const allotted = Number(
+      balRecord?.allotted ?? balRecord?.allotted_days ?? balRecord?.granted_days ?? lt?.allotted_per_year ?? 0
+    );
+    const used = Number(balRecord?.used ?? balRecord?.used_days ?? 0);
+    const rawRemaining = Number(balRecord?.remaining ?? balRecord?.remaining_days ?? (allotted - used));
+
+    const annualAllotted = allotted > 0 ? allotted : (lt?.allotted_per_year ? Number(lt.allotted_per_year) : 12);
+    const currentMonth = new Date().getMonth() + 1; // 1–12
+    const currentYear = new Date().getFullYear();
+
+    // Monthly carry forward check
+    const isMonthlyCarryForward =
+      lt?.monthly_carry_forward !== false &&
+      lt?.carry_forward_type !== 'LAPSE' &&
+      lt?.carry_forward_type !== 'NO_CARRY_FORWARD';
+
+    // Monthly accrual rate (e.g. 12 / 12 = 1 day per month)
+    const monthlyRate = Number(lt?.monthly_accrual) > 0 ? Number(lt.monthly_accrual) : (annualAllotted / 12);
+
+    let available: number;
+
+    if (isMonthlyCarryForward) {
+      // Monthly carry forward is TRUE:
+      // Leave accrues month by month up to current month (e.g. Sep = 9 months * 1 = 9 leaves accrued).
+      // Future months (Oct, Nov, Dec) cannot be used yet.
+      // If user already used e.g. 2 leaves, then available = 9 - 2 = 7 leaves.
+      const accruedTillCurrentMonth = Math.round(monthlyRate * currentMonth * 10) / 10;
+      available = Math.max(0, Math.min(rawRemaining, accruedTillCurrentMonth - used));
+    } else {
+      // Monthly carry forward is FALSE:
+      // Leaves do not carry over across months. Only the current month's quota can be used in this month.
+      const currentMonthUsed = myRequests.filter(r => {
+        if (String(r.leave_type_id) !== String(ltId)) return false;
+        if (r.status === 'REJECTED') return false;
+        if (!r.from_date) return false;
+        const d = new Date(r.from_date);
+        return d.getFullYear() === currentYear && (d.getMonth() + 1) === currentMonth;
+      }).reduce((sum, r) => sum + (Number(r.total_days) || 0), 0);
+
+      const monthlyQuota = Math.round(monthlyRate * 10) / 10;
+      available = Math.max(0, Math.min(rawRemaining, monthlyQuota - currentMonthUsed));
     }
-    const allotted = lt?.allotted_per_year ? Number(lt.allotted_per_year) : 0;
+
     return {
-      remaining: allotted,
-      used: 0,
-      allotted: allotted
+      remaining: Math.max(0, available),
+      used,
+      allotted: annualAllotted,
+      isMonthlyCarryForward,
+      monthlyRate: Math.round(monthlyRate * 10) / 10,
+      currentMonthAccrued: Math.round(monthlyRate * currentMonth * 10) / 10
     };
   };
 
@@ -387,7 +447,7 @@ export default function LeaveRequestsPage() {
         {hasPermission('create_leave_requests') && (
           <button
             onClick={() => setApplyDrawerOpen(true)}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -402,9 +462,9 @@ export default function LeaveRequestsPage() {
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Total Applications</span>
-            <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono mt-1 block">{requests.length}</span>
+            <span className="text-2xl font-black text-[#07518a] dark:text-[#38bdf8] font-mono mt-1 block">{requests.length}</span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 flex items-center justify-center font-bold text-xl">
+          <div className="w-12 h-12 rounded-xl bg-[#07518a]/10 text-[#07518a] dark:text-[#38bdf8] border border-[#07518a]/20 flex items-center justify-center font-bold text-xl">
             📝
           </div>
         </div>
@@ -449,7 +509,7 @@ export default function LeaveRequestsPage() {
             <button
               onClick={() => setViewScope('my')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${viewScope === 'my'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
+                  ? 'bg-white dark:bg-slate-900 text-[#07518a] dark:text-[#38bdf8] shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
             >
@@ -458,7 +518,7 @@ export default function LeaveRequestsPage() {
             <button
               onClick={() => setViewScope('team')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${viewScope === 'team'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
+                  ? 'bg-white dark:bg-slate-900 text-[#07518a] dark:text-[#38bdf8] shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
             >
@@ -480,7 +540,7 @@ export default function LeaveRequestsPage() {
               placeholder="Search employee, leave..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#07518a] font-medium"
             />
             <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -494,7 +554,7 @@ export default function LeaveRequestsPage() {
                 key={st}
                 onClick={() => setStatusFilter(st)}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === st
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
+                    ? 'bg-white dark:bg-slate-900 text-[#07518a] dark:text-[#38bdf8] shadow-sm'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
               >
@@ -656,7 +716,7 @@ export default function LeaveRequestsPage() {
         onClose={() => setApplyDrawerOpen(false)}
         title="Apply For Leave"
       >
-        <form onSubmit={handleApplyLeave} className="space-y-4 p-4">
+        <form noValidate onSubmit={handleApplyLeave} className="space-y-4 p-4">
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
               Select Leave Type *
@@ -665,14 +725,14 @@ export default function LeaveRequestsPage() {
               value={applyForm.leave_type_id}
               onChange={e => setApplyForm(prev => ({ ...prev, leave_type_id: e.target.value }))}
               className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
-              required
             >
               <option value="">-- Choose Leave Category --</option>
               {leaveTypes.map(lt => {
                 const bal = getLeaveTypeBalance(lt.id);
+                const availLabel = bal.remaining <= 0 ? '0 Day(s)' : `${bal.remaining} Day(s)`;
                 return (
                   <option key={lt.id} value={lt.id}>
-                    {lt.name} ({lt.code}) — {bal.remaining} Day(s) Available
+                    {lt.name} ({lt.code}) — {availLabel} Available ({bal.isMonthlyCarryForward ? 'Carry-forward' : 'Monthly quota'})
                   </option>
                 );
               })}
@@ -682,31 +742,39 @@ export default function LeaveRequestsPage() {
               const bal = getLeaveTypeBalance(applyForm.leave_type_id);
               const selectedLt = leaveTypes.find(t => String(t.id) === String(applyForm.leave_type_id));
               const isInsufficient = bal.remaining <= 0;
+              const currentMonth = new Date().getMonth() + 1;
               return (
-                <div className={`mt-2.5 p-3 rounded-xl flex items-center justify-between border ${
+                <div className={`mt-2.5 p-3 rounded-xl border ${
                   isInsufficient
                     ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900'
                     : 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900'
                 }`}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">{isInsufficient ? '⚠️' : '📊'}</span>
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
-                        {selectedLt?.name} Balance
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{isInsufficient ? '⚠️' : '📊'}</span>
+                      <div>
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">
+                          {selectedLt?.name} Balance
+                        </span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Annual Allotted: {bal.allotted} | Total Used: {bal.used}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-[10px] font-extrabold uppercase block ${isInsufficient ? 'text-rose-500' : 'text-indigo-500'}`}>
+                        {isInsufficient ? 'No Balance' : 'Available Now'}
                       </span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Allotted: {bal.allotted} | Used: {bal.used}
+                      <span className={`text-sm font-black font-mono ${isInsufficient ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                        {bal.remaining} Day(s)
                       </span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className={`text-[10px] font-extrabold uppercase block ${isInsufficient ? 'text-rose-500' : 'text-indigo-500'}`}>
-                      {isInsufficient ? 'No Balance' : 'Available Leaves'}
-                    </span>
-                    <span className={`text-sm font-black font-mono ${isInsufficient ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                      {bal.remaining} Days
-                    </span>
-                  </div>
+                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-1.5 font-semibold">
+                    {bal.isMonthlyCarryForward
+                      ? `🗓 Accrued till Month ${currentMonth}: ${bal.currentMonthAccrued} days | Used: ${bal.used} | Available: ${bal.remaining} day(s)`
+                      : `⏱ Monthly quota: ${bal.monthlyRate} day(s)/month (No carry-forward)`}
+                  </p>
                 </div>
               );
             })()}
@@ -782,13 +850,21 @@ export default function LeaveRequestsPage() {
             <button
               type="submit"
               disabled={isSaving || (applyForm.leave_type_id ? getLeaveTypeBalance(applyForm.leave_type_id).remaining <= 0 : false)}
-              className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg transition-all ${
+              className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
                 applyForm.leave_type_id && getLeaveTypeBalance(applyForm.leave_type_id).remaining <= 0
                   ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed text-slate-500 shadow-none'
-                  : 'bg-indigo-600 hover:bg-indigo-500 cursor-pointer'
+                  : 'bg-[#07518a] hover:bg-[#053d69] cursor-pointer'
               }`}
             >
-              {isSaving ? 'Submitting...' : 'Submit Application'}
+              {isSaving ? (
+                <>
+                  <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  Submitting...
+                </>
+              ) : 'Submit'}
             </button>
             <button
               type="button"

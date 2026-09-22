@@ -4883,6 +4883,61 @@ app.get('/api/v1/attendance/live-tracking', authenticateToken, async (req: Authe
 });
 
 /**
+ * 🕒 ATTENDANCE SUMMARY COUNT APIs
+ */
+app.get('/api/v1/attendance/summary-count', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
+  const rawCompany = req.query.companyId || req.query.company_id;
+  const companyId = isSuperAdmin ? (rawCompany ? String(rawCompany) : null) : req.user?.companyId;
+  const { year, month, employeeId } = req.query;
+
+  try {
+    let sql = `
+      SELECT asc_t.*,
+             e.first_name, e.last_name, e.emp_id_code, e.email,
+             c.name as company_name,
+             d.name as department_name
+      FROM hrms.attendance_summary_count asc_t
+      JOIN hrms.employees e ON asc_t.employee_id = e.id
+      LEFT JOIN hrms.companies c ON asc_t.company_id = c.id
+      LEFT JOIN hrms.departments d ON e.department_id = d.id
+    `;
+    const params: any[] = [];
+    let paramIdx = 1;
+    let whereClauses: string[] = [];
+
+    if (companyId && companyId !== 'all') {
+      whereClauses.push(`asc_t.company_id = $${paramIdx++}`);
+      params.push(companyId);
+    }
+    if (year) {
+      whereClauses.push(`asc_t.year = $${paramIdx++}`);
+      params.push(Number(year));
+    }
+    if (month) {
+      whereClauses.push(`asc_t.month = $${paramIdx++}`);
+      params.push(Number(month));
+    }
+    if (employeeId) {
+      whereClauses.push(`asc_t.employee_id = $${paramIdx++}`);
+      params.push(employeeId);
+    }
+
+    if (whereClauses.length > 0) {
+      sql += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    sql += ' ORDER BY asc_t.year DESC, asc_t.month DESC, e.first_name ASC';
+
+    const result = await query(sql, params);
+    res.json({ success: true, records: result.rows });
+  } catch (err: any) {
+    console.error('Error fetching attendance_summary_count:', err);
+    res.status(500).json({ error: err.message || 'Server error' });
+  }
+});
+
+/**
  * 🕒 ATTENDANCE SUMMARY LOG APIs
  */
 app.get('/api/v1/attendance/summary', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {

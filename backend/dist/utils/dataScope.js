@@ -7,11 +7,12 @@ const db_1 = require("../config/db");
  * Resolves logged-in employee context and the data_scope assigned to their role
  * for a specific module or permission.
  */
-async function getEmployeeDataScope(req, moduleName, permissionName) {
+async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
     const isSuper = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     if (isSuper) {
         return {
             employeeId: null,
+            branchId: null,
             departmentId: null,
             companyId: req.user?.companyId || null,
             roleId: null,
@@ -22,6 +23,7 @@ async function getEmployeeDataScope(req, moduleName, permissionName) {
     if (!req.user || !req.user.email) {
         return {
             employeeId: null,
+            branchId: null,
             departmentId: null,
             companyId: req.user?.companyId || null,
             roleId: null,
@@ -30,16 +32,20 @@ async function getEmployeeDataScope(req, moduleName, permissionName) {
         };
     }
     try {
-        const userEmail = (req.user.email || '').trim();
-        const empRes = await (0, db_1.query)(`SELECT e.id, e.department_id, e.company_id, e.role_id, r.name as role_name
+        const userEmpId = req.user?.employeeId || null;
+        const userEmail = (req.user?.email || '').trim();
+        const empRes = await (0, db_1.query)(`SELECT e.id, e.branch_id, e.department_id, e.company_id, e.role_id, r.name as role_name
        FROM hrms.employees e 
        LEFT JOIN hrms.roles r ON e.role_id = r.id
-       WHERE (LOWER(e.email) = LOWER($1) OR LOWER(e.emp_id_code) = LOWER($1))
-         AND e.status = 'ACTIVE' 
-       LIMIT 1`, [userEmail]);
+       WHERE (
+         ($1::uuid IS NOT NULL AND e.id = $1::uuid)
+         OR (LOWER(e.email) = LOWER($2) OR LOWER(e.emp_id_code) = LOWER($2))
+       ) AND e.status = 'ACTIVE' 
+       LIMIT 1`, [userEmpId, userEmail]);
         if (empRes.rows.length === 0) {
             return {
                 employeeId: null,
+                branchId: null,
                 departmentId: null,
                 companyId: req.user?.companyId || null,
                 roleId: null,
@@ -57,9 +63,9 @@ async function getEmployeeDataScope(req, moduleName, permissionName) {
         WHERE rp.role_id = $1
       `;
             const permParams = [emp.role_id];
-            if (permissionName) {
-                permSql += ` AND (LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_summary'))`;
-                permParams.push(permissionName);
+            if (permissionNameOrId) {
+                permSql += ` AND (p.id::text = $2 OR LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_summary'))`;
+                permParams.push(permissionNameOrId);
             }
             else if (moduleName) {
                 permSql += ` AND (LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_summary') OR LOWER(p.module) = LOWER($2) OR LOWER(p.name) LIKE LOWER($3))`;
@@ -75,12 +81,15 @@ async function getEmployeeDataScope(req, moduleName, permissionName) {
                     dataScope = 'REPORTING';
                 else if (['DEPARTMENT', 'DEPT', 'D'].includes(scopeVal))
                     dataScope = 'DEPARTMENT';
+                else if (['BRANCH', 'B'].includes(scopeVal))
+                    dataScope = 'BRANCH';
                 else if (['ALL', 'A'].includes(scopeVal))
                     dataScope = 'ALL';
             }
         }
         return {
             employeeId: emp.id,
+            branchId: emp.branch_id,
             departmentId: emp.department_id,
             companyId: emp.company_id,
             roleId: emp.role_id,
@@ -92,6 +101,7 @@ async function getEmployeeDataScope(req, moduleName, permissionName) {
         console.error('[DataScope] Error resolving employee data scope:', err);
         return {
             employeeId: null,
+            branchId: null,
             departmentId: null,
             companyId: req.user?.companyId || null,
             roleId: null,
@@ -160,6 +170,31 @@ function buildDataScopeCondition(scopeCtx, tableAlias = 'e', empIdCol = 'id', st
             return {
                 whereSql: `${empCol} IN (SELECT id FROM hrms.employees WHERE department_id = $${startingParamIdx})`,
                 params: [scopeCtx.departmentId],
+                nextParamIdx: startingParamIdx + 1,
+            };
+        }
+    }
+    if (scopeCtx.dataScope === 'BRANCH') {
+        if (!scopeCtx.branchId) {
+            if (!scopeCtx.employeeId)
+                return { whereSql: '1=0', params: [], nextParamIdx: startingParamIdx };
+            return {
+                whereSql: `${empCol} = $${startingParamIdx}`,
+                params: [scopeCtx.employeeId],
+                nextParamIdx: startingParamIdx + 1,
+            };
+        }
+        if (empIdCol === 'id' && cleanAlias) {
+            return {
+                whereSql: `${cleanAlias}.branch_id = $${startingParamIdx}`,
+                params: [scopeCtx.branchId],
+                nextParamIdx: startingParamIdx + 1,
+            };
+        }
+        else {
+            return {
+                whereSql: `${empCol} IN (SELECT id FROM hrms.employees WHERE branch_id = $${startingParamIdx})`,
+                params: [scopeCtx.branchId],
                 nextParamIdx: startingParamIdx + 1,
             };
         }

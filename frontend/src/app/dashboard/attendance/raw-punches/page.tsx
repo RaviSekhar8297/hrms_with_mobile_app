@@ -394,16 +394,9 @@ export default function RawPunchLogsPage() {
               {isLoading ? (
                 <tr>
                   <td colSpan={(canEdit || canDelete) ? 8 : 7} className="py-16 text-center">
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <div className="relative flex items-center justify-center">
-                        <div className="w-10 h-10 border-4 border-indigo-200 dark:border-indigo-950 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                          Loading Raw Punch Logs...
-                        </p>
-                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Fetching latest biometric & GPS device punches</p>
-                      </div>
+                    <div className="p-16 text-center space-y-3">
+                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Raw Punch Logs...</p>
                     </div>
                   </td>
                 </tr>

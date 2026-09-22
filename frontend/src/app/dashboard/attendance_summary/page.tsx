@@ -7,6 +7,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useDashboard } from '../components/DashboardContext';
 import { getHeaders, API_BASE } from '../utils/api';
 import ModernPagination from '../components/ModernPagination';
+import { DatePickerSimple } from '@/components/ui/custom-controls';
 import { 
   Calendar, 
   Search, 
@@ -473,33 +474,33 @@ export default function AttendanceSummaryPage() {
             {/* From Date Filter */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300">From:</span>
-              <input
-                type="date"
+              <DatePickerSimple
                 value={fromDate}
-                max={todayStr}
-                onChange={e => {
-                  const val = e.target.value;
-                  if (val > todayStr) setFromDate(todayStr);
-                  else setFromDate(val);
+                onChange={(dateStr) => {
+                  if (dateStr > todayStr) setFromDate(todayStr);
+                  else setFromDate(dateStr);
                 }}
-                className="px-2.5 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-600 cursor-pointer shadow-2xs"
+                maxDate={todayStr}
+                placeholder="From Date"
+                className="w-36"
+                triggerClassName="!min-h-[36px] !py-1.5 !px-2.5 font-bold"
               />
             </div>
 
             {/* To Date Filter */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300">To:</span>
-              <input
-                type="date"
+              <DatePickerSimple
                 value={toDate}
-                max={todayStr}
-                min={fromDate || undefined}
-                onChange={e => {
-                  const val = e.target.value;
-                  if (val > todayStr) setToDate(todayStr);
-                  else setToDate(val);
+                onChange={(dateStr) => {
+                  if (dateStr > todayStr) setToDate(todayStr);
+                  else setToDate(dateStr);
                 }}
-                className="px-2.5 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-600 cursor-pointer shadow-2xs"
+                minDate={fromDate || undefined}
+                maxDate={todayStr}
+                placeholder="To Date"
+                className="w-36"
+                triggerClassName="!min-h-[36px] !py-1.5 !px-2.5 font-bold"
               />
             </div>
 
@@ -573,17 +574,10 @@ export default function AttendanceSummaryPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white/50 dark:bg-slate-900/50 text-xs sm:text-sm font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="py-20 text-center">
-                    <div className="flex flex-col items-center justify-center space-y-3.5">
-                      <div className="relative flex items-center justify-center">
-                        <div className="w-12 h-12 border-4 border-indigo-200 dark:border-indigo-950 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                          Loading Attendance Summary Logs...
-                        </p>
-                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Fetching timesheets, shifts, and attendance records from server</p>
-                      </div>
+                  <td colSpan={11} className="py-16 text-center">
+                    <div className="p-16 text-center space-y-3">
+                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Attendance Summary Logs...</p>
                     </div>
                   </td>
                 </tr>

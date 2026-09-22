@@ -25,7 +25,7 @@ export const AttendanceSubHeader: React.FC<AttendanceSubHeaderProps> = ({ active
       {ATTENDANCE_NAV_ITEMS.map((item) => {
         const isActive = activeTab === item.id;
         
-        let activeBgClass = 'bg-blue-600 text-white shadow-xs scale-[1.02] border-blue-600';
+        let activeBgClass = 'bg-[#07518a] text-white shadow-xs scale-[1.02] border-[#07518a]';
         let activeDotClass = 'bg-white';
 
         if (item.id === 'atd_history') {

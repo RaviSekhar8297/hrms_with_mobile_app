@@ -207,6 +207,30 @@ export default function AttendancePermissionsPage() {
     setIsSubmitOpen(true);
   };
 
+  const calculateToTime = (fromTime: string, durationMinutes: number) => {
+    if (!fromTime) return '';
+    const parts = fromTime.split(':');
+    if (parts.length < 2) return '';
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes)) return '';
+    
+    const totalMinutes = hours * 60 + minutes + durationMinutes;
+    const newHours = Math.floor(totalMinutes / 60) % 24;
+    const newMinutes = totalMinutes % 60;
+    return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+  };
+
+  const handleFromTimeChange = (newFromTime: string) => {
+    const allowedMinutes = Number(policy?.max_single_permission_minutes) || 120;
+    const autoToTime = calculateToTime(newFromTime, allowedMinutes);
+    setForm(prev => ({
+      ...prev,
+      from_time: newFromTime,
+      to_time: autoToTime || prev.to_time
+    }));
+  };
+
   const handleApplyOpen = () => {
     setEditingId(null);
     setForm({
@@ -222,8 +246,35 @@ export default function AttendancePermissionsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeCompanyId) return;
-    if (!form.permission_date || !form.from_time || !form.to_time || !form.reason) {
-      showToast('Please fill in all required fields.', 'error');
+
+    if (!form.permission_type) {
+      showToast('Please select a permission category.', 'error');
+      return;
+    }
+
+    if (!form.permission_date) {
+      showToast('Please select a permission date.', 'error');
+      return;
+    }
+
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    if (form.permission_date > todayStr) {
+      showToast('Future dates are not allowed for permission requests.', 'error');
+      return;
+    }
+
+    if (!form.from_time) {
+      showToast('Please select From Time.', 'error');
+      return;
+    }
+
+    if (!form.to_time) {
+      showToast('Please select To Time.', 'error');
+      return;
+    }
+
+    if (!form.reason || !form.reason.trim()) {
+      showToast('Please provide a reason for the permission request.', 'error');
       return;
     }
 
@@ -270,7 +321,7 @@ export default function AttendancePermissionsPage() {
       });
 
       if (res.ok) {
-        showToast(isEditing ? 'Permission request updated successfully!' : 'Permission request submitted!', 'success');
+        showToast(isEditing ? 'Permission request updated successfully!' : 'Permission request submitted successfully!', 'success');
         setIsSubmitOpen(false);
         setEditingId(null);
         setForm({
@@ -557,10 +608,10 @@ export default function AttendancePermissionsPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400 font-medium">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-                      <span>Loading permission requests...</span>
+                  <td colSpan={10} className="py-16 text-center">
+                    <div className="p-16 text-center space-y-3">
+                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Permission Requests...</p>
                     </div>
                   </td>
                 </tr>
@@ -742,14 +793,22 @@ export default function AttendancePermissionsPage() {
         }}
         title={editingId ? "Edit Short-time Permission Request" : "Apply for Short-time Permission"}
       >
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold">
+        <form noValidate onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold">
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Permission Category *
             </label>
             <select
               value={form.permission_type}
-              onChange={e => setForm({ ...form, permission_type: e.target.value })}
+              onChange={e => {
+                const newType = e.target.value;
+                const allowedMinutes = Number(policy?.max_single_permission_minutes) || 120;
+                setForm(prev => ({
+                  ...prev,
+                  permission_type: newType,
+                  to_time: prev.from_time ? calculateToTime(prev.from_time, allowedMinutes) : prev.to_time
+                }));
+              }}
               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
             >
               <option value="MID_DAY">🍔 Mid-Day Personal Work</option>
@@ -766,35 +825,45 @@ export default function AttendancePermissionsPage() {
             <CustomDatePicker
               value={form.permission_date}
               onChange={val => setForm({ ...form, permission_date: val })}
+              maxDate={new Date().toLocaleDateString('en-CA')}
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                From Time *
-              </label>
-              <input
-                type="time"
-                required
-                value={form.from_time}
-                onChange={e => setForm({ ...form, from_time: e.target.value })}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
-              />
+          <div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  From Time *
+                </label>
+                <input
+                  type="time"
+                  required
+                  value={form.from_time}
+                  onChange={e => handleFromTimeChange(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  To Time (Auto) *
+                </label>
+                <input
+                  type="time"
+                  readOnly
+                  disabled
+                  tabIndex={-1}
+                  value={form.to_time}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/80 text-xs font-bold text-slate-500 dark:text-slate-400 outline-none cursor-not-allowed select-none pointer-events-none"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                To Time *
-              </label>
-              <input
-                type="time"
-                required
-                value={form.to_time}
-                onChange={e => setForm({ ...form, to_time: e.target.value })}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
-              />
-            </div>
+            {form.from_time && (
+              <p className="text-[10.5px] text-[#07518a] dark:text-[#38bdf8] font-bold mt-1.5 flex items-center gap-1">
+                <span>⏱️</span>
+                <span>To Time auto-calculated ({policy?.max_single_permission_minutes || 120} mins allowed)</span>
+              </p>
+            )}
           </div>
 
           <div>
@@ -822,16 +891,6 @@ export default function AttendancePermissionsPage() {
 
           <div className="pt-4 flex gap-3 border-t border-slate-200 dark:border-slate-800">
             <button
-              type="button"
-              onClick={() => {
-                setIsSubmitOpen(false);
-                setEditingId(null);
-              }}
-              className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
               type="submit"
               disabled={isSubmitting}
               className="flex-1 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs shadow-md shadow-[#07518a]/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
@@ -842,8 +901,18 @@ export default function AttendancePermissionsPage() {
                   <span>Saving...</span>
                 </>
               ) : (
-                <span>{editingId ? 'Update Request' : 'Submit Permission Request'}</span>
+                <span>Submit</span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSubmitOpen(false);
+                setEditingId(null);
+              }}
+              className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+            >
+              Cancel
             </button>
           </div>
         </form>

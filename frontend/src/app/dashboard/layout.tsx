@@ -733,6 +733,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ),
         },
         {
+          tab: 'summary_count',
+          label: 'Count',
+          permission: 'view_attendance_summary',
+          icon: (
+            <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+            </svg>
+          ),
+        },
+        {
           tab: 'attendance/raw-punches',
           label: 'Logs',
           permission: 'view_attendance_raw_punches',
@@ -1621,7 +1631,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       {/* 🥞 ANIMATED TOASTS STACK PANEL (CENTER RIGHT) */}
-      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[999999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-sans transition-all duration-300">
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[99999999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-sans transition-all duration-300">
         {toasts.map((toast) => (
           <div key={toast.id} className="pointer-events-auto animate-toast">
             <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-2xl transition-all border-2 ${

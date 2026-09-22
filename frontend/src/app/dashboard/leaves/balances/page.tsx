@@ -218,7 +218,7 @@ export default function LeaveBalancesPage() {
             onClick={() => setActiveTab('my')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
               activeTab === 'my'
-                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
+                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.02]'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -235,7 +235,7 @@ export default function LeaveBalancesPage() {
             onClick={() => setActiveTab('all')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
               activeTab === 'all'
-                ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
+                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.02]'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -260,7 +260,7 @@ export default function LeaveBalancesPage() {
               placeholder="Search employee or leave code..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-search pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              className="w-full pl-search pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 transition-all"
             />
           </div>
 
@@ -268,7 +268,7 @@ export default function LeaveBalancesPage() {
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(e.target.value)}
-            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-800 dark:text-slate-100 outline-none cursor-pointer focus:border-indigo-500 transition-all"
+            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-800 dark:text-slate-100 outline-none cursor-pointer focus:border-[#07518a] transition-all"
           >
             {[2026, 2025, 2024, 2023, 2022].map(yr => (
               <option key={yr} value={yr} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-bold">
@@ -281,7 +281,7 @@ export default function LeaveBalancesPage() {
           {canEdit && (
             <button
               onClick={openNewBalance}
-              className="px-4 py-2 bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -340,7 +340,7 @@ export default function LeaveBalancesPage() {
                       {/* Progress Bar */}
                       <div className="w-full h-2 rounded-full bg-slate-200/80 dark:bg-slate-800 overflow-hidden">
                         <div 
-                          className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 transition-all duration-500"
+                          className="h-full rounded-full bg-[#07518a] transition-all duration-500"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -686,7 +686,7 @@ export default function LeaveBalancesPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 py-2.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-extrabold text-xs rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer"
+              className="flex-1 py-2.5 bg-[#07518a] hover:bg-[#053d69] text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer"
             >
               {isSaving ? 'Saving...' : editingBalance ? 'Update Quota' : 'Assign Quota'}
             </button>

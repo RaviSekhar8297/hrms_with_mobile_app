@@ -288,7 +288,7 @@ export default function LeaveTypesAndLogsPage() {
       >
         <button
           onClick={activeTab === 'types' ? openNewType : () => setTransactionDrawerOpen(true)}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+          className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -301,9 +301,9 @@ export default function LeaveTypesAndLogsPage() {
       <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-fit">
         <button
           onClick={() => setActiveTab('types')}
-          className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all ${
+          className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
             activeTab === 'types'
-              ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
+              ? 'bg-white dark:bg-slate-900 text-[#07518a] dark:text-[#38bdf8] shadow-sm'
               : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
           }`}
         >
@@ -311,9 +311,9 @@ export default function LeaveTypesAndLogsPage() {
         </button>
         <button
           onClick={() => setActiveTab('transactions')}
-          className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all ${
+          className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
             activeTab === 'transactions'
-              ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
+              ? 'bg-white dark:bg-slate-900 text-[#07518a] dark:text-[#38bdf8] shadow-sm'
               : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
           }`}
         >
@@ -689,7 +689,7 @@ export default function LeaveTypesAndLogsPage() {
               type="button"
               onClick={() => setTypeForm(prev => ({ ...prev, is_paid: !prev.is_paid }))}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                typeForm.is_paid ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                typeForm.is_paid ? 'bg-[#07518a]' : 'bg-slate-300 dark:bg-slate-700'
               }`}
             >
               <span
@@ -725,7 +725,7 @@ export default function LeaveTypesAndLogsPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow"
+              className="flex-1 py-2.5 bg-[#07518a] hover:bg-[#053d69] text-white font-bold text-xs rounded-xl shadow transition-colors cursor-pointer"
             >
               {isSaving ? 'Saving...' : editingType ? 'Update Policy' : 'Create Policy'}
             </button>
@@ -746,7 +746,7 @@ export default function LeaveTypesAndLogsPage() {
         onClose={() => setTransactionDrawerOpen(false)}
         title="Post Manual Leave Adjustment"
       >
-        <form onSubmit={handlePostTransaction} className="space-y-4 p-4">
+        <form onSubmit={handlePostTransaction} className="space-y-4 font-sans">
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Select Employee *</label>
             <SearchableSelect
@@ -832,7 +832,7 @@ export default function LeaveTypesAndLogsPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow"
+              className="flex-1 py-2.5 bg-[#07518a] hover:bg-[#053d69] text-white font-bold text-xs rounded-xl shadow transition-colors cursor-pointer"
             >
               {isSaving ? 'Posting...' : 'Post Adjustment'}
             </button>

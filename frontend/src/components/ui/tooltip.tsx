@@ -109,7 +109,7 @@ export function TooltipContent({ side = 'top', align = 'center', className = '',
   return (
     <div
       role="tooltip"
-      className={`absolute z-50 rounded-xl bg-slate-900 dark:bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-white dark:text-slate-900 shadow-xl animate-in fade-in-0 zoom-in-95 pointer-events-none ${positionClass} ${className}`}
+      className={`absolute z-[100] whitespace-nowrap rounded-lg bg-slate-900 dark:bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-white dark:text-slate-900 shadow-xl pointer-events-none ${positionClass} ${className}`}
       {...props}
     >
       {children}

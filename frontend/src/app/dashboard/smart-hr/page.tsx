@@ -546,7 +546,7 @@ export default function SmartHRPage() {
               onClick={() => setActiveTab('schedules')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === 'schedules'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-[#07518a] text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/50'
               }`}
             >
@@ -563,7 +563,7 @@ export default function SmartHRPage() {
               onClick={() => setActiveTab('templates')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === 'templates'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-[#07518a] text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/50'
               }`}
             >
@@ -580,7 +580,7 @@ export default function SmartHRPage() {
               onClick={() => setActiveTab('logs')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === 'logs'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-[#07518a] text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/50'
               }`}
             >
@@ -618,7 +618,7 @@ export default function SmartHRPage() {
           {activeTab === 'schedules' && canCreateSchedules && (
             <button
               onClick={openNewSchedule}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Create New Schedule</span>
@@ -627,7 +627,7 @@ export default function SmartHRPage() {
           {activeTab === 'templates' && canCreateTemplates && (
             <button
               onClick={openNewTemplate}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Create New Template</span>
@@ -1150,7 +1150,7 @@ export default function SmartHRPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow cursor-pointer"
+              className="flex-1 py-2.5 bg-[#07518a] hover:bg-[#053d69] text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors"
             >
               {isSaving ? 'Saving...' : editingSchedule ? 'Update Schedule' : 'Create Schedule'}
             </button>
@@ -1257,7 +1257,7 @@ export default function SmartHRPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow cursor-pointer"
+              className="flex-1 py-2.5 bg-[#07518a] hover:bg-[#053d69] text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors"
             >
               {isSaving ? 'Saving...' : editingTemplate ? 'Update Template' : 'Create Template'}
             </button>

@@ -3963,6 +3963,56 @@ app.get('/api/v1/attendance/live-tracking', auth_1.authenticateToken, async (req
     }
 });
 /**
+ * 🕒 ATTENDANCE SUMMARY COUNT APIs
+ */
+app.get('/api/v1/attendance/summary-count', auth_1.authenticateToken, async (req, res) => {
+    const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
+    const rawCompany = req.query.companyId || req.query.company_id;
+    const companyId = isSuperAdmin ? (rawCompany ? String(rawCompany) : null) : req.user?.companyId;
+    const { year, month, employeeId } = req.query;
+    try {
+        let sql = `
+      SELECT asc_t.*,
+             e.first_name, e.last_name, e.emp_id_code, e.email,
+             c.name as company_name,
+             d.name as department_name
+      FROM hrms.attendance_summary_count asc_t
+      JOIN hrms.employees e ON asc_t.employee_id = e.id
+      LEFT JOIN hrms.companies c ON asc_t.company_id = c.id
+      LEFT JOIN hrms.departments d ON e.department_id = d.id
+    `;
+        const params = [];
+        let paramIdx = 1;
+        let whereClauses = [];
+        if (companyId && companyId !== 'all') {
+            whereClauses.push(`asc_t.company_id = $${paramIdx++}`);
+            params.push(companyId);
+        }
+        if (year) {
+            whereClauses.push(`asc_t.year = $${paramIdx++}`);
+            params.push(Number(year));
+        }
+        if (month) {
+            whereClauses.push(`asc_t.month = $${paramIdx++}`);
+            params.push(Number(month));
+        }
+        if (employeeId) {
+            whereClauses.push(`asc_t.employee_id = $${paramIdx++}`);
+            params.push(employeeId);
+        }
+        if (whereClauses.length > 0) {
+            sql += ' WHERE ' + whereClauses.join(' AND ');
+        }
+        sql += ' ORDER BY asc_t.year DESC, asc_t.month DESC, e.first_name ASC';
+        const result = await (0, db_1.query)(sql, params);
+        res.json({ success: true, records: result.rows });
+    }
+    catch (err) {
+        console.error('Error fetching attendance_summary_count:', err);
+        res.status(500).json({ error: err.message || 'Server error' });
+    }
+});
+/**
  * 🕒 ATTENDANCE SUMMARY LOG APIs
  */
 app.get('/api/v1/attendance/summary', auth_1.authenticateToken, async (req, res) => {
@@ -5978,8 +6028,8 @@ app.get('/api/v1/leave-types', auth_1.authenticateToken, async (req, res) => {
 app.post('/api/v1/leave-types', auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
-    const { name, code, allotted_per_year, accrual_type, carry_forward_type, max_carry_forward, is_paid, is_wfh } = req.body;
-    if (!companyId || !name || !code || !allotted_per_year) {
+    const { name, code, allotted_per_year, monthly_accrual, monthly_carry_forward, monthly_carry_limit, yearly_accrual, yearly_carry_forward, yearly_carry_limit, is_paid, is_wfh } = req.body;
+    if (!companyId || !name || !code || allotted_per_year === undefined || allotted_per_year === null) {
         return res.status(400).json({ error: 'Required fields missing: companyId, name, code, allotted_per_year' });
     }
     try {
@@ -5988,17 +6038,38 @@ app.post('/api/v1/leave-types', auth_1.authenticateToken, async (req, res) => {
         if (duplicateCheck.rows.length > 0) {
             return res.status(400).json({ error: 'A leave type with this name or code already exists for your company.' });
         }
-        const result = await (0, db_1.query)(`INSERT INTO hrms.leave_types (company_id, name, code, allotted_per_year, accrual_type, carry_forward_type, max_carry_forward, is_paid, is_wfh, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true) RETURNING *`, [
+        const mAccrual = monthly_accrual !== undefined ? Boolean(monthly_accrual) : false;
+        const mCarry = monthly_carry_forward !== undefined ? Boolean(monthly_carry_forward) : true;
+        const mLimit = monthly_carry_limit ? parseFloat(monthly_carry_limit) : 0;
+        const yAccrual = yearly_accrual !== undefined ? Boolean(yearly_accrual) : true;
+        const yCarry = yearly_carry_forward !== undefined ? Boolean(yearly_carry_forward) : false;
+        const yLimit = yearly_carry_limit ? parseFloat(yearly_carry_limit) : 0;
+        const legacyAccrual = mAccrual ? 'MONTHLY' : 'YEARLY';
+        const legacyCarryType = (yCarry || mCarry) ? (yLimit > 0 || mLimit > 0 ? 'LIMIT' : 'ALL') : 'NONE';
+        const legacyMaxCarry = yLimit || mLimit || 0;
+        const result = await (0, db_1.query)(`INSERT INTO hrms.leave_types (
+        company_id, name, code, allotted_per_year,
+        monthly_accrual, monthly_carry_forward, monthly_carry_limit,
+        yearly_accrual, yearly_carry_forward, yearly_carry_limit,
+        accrual_type, carry_forward_type, max_carry_forward,
+        is_paid, is_wfh, is_active
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true) RETURNING *`, [
             companyId,
             name,
             code.toUpperCase(),
             parseFloat(allotted_per_year),
-            accrual_type || 'YEARLY',
-            carry_forward_type || 'NONE',
-            max_carry_forward ? parseFloat(max_carry_forward) : 0,
-            is_paid !== undefined ? is_paid : true,
-            is_wfh !== undefined ? is_wfh : false
+            mAccrual,
+            mCarry,
+            mLimit,
+            yAccrual,
+            yCarry,
+            yLimit,
+            legacyAccrual,
+            legacyCarryType,
+            legacyMaxCarry,
+            is_paid !== undefined ? Boolean(is_paid) : true,
+            is_wfh !== undefined ? Boolean(is_wfh) : false
         ]);
         const newLeaveType = result.rows[0];
         // Auto-allocate this new leave type balance to all existing ACTIVE employees in the company
@@ -6027,7 +6098,7 @@ app.put('/api/v1/leave-types/:id', auth_1.authenticateToken, async (req, res) =>
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
-    const { name, code, allotted_per_year, accrual_type, carry_forward_type, max_carry_forward, is_paid, is_wfh, is_active } = req.body;
+    const { name, code, allotted_per_year, monthly_accrual, monthly_carry_forward, monthly_carry_limit, yearly_accrual, yearly_carry_forward, yearly_carry_limit, is_paid, is_wfh, is_active } = req.body;
     try {
         if (!isSuperAdmin) {
             const check = await (0, db_1.query)('SELECT id FROM hrms.leave_types WHERE id = $1 AND company_id = $2', [id, companyId]);
@@ -6039,18 +6110,37 @@ app.put('/api/v1/leave-types/:id', auth_1.authenticateToken, async (req, res) =>
         if (duplicateCheck.rows.length > 0) {
             return res.status(400).json({ error: 'A leave type with this name or code already exists for your company.' });
         }
-        const activeState = is_active !== undefined ? is_active : true;
+        const activeState = is_active !== undefined ? Boolean(is_active) : true;
+        const mAccrual = monthly_accrual !== undefined ? Boolean(monthly_accrual) : false;
+        const mCarry = monthly_carry_forward !== undefined ? Boolean(monthly_carry_forward) : true;
+        const mLimit = monthly_carry_limit ? parseFloat(monthly_carry_limit) : 0;
+        const yAccrual = yearly_accrual !== undefined ? Boolean(yearly_accrual) : true;
+        const yCarry = yearly_carry_forward !== undefined ? Boolean(yearly_carry_forward) : false;
+        const yLimit = yearly_carry_limit ? parseFloat(yearly_carry_limit) : 0;
+        const legacyAccrual = mAccrual ? 'MONTHLY' : 'YEARLY';
+        const legacyCarryType = (yCarry || mCarry) ? (yLimit > 0 || mLimit > 0 ? 'LIMIT' : 'ALL') : 'NONE';
+        const legacyMaxCarry = yLimit || mLimit || 0;
         const result = await (0, db_1.query)(`UPDATE hrms.leave_types 
-       SET name = $1, code = $2, allotted_per_year = $3, accrual_type = $4, carry_forward_type = $5, max_carry_forward = $6, is_paid = $7, is_wfh = $8, is_active = $9, updated_at = NOW()
-       WHERE id = $10 RETURNING *`, [
+       SET name = $1, code = $2, allotted_per_year = $3,
+           monthly_accrual = $4, monthly_carry_forward = $5, monthly_carry_limit = $6,
+           yearly_accrual = $7, yearly_carry_forward = $8, yearly_carry_limit = $9,
+           accrual_type = $10, carry_forward_type = $11, max_carry_forward = $12,
+           is_paid = $13, is_wfh = $14, is_active = $15, updated_at = NOW()
+       WHERE id = $16 RETURNING *`, [
             name,
             code.toUpperCase(),
             parseFloat(allotted_per_year),
-            accrual_type || 'YEARLY',
-            carry_forward_type || 'NONE',
-            max_carry_forward ? parseFloat(max_carry_forward) : 0,
-            is_paid !== undefined ? is_paid : true,
-            is_wfh !== undefined ? is_wfh : false,
+            mAccrual,
+            mCarry,
+            mLimit,
+            yAccrual,
+            yCarry,
+            yLimit,
+            legacyAccrual,
+            legacyCarryType,
+            legacyMaxCarry,
+            is_paid !== undefined ? Boolean(is_paid) : true,
+            is_wfh !== undefined ? Boolean(is_wfh) : false,
             activeState,
             id
         ]);
@@ -6184,7 +6274,6 @@ app.get('/api/v1/leave-requests', auth_1.authenticateToken, async (req, res) => 
     const email = req.user?.email;
     const scope = req.query.scope;
     const filterSelf = req.query.self === 'true' || scope === 'my';
-    const filterTeam = scope === 'team';
     if (!companyId && !isSuperAdmin)
         return res.status(400).json({ error: 'Company ID is required' });
     try {
@@ -6218,19 +6307,9 @@ app.get('/api/v1/leave-requests', auth_1.authenticateToken, async (req, res) => 
             params.push(employeeId);
             whereClauses.push(`lr.employee_id = $${params.length}`);
         }
-        else if (filterTeam && employeeId) {
-            if (isSuperAdmin) {
-                params.push(employeeId);
-                whereClauses.push(`lr.employee_id != $${params.length}`);
-            }
-            else {
-                params.push(employeeId);
-                whereClauses.push(`e.reporting_to_id = $${params.length}`);
-            }
-        }
         else {
-            const scopeCtx = await (0, auth_1.getEmployeeDataScope)(req, 'leave', 'view_leave_requests');
-            const scopeCond = (0, auth_1.buildDataScopeCondition)(scopeCtx, 'lr', 'employee_id', params.length + 1);
+            const scopeCtx = await (0, auth_1.getEmployeeDataScope)(req, 'leave', '0cc6d736-414b-41f6-9de3-4ae2bb35d415');
+            const scopeCond = (0, auth_1.buildDataScopeCondition)(scopeCtx, 'e', 'id', params.length + 1);
             if (scopeCond.whereSql) {
                 whereClauses.push(scopeCond.whereSql);
                 params.push(...scopeCond.params);
@@ -8721,6 +8800,52 @@ app.listen(Number(PORT), '0.0.0.0', async () => {
         await (0, db_1.query)(`UPDATE hrms.employees SET require_punch_approval = TRUE WHERE require_punch_approval IS NULL;`);
         await (0, db_1.query)(`ALTER TABLE hrms.companies ADD COLUMN IF NOT EXISTS company_code VARCHAR(50);`);
         await (0, db_1.query)(`UPDATE hrms.companies SET company_code = UPPER(subdomain) WHERE company_code IS NULL OR company_code = '';`);
+        // Cleanup legacy attendance_cycles table and columns if present
+        await (0, db_1.query)(`DROP TABLE IF EXISTS hrms.attendance_cycles CASCADE;`).catch(() => { });
+        await (0, db_1.query)(`ALTER TABLE hrms.attendance_summary_count DROP COLUMN IF EXISTS attendance_cycle_id;`).catch(() => { });
+        // Consolidated Attendance Summary Count table
+        await (0, db_1.query)(`
+      CREATE TABLE IF NOT EXISTS hrms.attendance_summary_count (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          company_id UUID NOT NULL REFERENCES hrms.companies(id) ON DELETE CASCADE,
+          employee_id UUID NOT NULL REFERENCES hrms.employees(id) ON DELETE CASCADE,
+          month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+          year INTEGER NOT NULL CHECK (year >= 2000),
+          cycle_days INTEGER DEFAULT 0,
+          month_days INTEGER DEFAULT 0,
+          working_days NUMERIC(5,2) DEFAULT 0,
+          present_days NUMERIC(5,2) DEFAULT 0,
+          half_days NUMERIC(5,2) DEFAULT 0,
+          absent_days NUMERIC(5,2) DEFAULT 0,
+          paid_leave_days NUMERIC(5,2) DEFAULT 0,
+          unpaid_leave_days NUMERIC(5,2) DEFAULT 0,
+          lop_days NUMERIC(5,2) DEFAULT 0,
+          weekoff_days NUMERIC(5,2) DEFAULT 0,
+          holiday_days NUMERIC(5,2) DEFAULT 0,
+          late_days NUMERIC(5,2) DEFAULT 0,
+          late_minutes INTEGER DEFAULT 0,
+          early_exit_days NUMERIC(5,2) DEFAULT 0,
+          early_exit_minutes INTEGER DEFAULT 0,
+          worked_minutes INTEGER DEFAULT 0,
+          overtime_minutes INTEGER DEFAULT 0,
+          approved_overtime_minutes INTEGER DEFAULT 0,
+          cycle_payable_days NUMERIC(5,2) DEFAULT 0,
+          final_payable_days NUMERIC(5,2) DEFAULT 0,
+          payable_rule JSONB DEFAULT '{
+            "components": ["PRESENT", "HALF_DAY", "WEEKOFF", "HOLIDAY", "PAID_LEAVE"],
+            "formula_type": "PRORATED_BY_MONTH",
+            "formula": "(cycle_payable_days / cycle_days) * month_days"
+          }'::jsonb,
+          processed_by UUID REFERENCES hrms.employees(id) ON DELETE SET NULL,
+          processed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT uq_attendance_summary_count UNIQUE (company_id, year, month, employee_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_attendance_summary_count_company_period ON hrms.attendance_summary_count (company_id, year, month);
+      CREATE INDEX IF NOT EXISTS idx_attendance_summary_count_employee ON hrms.attendance_summary_count (employee_id);
+    `);
         // Database schema migration for 7 Enterprise Payroll Tables
         await (0, db_1.query)(`
       CREATE TABLE IF NOT EXISTS hrms.employee_salary_assignments (

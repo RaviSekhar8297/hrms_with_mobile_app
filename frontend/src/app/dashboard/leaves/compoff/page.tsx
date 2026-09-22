@@ -263,7 +263,7 @@ export default function CompOffClaimsPage() {
               onClick={() => setViewScope('my')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 viewScope === 'my'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
+                  ? 'bg-white dark:bg-slate-900 text-[#07518a] dark:text-[#38bdf8] shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
@@ -274,7 +274,7 @@ export default function CompOffClaimsPage() {
               onClick={() => setViewScope('team')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 viewScope === 'team'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow-sm'
+                  ? 'bg-white dark:bg-slate-900 text-[#07518a] dark:text-[#38bdf8] shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
@@ -300,7 +300,7 @@ export default function CompOffClaimsPage() {
               placeholder="Search employee..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-search pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold placeholder:text-slate-400 text-slate-800 dark:text-slate-100 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              className="w-full pl-search pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold placeholder:text-slate-400 text-slate-800 dark:text-slate-100 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 transition-all"
             />
           </div>
 
@@ -313,7 +313,7 @@ export default function CompOffClaimsPage() {
                 max={todayStr}
                 value={fromDateFilter}
                 onChange={e => setFromDateFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-[#07518a] transition-all cursor-pointer"
               />
               {fromDateFilter && (
                 <button
@@ -336,7 +336,7 @@ export default function CompOffClaimsPage() {
                 max={todayStr}
                 value={toDateFilter}
                 onChange={e => setToDateFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-[#07518a] transition-all cursor-pointer"
               />
               {toDateFilter && (
                 <button
@@ -358,7 +358,7 @@ export default function CompOffClaimsPage() {
                 onClick={() => setStatusFilter(st)}
                 className={`px-3.5 py-1.5 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
                   statusFilter === st
-                    ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
+                    ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.02]'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold'
                 }`}
               >
@@ -371,7 +371,7 @@ export default function CompOffClaimsPage() {
           {!isSuperAdmin && (
             <button
               onClick={handleOpenDrawer}
-              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-indigo-600 via-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
             >
               <i className="fa-solid fa-plus text-xs"></i>
               <span>Claim Comp-Off</span>
@@ -567,7 +567,7 @@ export default function CompOffClaimsPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow"
+              className="flex-1 py-2.5 bg-[#07518a] hover:bg-[#053d69] text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors"
             >
               {isSaving ? 'Submitting...' : 'Submit Claim'}
             </button>

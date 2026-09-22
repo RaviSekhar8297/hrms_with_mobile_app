@@ -255,42 +255,6 @@ export default function AttendanceLocksPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* EXPLANATORY HEADER BANNER (LIGHT SLEEK AESTHETIC STYLE) */}
-          <div className="bg-gradient-to-r from-indigo-50/90 via-purple-50/70 to-blue-50/90 dark:from-slate-900 dark:via-indigo-950/60 dark:to-slate-900 rounded-3xl p-6 shadow-2xs border border-indigo-100/90 dark:border-indigo-900/50 relative overflow-hidden">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
-              <div className="space-y-2 max-w-3xl">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/80 dark:bg-indigo-950/80 border border-indigo-200/80 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[10.5px] font-extrabold uppercase tracking-wider">
-                  <ShieldCheck size={13} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
-                  <span>PERIOD FREEZE & PAYROLL INTEGRITY</span>
-                </div>
-                <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                  <span>Attendance Month Locks Console</span>
-                </h2>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-                  Freezing a payroll period prevents employees from modifying attendance records, submitting backdated regularizations, or requesting permissions for locked months. Ensures 100% payroll compliance and data protection.
-                </p>
-              </div>
-
-              {canCreate && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLockForm({
-                      lock_year: new Date().getFullYear(),
-                      lock_month: new Date().getMonth() + 1,
-                      is_locked: true,
-                    });
-                    setIsDrawerOpen(true);
-                  }}
-                  className="px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black uppercase tracking-wider shadow-md shadow-indigo-600/20 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer flex items-center gap-2 shrink-0 self-start md:self-auto"
-                >
-                  <Plus size={15} className="stroke-[3]" />
-                  <span>+ Lock New Month</span>
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* CONTROLS HEADER */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
             <div>
@@ -303,7 +267,7 @@ export default function AttendanceLocksPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap">
               <div className="relative w-full sm:w-64">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 shrink-0" />
                 <input
@@ -311,7 +275,7 @@ export default function AttendanceLocksPage() {
                   placeholder="Search month, year, admin..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 font-medium transition-all"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a] font-medium transition-all"
                 />
               </div>
 
@@ -323,14 +287,32 @@ export default function AttendanceLocksPage() {
               >
                 <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
               </button>
+
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLockForm({
+                      lock_year: new Date().getFullYear(),
+                      lock_month: new Date().getMonth() + 1,
+                      is_locked: true,
+                    });
+                    setIsDrawerOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all duration-200 hover:-translate-y-0.5 cursor-pointer flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus size={14} className="stroke-[3]" />
+                  <span>+ Lock New Month</span>
+                </button>
+              )}
             </div>
           </div>
 
           {/* CARD GRID LAYOUT (REPLACING TABLE AS REQUESTED) */}
           {isLoading ? (
             <div className="bg-white dark:bg-slate-900 p-16 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-3">
-              <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loading Attendance Month Locks...</p>
+              <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Attendance Month Locks...</p>
             </div>
           ) : filteredLocks.length === 0 ? (
             <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-2xs">
@@ -347,7 +329,7 @@ export default function AttendanceLocksPage() {
                 <button
                   type="button"
                   onClick={() => setIsDrawerOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#053d69] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
                 >
                   + Lock New Month
                 </button>
@@ -629,7 +611,7 @@ export default function AttendanceLocksPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#053d69] text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>

@@ -564,22 +564,7 @@ export default function OverviewPage() {
           </h1>
         </div>
 
-        {/* TOP RIGHT CONTROLS: DATE PICKER + DOWNLOAD REPORT */}
-        <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
-          <div className="flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xs text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer hover:border-slate-300 transition-all">
-            <Calendar className="w-4 h-4 text-indigo-500" />
-            <span>May 20, 2025</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
-          </div>
 
-          <button 
-            onClick={() => alert('Exporting Smart HRMS Summary Report...')}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer shrink-0"
-          >
-            <Download className="w-4 h-4" />
-            <span>Download Report</span>
-          </button>
-        </div>
       </div>
 
       {/* 📊 2. TOP DYNAMIC KPI STATS ROW (5 CARDS) */}
@@ -797,7 +782,7 @@ export default function OverviewPage() {
                 {eventsLoading ? (
                   <div className="p-3 bg-white/60 dark:bg-slate-800/40 rounded-xl animate-pulse h-20" />
                 ) : todayEvents.filter(e => e.eventType === 'BIRTHDAY').length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-52 overflow-y-auto pr-0.5 custom-scrollbar">
                     {todayEvents.filter(e => e.eventType === 'BIRTHDAY').map(event => {
                       const isMyEvent = (myProfile?.id && myProfile.id === event.employeeId) || 
                                        (email && event.employeeName?.toLowerCase().includes(email.split('@')[0].toLowerCase()));
@@ -934,7 +919,7 @@ export default function OverviewPage() {
                 {eventsLoading ? (
                   <div className="p-3 bg-white/60 dark:bg-slate-800/40 rounded-xl animate-pulse h-20" />
                 ) : todayEvents.filter(e => e.eventType === 'ANNIVERSARY').length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-52 overflow-y-auto pr-0.5 custom-scrollbar">
                     {todayEvents.filter(e => e.eventType === 'ANNIVERSARY').map(event => {
                       const isMyEvent = (myProfile?.id && myProfile.id === event.employeeId) || 
                                        (email && event.employeeName?.toLowerCase().includes(email.split('@')[0].toLowerCase()));
