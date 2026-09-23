@@ -6,7 +6,8 @@ import DashboardPageHeader from '../components/DashboardPageHeader';
 import SlideDrawer from '../components/SlideDrawer';
 import SearchableSelect from '../components/SearchableSelect';
 import { useDashboard } from '../components/DashboardContext';
-import { getHeaders } from '../utils/api';
+import { usePermissions } from '../hooks/usePermissions';
+import { getHeaders, getUrl } from '../utils/api';
 import { 
   DollarSign, 
   Calendar, 
@@ -167,11 +168,12 @@ export default function PayrollPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const { hasPermission } = usePermissions();
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || permissions.includes('view_payroll') || permissions.includes('view_payroll_runs') || permissions.includes('*');
-  const canCreate = isSuperAdmin || permissions.includes('create_payroll') || permissions.includes('create_payroll_runs') || permissions.includes('*');
-  const canEdit = isSuperAdmin || permissions.includes('edit_payroll') || permissions.includes('edit_payroll_runs') || permissions.includes('*');
-  const canDelete = isSuperAdmin || permissions.includes('delete_payroll') || permissions.includes('delete_payroll_runs') || permissions.includes('*');
+  const canView = isSuperAdmin || hasPermission('payroll_runs_view');
+  const canCreate = isSuperAdmin || hasPermission('payroll_runs_create');
+  const canEdit = isSuperAdmin || hasPermission('payroll_runs_edit');
+  const canDelete = isSuperAdmin || hasPermission('payroll_runs_delete');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');

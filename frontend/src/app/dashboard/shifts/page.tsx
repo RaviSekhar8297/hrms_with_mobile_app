@@ -507,23 +507,7 @@ export default function ShiftsPage() {
   };
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="shifts-page-container font-['DM_Sans',sans-serif] space-y-6 animate-fadeIn w-full">
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet" />
-      <style dangerouslySetInnerHTML={{__html: `
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
-        .shifts-page-container,
-        .shifts-page-container td,
-        .shifts-page-container th,
-        .shifts-page-container button,
-        .shifts-page-container input,
-        .shifts-page-container select,
-        .shifts-page-container label,
-        .shifts-page-container span,
-        .shifts-page-container div,
-        .shifts-page-container p {
-          font-family: 'DM Sans', sans-serif !important;
-        }
-      `}} />
+    <div className="space-y-6 animate-fadeIn w-full font-sans">
       <DashboardPageHeader
         title="Shifts & Schedules"
         actionMessage=""

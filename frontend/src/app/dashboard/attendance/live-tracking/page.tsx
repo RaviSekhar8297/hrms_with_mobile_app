@@ -308,6 +308,7 @@ export default function LiveTrackingPage() {
               onChange={(val) => val && setSelectedDate(val)}
               maxDate={todayStr}
               placeholder="Select date"
+              align="right"
             />
           </div>
 

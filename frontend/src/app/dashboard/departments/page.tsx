@@ -64,10 +64,10 @@ export default function DepartmentsPage() {
   const [deptForm, setDeptForm] = useState({ name: '', description: '', branch_id: '', companyId: '', status: 'ACTIVE' });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || hasPermission('view_departments');
-  const canCreate = isSuperAdmin || hasPermission('create_departments');
-  const canEdit = isSuperAdmin || hasPermission('edit_departments');
-  const canDelete = isSuperAdmin || hasPermission('delete_departments');
+  const canView = isSuperAdmin || hasPermission('departments_view');
+  const canCreate = isSuperAdmin || hasPermission('departments_create');
+  const canEdit = isSuperAdmin || hasPermission('departments_edit');
+  const canDelete = isSuperAdmin || hasPermission('departments_delete');
 
   const filteredDepartments = departments.filter(d => 
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -96,7 +96,7 @@ export default function DepartmentsPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/companies'), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }

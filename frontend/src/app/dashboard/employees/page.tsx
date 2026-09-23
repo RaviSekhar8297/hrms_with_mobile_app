@@ -103,7 +103,7 @@ interface Employee {
 
 export default function EmployeesPage() {
   const { showToast, companyId: globalCompanyId, setCompanyId: setGlobalCompanyId } = useDashboard();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, getPermissionScope, isSuperAdmin: isSuperAdminPerm } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
 
@@ -195,6 +195,64 @@ export default function EmployeesPage() {
     } catch (err) {
       showToast('Error updating status', 'error');
     }
+  };
+
+  const canEditEmployee = (emp: Employee) => {
+    if (!hasPermission('edit_employees')) return false;
+    if (isSuperAdmin) return true;
+
+    const scope = getPermissionScope('edit_employees');
+    if (scope === 'ALL') return true;
+
+    const currentEmp = employees.find(e => 
+      (email && e.email?.toLowerCase() === email.toLowerCase()) ||
+      (typeof window !== 'undefined' && localStorage.getItem('userId') && e.id === localStorage.getItem('userId'))
+    );
+    const currentEmpId = currentEmp?.id;
+
+    if (scope === 'SELF') {
+      return Boolean((email && emp.email?.toLowerCase() === email.toLowerCase()) || (currentEmpId && emp.id === currentEmpId));
+    }
+
+    if (scope === 'REPORTING' || scope === 'TEAM') {
+      const isSelf = (email && emp.email?.toLowerCase() === email.toLowerCase()) || (currentEmpId && emp.id === currentEmpId);
+      const isDirectReport = currentEmpId && emp.reporting_to_id === currentEmpId;
+      return Boolean(isSelf || isDirectReport);
+    }
+
+    if (scope === 'DEPARTMENT') {
+      return Boolean(currentEmp?.department_id && emp.department_id === currentEmp.department_id);
+    }
+
+    return false;
+  };
+
+  const canDeleteEmployee = (emp: Employee) => {
+    if (!hasPermission('delete_employees')) return false;
+    if (isSuperAdmin) return true;
+
+    const scope = getPermissionScope('delete_employees');
+    if (scope === 'ALL') return true;
+
+    const currentEmp = employees.find(e => 
+      (email && e.email?.toLowerCase() === email.toLowerCase()) ||
+      (typeof window !== 'undefined' && localStorage.getItem('userId') && e.id === localStorage.getItem('userId'))
+    );
+    const currentEmpId = currentEmp?.id;
+
+    if (scope === 'SELF') {
+      return false; // Employees should never delete themselves
+    }
+
+    if (scope === 'REPORTING' || scope === 'TEAM') {
+      return Boolean(currentEmpId && emp.reporting_to_id === currentEmpId);
+    }
+
+    if (scope === 'DEPARTMENT') {
+      return Boolean(currentEmp?.department_id && emp.department_id === currentEmp.department_id);
+    }
+
+    return false;
   };
 
   const handleUpdateReportingTo = async (emp: Employee, newReportingToId: string) => {
@@ -981,11 +1039,9 @@ export default function EmployeesPage() {
 
         {/* Dynamic Layout Rendering */}
         {loading ? (
-          <div className="py-24 text-center">
-            <div className="flex flex-col items-center justify-center gap-2.5">
-              <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Syncing Employees...</span>
-            </div>
+          <div className="p-16 text-center space-y-3">
+            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Employees...</p>
           </div>
         ) : filteredEmployees.length === 0 ? (
           <div className="py-20 text-center text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider select-none border border-dashed border-slate-200/80 dark:border-slate-800 rounded-2xl bg-slate-50/20 dark:bg-slate-950/25">
@@ -1063,32 +1119,34 @@ export default function EmployeesPage() {
                   </div>
 
                   {/* Bottom Action Buttons (Side-by-side Edit & Delete Buttons) */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    {hasPermission('edit_employees') && (
-                      <button
-                        onClick={() => openEditDrawer(emp)}
-                        className="flex-1 py-2 rounded-xl border border-teal-500/60 dark:border-teal-500/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                        title="Edit Employee Profile"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                        </svg>
-                        <span>Edit</span>
-                      </button>
-                    )}
-                    {hasPermission('delete_employees') && (
-                      <button
-                        onClick={() => setDeletingEmployee(emp)}
-                        className="flex-1 py-2 rounded-xl border border-rose-400/60 dark:border-rose-500/40 text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                        title="Delete Employee Profile"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                        </svg>
-                        <span>Delete</span>
-                      </button>
-                    )}
-                  </div>
+                  {(canEditEmployee(emp) || canDeleteEmployee(emp)) && (
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      {canEditEmployee(emp) && (
+                        <button
+                          onClick={() => openEditDrawer(emp)}
+                          className="flex-1 py-2 rounded-xl border border-teal-500/60 dark:border-teal-500/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                          title="Edit Employee Profile"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                          </svg>
+                          <span>Edit</span>
+                        </button>
+                      )}
+                      {canDeleteEmployee(emp) && (
+                        <button
+                          onClick={() => setDeletingEmployee(emp)}
+                          className="flex-1 py-2 rounded-xl border border-rose-400/60 dark:border-rose-500/40 text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                          title="Delete Employee Profile"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                          <span>Delete</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

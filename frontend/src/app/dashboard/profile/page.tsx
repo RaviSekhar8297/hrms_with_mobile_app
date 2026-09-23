@@ -10,6 +10,7 @@ import {
   Layers, Briefcase, GraduationCap, Zap, Landmark, Lock, Heart, FileText, 
   CheckCircle2, Edit3, Eye, EyeOff, Plus, Trash2, Award, FileSpreadsheet, Globe, KeyRound, Sparkles, Pin, Printer, QrCode
 } from 'lucide-react';
+import { DatePickerSimple } from '@/components/ui/custom-controls';
 
 interface Company {
   id: string;
@@ -1266,8 +1267,8 @@ export default function ProfilePage() {
                   <div className="space-y-6">
                     
                     {/* Personal Information Card */}
-                    <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 absolute top-0 inset-x-0" />
+                    <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-visible group w-full z-10">
+                      <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 absolute top-0 inset-x-0 rounded-t-3xl" />
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
                         <div className="flex items-center gap-2">
                           <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">👤</span>
@@ -1297,9 +1298,14 @@ export default function ProfilePage() {
                             <label className="profile-custom-form-label">Personal Email</label>
                             <input type="email" value={personalEmail} onChange={(e) => setPersonalEmail(e.target.value)} className="premium-input" />
                           </div>
-                          <div>
+                          <div className="relative z-30">
                             <label className="profile-custom-form-label">Date of Birth</label>
-                            <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="premium-input" />
+                            <DatePickerSimple
+                              value={dob}
+                              onChange={(val) => setDob(val)}
+                              maxDate={new Date()}
+                              placeholder="Select date of birth"
+                            />
                           </div>
                           <div>
                             <label className="profile-custom-form-label">Gender</label>

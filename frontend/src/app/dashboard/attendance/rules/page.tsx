@@ -12,10 +12,10 @@ export default function AttendanceRulesPage() {
   const { showToast, companyId: globalCompanyId, setCompanyId: setGlobalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
-  const canView = isSuperAdmin || hasPermission('view_attendance_policies') || hasPermission('view_attendance_rules');
-  const canCreate = isSuperAdmin || hasPermission('create_attendance_policies') || hasPermission('create_attendance_rules');
-  const canEdit = isSuperAdmin || hasPermission('edit_attendance_policies') || hasPermission('edit_attendance_rules');
-  const canDelete = isSuperAdmin || hasPermission('delete_attendance_policies') || hasPermission('delete_attendance_rules');
+  const canView = isSuperAdmin || hasPermission('attendance_policies_view') || hasPermission('attendance_rules_view') || hasPermission('view_attendance_policies');
+  const canCreate = isSuperAdmin || hasPermission('attendance_policies_create') || hasPermission('attendance_rules_create') || hasPermission('create_attendance_policies');
+  const canEdit = isSuperAdmin || hasPermission('attendance_policies_edit') || hasPermission('attendance_rules_edit') || hasPermission('edit_attendance_policies');
+  const canDelete = isSuperAdmin || hasPermission('attendance_policies_delete') || hasPermission('attendance_rules_delete') || hasPermission('delete_attendance_policies');
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);

@@ -23,6 +23,7 @@ import {
   CheckCircle2, 
   PauseCircle 
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function SmartHRPage() {
   const { showToast, companyId: globalCompanyId, companies } = useDashboard();
@@ -691,28 +692,36 @@ export default function SmartHRPage() {
                     </div>
 
                     <div className="shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleScheduleStatus(s)}
-                        title={`Click to ${s.status === 'ACTIVE' ? 'Pause' : 'Activate'} schedule`}
-                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 border ${
-                          s.status === 'ACTIVE'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                            : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                        }`}
-                      >
-                        {s.status === 'ACTIVE' ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            <span>Active</span>
-                          </>
-                        ) : (
-                          <>
-                            <PauseCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                            <span>Paused</span>
-                          </>
-                        )}
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              type="button"
+                              onClick={() => handleToggleScheduleStatus(s)}
+                              className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 border ${
+                                s.status === 'ACTIVE'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                              }`}
+                            >
+                              {s.status === 'ACTIVE' ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                  <span>Active</span>
+                                </>
+                              ) : (
+                                <>
+                                  <PauseCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                  <span>Paused</span>
+                                </>
+                              )}
+                            </button>
+                          }
+                        />
+                        <TooltipContent>
+                          <p>{`Click to ${s.status === 'ACTIVE' ? 'Pause' : 'Activate'} schedule`}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
 
@@ -785,13 +794,21 @@ export default function SmartHRPage() {
                         </>
                       )}
                       {canDeleteSchedules && (
-                        <button
-                          onClick={() => handleDeleteSchedule(s.id)}
-                          className="p-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-600 text-rose-600 hover:text-white rounded-xl border border-rose-200 dark:border-rose-800 transition-all cursor-pointer"
-                          title="Delete schedule"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <button
+                                onClick={() => handleDeleteSchedule(s.id)}
+                                className="p-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-600 text-rose-600 hover:text-white rounded-xl border border-rose-200 dark:border-rose-800 transition-all cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            }
+                          />
+                          <TooltipContent>
+                            <p>Delete schedule</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   </div>

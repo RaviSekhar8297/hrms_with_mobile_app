@@ -365,13 +365,31 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
             const roleId = empQuery.rows[0].role_id;
             if (roleId) {
               const permQuery = await query(
-                `SELECT p.name 
+                `SELECT p.name, rp.data_scope 
                  FROM hrms.role_permissions rp 
                  JOIN hrms.permissions p ON rp.permission_id = p.id 
                  WHERE rp.role_id = $1`,
                 [roleId]
               );
-              userPermissions = permQuery.rows.map(row => row.name);
+              const permsSet = new Set<string>();
+              const actions = ['view', 'create', 'edit', 'delete', 'manage', 'calculate', 'approve'];
+              permQuery.rows.forEach(row => {
+                if (row.name) {
+                  const clean = row.name.toLowerCase().trim();
+                  permsSet.add(row.name);
+                  permsSet.add(clean);
+                  for (const act of actions) {
+                    if (clean.endsWith(`_${act}`)) {
+                      const table = clean.slice(0, -act.length - 1);
+                      permsSet.add(`${act}_${table}`);
+                    } else if (clean.startsWith(`${act}_`)) {
+                      const table = clean.slice(act.length + 1);
+                      permsSet.add(`${table}_${act}`);
+                    }
+                  }
+                }
+              });
+              userPermissions = Array.from(permsSet);
             }
           }
         } catch (dbQueryErr) {
@@ -461,7 +479,7 @@ app.get('/api/v1/auth/user-permissions', authenticateToken, async (req: Authenti
     }
 
     const permQuery = await query(
-      `SELECT p.name, rp.data_scope 
+      `SELECT p.id, p.name, p.module, rp.data_scope 
        FROM hrms.role_permissions rp 
        JOIN hrms.permissions p ON rp.permission_id = p.id 
        WHERE rp.role_id = $1`,
@@ -470,11 +488,31 @@ app.get('/api/v1/auth/user-permissions', authenticateToken, async (req: Authenti
 
     const userPermissions: string[] = [];
     const userScopes: Record<string, string> = {};
+    const actions = ['view', 'create', 'edit', 'delete', 'manage', 'calculate', 'approve'];
 
     permQuery.rows.forEach(row => {
-      userPermissions.push(row.name);
       if (row.name) {
+        const clean = row.name.toLowerCase().trim();
+        userPermissions.push(row.name);
         userScopes[row.name] = row.data_scope || 'ALL';
+
+        for (const act of actions) {
+          if (clean.endsWith(`_${act}`)) {
+            const table = clean.slice(0, -act.length - 1);
+            const alt = `${act}_${table}`;
+            userPermissions.push(alt);
+            userScopes[alt] = row.data_scope || 'ALL';
+          } else if (clean.startsWith(`${act}_`)) {
+            const table = clean.slice(act.length + 1);
+            const alt = `${table}_${act}`;
+            userPermissions.push(alt);
+            userScopes[alt] = row.data_scope || 'ALL';
+          }
+        }
+      }
+      if (row.id) {
+        userPermissions.push(row.id);
+        userScopes[row.id] = row.data_scope || 'ALL';
       }
     });
 
@@ -1366,10 +1404,19 @@ app.post(
 
       const defaultRoles = ['Admin'];
       for (const roleName of defaultRoles) {
-        await query(
-          'INSERT INTO hrms.roles (company_id, name, description) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-          [newCompany.id, roleName, `Default ${roleName} role for ${name}`]
+        const roleInsert = await query(
+          'INSERT INTO hrms.roles (company_id, name, description) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING id',
+          [newCompany.id, roleName, `Default ${roleName} role for ${cleanName}`]
         );
+        const adminRoleId = roleInsert.rows[0]?.id;
+        if (adminRoleId) {
+          await query(
+            `INSERT INTO hrms.role_permissions (role_id, permission_id, data_scope)
+             SELECT $1, id, 'ALL' FROM hrms.permissions WHERE name != 'create_companies'
+             ON CONFLICT DO NOTHING`,
+            [adminRoleId]
+          );
+        }
       }
 
       return res.status(201).json({
@@ -1610,7 +1657,7 @@ app.get(
 
     try {
       const targetModule = (req.query.module as string) || 'employees';
-      const scopeCtx = await getEmployeeDataScope(req, targetModule);
+      const scopeCtx = await getEmployeeDataScope(req, targetModule, 'employees_view');
       const scopeCond = buildDataScopeCondition(scopeCtx, 'e', 'id', 2);
 
       let whereClause = `WHERE e.company_id = $1`;
@@ -2565,9 +2612,6 @@ app.put(
       const originalStatus = existingEmp.status;
       const dbCompanyId = existingEmp.company_id;
 
-      const allowMobilePunchVal = allow_mobile_punch !== undefined ? Boolean(allow_mobile_punch) : (existingEmp.allow_mobile_punch ?? true);
-      const requirePunchApprovalVal = require_punch_approval !== undefined ? Boolean(require_punch_approval) : (existingEmp.require_punch_approval ?? true);
-
       if (!companyId || companyId === 'all') {
         companyId = dbCompanyId;
       }
@@ -2642,9 +2686,9 @@ app.put(
           pan_number = $24, aadhar_number = $25, esi_number = $26, uan_number = $27, bank_information = $28,
           current_address = $29, permanent_address = $30,
           emergency_contacts = $31, education = $32, experience = $33, skills = $34,
-          emp_image = $35, shift_id = $36, allow_mobile_punch = $37, require_punch_approval = $38,
+          emp_image = $35, shift_id = $36,
           updated_at = NOW()
-         WHERE id = $39 RETURNING *`,
+         WHERE id = $37 RETURNING *`,
         [
           companyId,
           cleanRoleId,
@@ -2682,11 +2726,26 @@ app.put(
           skills ? (typeof skills === 'string' ? skills : JSON.stringify(skills)) : '[]',
           emp_image || null,
           cleanShiftId,
-          allowMobilePunchVal,
-          requirePunchApprovalVal,
           id
         ]
       );
+
+      // Sync employee security settings if provided
+      if (allow_mobile_punch !== undefined || require_punch_approval !== undefined) {
+        await query(`
+          INSERT INTO hrms.employee_security_settings (company_id, employee_id, allow_mobile_punch, require_punch_approval, updated_at)
+          VALUES ($1, $2, $3, $4, NOW())
+          ON CONFLICT (company_id, employee_id) DO UPDATE SET
+            allow_mobile_punch = COALESCE($3, hrms.employee_security_settings.allow_mobile_punch),
+            require_punch_approval = COALESCE($4, hrms.employee_security_settings.require_punch_approval),
+            updated_at = NOW()
+        `, [
+          companyId,
+          id,
+          allow_mobile_punch !== undefined ? Boolean(allow_mobile_punch) : null,
+          require_punch_approval !== undefined ? Boolean(require_punch_approval) : null
+        ]).catch((e) => console.error('Error syncing employee security settings:', e));
+      }
 
       const updatedEmployee = result.rows[0];
 
@@ -3742,23 +3801,23 @@ async function syncDynamicPermissions(force = false) {
       const moduleName = table;
       requiredPermissions.push(
         {
-          name: `view_${table}`,
-          description: `Allow viewing of ${table} records`,
+          name: `${table}_view`,
+          description: `${table}_view`,
           module: moduleName
         },
         {
-          name: `create_${table}`,
-          description: `Allow creating new ${table} records`,
+          name: `${table}_create`,
+          description: `${table}_create`,
           module: moduleName
         },
         {
-          name: `edit_${table}`,
-          description: `Allow modifying existing ${table} records`,
+          name: `${table}_edit`,
+          description: `${table}_edit`,
           module: moduleName
         },
         {
-          name: `delete_${table}`,
-          description: `Allow deleting ${table} records`,
+          name: `${table}_delete`,
+          description: `${table}_delete`,
           module: moduleName
         }
       );
@@ -4026,7 +4085,11 @@ app.post(
 
       await query('DELETE FROM hrms.role_permissions WHERE role_id = $1', [roleId]);
 
-      const uniquePermIds = Array.from(new Set(permissionIds));
+      // Filter out companies_create permission so tenant roles can never get company creation
+      const compCreateRes = await query("SELECT id FROM hrms.permissions WHERE name = 'companies_create' LIMIT 1");
+      const compCreatePermId = compCreateRes.rows[0]?.id;
+
+      const uniquePermIds = Array.from(new Set(permissionIds)).filter((id: any) => id !== compCreatePermId);
 
       if (uniquePermIds.length > 0) {
         const values: any[] = [];
@@ -4583,6 +4646,108 @@ app.post('/api/v1/attendance/device-bindings/reset', authenticateToken, requireP
   } catch (err) {
     console.error('Error resetting device binding:', err);
     return res.status(500).json({ error: 'Failed to reset device binding' });
+  }
+});
+
+// 🛡️ Access Bindings (Employee Security Settings) APIs
+app.get('/api/v1/attendance/access-bindings', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
+  const companyIdRaw = isSuperAdmin ? (req.query.companyId || req.query.company_id) : req.user?.companyId;
+  const companyId = (companyIdRaw === 'ALL' || companyIdRaw === 'undefined' || companyIdRaw === 'null' || !companyIdRaw) ? null : String(companyIdRaw);
+
+  try {
+    const scopeCtx = await getEmployeeDataScope(req, 'attendance', 'view_employee_devices');
+
+    let sql = `
+      SELECT 
+        e.id as employee_id,
+        e.emp_id_code,
+        e.first_name,
+        e.last_name,
+        e.email,
+        e.status as employee_status,
+        d.name as department_name,
+        des.name as designation_name,
+        COALESCE(ess.login_mode, 'BOTH') as login_mode,
+        COALESCE(ess.allow_web_punch, TRUE) as allow_web_punch,
+        COALESCE(ess.allow_mobile_punch, TRUE) as allow_mobile_punch,
+        COALESCE(ess.require_punch_approval, FALSE) as require_punch_approval,
+        COALESCE(ess.is_active, TRUE) as is_active,
+        ess.updated_at
+      FROM hrms.employees e
+      LEFT JOIN hrms.departments d ON e.department_id = d.id
+      LEFT JOIN hrms.designations des ON e.designation_id = des.id
+      LEFT JOIN hrms.employee_security_settings ess ON e.id = ess.employee_id
+    `;
+    const params: any[] = [];
+    const whereClauses: string[] = [];
+
+    if (companyId) {
+      params.push(companyId);
+      whereClauses.push(`e.company_id = $${params.length}`);
+    }
+
+    const scopeCond = buildDataScopeCondition(scopeCtx, 'e', 'id', params.length + 1);
+    if (scopeCond.whereSql) {
+      whereClauses.push(scopeCond.whereSql);
+      params.push(...scopeCond.params);
+    }
+
+    if (whereClauses.length > 0) {
+      sql += ` WHERE ` + whereClauses.join(' AND ');
+    }
+
+    sql += ` ORDER BY e.first_name ASC, e.last_name ASC`;
+
+    const result = await query(sql, params);
+    return res.json({ bindings: result.rows, dataScope: scopeCtx.dataScope });
+  } catch (err) {
+    console.error('Error fetching access bindings:', err);
+    return res.status(500).json({ error: 'Failed to fetch access bindings' });
+  }
+});
+
+app.put('/api/v1/attendance/access-bindings/:employeeId', authenticateToken, requirePermission('edit_employee_devices'), async (req: AuthenticatedRequest, res: Response) => {
+  const { employeeId } = req.params;
+  const { login_mode, allow_web_punch, allow_mobile_punch, require_punch_approval, is_active } = req.body;
+
+  if (!employeeId) return res.status(400).json({ error: 'Employee ID is required' });
+
+  try {
+    const empCheck = await query('SELECT id, company_id FROM hrms.employees WHERE id = $1', [employeeId]);
+    if (empCheck.rows.length === 0) return res.status(404).json({ error: 'Employee not found' });
+    const compId = empCheck.rows[0].company_id;
+
+    const validLoginModes = ['NONE', 'WEB_ONLY', 'MOBILE_ONLY', 'BOTH'];
+    const safeLoginMode = validLoginModes.includes(login_mode) ? login_mode : 'BOTH';
+
+    const result = await query(`
+      INSERT INTO hrms.employee_security_settings (
+        company_id, employee_id, login_mode, allow_web_punch, allow_mobile_punch, require_punch_approval, is_active, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      ON CONFLICT (company_id, employee_id) DO UPDATE SET
+        login_mode = EXCLUDED.login_mode,
+        allow_web_punch = EXCLUDED.allow_web_punch,
+        allow_mobile_punch = EXCLUDED.allow_mobile_punch,
+        require_punch_approval = EXCLUDED.require_punch_approval,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *
+    `, [
+      compId,
+      employeeId,
+      safeLoginMode,
+      allow_web_punch !== undefined ? Boolean(allow_web_punch) : true,
+      allow_mobile_punch !== undefined ? Boolean(allow_mobile_punch) : true,
+      require_punch_approval !== undefined ? Boolean(require_punch_approval) : false,
+      is_active !== undefined ? Boolean(is_active) : true
+    ]);
+
+    return res.json({ message: 'Access settings updated successfully', settings: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating access binding:', err);
+    return res.status(500).json({ error: 'Failed to update access binding' });
   }
 });
 
@@ -5410,12 +5575,25 @@ app.post('/api/v1/attendance/punches', authenticateToken, async (req: Authentica
       }
     }
 
-    const empCheck = await query('SELECT id, company_id, allow_mobile_punch, require_punch_approval, reporting_to_id, first_name, last_name FROM hrms.employees WHERE id::text = $1', [targetEmpId]);
+    const empCheck = await query('SELECT id, company_id, reporting_to_id, first_name, last_name FROM hrms.employees WHERE id::text = $1', [targetEmpId]);
     if (empCheck.rows.length === 0) return res.status(400).json({ error: 'Invalid employee reference' });
     const empRecord = empCheck.rows[0];
     const finalCompanyId = companyId || empRecord.company_id;
-    const allowMobilePunch = empRecord.allow_mobile_punch ?? true;
-    const requirePunchApproval = empRecord.require_punch_approval ?? true;
+
+    // 🔒 Fetch Employee-Specific Security Settings from hrms.employee_security_settings
+    const secCheck = await query(
+      'SELECT login_mode, allow_web_punch, allow_mobile_punch, require_punch_approval, is_active FROM hrms.employee_security_settings WHERE employee_id = $1 LIMIT 1',
+      [empRecord.id]
+    );
+    const empSec = secCheck.rows[0] || {};
+    const allowMobilePunch = empSec.allow_mobile_punch !== undefined && empSec.allow_mobile_punch !== null ? empSec.allow_mobile_punch : true;
+    const allowWebPunch = empSec.allow_web_punch !== undefined && empSec.allow_web_punch !== null ? empSec.allow_web_punch : true;
+    const isEmpSecActive = empSec.is_active !== undefined && empSec.is_active !== null ? empSec.is_active : true;
+    const requirePunchApproval = empSec.require_punch_approval ?? false;
+
+    if (!isEmpSecActive) {
+      return res.status(403).json({ error: 'Your attendance punch access is currently disabled. Please contact HR.' });
+    }
 
     const uaCheck = req.headers['user-agent'] || '';
     const isMobileDevice = (source || '').toUpperCase() === 'MOBILE' || uaCheck.includes('Android') || uaCheck.includes('iPhone') || uaCheck.includes('iPad') || uaCheck.includes('Mobile');
@@ -5436,8 +5614,8 @@ app.post('/api/v1/attendance/punches', authenticateToken, async (req: Authentica
         return res.status(403).json({ error: 'Mobile check-in is disabled by company policy or restricted for your account. Please use Office Web or Biometric device.' });
       }
     } else {
-      if (!isPolicyWebPunchAllowed) {
-        return res.status(403).json({ error: 'Web clock-in is disabled by company policy. Please use Mobile App or Biometric device.' });
+      if (!isPolicyWebPunchAllowed || allowWebPunch === false) {
+        return res.status(403).json({ error: 'Web clock-in is disabled by company policy or restricted for your account. Please use Mobile App or Biometric device.' });
       }
     }
 
@@ -10584,11 +10762,8 @@ app.listen(Number(PORT), '0.0.0.0', async () => {
     await query(`ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS cycle_start_day INT DEFAULT 26;`);
     await query(`ALTER TABLE hrms.attendance_policies ADD COLUMN IF NOT EXISTS cycle_end_day INT DEFAULT 25;`);
     await query(`ALTER TABLE hrms.employees ADD COLUMN IF NOT EXISTS is_temporary_password BOOLEAN DEFAULT TRUE;`);
-    await query(`ALTER TABLE hrms.employees ADD COLUMN IF NOT EXISTS shift_id UUID;`);
-    await query(`ALTER TABLE hrms.employees ADD COLUMN IF NOT EXISTS allow_mobile_punch BOOLEAN DEFAULT TRUE;`);
-    await query(`ALTER TABLE hrms.employees ADD COLUMN IF NOT EXISTS require_punch_approval BOOLEAN DEFAULT TRUE;`);
-    await query(`UPDATE hrms.employees SET allow_mobile_punch = TRUE WHERE allow_mobile_punch IS NULL;`);
-    await query(`UPDATE hrms.employees SET require_punch_approval = TRUE WHERE require_punch_approval IS NULL;`);
+    await query(`ALTER TABLE hrms.employees DROP COLUMN IF EXISTS allow_mobile_punch;`).catch(() => {});
+    await query(`ALTER TABLE hrms.employees DROP COLUMN IF EXISTS require_punch_approval;`).catch(() => {});
     await query(`ALTER TABLE hrms.companies ADD COLUMN IF NOT EXISTS company_code VARCHAR(50);`);
     await query(`UPDATE hrms.companies SET company_code = UPPER(subdomain) WHERE company_code IS NULL OR company_code = '';`);
 

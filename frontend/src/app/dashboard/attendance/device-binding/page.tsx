@@ -34,12 +34,37 @@ interface ApiKeyItem {
   created_at: string;
 }
 
+interface AccessBindingItem {
+  employee_id: string;
+  emp_id_code: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  employee_status: string;
+  department_name: string;
+  designation_name: string;
+  login_mode: 'NONE' | 'WEB_ONLY' | 'MOBILE_ONLY' | 'BOTH';
+  allow_web_punch: boolean;
+  allow_mobile_punch: boolean;
+  require_punch_approval: boolean;
+  is_active: boolean;
+  updated_at: string | null;
+}
+
 export default function DeviceBindingPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { isSuperAdmin, hasPermission } = usePermissions();
   const canEdit = isSuperAdmin || hasPermission('edit_employee_devices') || hasPermission('edit_attendance');
 
-  const [activeTab, setActiveTab] = useState<'MOBILE_BINDING' | 'API_KEYS'>('MOBILE_BINDING');
+  const [activeTab, setActiveTab] = useState<'ACCESS_BINDING' | 'MOBILE_BINDING' | 'API_KEYS'>('ACCESS_BINDING');
+
+  // Access Binding state
+  const [accessBindings, setAccessBindings] = useState<AccessBindingItem[]>([]);
+  const [loadingAccess, setLoadingAccess] = useState(true);
+  const [updatingAccessEmpId, setUpdatingAccessEmpId] = useState<string | null>(null);
+  const [accessSearchQuery, setAccessSearchQuery] = useState('');
+  const [accessCurrentPage, setAccessCurrentPage] = useState(1);
+  const [accessPageSize, setAccessPageSize] = useState(25);
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -64,7 +89,7 @@ export default function DeviceBindingPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(25);
 
   // Action Loading State & Confirmation Modal State
   const [resettingId, setResettingId] = useState<string | null>(null);
@@ -92,6 +117,7 @@ export default function DeviceBindingPage() {
   useEffect(() => {
     fetchDevices();
     fetchApiKeys();
+    fetchAccessBindings();
   }, [activeCompanyId]);
 
   const fetchCompanies = async () => {
@@ -107,6 +133,53 @@ export default function DeviceBindingPage() {
       }
     } catch (e) {
       console.error('Error fetching companies:', e);
+    }
+  };
+
+  const fetchAccessBindings = async () => {
+    setLoadingAccess(true);
+    try {
+      const url = activeCompanyId ? `${API_BASE}/api/v1/attendance/access-bindings?companyId=${activeCompanyId}` : `${API_BASE}/api/v1/attendance/access-bindings`;
+      const res = await fetch(url, { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setAccessBindings(data.bindings || []);
+      }
+    } catch (err) {
+      console.error('Error fetching access bindings:', err);
+    } finally {
+      setLoadingAccess(false);
+    }
+  };
+
+  const handleUpdateAccess = async (employeeId: string, patch: Partial<AccessBindingItem>) => {
+    setUpdatingAccessEmpId(employeeId);
+    setAccessBindings(prev => prev.map(b => b.employee_id === employeeId ? { ...b, ...patch } : b));
+    try {
+      const current = accessBindings.find(b => b.employee_id === employeeId);
+      const body = {
+        login_mode: patch.login_mode !== undefined ? patch.login_mode : current?.login_mode,
+        allow_web_punch: patch.allow_web_punch !== undefined ? patch.allow_web_punch : current?.allow_web_punch,
+        allow_mobile_punch: patch.allow_mobile_punch !== undefined ? patch.allow_mobile_punch : current?.allow_mobile_punch,
+        require_punch_approval: patch.require_punch_approval !== undefined ? patch.require_punch_approval : current?.require_punch_approval,
+        is_active: patch.is_active !== undefined ? patch.is_active : current?.is_active
+      };
+      const res = await fetch(`${API_BASE}/api/v1/attendance/access-bindings/${employeeId}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        showToast('Access settings updated successfully', 'success');
+      } else {
+        showToast('Failed to update access settings', 'error');
+        fetchAccessBindings();
+      }
+    } catch (err) {
+      showToast('Network error updating settings', 'error');
+      fetchAccessBindings();
+    } finally {
+      setUpdatingAccessEmpId(null);
     }
   };
 
@@ -288,35 +361,277 @@ export default function DeviceBindingPage() {
       />
 
       {/* TOP NAVIGATION TABS */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-4">
+      <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-1 font-sans overflow-x-auto no-scrollbar">
         <button
-          onClick={() => setActiveTab('MOBILE_BINDING')}
-          className={`pb-3 text-sm font-bold transition-all border-b-2 cursor-pointer ${
-            activeTab === 'MOBILE_BINDING'
-              ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+          onClick={() => setActiveTab('ACCESS_BINDING')}
+          className={`py-2 px-4 rounded-lg text-xs transition-all duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap border-0 ${
+            activeTab === 'ACCESS_BINDING'
+              ? 'bg-[#07518a] text-white font-bold shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 font-bold hover:text-[#07518a] dark:hover:text-[#38bdf8] hover:bg-white/60 dark:hover:bg-slate-700/60'
           }`}
         >
-          📱 Employee Mobile Bindings
+          <span>🛡️ Access Binding</span>
+          {accessBindings.length > 0 && (
+            <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${
+              activeTab === 'ACCESS_BINDING' ? 'bg-white/20 text-white' : 'bg-[#07518a]/15 text-[#07518a] dark:bg-[#07518a]/30 dark:text-[#38bdf8]'
+            }`}>
+              {accessBindings.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('MOBILE_BINDING')}
+          className={`py-2 px-4 rounded-lg text-xs transition-all duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap border-0 ${
+            activeTab === 'MOBILE_BINDING'
+              ? 'bg-[#07518a] text-white font-bold shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 font-bold hover:text-[#07518a] dark:hover:text-[#38bdf8] hover:bg-white/60 dark:hover:bg-slate-700/60'
+          }`}
+        >
+          <span>📱 Employee Mobile Bindings</span>
         </button>
         <button
           onClick={() => setActiveTab('API_KEYS')}
-          className={`pb-3 text-sm font-bold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
+          className={`py-2 px-4 rounded-lg text-xs transition-all duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap border-0 ${
             activeTab === 'API_KEYS'
-              ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              ? 'bg-[#07518a] text-white font-bold shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 font-bold hover:text-[#07518a] dark:hover:text-[#38bdf8] hover:bg-white/60 dark:hover:bg-slate-700/60'
           }`}
         >
-          🔑 Biometric API Keys & Webhook Sync
+          <span>🔑 Biometric API Keys & Webhook Sync</span>
           {apiKeys.length > 0 && (
-            <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
+            <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${
+              activeTab === 'API_KEYS' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+            }`}>
               {apiKeys.length} Active Keys
             </span>
           )}
         </button>
       </div>
 
-      {activeTab === 'MOBILE_BINDING' ? (
+      {activeTab === 'ACCESS_BINDING' ? (
+        <div className="space-y-4">
+          {/* Access Binding Filter Console */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:max-w-md">
+              <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search employee by name, ID code, or email..."
+                value={accessSearchQuery}
+                onChange={(e) => {
+                  setAccessSearchQuery(e.target.value);
+                  setAccessCurrentPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 transition-all placeholder-slate-400"
+              />
+            </div>
+            <div className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2 shrink-0">
+              <span>Total Records: <strong className="text-slate-800 dark:text-slate-200">{accessBindings.length}</strong></span>
+              <button
+                onClick={fetchAccessBindings}
+                title="Refresh Access Bindings"
+                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                🔄
+              </button>
+            </div>
+          </div>
+
+          {/* Access Binding Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden shadow-xs">
+            {loadingAccess ? (
+              <div className="p-16 text-center space-y-3">
+                <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Access Settings...</p>
+              </div>
+            ) : (
+              (() => {
+                const filtered = accessBindings.filter(b => {
+                  const query = accessSearchQuery.toLowerCase().trim();
+                  if (!query) return true;
+                  const fullName = `${b.first_name || ''} ${b.last_name || ''}`.toLowerCase();
+                  return (
+                    fullName.includes(query) ||
+                    (b.emp_id_code || '').toLowerCase().includes(query) ||
+                    (b.email || '').toLowerCase().includes(query) ||
+                    (b.department_name || '').toLowerCase().includes(query) ||
+                    (b.designation_name || '').toLowerCase().includes(query)
+                  );
+                });
+
+                const totalPages = Math.ceil(filtered.length / accessPageSize) || 1;
+                const startIndex = (accessCurrentPage - 1) * accessPageSize;
+                const paginatedItems = filtered.slice(startIndex, startIndex + accessPageSize);
+
+                return (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/80 dark:bg-slate-950/60 border-b border-slate-200/80 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <th className="px-4 py-3">Employee</th>
+                            <th className="px-4 py-3">Department</th>
+                            <th className="px-4 py-3">Login Mode</th>
+                            <th className="px-4 py-3 text-center">Web Punch</th>
+                            <th className="px-4 py-3 text-center">Mobile Punch</th>
+                            <th className="px-4 py-3 text-center">Punch Approval</th>
+                            <th className="px-4 py-3 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                          {paginatedItems.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="py-12 text-center text-slate-400 font-bold">
+                                No employees found matching your search.
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedItems.map((b) => {
+                              const isBusy = updatingAccessEmpId === b.employee_id;
+                              return (
+                                <tr key={b.employee_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                                  {/* Employee */}
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                        {(b.first_name || 'E')[0].toUpperCase()}
+                                      </div>
+                                      <div>
+                                        <p className="font-extrabold text-slate-900 dark:text-white leading-tight">
+                                          {b.first_name} {b.last_name || ''}
+                                        </p>
+                                        <p className="text-[10px] font-mono text-slate-400 font-semibold">
+                                          {b.emp_id_code || 'No Code'} • {b.email}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* Department */}
+                                  <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">
+                                    <p className="font-bold text-slate-800 dark:text-slate-200">{b.department_name || 'General'}</p>
+                                    <p className="text-[10px] text-slate-400">{b.designation_name || 'Staff'}</p>
+                                  </td>
+
+                                  {/* Login Mode Dropdown */}
+                                  <td className="px-4 py-3">
+                                    <select
+                                      value={b.login_mode || 'BOTH'}
+                                      disabled={!canEdit || isBusy}
+                                      onChange={(e) => handleUpdateAccess(b.employee_id, { login_mode: e.target.value as any })}
+                                      className="px-2.5 py-1 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer shadow-2xs"
+                                    >
+                                      <option value="BOTH">🌐 Both (Web & Mobile)</option>
+                                      <option value="WEB_ONLY">💻 Web Only</option>
+                                      <option value="MOBILE_ONLY">📱 Mobile Only</option>
+                                      <option value="NONE">🚫 None (Biometric Only)</option>
+                                    </select>
+                                  </td>
+
+                                  {/* Web Punch Toggle */}
+                                  <td className="px-4 py-3 text-center">
+                                    <button
+                                      type="button"
+                                      disabled={!canEdit || isBusy}
+                                      onClick={() => handleUpdateAccess(b.employee_id, { allow_web_punch: !b.allow_web_punch })}
+                                      className={`inline-flex items-center w-10 h-5.5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer ${
+                                        b.allow_web_punch ? 'bg-[#07518a]' : 'bg-slate-300 dark:bg-slate-700'
+                                      } ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                      title={b.allow_web_punch ? 'Web punch allowed' : 'Web punch disabled'}
+                                    >
+                                      <span className={`bg-white w-4.5 h-4.5 rounded-full shadow-md transform transition-transform duration-200 ${
+                                        b.allow_web_punch ? 'translate-x-4.5' : 'translate-x-0'
+                                      }`} />
+                                    </button>
+                                  </td>
+
+                                  {/* Mobile Punch Toggle */}
+                                  <td className="px-4 py-3 text-center">
+                                    <button
+                                      type="button"
+                                      disabled={!canEdit || isBusy}
+                                      onClick={() => handleUpdateAccess(b.employee_id, { allow_mobile_punch: !b.allow_mobile_punch })}
+                                      className={`inline-flex items-center w-10 h-5.5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer ${
+                                        b.allow_mobile_punch ? 'bg-[#07518a]' : 'bg-slate-300 dark:bg-slate-700'
+                                      } ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                      title={b.allow_mobile_punch ? 'Mobile punch allowed' : 'Mobile punch disabled'}
+                                    >
+                                      <span className={`bg-white w-4.5 h-4.5 rounded-full shadow-md transform transition-transform duration-200 ${
+                                        b.allow_mobile_punch ? 'translate-x-4.5' : 'translate-x-0'
+                                      }`} />
+                                    </button>
+                                  </td>
+
+                                  {/* Punch Approval Toggle */}
+                                  <td className="px-4 py-3 text-center">
+                                    <button
+                                      type="button"
+                                      disabled={!canEdit || isBusy}
+                                      onClick={() => handleUpdateAccess(b.employee_id, { require_punch_approval: !b.require_punch_approval })}
+                                      className={`inline-flex items-center w-10 h-5.5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer ${
+                                        b.require_punch_approval ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
+                                      } ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                      title={b.require_punch_approval ? 'Approval required for punches' : 'Auto-approved punches'}
+                                    >
+                                      <span className={`bg-white w-4.5 h-4.5 rounded-full shadow-md transform transition-transform duration-200 ${
+                                        b.require_punch_approval ? 'translate-x-4.5' : 'translate-x-0'
+                                      }`} />
+                                    </button>
+                                  </td>
+
+                                  {/* Status Active Toggle */}
+                                  <td className="px-4 py-3 text-center">
+                                    <button
+                                      type="button"
+                                      disabled={!canEdit || isBusy}
+                                      onClick={() => handleUpdateAccess(b.employee_id, { is_active: !b.is_active })}
+                                      className={`inline-flex items-center w-10 h-5.5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer ${
+                                        b.is_active ? 'bg-emerald-500' : 'bg-rose-400'
+                                      } ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                      title={b.is_active ? 'Security active' : 'Security disabled'}
+                                    >
+                                      <span className={`bg-white w-4.5 h-4.5 rounded-full shadow-md transform transition-transform duration-200 ${
+                                        b.is_active ? 'translate-x-4.5' : 'translate-x-0'
+                                      }`} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {filtered.length > 0 && (
+                      <div className="p-3 border-t border-slate-100 dark:border-slate-800">
+                        <ModernPagination
+                          currentPage={accessCurrentPage}
+                          totalPages={totalPages}
+                          pageSize={accessPageSize}
+                          totalItems={filtered.length}
+                          startIndex={startIndex}
+                          endIndex={Math.min(startIndex + accessPageSize, filtered.length)}
+                          onPageChange={setAccessCurrentPage}
+                          onPageSizeChange={(sz) => {
+                            setAccessPageSize(sz);
+                            setAccessCurrentPage(1);
+                          }}
+                          pageSizeOptions={[10, 25, 50, 100]}
+                          itemLabel="employees"
+                        />
+                      </div>
+                    )}
+                  </>
+                );
+              })()
+            )}
+          </div>
+        </div>
+      ) : activeTab === 'MOBILE_BINDING' ? (
         <>
           {/* 📱 CURRENT MOBILE DEVICE INFO BANNER & FILTER CONSOLE */}
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-4">

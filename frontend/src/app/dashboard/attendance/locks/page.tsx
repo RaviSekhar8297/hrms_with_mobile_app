@@ -7,6 +7,7 @@ import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import SlideDrawer from '../../components/SlideDrawer';
 import { Lock, Unlock, Plus, Search, ShieldCheck, AlertTriangle, Calendar, Info, RefreshCw, UserCheck, Trash2 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface AttendanceLock {
   id: string;
@@ -29,10 +30,10 @@ export default function AttendanceLocksPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
-  const canView = isSuperAdmin || hasPermission('view_attendance_locks') || hasPermission('view_attendance_policies') || hasPermission('view_attendance_rules');
-  const canCreate = isSuperAdmin || hasPermission('create_attendance_locks') || hasPermission('create_attendance_policies') || hasPermission('create_attendance_rules');
-  const canEdit = isSuperAdmin || hasPermission('edit_attendance_locks') || hasPermission('edit_attendance_policies') || hasPermission('edit_attendance_rules');
-  const canDelete = isSuperAdmin || hasPermission('delete_attendance_locks') || hasPermission('delete_attendance_policies') || hasPermission('delete_attendance_rules');
+  const canView = isSuperAdmin || hasPermission('attendance_locks_view') || hasPermission('view_attendance_locks');
+  const canCreate = isSuperAdmin || hasPermission('attendance_locks_create') || hasPermission('create_attendance_locks');
+  const canEdit = isSuperAdmin || hasPermission('attendance_locks_edit') || hasPermission('edit_attendance_locks');
+  const canDelete = isSuperAdmin || hasPermission('attendance_locks_delete') || hasPermission('delete_attendance_locks');
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -279,14 +280,18 @@ export default function AttendanceLocksPage() {
                 />
               </div>
 
-              <button
-                type="button"
-                onClick={fetchLocks}
-                className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                title="Refresh Locks"
-              >
-                <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={fetchLocks}
+                    className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="font-sans text-xs">Refresh Locks</TooltipContent>
+              </Tooltip>
 
               {canCreate && (
                 <button
@@ -391,9 +396,14 @@ export default function AttendanceLocksPage() {
                           <UserCheck size={12} className="text-indigo-500 shrink-0" />
                           Action By:
                         </span>
-                        <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
-                          {lock.locked_by_name || 'System Admin'}
-                        </span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px] cursor-help">
+                              {lock.locked_by_name || 'System Admin'}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="font-sans text-xs">Admin: {lock.locked_by_name || 'System Admin'}</TooltipContent>
+                        </Tooltip>
                       </div>
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="text-slate-400 font-semibold">Date:</span>
@@ -410,27 +420,34 @@ export default function AttendanceLocksPage() {
                     {/* Bottom Action Buttons */}
                     <div className="flex items-center gap-2">
                       {canEdit ? (
-                        <button
-                          type="button"
-                          onClick={() => handleToggleLockStatus(lock)}
-                          className={`flex-1 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-sm flex items-center justify-center gap-2 border ${
-                            isLocked
-                              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-emerald-500/30 shadow-emerald-600/20'
-                              : 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white border-rose-500/30 shadow-rose-600/20'
-                          }`}
-                        >
-                          {isLocked ? (
-                            <>
-                              <Unlock size={14} />
-                              <span>Unlock Month</span>
-                            </>
-                          ) : (
-                            <>
-                              <Lock size={14} />
-                              <span>Lock Month</span>
-                            </>
-                          )}
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleLockStatus(lock)}
+                              className={`flex-1 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-sm flex items-center justify-center gap-2 border ${
+                                isLocked
+                                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-emerald-500/30 shadow-emerald-600/20'
+                                  : 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white border-rose-500/30 shadow-rose-600/20'
+                              }`}
+                            >
+                              {isLocked ? (
+                                <>
+                                  <Unlock size={14} />
+                                  <span>Unlock Month</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Lock size={14} />
+                                  <span>Lock Month</span>
+                                </>
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="font-sans text-xs">
+                            {isLocked ? 'Click to Unlock Attendance Period' : 'Click to Lock Attendance Period'}
+                          </TooltipContent>
+                        </Tooltip>
                       ) : (
                         <div className="flex-1 text-center py-1 text-[11px] font-bold text-slate-400 italic">
                           Read-only View
@@ -438,14 +455,18 @@ export default function AttendanceLocksPage() {
                       )}
 
                       {canDelete && (
-                        <button
-                          type="button"
-                          onClick={() => confirmDeleteLock(lock)}
-                          className="p-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white dark:hover:text-white border border-rose-200/80 dark:border-rose-800/80 transition-all duration-200 cursor-pointer shadow-2xs shrink-0 active:scale-95 flex items-center justify-center"
-                          title="Delete Lock Record"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => confirmDeleteLock(lock)}
+                              className="p-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white dark:hover:text-white border border-rose-200/80 dark:border-rose-800/80 transition-all duration-200 cursor-pointer shadow-2xs shrink-0 active:scale-95 flex items-center justify-center"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="font-sans text-xs">Delete Lock Record</TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   </div>

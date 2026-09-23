@@ -9,11 +9,18 @@ import { usePermissions } from '../../hooks/usePermissions';
 
 export default function CompOffClaimsPage() {
   const { showToast, companyId } = useDashboard();
-  const { isSuperAdmin: isSuperAdminPerm, getPermissionScope } = usePermissions();
-  const compScope = getPermissionScope('view_leave_requests');
-  const canSeeTeamTab = isSuperAdminPerm || compScope !== 'SELF';
+  const { hasPermission, isSuperAdmin: isSuperAdminPerm, getPermissionScope } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
+
+  const isSuperAdmin = isSuperAdminPerm || roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const canView = isSuperAdmin || hasPermission('view_comp_off_requests');
+  const canCreate = isSuperAdmin || hasPermission('create_comp_off_requests');
+  const canEdit = isSuperAdmin || hasPermission('edit_comp_off_requests');
+  const canDelete = isSuperAdmin || hasPermission('delete_comp_off_requests');
+
+  const compScope = getPermissionScope('view_comp_off_requests') || getPermissionScope('view_leave_requests');
+  const canSeeTeamTab = isSuperAdmin || compScope !== 'SELF';
 
   const [viewScope, setViewScope] = useState<'my' | 'team'>('my');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
@@ -173,11 +180,19 @@ export default function CompOffClaimsPage() {
     return matchesStatus && matchesSearch && matchesFromDate && matchesToDate;
   });
 
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const isManager = !isSuperAdmin && roles.some(r => {
-    const lr = r.toLowerCase();
-    return lr.includes('manager') || lr.includes('head') || lr.includes('lead') || lr.includes('executive') || lr.includes('director') || lr.includes('supervisor');
-  });
+  if (roles.length > 0 && !canView) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn">
+        <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-3xl">
+          🔒
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Access Denied</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs mt-1.5 max-w-sm">
+          You do not have permission to view Comp-Off Claims. Please contact your administrator.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: "'Poppins', 'Inter', sans-serif" }} className="space-y-6 pb-12">
@@ -367,8 +382,8 @@ export default function CompOffClaimsPage() {
             ))}
           </div>
 
-          {/* 4. CLAIM COMP-OFF BUTTON (NOT SHOWN FOR SUPERADMIN) */}
-          {!isSuperAdmin && (
+          {/* 4. CLAIM COMP-OFF BUTTON */}
+          {canCreate && !isSuperAdmin && (
             <button
               onClick={handleOpenDrawer}
               className="w-full sm:w-auto px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
@@ -460,7 +475,7 @@ export default function CompOffClaimsPage() {
                     </td>
                     {/* 5. STYLED APPROVE / REJECT BUTTONS */}
                     <td className="p-4 text-right">
-                      {req.status === 'PENDING' && viewScope === 'team' ? (
+                      {req.status === 'PENDING' && viewScope === 'team' && canEdit ? (
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => setActionModal({ open: true, req, type: 'APPROVE' })}

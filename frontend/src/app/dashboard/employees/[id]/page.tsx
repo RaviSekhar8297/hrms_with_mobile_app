@@ -7,6 +7,7 @@ import { getHeaders, getUrl } from '../../utils/api';
 import { useDashboard } from '../../components/DashboardContext';
 import SearchableSelect from '../../components/SearchableSelect';
 import Link from 'next/link';
+import { DatePickerSimple } from '@/components/ui/custom-controls';
 
 interface Company {
   id: string;
@@ -111,6 +112,24 @@ interface Employee {
   skills?: any;
   certifications?: string;
   languages_known?: string;
+}
+
+function formatDisplayDate(val?: string | null): string {
+  if (!val) return '';
+  try {
+    const raw = String(val).split('T')[0];
+    const parts = raw.split('-');
+    if (parts.length === 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      const dt = new Date(y, m, d);
+      if (!isNaN(dt.getTime())) {
+        return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+    }
+  } catch (e) {}
+  return String(val);
 }
 
 export default function DedicatedEmployeeEditPage() {
@@ -938,53 +957,9 @@ export default function DedicatedEmployeeEditPage() {
       </DashboardPageHeader>
 
       {loading ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-8 shadow-sm space-y-6 animate-pulse">
-          {/* Header Card Skeleton */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-5 w-full md:w-auto">
-              <div className="w-20 h-20 rounded-2xl bg-slate-200 dark:bg-slate-800 shrink-0" />
-              <div className="space-y-2.5 w-48">
-                <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded-lg w-full" />
-                <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded-md w-3/4" />
-                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-md w-1/2" />
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-28 bg-slate-200 dark:bg-slate-800 rounded-xl" />
-              <div className="h-10 w-28 bg-slate-200 dark:bg-slate-800 rounded-xl" />
-            </div>
-          </div>
-
-          {/* Central Spinner & Status Indicator */}
-          <div className="py-8 flex flex-col items-center justify-center gap-3 text-center">
-            <div className="relative flex items-center justify-center">
-              <div className="w-12 h-12 rounded-full border-3 border-blue-500/20 border-t-blue-600 dark:border-t-blue-400 animate-spin" />
-              <div className="absolute w-6 h-6 rounded-full bg-blue-500/10 dark:bg-blue-500/20 animate-ping" />
-            </div>
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-300 tracking-wide mt-2">
-              Loading Employee Profile Data...
-            </p>
-            <p className="text-[11px] text-slate-400 font-medium">
-              Please wait while we fetch and populate employee details
-            </p>
-          </div>
-
-          {/* Tabs Skeleton */}
-          <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 overflow-x-auto">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-9 w-28 bg-slate-200 dark:bg-slate-800 rounded-xl shrink-0" />
-            ))}
-          </div>
-
-          {/* Form Fields Grid Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="space-y-2">
-                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-md w-1/3" />
-                <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded-xl w-full" />
-              </div>
-            ))}
-          </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-16 shadow-xs text-center space-y-3">
+          <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Employee Profile Data...</p>
         </div>
       ) : (
         <form onSubmit={handleSave} className="space-y-6">
@@ -1091,7 +1066,7 @@ export default function DedicatedEmployeeEditPage() {
                     📍 <span>Branch:</span> <strong className="text-slate-900 dark:text-white font-extrabold">{branches.find(b => b.id === formData.branch_id)?.name || 'JUBILEE HILLS'}</strong>
                   </span>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 text-[11px] font-bold">
-                    📅 <span>Joined:</span> <strong className="text-slate-900 dark:text-white font-extrabold">{formData.joining_date || 'N/A'}</strong>
+                    📅 <span>Joined:</span> <strong className="text-slate-900 dark:text-white font-extrabold">{formatDisplayDate(formData.joining_date) || 'N/A'}</strong>
                   </span>
                 </div>
               </div>
@@ -1185,7 +1160,7 @@ export default function DedicatedEmployeeEditPage() {
                 <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                   <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Date of Joining (DOJ)</div>
                   <div className="text-sm font-black text-slate-800 dark:text-slate-100 mt-1 font-mono">
-                    {formData.joining_date || 'Not Specified'}
+                    {formatDisplayDate(formData.joining_date) || 'Not Specified'}
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium mt-1">Official Joining Date</div>
                 </div>
@@ -1193,7 +1168,7 @@ export default function DedicatedEmployeeEditPage() {
                 <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                   <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Confirmation Date</div>
                   <div className="text-sm font-black text-slate-800 dark:text-slate-100 mt-1 font-mono">
-                    {formData.confirmation_date || 'On Probation'}
+                    {formatDisplayDate(formData.confirmation_date) || 'On Probation'}
                   </div>
                   <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
                     {formData.confirmation_date ? 'Confirmed Employee' : '⏳ Probation Active'}
@@ -1203,7 +1178,7 @@ export default function DedicatedEmployeeEditPage() {
                 <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                   <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Resignation Date</div>
                   <div className="text-sm font-black text-slate-800 dark:text-slate-100 mt-1 font-mono">
-                    {formData.resignation_date || 'None'}
+                    {formatDisplayDate(formData.resignation_date) || 'None'}
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium mt-1">
                     {formData.resignation_date ? 'Resignation Submitted' : '🟢 No Resignation Record'}
@@ -1213,7 +1188,7 @@ export default function DedicatedEmployeeEditPage() {
                 <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                   <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Exit / Relieving Date</div>
                   <div className="text-sm font-black text-slate-800 dark:text-slate-100 mt-1 font-mono">
-                    {formData.exit_date || 'Active & Serving'}
+                    {formatDisplayDate(formData.exit_date) || 'Active & Serving'}
                   </div>
                   <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
                     {formData.exit_date ? 'Exited Company' : '🟢 Active & Serving'}
@@ -1246,11 +1221,11 @@ export default function DedicatedEmployeeEditPage() {
                   <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
                     Date of Joining (DOJ)
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerSimple
                     value={formData.joining_date}
-                    onChange={e => setFormData({ ...formData, joining_date: e.target.value })}
-                    className={inputStyle}
+                    onChange={val => setFormData({ ...formData, joining_date: val })}
+                    maxDate={new Date()}
+                    placeholder="Select joining date"
                   />
                 </div>
 
@@ -1258,11 +1233,11 @@ export default function DedicatedEmployeeEditPage() {
                   <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
                     Confirmation Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerSimple
                     value={formData.confirmation_date}
-                    onChange={e => setFormData({ ...formData, confirmation_date: e.target.value })}
-                    className={inputStyle}
+                    onChange={val => setFormData({ ...formData, confirmation_date: val })}
+                    maxDate={new Date()}
+                    placeholder="Select confirmation date"
                   />
                   <p className="text-[10px] text-slate-400 font-medium">Leave empty if employee is still under probation.</p>
                 </div>
@@ -1271,11 +1246,11 @@ export default function DedicatedEmployeeEditPage() {
                   <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
                     Resignation Date
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerSimple
                     value={formData.resignation_date}
-                    onChange={e => setFormData({ ...formData, resignation_date: e.target.value })}
-                    className={inputStyle}
+                    onChange={val => setFormData({ ...formData, resignation_date: val })}
+                    maxDate={new Date()}
+                    placeholder="Select resignation date"
                   />
                   <p className="text-[10px] text-slate-400 font-medium">Date when resignation letter was submitted.</p>
                 </div>
@@ -1298,11 +1273,10 @@ export default function DedicatedEmployeeEditPage() {
                       {formData.status === 'ACTIVE' ? '🚫 Set Status to INACTIVE' : '✅ Set Status to ACTIVE'}
                     </button>
                   </div>
-                  <input
-                    type="date"
+                  <DatePickerSimple
                     value={formData.exit_date}
-                    onChange={e => setFormData({ ...formData, exit_date: e.target.value })}
-                    className={inputStyle}
+                    onChange={val => setFormData({ ...formData, exit_date: val })}
+                    placeholder="Select exit date"
                   />
                   <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold">
                     Select last working day and click the button above to set status to INACTIVE. (Remember to click &quot;Save Profile Changes&quot;).
@@ -1409,13 +1383,13 @@ export default function DedicatedEmployeeEditPage() {
 
                 <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
                   <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    Joining Date
+                    Date of Joining (DOJ) <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerSimple
                     value={formData.joining_date}
-                    onChange={e => setFormData({ ...formData, joining_date: e.target.value })}
-                    className={inputStyle}
+                    onChange={val => setFormData({ ...formData, joining_date: val })}
+                    maxDate={new Date()}
+                    placeholder="Select joining date"
                   />
                 </div>
 
@@ -1423,11 +1397,11 @@ export default function DedicatedEmployeeEditPage() {
                   <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
                     Date of Birth
                   </label>
-                  <input
-                    type="date"
+                  <DatePickerSimple
                     value={formData.dob}
-                    onChange={e => setFormData({ ...formData, dob: e.target.value })}
-                    className={inputStyle}
+                    onChange={val => setFormData({ ...formData, dob: val })}
+                    maxDate={new Date()}
+                    placeholder="Select date of birth"
                   />
                 </div>
 

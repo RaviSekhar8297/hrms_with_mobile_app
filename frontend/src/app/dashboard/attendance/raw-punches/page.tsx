@@ -11,11 +11,13 @@ import { useDashboard } from '../../components/DashboardContext';
 import SlideDrawer from '../../components/SlideDrawer';
 import { Upload, Pencil, Trash2, Camera, CameraOff, MapPin, Clock, CheckCircle2, ExternalLink } from 'lucide-react';
 import ModernPagination from '../../components/ModernPagination';
+import { DatePickerSimple } from '@/components/ui/custom-controls';
 
 export default function RawPunchLogsPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { isSuperAdmin, hasPermission, getPermissionScope } = usePermissions();
 
+  const canView = isSuperAdmin || hasPermission('view_attendance_raw_punches');
   const canCreate = isSuperAdmin || hasPermission('create_attendance_raw_punches');
   const canEdit = isSuperAdmin || hasPermission('edit_attendance_raw_punches');
   const canDelete = isSuperAdmin || hasPermission('delete_attendance_raw_punches');
@@ -291,6 +293,20 @@ export default function RawPunchLogsPage() {
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedPunches = filteredPunches.slice(startIndex, endIndex);
 
+  if (!canView) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn">
+        <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-3xl">
+          🔒
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Access Denied</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs mt-1.5 max-w-sm">
+          You do not have permission to view Biometric & Device Raw Punch Logs. Please contact your administrator.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn w-full font-sans">
       <DashboardPageHeader
@@ -332,19 +348,29 @@ export default function RawPunchLogsPage() {
 
           {/* 2. DATES */}
           <div className="flex items-center gap-1.5">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500"
-            />
+            <div className="w-[140px]">
+              <DatePickerSimple
+                value={startDate}
+                onChange={(val) => {
+                  setStartDate(val);
+                  if (val && endDate && val > endDate) {
+                    setEndDate(val);
+                  }
+                }}
+                maxDate={new Date()}
+                placeholder="From date"
+              />
+            </div>
             <span className="text-slate-400 text-xs font-bold">to</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500"
-            />
+            <div className="w-[140px]">
+              <DatePickerSimple
+                value={endDate}
+                onChange={(val) => setEndDate(val)}
+                minDate={startDate || undefined}
+                maxDate={new Date()}
+                placeholder="To date"
+              />
+            </div>
           </div>
 
           {/* 3. UPLOAD BUTTON */}
@@ -352,7 +378,7 @@ export default function RawPunchLogsPage() {
             <button
               type="button"
               onClick={() => setPunchUploadOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5" />
               <span>Upload</span>
@@ -363,7 +389,7 @@ export default function RawPunchLogsPage() {
           {canCreate && (
             <Link
               href="/dashboard/attendance"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
             >
               <span>⏱️</span>
               <span>Mark</span>

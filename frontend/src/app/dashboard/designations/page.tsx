@@ -78,10 +78,10 @@ export default function DesignationsPage() {
   const [desigForm, setDesigForm] = useState({ name: '', description: '', branch_id: '', department_id: '', companyId: '', status: 'ACTIVE' });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || hasPermission('view_designations');
-  const canCreate = isSuperAdmin || hasPermission('create_designations');
-  const canEdit = isSuperAdmin || hasPermission('edit_designations');
-  const canDelete = isSuperAdmin || hasPermission('delete_designations');
+  const canView = isSuperAdmin || hasPermission('designations_view');
+  const canCreate = isSuperAdmin || hasPermission('designations_create');
+  const canEdit = isSuperAdmin || hasPermission('designations_edit');
+  const canDelete = isSuperAdmin || hasPermission('designations_delete');
 
   const filteredDesignations = designations.filter(ds =>
     ds.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,7 +110,7 @@ export default function DesignationsPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/companies'), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
@@ -118,7 +118,7 @@ export default function DesignationsPage() {
 
   const fetchBranchesForCompany = async (targetCompanyId: string) => {
     try {
-      const res = await fetch(`/api/v1/branches?companyId=${targetCompanyId}`, { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/branches', targetCompanyId), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) return data.branches || [];
     } catch (e) { console.error(e); }
@@ -127,7 +127,7 @@ export default function DesignationsPage() {
 
   const fetchDepartmentsForCompany = async (targetCompanyId: string) => {
     try {
-      const res = await fetch(`/api/v1/departments?companyId=${targetCompanyId}`, { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/departments', targetCompanyId), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) return data.departments || [];
     } catch (e) { console.error(e); }

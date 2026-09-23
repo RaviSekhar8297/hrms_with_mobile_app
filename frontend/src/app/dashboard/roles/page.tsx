@@ -66,7 +66,7 @@ export default function RolesPage() {
   const [editRoleForm, setEditRoleForm] = useState({ name: '', description: '' });
 
   // View Switcher (Matrix Table vs Card Accordion)
-  const [viewMode, setViewMode] = useState<'matrix' | 'card'>('matrix');
+  const [viewMode, setViewMode] = useState<'matrix' | 'card'>('card');
 
   // Map roleId -> Array of checked permissionIds
   const [rolePermissionsState, setRolePermissionsState] = useState<Record<string, string[]>>({});
@@ -328,12 +328,26 @@ export default function RolesPage() {
     const idsToUpdate = Array.isArray(targetPermIds) ? targetPermIds : [targetPermIds];
     if (idsToUpdate.length === 0) return;
 
+    const currentPermIds = rolePermissionsState[roleId] || [];
+    let updatedPermIds: string[];
+
+    if (scope === 'NONE') {
+      // Revoke permission(s)
+      updatedPermIds = currentPermIds.filter(id => !idsToUpdate.includes(id));
+    } else {
+      // Grant permission(s) if not already active
+      updatedPermIds = Array.from(new Set([...currentPermIds, ...idsToUpdate]));
+    }
+
     const newScopes = { ...currentScopes };
     idsToUpdate.forEach(id => {
       newScopes[id] = scope;
     });
 
-    const currentPermIds = rolePermissionsState[roleId] || [];
+    setRolePermissionsState(prev => ({
+      ...prev,
+      [roleId]: updatedPermIds
+    }));
 
     setRoleScopesState(prev => ({
       ...prev,
@@ -345,16 +359,23 @@ export default function RolesPage() {
       const res = await fetch(`/api/v1/roles/${roleId}/permissions`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ permissionIds: currentPermIds, permissionScopes: newScopes, companyId })
+        body: JSON.stringify({ permissionIds: updatedPermIds, permissionScopes: newScopes, companyId })
       });
       if (res.ok) {
-        showToast(`Data Scope set to ${scope}`, 'success');
+        showToast(scope === 'NONE' ? 'Permission set to None (Revoked)' : `Data Scope set to ${scope}`, 'success');
+        const refreshRes = await fetch(getUrl('/api/v1/roles', companyId), { headers: getHeaders() });
+        const refreshData = await refreshRes.json();
+        if (refreshRes.ok) {
+          setTenantRoles(refreshData.roles || []);
+        }
       } else {
         showToast('Failed to update data scope', 'error');
+        setRolePermissionsState(prev => ({ ...prev, [roleId]: currentPermIds }));
         setRoleScopesState(prev => ({ ...prev, [roleId]: currentScopes }));
       }
     } catch (err) {
       showToast('Connection error updating scope', 'error');
+      setRolePermissionsState(prev => ({ ...prev, [roleId]: currentPermIds }));
       setRoleScopesState(prev => ({ ...prev, [roleId]: currentScopes }));
     } finally {
       setSavingRoleId(null);
@@ -362,10 +383,10 @@ export default function RolesPage() {
   };
 
   const getActionWeight = (name: string) => {
-    if (name.startsWith('view_')) return 1;
-    if (name.startsWith('create_')) return 2;
-    if (name.startsWith('edit_')) return 3;
-    if (name.startsWith('delete_')) return 4;
+    if (name.startsWith('view_') || name.endsWith('_view')) return 1;
+    if (name.startsWith('create_') || name.endsWith('_create')) return 2;
+    if (name.startsWith('edit_') || name.endsWith('_edit')) return 3;
+    if (name.startsWith('delete_') || name.endsWith('_delete')) return 4;
     return 5;
   };
 
@@ -430,13 +451,33 @@ export default function RolesPage() {
     }
   };
 
+  const SCOPE_CYCLE = ['ALL', 'SELF', 'REPORTING', 'DEPARTMENT', 'NONE'];
+  const getNextScope = (currentScope: string) => {
+    const idx = SCOPE_CYCLE.indexOf(currentScope);
+    return idx === -1 || idx === SCOPE_CYCLE.length - 1 ? SCOPE_CYCLE[0] : SCOPE_CYCLE[idx + 1];
+  };
+
+  const getScopeBadge = (scope: string, isGranted: boolean = true) => {
+    if (!isGranted || scope === 'NONE') {
+      return { letter: 'N', color: 'bg-rose-500/20 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-500/40', label: 'None — No access' };
+    }
+    switch (scope) {
+      case 'SELF': return { letter: 'S', color: 'bg-amber-500 text-white dark:bg-amber-500 dark:text-white', label: 'Self — Own records only' };
+      case 'REPORTING': return { letter: 'T', color: 'bg-emerald-500 text-white dark:bg-emerald-500 dark:text-white', label: 'Team — Reporting team' };
+      case 'DEPARTMENT': return { letter: 'D', color: 'bg-purple-500 text-white dark:bg-purple-500 dark:text-white', label: 'Dept — Department records' };
+      case 'ALL':
+      default:
+        return { letter: 'A', color: 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white', label: 'All — Company-wide' };
+    }
+  };
+
   const getActionType = (name: string) => {
-    if (name.startsWith('view_')) return 'VIEW';
-    if (name.startsWith('create_')) return 'CREATE';
-    if (name.startsWith('edit_')) return 'EDIT';
-    if (name.startsWith('delete_')) return 'DELETE';
-    if (name.startsWith('manage_')) return 'MANAGE';
-    if (name.startsWith('calculate_')) return 'CALCULATE';
+    if (name.startsWith('view_') || name.endsWith('_view')) return 'VIEW';
+    if (name.startsWith('create_') || name.endsWith('_create')) return 'CREATE';
+    if (name.startsWith('edit_') || name.endsWith('_edit')) return 'EDIT';
+    if (name.startsWith('delete_') || name.endsWith('_delete')) return 'DELETE';
+    if (name.startsWith('manage_') || name.endsWith('_manage')) return 'MANAGE';
+    if (name.startsWith('calculate_') || name.endsWith('_calculate')) return 'CALCULATE';
     return 'ACCESS';
   };
 
@@ -473,6 +514,110 @@ export default function RolesPage() {
           hideUserBadge={true}
         >
           <div className="flex items-center gap-3 flex-wrap justify-end">
+            {/* Legend for Action & Data Scope */}
+            <div className="hidden lg:flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-[9px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help">V = View</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">V = View: Read-only</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold cursor-help">C = Create</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">C = Create: Add records</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold cursor-help">E = Edit</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">E = Edit: Update records</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold cursor-help">D = Delete</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">D = Delete: Remove records</TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex items-center gap-1.5 text-[9px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold cursor-help">N = None</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">N = None: No access</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold cursor-help">S = Self</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">S = Self: Own records only</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help">T = Team</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">T = Team: Direct team records</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-400 font-bold cursor-help">D = Dept</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">D = Dept: Department records</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold cursor-help">A = All</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">A = All: Company-wide access</TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+
+            {/* View Mode Switcher */}
+            <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-800 font-sans">
+              <Tooltip>
+                <TooltipTrigger>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('card')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'card'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
+                    <span>Granular</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Granular Policies View</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('matrix')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === 'matrix'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                    </svg>
+                    <span>Matrix</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Matrix Grid View</TooltipContent>
+              </Tooltip>
+            </div>
 
             <button
               onClick={() => setDrawerOpen(true)}
@@ -483,7 +628,7 @@ export default function RolesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </span>
-              <span className="tracking-wider uppercase text-[10px]">Add Access Role</span>
+              <span className="tracking-wider uppercase text-[10px]">Create Role</span>
             </button>
           </div>
         </DashboardPageHeader>
@@ -534,18 +679,16 @@ export default function RolesPage() {
               </div>
 
               <div className="flex items-center gap-1.5 text-[9.5px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
-                <span className="text-slate-400"></span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">V = View</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">C = Create</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">E = Edit</span>
-                <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold">D = Delete</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help" title="V = View: Read-only access">V = View</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help" title="C = Create: Add new records">C = Create</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help" title="E = Edit: Update existing records">E = Edit</span>
+                <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold cursor-help" title="D = Delete: Remove records">D = Delete</span>
               </div>
               <div className="flex items-center gap-1.5 text-[9.5px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
-                <span className="text-slate-400"></span>
-                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">S = Self</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">T = Team/Reporting</span>
-                <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-400 font-bold">D = Dept</span>
-                <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold">A = All</span>
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold cursor-help" title="S = Self: Own records only">S = Self</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help" title="T = Team: Direct reporting team records">T = Team</span>
+                <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-400 font-bold cursor-help" title="D = Dept: All records in assigned department">D = Dept</span>
+                <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold cursor-help" title="A = All: Company-wide access">A = All</span>
               </div>
 
               </div>
@@ -608,10 +751,10 @@ export default function RolesPage() {
                     const modulePerms = permissions.filter(p => p.module === moduleName);
                     const category = getModuleCategory(moduleName);
 
-                    const viewPerm = modulePerms.find(p => p.name.startsWith('view_'));
-                    const createPerm = modulePerms.find(p => p.name.startsWith('create_'));
-                    const editPerm = modulePerms.find(p => p.name.startsWith('edit_') || p.name.startsWith('update_') || p.name.startsWith('calculate_'));
-                    const deletePerm = modulePerms.find(p => p.name.startsWith('delete_'));
+                    const viewPerm = modulePerms.find(p => p.name.startsWith('view_') || p.name.endsWith('_view'));
+                    const createPerm = modulePerms.find(p => p.name.startsWith('create_') || p.name.endsWith('_create'));
+                    const editPerm = modulePerms.find(p => p.name.startsWith('edit_') || p.name.endsWith('_edit') || p.name.startsWith('update_') || p.name.startsWith('calculate_'));
+                    const deletePerm = modulePerms.find(p => p.name.startsWith('delete_') || p.name.endsWith('_delete'));
 
                     return (
                       <tr key={moduleName} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/60 transition-colors">
@@ -645,108 +788,174 @@ export default function RolesPage() {
 
                           return (
                             <td key={role.id} className="py-4 px-4 text-center">
-                              <div className="inline-flex flex-col items-center gap-1 p-2 rounded-2xl bg-slate-100/60 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 min-w-[130px]">
+                              <div className="inline-flex flex-col items-center gap-1.5 p-2 rounded-2xl bg-slate-100/60 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 min-w-[130px]">
                                 {/* Action Badges (V C E D) */}
                                 <div className="inline-flex items-center gap-1">
                                   {/* V (View) */}
                                   {viewPerm ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => togglePermissionAutoSave(role.id, viewPerm.id)}
-                                      title={`View ${moduleName}`}
-                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(viewPerm.id)
-                                        ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
-                                        : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                                        }`}
-                                    >
-                                      V
-                                    </button>
+                                    <Tooltip>
+                                      <TooltipTrigger>
+                                        <button
+                                          type="button"
+                                          onClick={() => togglePermissionAutoSave(role.id, viewPerm.id)}
+                                          className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(viewPerm.id)
+                                            ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
+                                            : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
+                                            }`}
+                                        >
+                                          V
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-left whitespace-normal max-w-[180px] p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                        <div className="font-bold text-[11px]">V — View: {moduleName}</div>
+                                        <div className="text-[10px] opacity-80 mt-0.5">
+                                          {rolePermIds.includes(viewPerm.id) ? 'Granted — click to revoke' : 'Revoked — click to grant'}
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
                                   ) : (
-                                    <span className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-40">v</span>
+                                    <span className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-40">-</span>
                                   )}
 
                                   {/* C (Create) */}
                                   {createPerm ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => togglePermissionAutoSave(role.id, createPerm.id)}
-                                      title={`Create ${moduleName}`}
-                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(createPerm.id)
-                                        ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
-                                        : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                                        }`}
-                                    >
-                                      C
-                                    </button>
+                                    createPerm.name === 'companies_create' ? (
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <span className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-30 cursor-not-allowed">
+                                            C
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-left whitespace-normal max-w-[210px] p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                          <div className="font-bold text-[11px] text-rose-400 dark:text-rose-600">⛔ Restricted</div>
+                                          <div className="text-[10px] opacity-80 mt-0.5">Only SuperAdmin can create companies</div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    ) : (
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <button
+                                            type="button"
+                                            onClick={() => togglePermissionAutoSave(role.id, createPerm.id)}
+                                            className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(createPerm.id)
+                                              ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
+                                              : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
+                                              }`}
+                                          >
+                                            C
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-left whitespace-normal max-w-[180px] p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                          <div className="font-bold text-[11px]">C — Create: {moduleName}</div>
+                                          <div className="text-[10px] opacity-80 mt-0.5">
+                                            {rolePermIds.includes(createPerm.id) ? 'Granted — click to revoke' : 'Revoked — click to grant'}
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )
                                   ) : (
-                                    <span className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-40">c</span>
+                                    <span className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-40">-</span>
                                   )}
 
                                   {/* E (Edit) */}
                                   {editPerm ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => togglePermissionAutoSave(role.id, editPerm.id)}
-                                      title={`Edit ${moduleName}`}
-                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(editPerm.id)
-                                        ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
-                                        : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                                        }`}
-                                    >
-                                      E
-                                    </button>
+                                    <Tooltip>
+                                      <TooltipTrigger>
+                                        <button
+                                          type="button"
+                                          onClick={() => togglePermissionAutoSave(role.id, editPerm.id)}
+                                          className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(editPerm.id)
+                                            ? 'bg-emerald-500 text-white dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500 dark:border-emerald-700 shadow-xs'
+                                            : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
+                                            }`}
+                                        >
+                                          E
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-left whitespace-normal max-w-[180px] p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                        <div className="font-bold text-[11px]">E — Edit: {moduleName}</div>
+                                        <div className="text-[10px] opacity-80 mt-0.5">
+                                          {rolePermIds.includes(editPerm.id) ? 'Granted — click to revoke' : 'Revoked — click to grant'}
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
                                   ) : (
-                                    <span className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-40">e</span>
+                                    <span className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-40">-</span>
                                   )}
 
                                   {/* D (Delete) */}
                                   {deletePerm ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => togglePermissionAutoSave(role.id, deletePerm.id)}
-                                      title={`Delete ${moduleName}`}
-                                      className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(deletePerm.id)
-                                        ? 'bg-rose-500 text-white dark:bg-rose-950/60 dark:text-rose-400 border border-rose-500 dark:border-rose-700 shadow-xs'
-                                        : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
-                                        }`}
-                                    >
-                                      D
-                                    </button>
+                                    <Tooltip>
+                                      <TooltipTrigger>
+                                        <button
+                                          type="button"
+                                          onClick={() => togglePermissionAutoSave(role.id, deletePerm.id)}
+                                          className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${rolePermIds.includes(deletePerm.id)
+                                            ? 'bg-rose-500 text-white dark:bg-rose-950/60 dark:text-rose-400 border border-rose-500 dark:border-rose-700 shadow-xs'
+                                            : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-600 dark:hover:text-slate-300'
+                                            }`}
+                                        >
+                                          D
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-left whitespace-normal max-w-[180px] p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                        <div className="font-bold text-[11px]">D — Delete: {moduleName}</div>
+                                        <div className="text-[10px] opacity-80 mt-0.5">
+                                          {rolePermIds.includes(deletePerm.id) ? 'Granted — click to revoke' : 'Revoked — click to grant'}
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
                                   ) : (
-                                    <span className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-40">d</span>
+                                    <span className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-40">-</span>
                                   )}
                                 </div>
 
-                                {/* Data Scope Badges Row (S T D A) */}
-                                {primaryPerm && rolePermIds.some(id => modulePerms.map(p => p.id).includes(id)) && (
-                                  <div className="inline-flex items-center gap-1 pt-1.5 mt-0.5 border-t border-slate-200/50 dark:border-slate-800/60 w-full justify-center font-sans">
-                                    {[
-                                      { key: 'SELF', letter: 'S', title: 'Self Only (🔒 S)' },
-                                      { key: 'REPORTING', letter: 'T', title: 'Team / Subordinates (👥 T)' },
-                                      { key: 'DEPARTMENT', letter: 'D', title: 'Department (🏢 D)' },
-                                      { key: 'ALL', letter: 'A', title: 'All Company (🌐 A)' }
-                                    ].map(sc => {
-                                      const isSelected = activeScope === sc.key;
+                                {/* Individual Data Scope Badges Row: 1 Scope Pill per Action */}
+                                <div className="inline-flex items-center gap-1 pt-1.5 mt-0.5 border-t border-slate-200/50 dark:border-slate-800/60 w-full justify-center font-sans">
+                                  {[
+                                    { perm: viewPerm, action: 'View' },
+                                    { perm: createPerm, action: 'Create' },
+                                    { perm: editPerm, action: 'Edit' },
+                                    { perm: deletePerm, action: 'Delete' }
+                                  ].map((item, i) => {
+                                    if (!item.perm) {
                                       return (
-                                        <button
-                                          key={sc.key}
-                                          type="button"
-                                          onClick={() => {
-                                            const activeIds = modulePerms.filter(p => rolePermIds.includes(p.id)).map(p => p.id);
-                                            handleScopeChange(role.id, activeIds, sc.key);
-                                          }}
-                                          title={sc.title}
-                                          className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer ${isSelected
-                                            ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white border border-indigo-600 shadow-xs scale-105'
-                                            : 'bg-slate-200/60 text-slate-400 dark:bg-slate-850 dark:text-slate-600 border border-transparent hover:text-slate-700 dark:hover:text-slate-300'
-                                            }`}
-                                        >
-                                          {sc.letter}
-                                        </button>
+                                        <span key={i} className="w-6.5 h-6.5 rounded-lg text-[10px] font-sans font-bold text-slate-300 dark:text-slate-700 flex items-center justify-center opacity-20">-</span>
                                       );
-                                    })}
-                                  </div>
-                                )}
+                                    }
+                                    const isPermActive = rolePermIds.includes(item.perm.id);
+                                    const permScope = isPermActive ? (roleScopesState[role.id]?.[item.perm.id] || 'ALL') : 'NONE';
+                                    const badge = getScopeBadge(permScope, isPermActive);
+                                    const nextScope = getNextScope(permScope);
+                                    const nextBadge = getScopeBadge(nextScope, nextScope !== 'NONE');
+
+                                    return (
+                                      <Tooltip key={i}>
+                                        <TooltipTrigger>
+                                          <button
+                                            type="button"
+                                            disabled={savingRoleId !== null}
+                                            onClick={() => handleScopeChange(role.id, item.perm!.id, nextScope)}
+                                            className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer shadow-2xs hover:scale-110 active:scale-95 ${badge.color}`}
+                                          >
+                                            {badge.letter}
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" className="text-left whitespace-normal max-w-[180px] p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                          <div className="font-bold text-[11px]">
+                                            {item.action} Scope — {moduleName}
+                                          </div>
+                                          <div className="text-[10px] opacity-80 mt-0.5">
+                                            Current: {badge.letter} ({badge.label.split('(')[0].trim()})
+                                          </div>
+                                          <div className="text-[10px] text-indigo-300 dark:text-indigo-600 mt-0.5">
+                                            Next: {nextBadge.letter} ({nextBadge.label.split('(')[0].trim()})
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </td>
                           );
@@ -819,59 +1028,119 @@ export default function RolesPage() {
                   filteredRoles.map(role => {
                     const isActive = role.id === selectedRoleId;
                     const keyCount = rolePermissionsState[role.id]?.length || 0;
+
+                    const roleNameLower = role.name.toLowerCase();
+                    let roleTheme = {
+                      avatar: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/70 border-indigo-200/80 dark:border-indigo-800/60 shadow-indigo-500/10',
+                      activeBorder: 'border-indigo-500/90 ring-2 ring-indigo-500/25 bg-gradient-to-b from-indigo-500/15 via-indigo-500/5 to-white dark:from-indigo-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-indigo-500/15',
+                      tag: 'bg-indigo-600 text-white',
+                      keyText: 'text-indigo-600 dark:text-indigo-400',
+                      badge: 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/30'
+                    };
+                    if (roleNameLower.includes('admin')) {
+                      roleTheme = {
+                        avatar: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/70 border-purple-200/80 dark:border-purple-800/60 shadow-purple-500/10',
+                        activeBorder: 'border-purple-500/90 ring-2 ring-purple-500/25 bg-gradient-to-b from-purple-500/15 via-purple-500/5 to-white dark:from-purple-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-purple-500/15',
+                        tag: 'bg-purple-600 text-white',
+                        keyText: 'text-purple-600 dark:text-purple-400',
+                        badge: 'bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-500/30'
+                      };
+                    } else if (roleNameLower.includes('hr')) {
+                      roleTheme = {
+                        avatar: 'text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/70 border-pink-200/80 dark:border-pink-800/60 shadow-pink-500/10',
+                        activeBorder: 'border-pink-500/90 ring-2 ring-pink-500/25 bg-gradient-to-b from-pink-500/15 via-pink-500/5 to-white dark:from-pink-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-pink-500/15',
+                        tag: 'bg-pink-600 text-white',
+                        keyText: 'text-pink-600 dark:text-pink-400',
+                        badge: 'bg-pink-600 text-white border-pink-600 shadow-sm shadow-pink-500/30'
+                      };
+                    } else if (roleNameLower.includes('manager')) {
+                      roleTheme = {
+                        avatar: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/70 border-amber-200/80 dark:border-amber-800/60 shadow-amber-500/10',
+                        activeBorder: 'border-amber-500/90 ring-2 ring-amber-500/25 bg-gradient-to-b from-amber-500/15 via-amber-500/5 to-white dark:from-amber-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-amber-500/15',
+                        tag: 'bg-amber-600 text-white',
+                        keyText: 'text-amber-600 dark:text-amber-400',
+                        badge: 'bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-500/30'
+                      };
+                    } else if (roleNameLower.includes('employee')) {
+                      roleTheme = {
+                        avatar: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/70 border-blue-200/80 dark:border-blue-800/60 shadow-blue-500/10',
+                        activeBorder: 'border-blue-500/90 ring-2 ring-blue-500/25 bg-gradient-to-b from-blue-500/15 via-blue-500/5 to-white dark:from-blue-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-blue-500/15',
+                        tag: 'bg-blue-600 text-white',
+                        keyText: 'text-blue-600 dark:text-blue-400',
+                        badge: 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/30'
+                      };
+                    }
+
                     return (
                       <div
                         key={role.id}
                         onClick={() => setSelectedRoleId(role.id)}
-                        className={`relative group rounded-2xl border p-4 cursor-pointer transition-all duration-300 flex items-center justify-between hover:scale-[1.02] flex-shrink-0 min-w-[200px] ${isActive
-                          ? 'bg-indigo-50/70 dark:bg-indigo-950/20 border-indigo-500 dark:border-indigo-500/80 shadow-md shadow-indigo-550/10 text-indigo-600 dark:text-indigo-400 font-black scale-[1.02]'
-                          : 'bg-white dark:bg-slate-900/15 border-slate-200 dark:border-slate-850 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-slate-200'
+                        className={`relative group rounded-2xl p-4 cursor-pointer transition-all duration-300 flex-shrink-0 min-w-[230px] flex flex-col justify-between border ${isActive
+                          ? `${roleTheme.activeBorder} scale-[1.02]`
+                          : 'bg-white/95 dark:bg-slate-900/70 border-slate-200/90 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 hover:bg-slate-50/90 dark:hover:bg-slate-850/60 hover:shadow-md'
                           }`}
                       >
                         {isActive && (
-                          <span className="absolute left-0 top-3 bottom-3 w-1 bg-indigo-500 rounded-r-full animate-pulse" />
+                          <span className={`absolute -top-2 left-6 px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest shadow-md ${roleTheme.tag}`}>
+                            ACTIVE
+                          </span>
                         )}
-                        <div className="flex-1 min-w-0 pr-2">
-                          <div className="flex items-center justify-between gap-1">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <h5 className={`text-[12px] font-black uppercase tracking-wider truncate ${isActive ? 'text-indigo-600 dark:text-indigo-400 font-black' : 'text-slate-800 dark:text-slate-200'}`}>
+
+                        {/* Top Row: Avatar Initial + Role Title + Edit/Delete Actions */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs border ${roleTheme.avatar} flex-shrink-0 shadow-xs transition-transform group-hover:scale-105`}>
+                              {role.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="truncate">
+                              <h5 className={`text-[13px] font-black uppercase tracking-wider truncate ${isActive ? roleTheme.keyText : 'text-slate-800 dark:text-slate-100'}`}>
                                 {role.name}
                               </h5>
-                              {role.company_name && (
-                                <span className={`text-[8px] px-1.5 py-0.5 rounded font-extrabold max-w-[80px] truncate ${isActive ? 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`} title={role.company_name}>
-                                  {role.company_name}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={(e) => handleOpenEditRole(role, e)}
-                                title="Edit role name"
-                                className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors p-1"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={(e) => handleDeleteRole(role, e)}
-                                title="Delete role"
-                                className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors p-1"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                </svg>
-                              </button>
                             </div>
                           </div>
-                          <span className={`text-[9px] font-semibold tracking-wider block mt-1 ${isActive ? 'text-indigo-550 dark:text-indigo-400/80' : 'text-slate-400 dark:text-slate-500'}`}>
+
+                          <div className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenEditRole(role, e)}
+                                  className="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-lg p-1.5 transition-colors cursor-pointer"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 stroke-[2.2]" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" align="end">Edit role name</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteRole(role, e)}
+                                  className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-800 rounded-lg p-1.5 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" align="end">Delete role</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </div>
+
+                        {/* Bottom Row: Key & Permissions Badge */}
+                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px]">
+                          <span className={`font-mono text-[9.5px] font-bold tracking-wider ${isActive ? roleTheme.keyText : 'text-slate-400 dark:text-slate-500'}`}>
                             KEY: {role.name.toLowerCase().replace(/\s+/g, '_')}
                           </span>
+
+                          <span className={`px-2.5 py-0.5 rounded-full font-black text-[9.5px] tracking-wide border transition-all ${isActive
+                            ? roleTheme.badge
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200/80 dark:border-slate-800'
+                            }`}>
+                            {keyCount} {keyCount === 1 ? 'perm' : 'perms'}
+                          </span>
                         </div>
-                        <span className={`text-[10px] h-6 px-2.5 rounded-full font-black flex items-center justify-center border ${isActive ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' : 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-slate-200/50 dark:border-slate-800'
-                          }`}>
-                          {keyCount}
-                        </span>
                       </div>
                     );
                   })
@@ -894,27 +1163,25 @@ export default function RolesPage() {
                     </svg>
                   </span>
                   <div>
-                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Resource Modules Matrix</h4>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">Click a module to expand its granular permissions policy</p>
+                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Granular Permissions</h4>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">Click a module to expand its granular permissions</p>
                   </div>
                 </div>
 
-                {/* Search fields */}
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:max-w-md justify-end">
-                  <div className="relative w-full">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Search modules or permissions..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 transition-all duration-200 placeholder-slate-400/80 pl-search"
-                    />
-                  </div>
+                {/* Search */}
+                <div className="relative w-full sm:max-w-xs">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search modules or permissions..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 transition-all duration-200 placeholder-slate-400/80 pl-search"
+                  />
                 </div>
               </div>
 
@@ -1023,47 +1290,145 @@ export default function RolesPage() {
                                 const isViewAction = p.name.startsWith('view_');
                                 const isToggleDisabled = savingRoleId !== null || (!isViewAction && !isViewChecked);
 
-                                let actionBadgeColor = "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-350";
-                                if (action === "VIEW") actionBadgeColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20";
-                                else if (action === "CREATE") actionBadgeColor = "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20";
-                                else if (action === "EDIT" || action === "CALCULATE") actionBadgeColor = "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20";
-                                else if (action === "DELETE") actionBadgeColor = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20";
+                                let actionCardTheme = {
+                                  border: 'border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/40 hover:border-slate-350 dark:hover:border-slate-700',
+                                  badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/60',
+                                  activeSwitch: 'bg-indigo-600 shadow shadow-indigo-600/30'
+                                };
+                                if (action === "VIEW") {
+                                  actionCardTheme = {
+                                    border: 'border-emerald-200/90 dark:border-emerald-800/60 bg-gradient-to-b from-emerald-500/[0.09] via-emerald-500/[0.02] to-white dark:from-emerald-950/40 dark:via-slate-900/70 dark:to-slate-900/80 hover:border-emerald-350 dark:hover:border-emerald-700 hover:shadow-md hover:shadow-emerald-500/5',
+                                    badge: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-2xs',
+                                    activeSwitch: 'bg-emerald-600 shadow shadow-emerald-600/30'
+                                  };
+                                } else if (action === "CREATE") {
+                                  actionCardTheme = {
+                                    border: 'border-blue-200/90 dark:border-blue-800/60 bg-gradient-to-b from-blue-500/[0.09] via-blue-500/[0.02] to-white dark:from-blue-950/40 dark:via-slate-900/70 dark:to-slate-900/80 hover:border-blue-350 dark:hover:border-blue-700 hover:shadow-md hover:shadow-blue-500/5',
+                                    badge: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 shadow-2xs',
+                                    activeSwitch: 'bg-blue-600 shadow shadow-blue-600/30'
+                                  };
+                                } else if (action === "EDIT" || action === "CALCULATE") {
+                                  actionCardTheme = {
+                                    border: 'border-amber-200/90 dark:border-amber-800/60 bg-gradient-to-b from-amber-500/[0.09] via-amber-500/[0.02] to-white dark:from-amber-950/40 dark:via-slate-900/70 dark:to-slate-900/80 hover:border-amber-350 dark:hover:border-amber-700 hover:shadow-md hover:shadow-amber-500/5',
+                                    badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-2xs',
+                                    activeSwitch: 'bg-amber-600 shadow shadow-amber-600/30'
+                                  };
+                                } else if (action === "DELETE") {
+                                  actionCardTheme = {
+                                    border: 'border-rose-200/90 dark:border-rose-800/60 bg-gradient-to-b from-rose-500/[0.09] via-rose-500/[0.02] to-white dark:from-rose-950/40 dark:via-slate-900/70 dark:to-slate-900/80 hover:border-rose-350 dark:hover:border-rose-700 hover:shadow-md hover:shadow-rose-500/5',
+                                    badge: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 shadow-2xs',
+                                    activeSwitch: 'bg-rose-600 shadow shadow-rose-600/30'
+                                  };
+                                }
 
                                 return (
                                   <div
                                     key={p.id}
-                                    className={`rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10 p-4 relative flex flex-col justify-between min-h-[135px] hover:border-slate-350 dark:hover:border-slate-700/80 transition-all duration-200 ${!isViewAction && !isViewChecked ? 'opacity-40 select-none' : ''
+                                    className={`rounded-2xl p-4 relative flex flex-col justify-between min-h-[170px] transition-all duration-200 border ${actionCardTheme.border} ${!isViewAction && !isViewChecked ? 'opacity-40 select-none' : ''
                                       }`}
                                   >
                                     <div className="flex items-center justify-between w-full">
-                                      <span className={`text-[8.5px] px-2 py-0.5 rounded font-black tracking-widest uppercase ${actionBadgeColor}`}>
-                                        {action}
-                                      </span>
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <span className={`text-[8.5px] px-2.5 py-0.5 rounded-md font-black tracking-widest uppercase cursor-help ${actionCardTheme.badge}`}>
+                                            {action}
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-left whitespace-normal max-w-[160px] p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                          <div className="font-bold text-[11px]">{action} — {moduleName}</div>
+                                        </TooltipContent>
+                                      </Tooltip>
 
-                                      <button
-                                        type="button"
-                                        disabled={isToggleDisabled}
-                                        onClick={() => !isToggleDisabled && selectedRoleId && togglePermissionAutoSave(selectedRoleId, p.id)}
-                                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-250 ease-in-out outline-none focus:outline-none ${isChecked
-                                          ? 'bg-indigo-600 shadow shadow-indigo-600/30'
-                                          : 'bg-slate-200 dark:bg-slate-850'
-                                          } ${isToggleDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                      >
-                                        <span
-                                          aria-hidden="true"
-                                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-250 ease-in-out ${isChecked ? 'translate-x-4' : 'translate-x-0'
-                                            }`}
-                                        />
-                                      </button>
+                                      {p.name === 'companies_create' ? (
+                                        <Tooltip>
+                                          <TooltipTrigger>
+                                            <span className="relative inline-flex h-5 w-9 flex-shrink-0 cursor-not-allowed rounded-full border border-transparent bg-slate-200 dark:bg-slate-850 opacity-40">
+                                              <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 translate-x-0" />
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top" className="text-left whitespace-normal max-w-[180px] p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                            <div className="font-bold text-[11px] text-rose-400 dark:text-rose-600">Restricted</div>
+                                            <div className="text-[10px] opacity-80 mt-0.5">Only SuperAdmin can create companies</div>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      ) : (
+                                        <Tooltip>
+                                          <TooltipTrigger>
+                                            <button
+                                              type="button"
+                                              disabled={isToggleDisabled}
+                                              onClick={() => !isToggleDisabled && selectedRoleId && togglePermissionAutoSave(selectedRoleId, p.id)}
+                                              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-250 ease-in-out outline-none focus:outline-none ${isChecked
+                                                ? actionCardTheme.activeSwitch
+                                                : 'bg-slate-200 dark:bg-slate-850'
+                                                } ${isToggleDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                            >
+                                              <span
+                                                aria-hidden="true"
+                                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-250 ease-in-out ${isChecked ? 'translate-x-4' : 'translate-x-0'
+                                                  }`}
+                                              />
+                                            </button>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top" className="text-left whitespace-normal max-w-[160px] p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                            <div className="font-bold text-[11px]">{isChecked ? 'Granted' : 'Revoked'}</div>
+                                            <div className="text-[10px] opacity-80 mt-0.5">Click to {isChecked ? 'revoke' : 'grant'}</div>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )}
                                     </div>
 
-                                    <div className="mt-4 flex-1">
-                                      <div className="font-mono font-bold text-slate-800 dark:text-slate-100 text-[11.5px] truncate" title={p.name}>
+                                    <div className="mt-3 flex-1">
+                                      <div className="font-mono font-bold text-slate-800 dark:text-slate-100 text-[11.5px] truncate">
                                         {p.name}
                                       </div>
-                                      <p className="text-[10px] text-slate-450 dark:text-slate-500 font-semibold leading-relaxed mt-1.5 line-clamp-2" title={p.description}>
+                                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed mt-1 line-clamp-2">
                                         {p.description || 'Allow performing this module action.'}
                                       </p>
+                                    </div>
+
+                                    {/* Granular Individual Permission Scope Row */}
+                                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between">
+                                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                        Data Scope:
+                                      </span>
+                                      <div className="inline-flex items-center gap-1">
+                                        {[
+                                          { key: 'NONE', letter: 'N', color: 'bg-rose-500 text-white', label: 'None — No access (revoked)' },
+                                          { key: 'SELF', letter: 'S', color: 'bg-amber-500 text-white', label: 'Self — Own records only' },
+                                          { key: 'REPORTING', letter: 'T', color: 'bg-emerald-500 text-white', label: 'Team — Reporting team records' },
+                                          { key: 'DEPARTMENT', letter: 'D', color: 'bg-purple-500 text-white', label: 'Dept — Department records' },
+                                          { key: 'ALL', letter: 'A', color: 'bg-indigo-600 text-white', label: 'All — Company-wide access' }
+                                        ].map(sc => {
+                                          const currentScope = isChecked ? ((selectedRoleId && roleScopesState[selectedRoleId]?.[p.id]) || 'ALL') : 'NONE';
+                                          const isSelected = currentScope === sc.key;
+                                          return (
+                                            <Tooltip key={sc.key}>
+                                              <TooltipTrigger>
+                                                <button
+                                                  type="button"
+                                                  disabled={savingRoleId !== null || (p.name === 'companies_create' && sc.key !== 'NONE')}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (selectedRoleId) {
+                                                      handleScopeChange(selectedRoleId, p.id, sc.key);
+                                                    }
+                                                  }}
+                                                  className={`w-6 h-6 rounded-md text-[10px] font-black transition-all flex items-center justify-center cursor-pointer ${isSelected
+                                                    ? `${sc.color} shadow-xs scale-105 ring-1 ring-white/20`
+                                                    : 'bg-slate-200/70 text-slate-500 dark:bg-slate-850 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700'
+                                                    } ${(savingRoleId !== null || (p.name === 'companies_create' && sc.key !== 'NONE')) ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                                >
+                                                  {sc.letter}
+                                                </button>
+                                              </TooltipTrigger>
+                                              <TooltipContent side="top" className="text-left whitespace-normal max-w-[160px] p-1.5 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xl border border-slate-800 dark:border-slate-200">
+                                                <div className="text-[10px] font-bold">{sc.label}</div>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
                                   </div>
                                 );

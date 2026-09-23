@@ -61,10 +61,10 @@ export default function CompaniesPage() {
   });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || hasPermission('view_companies');
-  const canCreate = isSuperAdmin || hasPermission('create_companies');
-  const canEdit = isSuperAdmin || hasPermission('edit_companies');
-  const canDelete = isSuperAdmin || hasPermission('delete_companies');
+  const canView = isSuperAdmin || hasPermission('companies_view');
+  const canCreate = isSuperAdmin || hasPermission('companies_create');
+  const canEdit = isSuperAdmin || hasPermission('companies_edit');
+  const canDelete = isSuperAdmin || hasPermission('companies_delete');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');

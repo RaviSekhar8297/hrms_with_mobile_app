@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import SearchableSelect from '../../components/SearchableSelect';
 import { useDashboard } from '../../components/DashboardContext';
-import { getHeaders } from '../../utils/api';
+import { usePermissions } from '../../hooks/usePermissions';
+import { getHeaders, getUrl } from '../../utils/api';
 import { 
   Calendar, 
   RotateCcw, 
@@ -171,9 +172,10 @@ export default function GeneratePayrollPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressStep, setProgressStep] = useState(0);
 
+  const { hasPermission } = usePermissions();
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || permissions.includes('view_payroll') || permissions.includes('view_payroll_runs') || permissions.includes('*');
-  const canCreate = isSuperAdmin || permissions.includes('create_payroll') || permissions.includes('create_payroll_runs') || permissions.includes('*');
+  const canView = isSuperAdmin || hasPermission('payroll_runs_view');
+  const canCreate = isSuperAdmin || hasPermission('payroll_runs_create');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -191,28 +193,28 @@ export default function GeneratePayrollPage() {
   const fetchAuxiliaryData = async () => {
     try {
       if (isSuperAdmin) {
-        const cRes = await fetch('/api/v1/companies', { headers: getHeaders() });
+        const cRes = await fetch(getUrl('/api/v1/companies'), { headers: getHeaders() });
         const cData = await cRes.json();
         if (cRes.ok) setCompanies(cData.companies || []);
       }
 
       const cid = activeCompanyId || localStorage.getItem('companyId');
-      let urlSuffix = cid && cid !== 'all' ? `?companyId=${cid}` : '';
-      const deptRes = await fetch(`/api/v1/departments${urlSuffix}`, { headers: getHeaders() });
+      const targetCid = cid && cid !== 'all' ? cid : null;
+      const deptRes = await fetch(getUrl('/api/v1/departments', targetCid), { headers: getHeaders() });
       const deptData = await deptRes.json();
       if (deptRes.ok) setDepartments(deptData.departments || []);
 
-      const branchRes = await fetch(`/api/v1/branches${urlSuffix}`, { headers: getHeaders() });
+      const branchRes = await fetch(getUrl('/api/v1/branches', targetCid), { headers: getHeaders() });
       const branchData = await branchRes.json();
       if (branchRes.ok) setBranches(branchData.branches || []);
 
-      const empRes = await fetch(`/api/v1/employees${urlSuffix}`, { headers: getHeaders() });
+      const empRes = await fetch(getUrl('/api/v1/employees', targetCid), { headers: getHeaders() });
       const empData = await empRes.json();
       if (empRes.ok) setEmployees(empData.employees || []);
 
       // Fetch Attendance Policy for default cutoff cycle days
-      if (cid && cid !== 'all') {
-        const polRes = await fetch(`/api/v1/attendance/policies?companyId=${cid}`, { headers: getHeaders() });
+      if (targetCid) {
+        const polRes = await fetch(getUrl(`/api/v1/attendance/policies?companyId=${targetCid}`), { headers: getHeaders() });
         const polData = await polRes.json();
         if (polRes.ok && polData.policy) {
           if (polData.policy.cycle_start_day) setCycleStartDay(polData.policy.cycle_start_day);

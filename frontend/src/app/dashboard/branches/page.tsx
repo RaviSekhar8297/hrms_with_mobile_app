@@ -57,10 +57,10 @@ export default function BranchesPage() {
   const [branchForm, setBranchForm] = useState({ name: '', address: '', companyId: '', status: 'ACTIVE' });
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-  const canView = isSuperAdmin || hasPermission('view_branches');
-  const canCreate = isSuperAdmin || hasPermission('create_branches');
-  const canEdit = isSuperAdmin || hasPermission('edit_branches');
-  const canDelete = isSuperAdmin || hasPermission('delete_branches');
+  const canView = isSuperAdmin || hasPermission('branches_view');
+  const canCreate = isSuperAdmin || hasPermission('branches_create');
+  const canEdit = isSuperAdmin || hasPermission('branches_edit');
+  const canDelete = isSuperAdmin || hasPermission('branches_delete');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -73,7 +73,7 @@ export default function BranchesPage() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('/api/v1/companies', { headers: getHeaders() });
+      const res = await fetch(getUrl('/api/v1/companies'), { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) {

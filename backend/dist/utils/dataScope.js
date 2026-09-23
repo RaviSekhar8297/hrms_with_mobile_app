@@ -57,21 +57,33 @@ async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
         let dataScope = 'ALL';
         if (emp.role_id) {
             let permSql = `
-        SELECT rp.data_scope 
+        SELECT rp.data_scope, p.name 
         FROM hrms.role_permissions rp
         JOIN hrms.permissions p ON rp.permission_id = p.id
         WHERE rp.role_id = $1
       `;
             const permParams = [emp.role_id];
             if (permissionNameOrId) {
-                permSql += ` AND (p.id::text = $2 OR LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_summary'))`;
-                permParams.push(permissionNameOrId);
+                const cleanPerm = permissionNameOrId.toLowerCase().trim();
+                const parts = cleanPerm.split('_');
+                let altPerm = cleanPerm;
+                if (parts.length === 2) {
+                    altPerm = `${parts[1]}_${parts[0]}`;
+                }
+                permSql += ` AND (p.id::text = $2 OR LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($3) OR LOWER(p.name) = LOWER($2 || '_summary') OR LOWER(p.name) = LOWER($2 || '_view') OR LOWER(p.name) = LOWER('view_' || $2))`;
+                permParams.push(cleanPerm, altPerm);
             }
             else if (moduleName) {
-                permSql += ` AND (LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_summary') OR LOWER(p.module) = LOWER($2) OR LOWER(p.name) LIKE LOWER($3))`;
-                permParams.push(moduleName, `%${moduleName}%`);
+                const cleanMod = moduleName.toLowerCase().trim();
+                permSql += ` AND (LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_view') OR LOWER(p.name) = LOWER('view_' || $2) OR LOWER(p.module) = LOWER($2) OR LOWER(p.name) LIKE LOWER($3))`;
+                permParams.push(cleanMod, `%${cleanMod}%`);
             }
-            permSql += ` ORDER BY CASE WHEN UPPER(p.name) LIKE '%SUMMARY' THEN 1 ELSE 2 END ASC LIMIT 1`;
+            permSql += ` ORDER BY 
+        CASE 
+          WHEN LOWER(p.name) LIKE '%view%' OR LOWER(p.name) LIKE 'view_%' THEN 1 
+          WHEN LOWER(p.name) LIKE '%summary%' THEN 2 
+          ELSE 3 
+        END ASC LIMIT 1`;
             const permRes = await (0, db_1.query)(permSql, permParams);
             if (permRes.rows.length > 0 && permRes.rows[0].data_scope) {
                 const scopeVal = String(permRes.rows[0].data_scope).toUpperCase().trim();

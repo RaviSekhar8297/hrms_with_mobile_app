@@ -12,6 +12,50 @@ interface UsePermissionsResult {
   roles: string[];
 }
 
+const STANDARD_ACTIONS = ['view', 'create', 'edit', 'delete', 'manage', 'calculate', 'approve', 'read', 'update'];
+
+/**
+ * Generate all possible variations/aliases of a permission string:
+ * e.g. "view_leave_requests" <-> "leave_requests_view", "view_leave_request", "leave_request_view"
+ * e.g. "employees_create" <-> "create_employees", "employee_create", "create_employee"
+ */
+function getPermissionAliases(perm: string): string[] {
+  if (!perm) return [];
+  const clean = perm.toLowerCase().trim();
+  const aliases = new Set<string>([clean]);
+
+  for (const act of STANDARD_ACTIONS) {
+    // 1. Starts with action: view_leave_requests -> leave_requests_view
+    if (clean.startsWith(`${act}_`)) {
+      const rest = clean.slice(act.length + 1);
+      aliases.add(`${rest}_${act}`);
+      if (rest.endsWith('s')) {
+        const singular = rest.slice(0, -1);
+        aliases.add(`${singular}_${act}`);
+        aliases.add(`${act}_${singular}`);
+      } else {
+        aliases.add(`${rest}s_${act}`);
+        aliases.add(`${act}_${rest}s`);
+      }
+    }
+    // 2. Ends with action: leave_requests_view -> view_leave_requests
+    if (clean.endsWith(`_${act}`)) {
+      const rest = clean.slice(0, -act.length - 1);
+      aliases.add(`${act}_${rest}`);
+      if (rest.endsWith('s')) {
+        const singular = rest.slice(0, -1);
+        aliases.add(`${act}_${singular}`);
+        aliases.add(`${singular}_${act}`);
+      } else {
+        aliases.add(`${act}_${rest}s`);
+        aliases.add(`${rest}s_${act}`);
+      }
+    }
+  }
+
+  return Array.from(aliases);
+}
+
 /**
  * Shared permissions hook — reads roles, permissions & scopes dynamically from localStorage.
  * SuperAdmin always gets full access (hasPermission always returns true).
@@ -47,7 +91,7 @@ export function usePermissions(): UsePermissionsResult {
     };
   }, []);
 
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin') || roles.includes('admin') || roles.includes('Admin');
 
   const hasPermission = (permissionNameOrId?: string): boolean => {
     if (!permissionNameOrId) return true;   // no guard = always visible
@@ -57,56 +101,29 @@ export function usePermissions(): UsePermissionsResult {
     // Direct match by Permission Name or Permission ID UUID
     if (permissions.includes(permissionNameOrId)) return true;
 
-    // Dynamic matching for permission aliases
-    const targetLower = permissionNameOrId.toLowerCase().trim();
-    
+    // Generate all aliases for the target permission
+    const targetAliases = getPermissionAliases(permissionNameOrId);
+
+    // Check if any user permission matches any alias
     return permissions.some(p => {
-      const pLower = p.toLowerCase().trim();
-      if (pLower === targetLower) return true;
-
-      // Check reversed words: e.g. branch_create <-> create_branches
-      const parts = targetLower.split('_');
-      if (parts.length === 2) {
-        const reversed = `${parts[1]}_${parts[0]}`;
-        if (pLower === reversed || pLower === `${reversed}s` || `${pLower}s` === reversed) return true;
-        if (pLower === `${parts[0]}_${parts[1]}s` || `${pLower}s` === `${parts[0]}_${parts[1]}`) return true;
-      }
-
-      // Extract action and entity matching
-      const isCreate = targetLower.includes('create');
-      const isView = targetLower.includes('view') || targetLower.includes('read');
-      const isEdit = targetLower.includes('edit') || targetLower.includes('update');
-      const isDelete = targetLower.includes('delete') || targetLower.includes('remove');
-
-      if (isCreate && pLower.includes('create')) {
-        if (targetLower.split('_').some(part => part.length > 3 && pLower.includes(part))) return true;
-      }
-
-      if (isEdit && pLower.includes('edit')) {
-        if (targetLower.split('_').some(part => part.length > 3 && pLower.includes(part))) return true;
-      }
-
-      if (isDelete && pLower.includes('delete')) {
-        if (targetLower.split('_').some(part => part.length > 3 && pLower.includes(part))) return true;
-      }
-
-      if (isView && (pLower.includes('view') || pLower.includes('read'))) {
-        if (targetLower.split('_').some(part => part.length > 3 && pLower.includes(part))) return true;
-      }
-
-      return false;
+      const userAliases = getPermissionAliases(p);
+      return targetAliases.some(targetAlias => userAliases.includes(targetAlias));
     });
   };
 
   const getPermissionScope = (permissionNameOrId?: string): DataScope => {
     if (isSuperAdmin) return 'ALL';
     if (permissionNameOrId) {
-      if (scopes[permissionNameOrId]) {
-        const sVal = String(scopes[permissionNameOrId]).toUpperCase();
-        if (['DEPARTMENT', 'DEPT', 'D'].includes(sVal)) return 'DEPARTMENT';
-        if (['REPORTING', 'TEAM', 'T'].includes(sVal)) return 'REPORTING';
-        if (['ALL', 'A'].includes(sVal)) return 'ALL';
-        return 'SELF';
+      const targetAliases = getPermissionAliases(permissionNameOrId);
+      for (const alias of targetAliases) {
+        if (scopes[alias]) {
+          const sVal = String(scopes[alias]).toUpperCase();
+          if (['DEPARTMENT', 'DEPT', 'D'].includes(sVal)) return 'DEPARTMENT';
+          if (['REPORTING', 'TEAM', 'T'].includes(sVal)) return 'REPORTING';
+          if (['ALL', 'A'].includes(sVal)) return 'ALL';
+          if (['NONE', 'N'].includes(sVal)) return 'SELF';
+          return 'SELF';
+        }
       }
 
       const targetLower = permissionNameOrId.toLowerCase();
