@@ -7,9 +7,16 @@ import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { Edit3, Trash2 } from 'lucide-react';
+import { usePermissions } from '../hooks/usePermissions';
 
 export default function LeaveTypesAndLogsPage() {
   const { showToast, companyId } = useDashboard();
+  const { hasPermission, isSuperAdmin } = usePermissions();
+
+  const canView = isSuperAdmin || hasPermission('leaves_view') || hasPermission('view_leave_types') || hasPermission('leaves_types_view');
+  const canCreate = isSuperAdmin || hasPermission('leaves_create') || hasPermission('create_leave_types') || hasPermission('leaves_types_create');
+  const canEdit = isSuperAdmin || hasPermission('leaves_edit') || hasPermission('edit_leave_types') || hasPermission('leaves_types_edit');
+  const canDelete = isSuperAdmin || hasPermission('leaves_delete') || hasPermission('delete_leave_types') || hasPermission('leaves_types_delete');
 
   const [activeTab, setActiveTab] = useState<'types' | 'transactions'>('types');
   const [isLoading, setIsLoading] = useState(false);
@@ -70,10 +77,12 @@ export default function LeaveTypesAndLogsPage() {
     }));
 
   useEffect(() => {
-    fetchLeaveTypes();
-    fetchTransactionLogs();
-    fetchEmployees();
-  }, [companyId]);
+    if (canView) {
+      fetchLeaveTypes();
+      fetchTransactionLogs();
+      fetchEmployees();
+    }
+  }, [companyId, canView]);
 
   const fetchLeaveTypes = async () => {
     setIsLoading(true);
@@ -278,6 +287,28 @@ export default function LeaveTypesAndLogsPage() {
     setTypeDrawerOpen(true);
   };
 
+  if (!canView) {
+    return (
+      <div className="space-y-6 pb-12">
+        <DashboardPageHeader
+          title="Leave Types Master & Transaction Audit Logs"
+          companyId={companyId}
+          hideCompanySelect={true}
+          hideUserBadge={true}
+        />
+        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm">
+          <div className="w-14 h-14 bg-rose-50 dark:bg-rose-950/50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl font-bold">
+            🚫
+          </div>
+          <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100">Access Restricted</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+            You do not have permission to view leave types. Please contact your system administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-12">
       <DashboardPageHeader
@@ -286,15 +317,17 @@ export default function LeaveTypesAndLogsPage() {
         hideCompanySelect={true}
         hideUserBadge={true}
       >
-        <button
-          onClick={activeTab === 'types' ? openNewType : () => setTransactionDrawerOpen(true)}
-          className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-          </svg>
-          <span>{activeTab === 'types' ? 'Create Leave Type' : 'Post Manual Adjustment'}</span>
-        </button>
+        {canCreate && (
+          <button
+            onClick={activeTab === 'types' ? openNewType : () => setTransactionDrawerOpen(true)}
+            className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>{activeTab === 'types' ? 'Create Leave Type' : 'Post Manual Adjustment'}</span>
+          </button>
+        )}
       </DashboardPageHeader>
 
       {/* 🎛️ TAB SWITCHER */}
@@ -368,13 +401,16 @@ export default function LeaveTypesAndLogsPage() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
+                          disabled={!canEdit}
                           onClick={() => handleToggleStatus(lt.id, lt.is_active, lt.name)}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-extrabold cursor-pointer transition-all ${
-                            lt.is_active
-                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-extrabold transition-all ${
+                            !canEdit
+                              ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                              : lt.is_active
+                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800 cursor-pointer'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 cursor-pointer'
                           }`}
-                          title={lt.is_active ? "Click to Deactivate Policy" : "Click to Activate Policy"}
+                          title={canEdit ? (lt.is_active ? "Click to Deactivate Policy" : "Click to Activate Policy") : "No edit permission"}
                         >
                           <span className="text-[10.5px] uppercase font-black tracking-wider">{lt.is_active ? 'Active' : 'Inactive'}</span>
                           <div
@@ -426,20 +462,24 @@ export default function LeaveTypesAndLogsPage() {
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => openEditType(lt)}
-                          className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950 dark:hover:text-indigo-400 transition-all flex items-center justify-center shadow-2xs"
-                          title="Edit Policy"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmModal({ open: true, item: lt })}
-                          className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-all flex items-center justify-center shadow-2xs"
-                          title="Delete Leave Type"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => openEditType(lt)}
+                            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950 dark:hover:text-indigo-400 transition-all flex items-center justify-center shadow-2xs cursor-pointer"
+                            title="Edit Policy"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => setDeleteConfirmModal({ open: true, item: lt })}
+                            className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-all flex items-center justify-center shadow-2xs cursor-pointer"
+                            title="Delete Leave Type"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

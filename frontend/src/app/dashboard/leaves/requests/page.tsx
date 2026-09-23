@@ -12,14 +12,28 @@ export default function LeaveRequestsPage() {
   const { showToast, companyId } = useDashboard();
   const { hasPermission, isSuperAdmin: isSuperAdminPerm, getPermissionScope } = usePermissions();
 
-  const leaveScope = getPermissionScope('view_leave_requests');
-  const canSeeSecondTab = isSuperAdminPerm || leaveScope !== 'SELF';
+  const isSuperAdmin = isSuperAdminPerm;
+
+  // Permissions
+  const canView = isSuperAdmin || hasPermission('leaves_requests_view') || hasPermission('view_leave_requests') || hasPermission('leaves_view');
+  const canCreate = isSuperAdmin || hasPermission('leaves_requests_create') || hasPermission('create_leave_requests') || hasPermission('leaves_create');
+  const canEdit = isSuperAdmin || hasPermission('leaves_requests_edit') || hasPermission('edit_leave_requests') || hasPermission('leaves_edit');
+  const canDelete = isSuperAdmin || hasPermission('leaves_requests_delete') || hasPermission('delete_leave_requests') || hasPermission('leaves_delete');
+
+  // Scopes
+  const viewScopePerm = getPermissionScope('leaves_requests_view') || getPermissionScope('view_leave_requests') || (isSuperAdmin ? 'ALL' : 'SELF');
+  const editScopePerm = getPermissionScope('leaves_requests_edit') || getPermissionScope('edit_leave_requests') || (isSuperAdmin ? 'ALL' : 'SELF');
+  const deleteScopePerm = getPermissionScope('leaves_requests_delete') || getPermissionScope('delete_leave_requests') || (isSuperAdmin ? 'ALL' : 'SELF');
+
+  const canSeeExtendedTab = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(viewScopePerm);
+  const canEditExtended = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(editScopePerm);
+  const canDeleteExtended = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(deleteScopePerm);
 
   const getSecondTabLabel = () => {
-    if (isSuperAdminPerm || leaveScope === 'ALL') {
+    if (isSuperAdmin || viewScopePerm === 'ALL') {
       return 'All Employee Leave Requests';
     }
-    if (leaveScope === 'DEPARTMENT') {
+    if (viewScopePerm === 'DEPARTMENT') {
       return 'Department Leave Requests';
     }
     return 'Team Leave Requests';
@@ -44,6 +58,8 @@ export default function LeaveRequestsPage() {
   const [weekoffPolicy, setWeekoffPolicy] = useState<any>(null);
 
   const [applyDrawerOpen, setApplyDrawerOpen] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<any | null>(null);
+
   const [actionModal, setActionModal] = useState<{ open: boolean; req: any | null; type: 'APPROVE' | 'REJECT' }>({
     open: false,
     req: null,
@@ -59,7 +75,6 @@ export default function LeaveRequestsPage() {
     reason: ''
   });
 
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
   const me = employees.find(emp => emp.email?.toLowerCase() === email.toLowerCase());
 
   useEffect(() => {
@@ -80,23 +95,27 @@ export default function LeaveRequestsPage() {
       return lr.includes('manager') || lr.includes('head') || lr.includes('lead') || lr.includes('executive') || lr.includes('director');
     });
 
-    if (isSuper || isMgr) {
+    if (isSuper || isMgr || canSeeExtendedTab) {
       setViewScope('team');
     }
-  }, []);
+  }, [canSeeExtendedTab]);
 
   useEffect(() => {
-    fetchEmployees();
-    fetchLeaveTypes();
-    fetchHolidays();
-    fetchWeekoffs();
-    fetchBalances();
-    fetchMyRequests();
-  }, [companyId]);
+    if (canView) {
+      fetchEmployees();
+      fetchLeaveTypes();
+      fetchHolidays();
+      fetchWeekoffs();
+      fetchBalances();
+      fetchMyRequests();
+    }
+  }, [companyId, canView]);
 
   useEffect(() => {
-    fetchLeaveRequests(viewScope);
-  }, [viewScope, companyId]);
+    if (canView) {
+      fetchLeaveRequests(viewScope);
+    }
+  }, [viewScope, companyId, canView]);
 
   const fetchBalances = async () => {
     const cid = companyId || 'all';
@@ -207,7 +226,31 @@ export default function LeaveRequestsPage() {
     }
   }, [applyForm.from_date, applyForm.to_date, holidays, weekoffPolicy]);
 
-  const handleApplyLeave = async (e: React.FormEvent) => {
+  const handleOpenApplyDrawer = () => {
+    setEditingRequest(null);
+    setApplyForm({
+      leave_type_id: leaveTypes[0]?.id ? String(leaveTypes[0].id) : '',
+      from_date: new Date().toISOString().split('T')[0],
+      to_date: new Date().toISOString().split('T')[0],
+      total_days: '1',
+      reason: ''
+    });
+    setApplyDrawerOpen(true);
+  };
+
+  const handleOpenEditDrawer = (req: any) => {
+    setEditingRequest(req);
+    setApplyForm({
+      leave_type_id: String(req.leave_type_id || ''),
+      from_date: req.from_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+      to_date: req.to_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+      total_days: String(req.total_days || '1'),
+      reason: req.reason || ''
+    });
+    setApplyDrawerOpen(true);
+  };
+
+  const handleApplyOrEditLeave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!applyForm.leave_type_id) {
       showToast('Please select a leave category.', 'error');
@@ -226,12 +269,17 @@ export default function LeaveRequestsPage() {
       return;
     }
     const currentBal = getLeaveTypeBalance(applyForm.leave_type_id);
-    if (currentBal.remaining <= 0) {
+    const existingDaysHeld = editingRequest && String(editingRequest.leave_type_id) === String(applyForm.leave_type_id)
+      ? Number(editingRequest.total_days || 0)
+      : 0;
+    const effectiveRemaining = currentBal.remaining + existingDaysHeld;
+
+    if (effectiveRemaining <= 0) {
       showToast('Insufficient leave balance. You have 0 available days for this category.', 'error');
       return;
     }
-    if (Number(applyForm.total_days) > currentBal.remaining) {
-      showToast(`Insufficient leave balance. You have ${currentBal.remaining} day(s) available, but requested ${applyForm.total_days} day(s).`, 'error');
+    if (Number(applyForm.total_days) > effectiveRemaining) {
+      showToast(`Insufficient leave balance. You have ${effectiveRemaining} day(s) available, but requested ${applyForm.total_days} day(s).`, 'error');
       return;
     }
     const trimmedReason = applyForm.reason ? applyForm.reason.trim() : '';
@@ -249,20 +297,24 @@ export default function LeaveRequestsPage() {
     }
     setIsSaving(true);
     try {
-      const res = await fetch('/api/v1/leave-requests', {
-        method: 'POST',
+      const url = editingRequest ? `/api/v1/leave-requests/${editingRequest.id}` : '/api/v1/leave-requests';
+      const method = editingRequest ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: getHeaders(),
         body: JSON.stringify({ ...applyForm, reason: trimmedReason })
       });
       const data = await res.json();
       if (res.ok) {
-        showToast('Leave request submitted successfully', 'success');
+        showToast(`Leave request ${editingRequest ? 'updated' : 'submitted'} successfully`, 'success');
         setApplyDrawerOpen(false);
+        setEditingRequest(null);
         fetchLeaveRequests(viewScope);
         fetchMyRequests();
         fetchBalances();
       } else {
-        showToast(data.error || 'Failed to submit leave request', 'error');
+        showToast(data.error || `Failed to ${editingRequest ? 'update' : 'submit'} leave request`, 'error');
       }
     } catch (err) {
       showToast('Connection error', 'error');
@@ -300,6 +352,27 @@ export default function LeaveRequestsPage() {
     }
   };
 
+  const handleDeleteRequest = async (reqId: string) => {
+    if (!confirm('Are you sure you want to cancel / delete this leave application?')) return;
+    try {
+      const res = await fetch(`/api/v1/leave-requests/${reqId}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        showToast('Leave application canceled successfully', 'success');
+        fetchLeaveRequests(viewScope);
+        fetchMyRequests();
+        fetchBalances();
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'Failed to cancel request', 'error');
+      }
+    } catch (e) {
+      showToast('Connection error', 'error');
+    }
+  };
+
   const filteredRequests = requests.filter(req => {
     const matchesStatus = statusFilter === 'ALL' || req.status === statusFilter;
     const empName = req.employee_name || '';
@@ -312,13 +385,6 @@ export default function LeaveRequestsPage() {
   const pendingCount = requests.filter(r => r.status === 'PENDING').length;
   const approvedCount = requests.filter(r => r.status === 'APPROVED').length;
   const rejectedCount = requests.filter(r => r.status === 'REJECTED').length;
-
-  const isManager = !isSuperAdmin && (
-    roles.some(r => {
-      const lr = r.toLowerCase();
-      return lr.includes('manager') || lr.includes('head') || lr.includes('lead') || lr.includes('executive') || lr.includes('director') || lr.includes('supervisor');
-    }) || (me && employees.some(e => e.reporting_to_id === me.id || e.reporting_to_id === me.emp_id_code))
-  );
 
   // -------------------------------------------------------------
   // LEAVE DRAWER CALCULATION & DISABLED DATES HELPERS
@@ -348,21 +414,15 @@ export default function LeaveRequestsPage() {
       lt?.carry_forward_type !== 'LAPSE' &&
       lt?.carry_forward_type !== 'NO_CARRY_FORWARD';
 
-    // Monthly accrual rate (e.g. 12 / 12 = 1 day per month)
+    // Monthly accrual rate
     const monthlyRate = Number(lt?.monthly_accrual) > 0 ? Number(lt.monthly_accrual) : (annualAllotted / 12);
 
     let available: number;
 
     if (isMonthlyCarryForward) {
-      // Monthly carry forward is TRUE:
-      // Leave accrues month by month up to current month (e.g. Sep = 9 months * 1 = 9 leaves accrued).
-      // Future months (Oct, Nov, Dec) cannot be used yet.
-      // If user already used e.g. 2 leaves, then available = 9 - 2 = 7 leaves.
       const accruedTillCurrentMonth = Math.round(monthlyRate * currentMonth * 10) / 10;
       available = Math.max(0, Math.min(rawRemaining, accruedTillCurrentMonth - used));
     } else {
-      // Monthly carry forward is FALSE:
-      // Leaves do not carry over across months. Only the current month's quota can be used in this month.
       const currentMonthUsed = myRequests.filter(r => {
         if (String(r.leave_type_id) !== String(ltId)) return false;
         if (r.status === 'REJECTED') return false;
@@ -400,8 +460,11 @@ export default function LeaveRequestsPage() {
     }
   });
 
-  // 2. Already Applied Dates (Pending & Approved only; Rejected allowed)
+  // 2. Already Applied Dates (Pending & Approved only; Ignore current editing request)
   myRequests.forEach(req => {
+    if (editingRequest && String(req.id) === String(editingRequest.id)) {
+      return;
+    }
     if (req.status === 'PENDING' || req.status === 'APPROVED') {
       if (req.from_date && req.to_date) {
         let cur = new Date(req.from_date);
@@ -434,6 +497,30 @@ export default function LeaveRequestsPage() {
     return false;
   };
 
+  if (!canView) {
+    return (
+      <div className="space-y-6 pb-12">
+        <DashboardPageHeader
+          title="Leave Requests & Approvals"
+          companyId={companyId}
+          isSuperAdmin={isSuperAdmin}
+          email={email}
+          hideCompanySelect={true}
+          hideUserBadge={true}
+        />
+        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm">
+          <div className="w-14 h-14 bg-rose-50 dark:bg-rose-950/50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl font-bold">
+            🚫
+          </div>
+          <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100">Access Restricted</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+            You do not have permission to view leave requests. Please contact your system administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-12">
       <DashboardPageHeader
@@ -444,9 +531,9 @@ export default function LeaveRequestsPage() {
         hideCompanySelect={true}
         hideUserBadge={true}
       >
-        {hasPermission('create_leave_requests') && (
+        {canCreate && (
           <button
-            onClick={() => setApplyDrawerOpen(true)}
+            onClick={handleOpenApplyDrawer}
             className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -504,7 +591,7 @@ export default function LeaveRequestsPage() {
       <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
 
         {/* SCOPE SWITCHER / BADGE */}
-        {canSeeSecondTab ? (
+        {canSeeExtendedTab ? (
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
             <button
               onClick={() => setViewScope('my')}
@@ -513,7 +600,7 @@ export default function LeaveRequestsPage() {
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
             >
-              My Applications
+              👤 My Requests
             </button>
             <button
               onClick={() => setViewScope('team')}
@@ -522,12 +609,12 @@ export default function LeaveRequestsPage() {
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
             >
-              {getSecondTabLabel()}
+              👥 {getSecondTabLabel()}
             </button>
           </div>
         ) : (
           <div className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 shrink-0">
-            <span>👤</span> My Leave Applications
+            <span>👤</span> My Requests
           </div>
         )}
 
@@ -578,7 +665,7 @@ export default function LeaveRequestsPage() {
             <span className="text-4xl block mb-2">🏖️</span>
             <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">No Leave Applications Found</h4>
             <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              There are no leave requests matching your current filters. Click "Apply For Leave" to submit a new request.
+              There are no leave requests matching your current filters. {canCreate ? 'Click "Apply For Leave" to submit a new request.' : ''}
             </p>
           </div>
         ) : (
@@ -601,7 +688,7 @@ export default function LeaveRequestsPage() {
                   const emp = employees.find(e => e.id === req.employee_id || e.emp_id_code === req.emp_id_code);
                   const empCode = req.emp_id_code || emp?.emp_id_code || '';
                   const fullReason = req.reason || 'No details provided';
-                  const truncatedReason = fullReason.length > 20 ? `${fullReason.slice(0, 20)}...` : fullReason;
+                  const truncatedReason = fullReason.length > 25 ? `${fullReason.slice(0, 25)}...` : fullReason;
 
                   return (
                     <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
@@ -657,48 +744,80 @@ export default function LeaveRequestsPage() {
                       </td>
 
                       <td className="p-4 text-right">
-                        {req.status === 'PENDING' && viewScope === 'team' && (hasPermission('edit_leave_requests') || hasPermission('approve_leave_requests')) ? (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => setActionModal({ open: true, req, type: 'APPROVE' })}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => setActionModal({ open: true, req, type: 'REJECT' })}
-                              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        ) : req.status === 'PENDING' && viewScope === 'my' && (hasPermission('delete_leave_requests') || true) ? (
-                          <button
-                            onClick={async () => {
-                              if (!confirm('Are you sure you want to cancel this leave application?')) return;
-                              try {
-                                const res = await fetch(`/api/v1/leave-requests/${req.id}`, {
-                                  method: 'DELETE',
-                                  headers: getHeaders()
-                                });
-                                if (res.ok) {
-                                  showToast('Leave application canceled successfully', 'success');
-                                  fetchLeaveRequests(viewScope);
-                                  fetchMyRequests();
-                                } else {
-                                  const err = await res.json();
-                                  showToast(err.error || 'Failed to cancel request', 'error');
-                                }
-                              } catch (e) {
-                                showToast('Connection error', 'error');
-                              }
-                            }}
-                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 text-[11px] font-bold rounded-lg transition-all cursor-pointer"
-                          >
-                            Cancel Application
-                          </button>
+                        {/* EXTENDED (TEAM/ALL) VIEW ACTIONS */}
+                        {viewScope === 'team' ? (
+                          req.status === 'PENDING' ? (
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {canEditExtended && (
+                                <>
+                                  <button
+                                    onClick={() => setActionModal({ open: true, req, type: 'APPROVE' })}
+                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1"
+                                    title="Approve Leave"
+                                  >
+                                    <span>Approve</span>
+                                  </button>
+                                  <button
+                                    onClick={() => setActionModal({ open: true, req, type: 'REJECT' })}
+                                    className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1"
+                                    title="Reject Leave"
+                                  >
+                                    <span>Reject</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenEditDrawer(req)}
+                                    className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-[11px] font-bold rounded-lg hover:bg-blue-100 transition-all cursor-pointer"
+                                    title="Edit Leave Request"
+                                  >
+                                    <span>Edit</span>
+                                  </button>
+                                </>
+                              )}
+                              {canDeleteExtended && (
+                                <button
+                                  onClick={() => handleDeleteRequest(req.id)}
+                                  className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 text-[11px] font-bold rounded-lg transition-all cursor-pointer"
+                                  title="Delete Leave Request"
+                                >
+                                  <span>Delete</span>
+                                </button>
+                              )}
+                              {!canEditExtended && !canDeleteExtended && (
+                                <span className="text-[11px] text-slate-400 italic">No action permission</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Processed</span>
+                          )
                         ) : (
-                          <span className="text-[11px] text-slate-400 italic">No action needed</span>
+                          /* BASE (MY REQUESTS) VIEW ACTIONS */
+                          req.status === 'PENDING' ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleOpenEditDrawer(req)}
+                                  className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-[11px] font-bold rounded-lg hover:bg-blue-100 transition-all cursor-pointer flex items-center gap-1"
+                                  title="Edit My Pending Request"
+                                >
+                                  <span>Edit</span>
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => handleDeleteRequest(req.id)}
+                                  className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                                  title="Cancel / Delete My Request"
+                                >
+                                  <span>Cancel</span>
+                                </button>
+                              )}
+                              {!canEdit && !canDelete && (
+                                <span className="text-[11px] text-slate-400 italic">Pending approval</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">No action needed</span>
+                          )
                         )}
                       </td>
                     </tr>
@@ -710,13 +829,16 @@ export default function LeaveRequestsPage() {
         )}
       </div>
 
-      {/* 🚪 APPLY LEAVE DRAWER */}
+      {/* 🚪 APPLY / EDIT LEAVE DRAWER */}
       <SlideDrawer
         isOpen={applyDrawerOpen}
-        onClose={() => setApplyDrawerOpen(false)}
-        title="Apply For Leave"
+        onClose={() => {
+          setApplyDrawerOpen(false);
+          setEditingRequest(null);
+        }}
+        title={editingRequest ? "Edit Leave Request" : "Apply For Leave"}
       >
-        <form noValidate onSubmit={handleApplyLeave} className="space-y-4 p-4">
+        <form noValidate onSubmit={handleApplyOrEditLeave} className="space-y-4 p-4">
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
               Select Leave Type *
@@ -729,7 +851,9 @@ export default function LeaveRequestsPage() {
               <option value="">-- Choose Leave Category --</option>
               {leaveTypes.map(lt => {
                 const bal = getLeaveTypeBalance(lt.id);
-                const availLabel = bal.remaining <= 0 ? '0 Day(s)' : `${bal.remaining} Day(s)`;
+                const existingHeld = editingRequest && String(editingRequest.leave_type_id) === String(lt.id) ? Number(editingRequest.total_days || 0) : 0;
+                const effBal = bal.remaining + existingHeld;
+                const availLabel = effBal <= 0 ? '0 Day(s)' : `${effBal} Day(s)`;
                 return (
                   <option key={lt.id} value={lt.id}>
                     {lt.name} ({lt.code}) — {availLabel} Available ({bal.isMonthlyCarryForward ? 'Carry-forward' : 'Monthly quota'})
@@ -740,8 +864,10 @@ export default function LeaveRequestsPage() {
 
             {applyForm.leave_type_id && (() => {
               const bal = getLeaveTypeBalance(applyForm.leave_type_id);
+              const existingHeld = editingRequest && String(editingRequest.leave_type_id) === String(applyForm.leave_type_id) ? Number(editingRequest.total_days || 0) : 0;
+              const effBal = bal.remaining + existingHeld;
               const selectedLt = leaveTypes.find(t => String(t.id) === String(applyForm.leave_type_id));
-              const isInsufficient = bal.remaining <= 0;
+              const isInsufficient = effBal <= 0;
               const currentMonth = new Date().getMonth() + 1;
               return (
                 <div className={`mt-2.5 p-3 rounded-xl border ${
@@ -766,13 +892,13 @@ export default function LeaveRequestsPage() {
                         {isInsufficient ? 'No Balance' : 'Available Now'}
                       </span>
                       <span className={`text-sm font-black font-mono ${isInsufficient ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                        {bal.remaining} Day(s)
+                        {effBal} Day(s)
                       </span>
                     </div>
                   </div>
                   <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-1.5 font-semibold">
                     {bal.isMonthlyCarryForward
-                      ? `🗓 Accrued till Month ${currentMonth}: ${bal.currentMonthAccrued} days | Used: ${bal.used} | Available: ${bal.remaining} day(s)`
+                      ? `🗓 Accrued till Month ${currentMonth}: ${bal.currentMonthAccrued} days | Used: ${bal.used} | Available: ${effBal} day(s)`
                       : `⏱ Monthly quota: ${bal.monthlyRate} day(s)/month (No carry-forward)`}
                   </p>
                 </div>
@@ -849,12 +975,8 @@ export default function LeaveRequestsPage() {
           <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="submit"
-              disabled={isSaving || (applyForm.leave_type_id ? getLeaveTypeBalance(applyForm.leave_type_id).remaining <= 0 : false)}
-              className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
-                applyForm.leave_type_id && getLeaveTypeBalance(applyForm.leave_type_id).remaining <= 0
-                  ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed text-slate-500 shadow-none'
-                  : 'bg-[#07518a] hover:bg-[#053d69] cursor-pointer'
-              }`}
+              disabled={isSaving}
+              className="flex-1 py-2.5 bg-[#07518a] hover:bg-[#053d69] text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               {isSaving ? (
                 <>
@@ -862,14 +984,17 @@ export default function LeaveRequestsPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  Submitting...
+                  {editingRequest ? 'Updating...' : 'Submitting...'}
                 </>
-              ) : 'Submit'}
+              ) : (editingRequest ? 'Update Request' : 'Submit')}
             </button>
             <button
               type="button"
-              onClick={() => setApplyDrawerOpen(false)}
-              className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl"
+              onClick={() => {
+                setApplyDrawerOpen(false);
+                setEditingRequest(null);
+              }}
+              className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl cursor-pointer"
             >
               Cancel
             </button>
@@ -908,14 +1033,14 @@ export default function LeaveRequestsPage() {
               <button
                 onClick={handleProcessRequest}
                 disabled={isSaving}
-                className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg ${actionModal.type === 'APPROVE' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
+                className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer ${actionModal.type === 'APPROVE' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
                   }`}
               >
                 {isSaving ? 'Processing...' : `Confirm ${actionModal.type === 'APPROVE' ? 'Approval' : 'Rejection'}`}
               </button>
               <button
                 onClick={() => setActionModal({ open: false, req: null, type: 'APPROVE' })}
-                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl"
+                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl cursor-pointer"
               >
                 Cancel
               </button>

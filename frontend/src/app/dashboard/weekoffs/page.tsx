@@ -24,9 +24,18 @@ interface SeasonalPeriod {
 
 export default function WeekOffsPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin: isSuperAdminPerm } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
+
+  const isSuperAdmin = isSuperAdminPerm || roles.includes('SuperAdmin') || roles.includes('superadmin');
+
+  // 🛡️ Standardized tablename_action Permissions
+  const canView = isSuperAdmin || hasPermission('weekoffs_view') || hasPermission('view_weekoffs') || hasPermission('view_weekoff_masters');
+  const canCreate = isSuperAdmin || hasPermission('weekoffs_create') || hasPermission('create_weekoffs') || hasPermission('create_weekoff_masters');
+  const canEdit = isSuperAdmin || hasPermission('weekoffs_edit') || hasPermission('edit_weekoffs') || hasPermission('edit_weekoff_masters');
+  const canDelete = isSuperAdmin || hasPermission('weekoffs_delete') || hasPermission('delete_weekoffs') || hasPermission('delete_weekoff_masters');
+
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string>('');
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -217,8 +226,6 @@ export default function WeekOffsPage() {
       setSelectedPeriodId(trimmed[0].id);
     }
   };
-
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -1152,7 +1159,7 @@ export default function WeekOffsPage() {
               </div>
             </div>
 
-            {hasPermission('create_weekoff_masters') && (
+            {canCreate && (
               <button
                 onClick={startPolicyEdit}
                 className="px-4.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer self-start sm:self-auto border-0"
@@ -1213,7 +1220,7 @@ export default function WeekOffsPage() {
                             {pPolicyType === 'year-round' ? '📅 Year-Round' : '🌀 Seasonal Periods'}
                           </span>
                           
-                          {hasPermission('edit_weekoff_masters') && (
+                          {canEdit && (
                             <button
                               onClick={() => handleEditPolicyFromAll(policy)}
                               className="px-3.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-400 text-xs font-bold transition-all cursor-pointer border border-indigo-200 dark:border-indigo-800"
@@ -1222,7 +1229,7 @@ export default function WeekOffsPage() {
                             </button>
                           )}
 
-                          {hasPermission('delete_weekoff_masters') && (
+                          {canDelete && (
                             <button
                               onClick={() => handleDeletePolicyFromAll(policy)}
                               className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 dark:text-rose-400 text-xs font-bold transition-all cursor-pointer border border-rose-200 dark:border-rose-800"
@@ -1321,7 +1328,7 @@ export default function WeekOffsPage() {
                     {savedPolicyType === 'year-round' ? '📅 Year-Round' : '🌀 Seasonal Periods'}
                   </span>
                   
-                  {hasPermission('edit_weekoff_masters') && (
+                  {canEdit && (
                     <button
                       onClick={startPolicyEdit}
                       className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs border-0"
@@ -1330,7 +1337,7 @@ export default function WeekOffsPage() {
                     </button>
                   )}
 
-                  {hasPermission('delete_weekoff_masters') && (
+                  {canDelete && (
                     <button
                       onClick={handleDeletePolicy}
                       className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 dark:text-rose-400 text-xs font-bold transition-all duration-200 cursor-pointer border border-rose-200 dark:border-rose-800"

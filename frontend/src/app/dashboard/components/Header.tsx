@@ -56,11 +56,17 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
     }
   }, [isSuperAdmin, companies.length]);
 
+  const formatCompanyName = (name: string) => {
+    if (!name) return '';
+    return name.length > 35 ? `${name.slice(0, 35)}...` : name;
+  };
+
   if (!isSuperAdmin) {
+    const formatted = formatCompanyName(companyName || 'Company Tenant');
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs">
-        <span className="text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase truncate max-w-[140px] xs:max-w-[180px] sm:max-w-[210px] md:max-w-[280px]">
-          {companyName || 'Company Tenant'}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs" title={companyName}>
+        <span className="text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[320px]">
+          {formatted}
         </span>
       </div>
     );
@@ -74,14 +80,14 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
           sessionStorage.setItem('company_user_selected', 'true');
           setCompanyId(e.target.value === 'all' ? null : e.target.value);
         }}
-        className="bg-transparent text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase text-[#07518a] dark:text-[#38bdf8] focus:outline-none cursor-pointer pr-0.5 py-0.5 truncate max-w-[140px] xs:max-w-[180px] sm:max-w-[220px] md:max-w-[300px]"
+        className="bg-transparent text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase text-[#07518a] dark:text-[#38bdf8] focus:outline-none cursor-pointer pr-0.5 py-0.5 truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[320px]"
       >
         <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold uppercase">
           -- All Companies --
         </option>
         {companies.map(c => (
-          <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold uppercase">
-            {c.name}
+          <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold uppercase" title={c.name}>
+            {formatCompanyName(c.name)}
           </option>
         ))}
       </select>
@@ -276,7 +282,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 justify-end">
 
         {/* 🔍 GLOBAL SEARCH INPUT & DROPDOWN */}
-        <div className="hidden md:block relative flex-1 max-w-xs sm:max-w-md mx-2">
+        <div className="hidden md:block relative w-44 lg:w-56 xl:w-64 mx-1.5">
           <div className="relative flex items-center">
             <span className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none z-10 text-slate-400">
               <svg className="w-4 h-4 text-[#07518a]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -442,23 +448,6 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="hidden sm:block">
           <MoodBooster userName={userFullName || (email ? email.split('@')[0] : '')} />
         </div>
-
-        {/* 🌓 Quick Dark/Light Theme Switcher */}
-        <button
-          onClick={toggleTheme}
-          className="flex p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-card text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-xs"
-          title={`Switch to ${theme === 'nordic-light' ? 'Slate Dark' : 'Nordic Light'} mode`}
-        >
-          {theme === 'nordic-light' ? (
-            <svg className="w-4.5 h-4.5 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21m8.25-9h-2.25M5.25 12H3m15.364 6.364l-1.591-1.591M6.75 6.75L5.159 5.159m12.728 0l-1.591 1.591M6.75 17.25l-1.591 1.591M12 8.25a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5z" />
-            </svg>
-          ) : (
-            <svg className="w-4.5 h-4.5 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-            </svg>
-          )}
-        </button>
 
         {/* ⚙️ Personalization Settings Cog */}
         <button

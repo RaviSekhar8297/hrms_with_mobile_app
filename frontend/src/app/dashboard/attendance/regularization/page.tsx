@@ -2,24 +2,37 @@
 
 import React, { useEffect, useState } from 'react';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
-import AttendanceSubHeader from '../../components/AttendanceSubHeader';
 import { getHeaders, API_BASE } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle2, XCircle, Clock, FileText, AlertTriangle, ShieldCheck, Search, Filter } from 'lucide-react';
 import ModernPagination from '../../components/ModernPagination';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function AttendanceRegularizationPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin, getPermissionScope } = usePermissions();
 
-  const canCreate = isSuperAdmin || hasPermission('create_attendance_regularizations') || hasPermission('apply_attendance_regularization') || hasPermission('create');
-  const canEdit = isSuperAdmin || hasPermission('edit_attendance_regularizations') || hasPermission('update_attendance_regularizations') || hasPermission('edit');
-  const canDelete = isSuperAdmin || hasPermission('delete_attendance_regularizations') || hasPermission('delete');
+  // 🛡️ Standardized tablename_action Permissions
+  const canView = isSuperAdmin || hasPermission('attendance_regularizations_view') || hasPermission('view_attendance_regularizations');
+  const canCreate = isSuperAdmin || hasPermission('attendance_regularizations_create') || hasPermission('create_attendance_regularizations') || hasPermission('apply_attendance_regularization');
+  const canEdit = isSuperAdmin || hasPermission('attendance_regularizations_edit') || hasPermission('edit_attendance_regularizations') || hasPermission('update_attendance_regularizations');
+  const canDelete = isSuperAdmin || hasPermission('attendance_regularizations_delete') || hasPermission('delete_attendance_regularizations');
 
-  const regScope = getPermissionScope('view_attendance_regularizations');
-  const canSeeTeamTab = isSuperAdmin || regScope !== 'SELF';
+  // 🌐 Data Scopes
+  const viewScope_perm = getPermissionScope('attendance_regularizations_view') || getPermissionScope('view_attendance_regularizations') || 'SELF';
+  const editScope_perm = getPermissionScope('attendance_regularizations_edit') || getPermissionScope('edit_attendance_regularizations') || 'SELF';
+  const deleteScope_perm = getPermissionScope('attendance_regularizations_delete') || getPermissionScope('delete_attendance_regularizations') || 'SELF';
+
+  // Can see the extended All/Team Requests tab
+  const canSeeTeamTab = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(viewScope_perm);
+
+  // Can edit other employees' requests in All/Team tab
+  const canEditTeamRequests = isSuperAdmin || (canEdit && ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(editScope_perm));
+
+  // Can delete other employees' requests in All/Team tab
+  const canDeleteTeamRequests = isSuperAdmin || (canDelete && ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(deleteScope_perm));
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -86,9 +99,11 @@ export default function AttendanceRegularizationPage() {
   }, []);
 
   useEffect(() => {
-    fetchEmployees();
-    fetchRequests();
-  }, [activeCompanyId, viewScope]);
+    if (canView) {
+      fetchEmployees();
+      fetchRequests();
+    }
+  }, [activeCompanyId, viewScope, canView]);
 
   const fetchCompanies = async () => {
     try {
@@ -127,7 +142,13 @@ export default function AttendanceRegularizationPage() {
     setIsLoading(true);
     try {
       const cid = activeCompanyId || localStorage.getItem('companyId');
-      const scopeParam = isSuperAdmin ? (viewScope === 'team' ? 'all' : 'my') : viewScope;
+      let scopeParam = viewScope === 'my' ? 'my' : 'team';
+      if (viewScope === 'team') {
+        if (viewScope_perm === 'DEPARTMENT') scopeParam = 'department';
+        else if (viewScope_perm === 'ALL' || isSuperAdmin) scopeParam = 'all';
+        else scopeParam = 'team';
+      }
+
       const url = cid && cid !== 'all'
         ? `${API_BASE}/api/v1/attendance/regularizations?company_id=${cid}&scope=${scopeParam}`
         : `${API_BASE}/api/v1/attendance/regularizations?scope=${scopeParam}`;
@@ -153,6 +174,10 @@ export default function AttendanceRegularizationPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreate) {
+      showToast('You do not have permission to submit regularizations', 'error');
+      return;
+    }
     const cid = activeCompanyId || companyId;
     if (!cid) {
       showToast('Please select a company context', 'error');
@@ -326,6 +351,35 @@ export default function AttendanceRegularizationPage() {
   const approvedCount = safeRequests.filter(r => r?.status === 'APPROVED').length;
   const rejectedCount = safeRequests.filter(r => r?.status === 'REJECTED').length;
 
+  // 🛑 Access Restriction Screen if View Permission is missing
+  if (!canView) {
+    return (
+      <div className="space-y-6 animate-fadeIn w-full font-sans">
+        <DashboardPageHeader
+          title="Attendance Management"
+          actionMessage=""
+          actionError=""
+          companies={companies}
+          companyId={companyId}
+          handleCompanyChange={handleCompanyChange}
+          isSuperAdmin={isSuperAdmin}
+          email={email}
+          hideCompanySelect={false}
+          hideUserBadge={true}
+        />
+        <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm text-center max-w-lg mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 flex items-center justify-center text-3xl mb-4 border border-rose-200 dark:border-rose-900">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">Access Restricted</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium leading-relaxed">
+            You do not have permission (<code className="text-rose-600 bg-rose-50 dark:bg-rose-950 px-1.5 py-0.5 rounded font-mono">attendance_regularizations_view</code>) to view attendance regularization records. Please contact your system administrator to request access.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn w-full font-sans">
       <DashboardPageHeader
@@ -405,177 +459,212 @@ export default function AttendanceRegularizationPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-8 py-1.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all shadow-2xs"
             />
-            <svg className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold cursor-pointer"
+                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold cursor-pointer border-0 bg-transparent"
               >
                 ✕
               </button>
             )}
           </div>
 
+          {/* SCOPE TABS */}
           {canSeeTeamTab && (
             <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
               <button
                 onClick={() => setViewScope('my')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${viewScope === 'my'
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
+                  viewScope === 'my'
                     ? 'bg-[#07518a] text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-[#07518a] dark:hover:text-[#38bdf8]'
-                  }`}
+                }`}
               >
                 My Requests
               </button>
               <button
                 onClick={() => setViewScope('team')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${viewScope === 'team'
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
+                  viewScope === 'team'
                     ? 'bg-[#07518a] text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-[#07518a] dark:hover:text-[#38bdf8]'
-                  }`}
+                }`}
               >
-                All Requests
+                {viewScope_perm === 'ALL' || isSuperAdmin ? 'All Requests' : 'Team Requests'}
               </button>
             </div>
           )}
 
+          {/* CREATE BUTTON (No scope needed, just attendance_regularizations_create) */}
           {canCreate && (
             <button
               onClick={() => setDrawerOpen(true)}
               className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
             >
-              Apply
+              <span>+</span> Apply Regularization
             </button>
           )}
         </div>
       </div>
 
-      {/* REQUESTS TABLE */}
-      <div className="rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[9.5px]">
-                <th className="py-3 px-3">Employee</th>
-                <th className="py-3 px-3">Punch Type</th>
-                <th className="py-3 px-3">Date</th>
-                <th className="py-3 px-3">Requested Time</th>
-                <th className="py-3 px-3">Reason</th>
-                <th className="py-3 px-3 text-center">Status</th>
-                <th className="py-3 px-3 text-right">Actions</th>
+      {/* REGULARIZATION REQUESTS TABLE */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto max-h-[580px] overflow-y-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800/90 backdrop-blur-xs z-10 text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
+              <tr>
+                <th className="py-3 px-4">Employee</th>
+                <th className="py-3 px-4">Attendance Date</th>
+                <th className="py-3 px-4">Punch Type</th>
+                <th className="py-3 px-4">Requested Time</th>
+                <th className="py-3 px-4">Reason</th>
+                <th className="py-3 px-4 text-center">Status</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-medium text-slate-700 dark:text-slate-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center">
-                    <div className="p-16 text-center space-y-3">
-                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Regularization Requests...</p>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs font-bold">Loading regularization requests...</span>
                     </div>
                   </td>
                 </tr>
-              ) : filteredRequests.length === 0 ? (
+              ) : paginatedRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
-                    <div className="py-12 px-4 text-center flex flex-col items-center justify-center space-y-2">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center text-lg">
-                        📝
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">No Regularization Requests Found</h4>
-                        <p className="text-[11px] text-slate-400 font-medium max-w-xs mt-0.5">
-                          {searchQuery ? 'No requests match your search query.' : (viewScope === 'my' ? 'You have not submitted any regularization requests.' : 'No team regularization requests found.')}
-                        </p>
-                      </div>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span className="text-3xl">📭</span>
+                      <span className="text-xs font-bold">
+                        {searchQuery ? 'No requests match your search query.' : (viewScope === 'my' ? 'You have not submitted any regularization requests.' : 'No team regularization requests found.')}
+                      </span>
                     </div>
                   </td>
                 </tr>
               ) : (
                 paginatedRequests.map((req) => {
-                  const punchType = req.punch_type || (req.requested_out ? 'CHECK_OUT' : 'CHECK_IN');
+                  const empName = req.first_name ? `${req.first_name} ${req.last_name || ''}` : (req.employee_name || 'Self');
+                  const empCode = req.emp_id_code || '';
+                  const punchType = req.requested_out ? 'CHECK_OUT' : (req.requested_in ? 'CHECK_IN' : (req.punch_type || 'CHECK_IN'));
+                  const punchTime = req.requested_in || req.requested_out || req.requested_time || '--:--';
+                  const dateStr = req.attendance_date ? new Date(req.attendance_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+
                   return (
-                    <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                    <tr key={req.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                       {/* Col 1: Employee */}
-                      <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-200">
-                        {req.employee_name || (req.first_name ? `${req.first_name} ${req.last_name || ''}` : 'Employee')}
-                        {req.emp_id_code && <span className="block text-[10px] text-slate-400 font-normal">{req.emp_id_code}</span>}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-black shrink-0 border border-indigo-100 dark:border-indigo-900">
+                            {empName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 dark:text-slate-100">{empName}</p>
+                            {empCode && <p className="text-[10px] text-slate-400 font-mono">{empCode}</p>}
+                          </div>
+                        </div>
                       </td>
 
-                      {/* Col 2: Punch Type */}
-                      <td className="py-3 px-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${punchType === 'CHECK_IN' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300'}`}>
-                          {punchType === 'CHECK_IN' ? 'Check In' : 'Check Out'}
+                      {/* Col 2: Date */}
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300">
+                        {dateStr}
+                      </td>
+
+                      {/* Col 3: Punch Type */}
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                          punchType === 'CHECK_IN'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300'
+                            : 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
+                        }`}>
+                          {punchType === 'CHECK_IN' ? 'Check-In Punch' : 'Check-Out Punch'}
                         </span>
                       </td>
 
-                      {/* Col 3: Date */}
-                      <td className="py-3 px-3 font-medium text-slate-700 dark:text-slate-300">
-                        {new Date(req.attendance_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-
                       {/* Col 4: Requested Time */}
-                      <td className="py-3 px-3 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap text-xs">
-                        {(() => {
-                          const fmt = (t?: string) => {
-                            if (!t || t === 'null') return '';
-                            const parts = t.split(':');
-                            return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : t;
-                          };
-                          const inTime = fmt(req.requested_in);
-                          const outTime = fmt(req.requested_out);
-                          if (inTime && outTime) return `${inTime} - ${outTime}`;
-                          if (inTime) return inTime;
-                          if (outTime) return outTime;
-                          return fmt(req.requested_time) || '—';
-                        })()}
+                      <td className="py-3 px-4 font-mono font-bold text-slate-800 dark:text-slate-100">
+                        {punchTime}
                       </td>
 
                       {/* Col 5: Reason */}
-                      <td className="py-3 px-3 text-slate-600 dark:text-slate-400">
-                        {req.reason ? (
-                          <span
-                            title={req.reason}
-                            className="cursor-help font-medium transition-colors hover:text-indigo-600 dark:hover:text-indigo-400"
-                          >
-                            {req.reason.length > 20 ? `${req.reason.slice(0, 20)}...` : req.reason}
-                          </span>
-                        ) : (
-                          '—'
-                        )}
+                      <td className="py-3 px-4 max-w-[240px]">
+                        <p className="text-xs text-slate-600 dark:text-slate-300 truncate" title={req.reason}>
+                          {req.reason || 'No reason provided'}
+                        </p>
                       </td>
 
                       {/* Col 6: Status */}
-                      <td className="py-3 px-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${req.status === 'APPROVED'
+                      <td className="py-3 px-4 text-center">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                          req.status === 'APPROVED'
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                             : req.status === 'REJECTED'
                               ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                               : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse'
-                          }`}>
+                        }`}>
                           {req.status}
                         </span>
                       </td>
 
                       {/* Col 7: Actions */}
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-3 px-4 text-right">
                         {viewScope === 'team' ? (
+                          /* Team / All Requests Tab: Action buttons (Approve/Reject) + Edit/Delete if scoped */
                           req.status === 'PENDING' ? (
                             <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => handleAction(req.id, 'APPROVED')}
-                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer border-0"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleAction(req.id, 'REJECTED')}
-                                className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer border-0"
-                              >
-                                Reject
-                              </button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => handleAction(req.id, 'APPROVED')}
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer border-0 flex items-center gap-1"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" /> Approve
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Approve this regularization request</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => handleAction(req.id, 'REJECTED')}
+                                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer border-0 flex items-center gap-1"
+                                  >
+                                    <XCircle className="w-3 h-3" /> Reject
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Reject this regularization request</TooltipContent>
+                              </Tooltip>
+
+                              {canEditTeamRequests && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => openEditDrawer(req)}
+                                      className="p-1.5 rounded-lg bg-[#07518a]/10 hover:bg-[#07518a] text-[#07518a] hover:text-white dark:text-[#38bdf8] transition-all cursor-pointer border-0"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Edit request details</TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              {canDeleteTeamRequests && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => openDeleteModal(req.id)}
+                                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-900 dark:text-rose-400 transition-all cursor-pointer border-0"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete regularization request</TooltipContent>
+                                </Tooltip>
+                              )}
                             </div>
                           ) : (
                             <span className="text-[10px] text-slate-400 italic">
@@ -587,22 +676,30 @@ export default function AttendanceRegularizationPage() {
                           req.status === 'PENDING' ? (
                             <div className="flex items-center justify-end gap-1.5">
                               {canEdit && (
-                                <button
-                                  onClick={() => openEditDrawer(req)}
-                                  className="p-1.5 rounded-lg bg-[#07518a]/10 hover:bg-[#07518a] text-[#07518a] hover:text-white dark:text-[#38bdf8] transition-all cursor-pointer border-0"
-                                  title="Edit Request"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => openEditDrawer(req)}
+                                      className="p-1.5 rounded-lg bg-[#07518a]/10 hover:bg-[#07518a] text-[#07518a] hover:text-white dark:text-[#38bdf8] transition-all cursor-pointer border-0"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Edit your pending request</TooltipContent>
+                                </Tooltip>
                               )}
                               {canDelete && (
-                                <button
-                                  onClick={() => openDeleteModal(req.id)}
-                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-900 dark:text-rose-400 transition-all cursor-pointer border-0"
-                                  title="Delete Request"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => openDeleteModal(req.id)}
+                                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:hover:bg-rose-900 dark:text-rose-400 transition-all cursor-pointer border-0"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete your pending request</TooltipContent>
+                                </Tooltip>
                               )}
                               {!canEdit && !canDelete && (
                                 <span className="text-[10px] text-slate-400 italic">Awaiting Review</span>

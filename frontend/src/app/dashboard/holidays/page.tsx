@@ -34,12 +34,21 @@ type HolidayTabId = typeof HOLIDAY_TABS[number]['id'];
 
 export default function HolidaysPage() {
   const { showToast, companyId } = useDashboard();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin: isSuperAdminPerm } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const isSuperAdmin = isSuperAdminPerm || roles.includes('SuperAdmin') || roles.includes('superadmin');
+
+  // 🛡️ Standardized tablename_action Permissions
+  const canView = isSuperAdmin || hasPermission('holidays_view') || hasPermission('view_holidays') || hasPermission('view_holiday_masters');
+  const canCreate = isSuperAdmin || hasPermission('holidays_create') || hasPermission('create_holidays') || hasPermission('create_holiday_masters');
+  const canEdit = isSuperAdmin || hasPermission('holidays_edit') || hasPermission('edit_holidays') || hasPermission('edit_holiday_masters');
+  const canDelete = isSuperAdmin || hasPermission('holidays_delete') || hasPermission('delete_holidays') || hasPermission('delete_holiday_masters');
+  const canManageMatrix = isSuperAdmin || hasPermission('holidays_matrix_edit') || canEdit;
 
   // Holidays state
   const [holidays, setHolidays] = useState<any[]>([]);
@@ -62,9 +71,7 @@ export default function HolidaysPage() {
   const [deleteConfirmCompanyId, setDeleteConfirmCompanyId] = useState<string | null>(null);
   const [deleteConfirmHolidayName, setDeleteConfirmHolidayName] = useState<string | null>(null);
 
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-
-  const visibleTabs = HOLIDAY_TABS.filter(t => hasPermission(t.permission));
+  const visibleTabs = HOLIDAY_TABS.filter(t => canView);
 
   useEffect(() => {
     if (visibleTabs.length > 0 && !visibleTabs.find(t => t.id === activeTab)) {
@@ -439,7 +446,7 @@ export default function HolidaysPage() {
               </span>
             )}
 
-            {companyId && activeTab === 'list' && (isSuperAdmin || companyId !== 'all') && hasPermission('create_holiday_masters') && (
+            {companyId && activeTab === 'list' && (isSuperAdmin || companyId !== 'all') && canCreate && (
               <button
                 onClick={() => {
                   setNewHolidayForm({
@@ -589,9 +596,9 @@ export default function HolidaysPage() {
                     </div>
 
                     {/* CARD ACTIONS */}
-                    {(hasPermission('edit_holiday_masters') || hasPermission('delete_holiday_masters')) && (
+                    {(canEdit || canDelete) && (
                       <div className="px-4 py-2.5 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex justify-end items-center gap-1.5">
-                        {hasPermission('edit_holiday_masters') && (
+                        {canEdit && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
@@ -614,7 +621,7 @@ export default function HolidaysPage() {
                             <TooltipContent>Edit Holiday</TooltipContent>
                           </Tooltip>
                         )}
-                        {hasPermission('delete_holiday_masters') && (
+                        {canDelete && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
@@ -754,7 +761,7 @@ export default function HolidaysPage() {
                                   </div>
                                 </div>
 
-                                {hasPermission('edit_holiday_masters') ? (
+                                {canManageMatrix ? (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button

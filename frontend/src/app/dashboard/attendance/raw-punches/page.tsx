@@ -4,24 +4,29 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
-import AttendanceSubHeader from '../../components/AttendanceSubHeader';
 import { getHeaders, API_BASE } from '../../utils/api';
-import { usePermissions, DataScope } from '../../hooks/usePermissions';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useDashboard } from '../../components/DashboardContext';
 import SlideDrawer from '../../components/SlideDrawer';
-import { Upload, Pencil, Trash2, Camera, CameraOff, MapPin, Clock, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Upload, Pencil, Trash2, Camera, CameraOff, MapPin, Clock, CheckCircle2, ExternalLink, AlertTriangle, Search } from 'lucide-react';
 import ModernPagination from '../../components/ModernPagination';
 import { DatePickerSimple } from '@/components/ui/custom-controls';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function RawPunchLogsPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { isSuperAdmin, hasPermission, getPermissionScope } = usePermissions();
 
-  const canView = isSuperAdmin || hasPermission('view_attendance_raw_punches');
-  const canCreate = isSuperAdmin || hasPermission('create_attendance_raw_punches');
-  const canEdit = isSuperAdmin || hasPermission('edit_attendance_raw_punches');
-  const canDelete = isSuperAdmin || hasPermission('delete_attendance_raw_punches');
-  const maxScope = getPermissionScope('view_attendance_raw_punches');
+  // 🛡️ Standardized tablename_action Permissions
+  const canView = isSuperAdmin || hasPermission('attendance_raw_punches_view') || hasPermission('view_attendance_raw_punches');
+  const canCreate = isSuperAdmin || hasPermission('attendance_raw_punches_create') || hasPermission('create_attendance_raw_punches');
+  const canEdit = isSuperAdmin || hasPermission('attendance_raw_punches_edit') || hasPermission('edit_attendance_raw_punches');
+  const canDelete = isSuperAdmin || hasPermission('attendance_raw_punches_delete') || hasPermission('delete_attendance_raw_punches');
+
+  // 🌐 Data Scopes
+  const viewScope_perm = getPermissionScope('attendance_raw_punches_view') || getPermissionScope('view_attendance_raw_punches') || 'SELF';
+  const editScope_perm = getPermissionScope('attendance_raw_punches_edit') || getPermissionScope('edit_attendance_raw_punches') || 'SELF';
+  const deleteScope_perm = getPermissionScope('attendance_raw_punches_delete') || getPermissionScope('delete_attendance_raw_punches') || 'SELF';
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -157,9 +162,11 @@ export default function RawPunchLogsPage() {
   }, []);
 
   useEffect(() => {
-    setCurrentPage(1);
-    fetchPunches();
-  }, [activeCompanyId, startDate, endDate]);
+    if (canView) {
+      setCurrentPage(1);
+      fetchPunches();
+    }
+  }, [activeCompanyId, startDate, endDate, canView]);
 
   const fetchCompanies = async () => {
     try {
@@ -181,7 +188,7 @@ export default function RawPunchLogsPage() {
     setIsLoading(true);
     try {
       const cid = activeCompanyId || localStorage.getItem('companyId');
-      let url = `${API_BASE}/api/v1/attendance/raw-punches?start_date=${startDate}&end_date=${endDate}`;
+      let url = `${API_BASE}/api/v1/attendance/raw-punches?start_date=${startDate}&end_date=${endDate}&scope=${viewScope_perm}`;
       if (cid && cid !== 'all') {
         url += `&company_id=${cid}`;
       }
@@ -208,12 +215,20 @@ export default function RawPunchLogsPage() {
 
   const openEditModal = (punch: any) => {
     setEditingPunch(punch);
-    let iso = String(punch.punch_time || '').trim();
-    if (!iso.includes('T') && iso.includes(' ')) iso = iso.replace(' ', 'T');
-    if (iso.length > 16) iso = iso.substring(0, 16);
-    setEditPunchTime(iso);
-    setEditDirection(punch.punch_direction || punch.direction || 'IN');
-    setEditDeviceId(punch.device_id || punch.source || '');
+    let iso = punch.punch_time ? String(punch.punch_time).trim() : '';
+    if (iso && !iso.includes('T') && iso.includes(' ')) {
+      iso = iso.replace(' ', 'T');
+    }
+    const d = new Date(iso);
+    if (!isNaN(d.getTime())) {
+      const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      setEditPunchTime(localIso);
+    } else {
+      setEditPunchTime('');
+    }
+
+    setEditDirection(punch.direction || punch.punch_direction || 'IN');
+    setEditDeviceId(punch.device_id || '');
     setEditLocationName(punch.location_name || '');
   };
 
@@ -227,15 +242,15 @@ export default function RawPunchLogsPage() {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify({
-          punch_time: editPunchTime,
+          punch_time: new Date(editPunchTime).toISOString(),
           direction: editDirection,
-          device_id: editDeviceId,
-          location_name: editLocationName,
-        }),
+          device_id: editDeviceId || null,
+          location_name: editLocationName || null
+        })
       });
 
       if (res.ok) {
-        showToast('Raw punch record updated successfully', 'success');
+        showToast('Raw punch record updated successfully!', 'success');
         setEditingPunch(null);
         fetchPunches();
       } else {
@@ -243,8 +258,8 @@ export default function RawPunchLogsPage() {
         showToast(err.error || 'Failed to update punch record', 'error');
       }
     } catch (e) {
-      console.error('Error updating raw punch:', e);
-      showToast('Server error while updating punch', 'error');
+      console.error(e);
+      showToast('Connection error while updating punch', 'error');
     } finally {
       setIsSubmittingEdit(false);
     }
@@ -257,11 +272,11 @@ export default function RawPunchLogsPage() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/attendance/raw-punches/${deletingPunch.id}`, {
         method: 'DELETE',
-        headers: getHeaders(),
+        headers: getHeaders()
       });
 
       if (res.ok) {
-        showToast('Raw punch record deleted successfully', 'success');
+        showToast('Raw punch record deleted successfully!', 'success');
         setDeletingPunch(null);
         fetchPunches();
       } else {
@@ -269,40 +284,54 @@ export default function RawPunchLogsPage() {
         showToast(err.error || 'Failed to delete punch record', 'error');
       }
     } catch (e) {
-      console.error('Error deleting raw punch:', e);
-      showToast('Server error while deleting punch', 'error');
+      console.error(e);
+      showToast('Connection error while deleting punch', 'error');
     } finally {
       setIsSubmittingDelete(false);
     }
   };
 
-  const safePunches = Array.isArray(punches) ? punches : [];
-  const filteredPunches = safePunches.filter(p => {
+  const filteredPunches = punches.filter((punch) => {
     if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    const empName = `${p?.first_name || ''} ${p?.last_name || ''} ${p?.employee_name || ''}`.toLowerCase();
-    const code = (p?.emp_id_code || '').toLowerCase();
-    const device = (p?.device_name || p?.device_id || '').toLowerCase();
-    return empName.includes(q) || code.includes(q) || device.includes(q);
+    const q = searchQuery.toLowerCase().trim();
+    const empName = `${punch.first_name || ''} ${punch.last_name || ''} ${punch.employee_name || ''}`.toLowerCase();
+    const empCode = (punch.emp_id_code || punch.employee_id || '').toLowerCase();
+    const deviceId = (punch.device_id || '').toLowerCase();
+    const loc = (punch.location_name || '').toLowerCase();
+    const source = (punch.source || '').toLowerCase();
+
+    return empName.includes(q) || empCode.includes(q) || deviceId.includes(q) || loc.includes(q) || source.includes(q);
   });
 
-  // Pagination calculation
   const totalItems = filteredPunches.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedPunches = filteredPunches.slice(startIndex, endIndex);
 
+  // 🛑 Access Restriction Screen if View Permission is missing
   if (!canView) {
     return (
-      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn">
-        <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-3xl">
-          🔒
+      <div className="space-y-6 animate-fadeIn w-full font-sans text-slate-800 dark:text-slate-100">
+        <DashboardPageHeader
+          title="Attendance Management"
+          companies={companies}
+          companyId={companyId}
+          handleCompanyChange={handleCompanyChange}
+          isSuperAdmin={isSuperAdmin}
+          email={email}
+          hideCompanySelect={false}
+          hideUserBadge={true}
+        />
+        <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm text-center max-w-lg mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 flex items-center justify-center text-3xl mb-4 border border-rose-200 dark:border-rose-900">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">Access Restricted</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium leading-relaxed">
+            You do not have permission (<code className="text-rose-600 bg-rose-50 dark:bg-rose-950 px-1.5 py-0.5 rounded font-mono">attendance_raw_punches_view</code>) to view Biometric & Device Raw Punch Logs. Please contact your administrator.
+          </p>
         </div>
-        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Access Denied</h3>
-        <p className="text-slate-500 dark:text-slate-400 text-xs mt-1.5 max-w-sm">
-          You do not have permission to view Biometric & Device Raw Punch Logs. Please contact your administrator.
-        </p>
       </div>
     );
   }
@@ -311,8 +340,6 @@ export default function RawPunchLogsPage() {
     <div className="space-y-6 animate-fadeIn w-full font-sans">
       <DashboardPageHeader
         title="Attendance Management"
-        actionMessage=""
-        actionError=""
         companies={companies}
         companyId={companyId}
         handleCompanyChange={handleCompanyChange}
@@ -375,35 +402,43 @@ export default function RawPunchLogsPage() {
 
           {/* 3. UPLOAD BUTTON */}
           {canCreate && (
-            <button
-              type="button"
-              onClick={() => setPunchUploadOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Upload</span>
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setPunchUploadOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer border-0"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload CSV</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Upload Raw Biometric CSV Punch File</TooltipContent>
+            </Tooltip>
           )}
 
-          {/* 4. MARK BUTTON */}
-          {canCreate && (
-            <Link
-              href="/dashboard/attendance"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
-            >
-              <span>⏱️</span>
-              <span>Mark</span>
-            </Link>
-          )}
+          {/* 4. MARK ATTENDANCE BUTTON */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href="/dashboard/attendance"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer no-underline"
+              >
+                <span>⏱️</span>
+                <span>Mark Attendance</span>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>Open Live Attendance Marking Page</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
       {/* RAW PUNCH LOGS TABLE */}
       <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[580px] overflow-y-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[9.5px]">
+            <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800/90 backdrop-blur-xs z-10 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-slate-700">
+              <tr>
                 <th className="py-3 px-3">Employee</th>
                 <th className="py-3 px-3">Punch Timestamp</th>
                 <th className="py-3 px-3">Punch Type</th>
@@ -448,104 +483,61 @@ export default function RawPunchLogsPage() {
                   const initialLetter = empName.trim().charAt(0).toUpperCase();
 
                   return (
-                    <tr key={punch.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                      <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-200">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-violet-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs ring-2 ring-indigo-500/20">
+                    <tr key={punch.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-3 font-medium">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0 border border-indigo-200/50 dark:border-indigo-800/50">
                             {initialLetter}
                           </div>
                           <div>
-                            <span className="font-black text-slate-850 dark:text-slate-100 text-xs block font-sans">{empName}</span>
-                            {punch.emp_id_code && <span className="block text-[10px] text-slate-400 font-semibold font-mono mt-0.5">{punch.emp_id_code}</span>}
+                            <span className="font-bold text-slate-850 dark:text-slate-100 block">
+                              {empName}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-400">
+                              ID: {punch.emp_id_code || punch.employee_id}
+                            </span>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-3 font-sans">
+                      <td className="py-3 px-3 font-mono font-bold text-slate-700 dark:text-slate-300">
                         {(() => {
                           let iso = String(punch.punch_time || punch.created_at || '').trim();
                           if (!iso.includes('T') && iso.includes(' ')) iso = iso.replace(' ', 'T');
                           const d = new Date(iso);
-                          if (isNaN(d.getTime())) return punch.punch_time;
-                          const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-                          const dateStr = d.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
-                          return (
-                            <div>
-                              <span className="block font-mono font-black text-slate-800 dark:text-slate-100 text-xs">{timeStr}</span>
-                              <span className="block text-[10px] text-slate-400 font-semibold font-sans mt-0.5">{dateStr}</span>
-                            </div>
-                          );
+                          return isNaN(d.getTime()) ? punch.punch_time : d.toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                         })()}
                       </td>
                       <td className="py-3 px-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${punch.punch_direction === 'IN' || punch.direction === 'IN' || punch.punch_type === 'CHECK_IN' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200/60' : 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200/60'}`}>
-                          {punch.punch_direction || punch.direction || punch.punch_type || 'IN'}
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                          (punch.direction || punch.punch_direction || 'IN') === 'IN'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300'
+                            : 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
+                        }`}>
+                          {(punch.direction || punch.punch_direction || 'IN') === 'IN' ? 'IN Punch' : 'OUT Punch'}
                         </span>
                       </td>
-                      <td className="py-3 px-3 font-sans">
-                        {(() => {
-                          const isMobile = (punch.source || '').toUpperCase() === 'MOBILE' || (punch.verification_mode || '').toUpperCase().includes('MOBILE');
-                          const isWeb = (punch.source || '').toUpperCase() === 'WEB' || (punch.verification_mode || '').toUpperCase().includes('WEB');
-                          
-                          let deviceIdText = punch.device_id || punch.device_identifier || (isMobile ? 'Mobile App' : isWeb ? 'Web Portal' : 'Biometric Terminal #1');
-                          let deviceModelText = punch.device_model || (isMobile ? 'Android / iOS Device' : isWeb ? 'Web Browser' : 'Biometric Device');
-
-                          return (
-                            <div>
-                              <span className="block font-mono font-black text-slate-800 dark:text-slate-100 text-xs">
-                                {isMobile ? '📱 ' : isWeb ? '💻 ' : '📟 '}{deviceIdText}
-                              </span>
-                              {deviceModelText && (
-                                <span className="block text-[10px] text-slate-400 font-semibold font-sans mt-0.5">
-                                  {deviceModelText}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="py-3 px-3 font-sans">
-                        {punch.ip_address ? (
-                          <span className="font-mono text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
-                            {punch.ip_address}
+                      <td className="py-3 px-3 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
+                        <div className="flex items-center gap-1.5">
+                          <span>{punch.device_id || punch.device_model || 'System'}</span>
+                          <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-sans font-bold">
+                            {punch.source || 'DEVICE'}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 text-[10px] font-semibold italic border border-slate-200/50 dark:border-slate-800/50">
-                            Not Captured
-                          </span>
-                        )}
+                        </div>
                       </td>
-                      <td className="py-3 px-3 font-sans">
-                        {punch.latitude && punch.longitude ? (
+                      <td className="py-3 px-3 font-mono text-[11px] text-slate-500">
+                        {punch.ip_address || '-'}
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => setSelectedMapPunch(punch)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-all cursor-pointer shadow-2xs group select-none text-[10.5px] font-bold"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline cursor-pointer border-0 bg-transparent"
                           >
-                            <MapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform shrink-0" />
-                            <span className="font-mono text-[10.5px] font-bold">
-                              {punch.location_name
-                                ? (punch.location_name.length > 22 ? punch.location_name.substring(0, 22) + '...' : punch.location_name)
-                                : `${Number(punch.latitude).toFixed(3)}, ${Number(punch.longitude).toFixed(3)}`}
-                            </span>
+                            <MapPin className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate max-w-[130px]">{punch.location_name || 'View GPS'}</span>
                           </button>
-                        ) : punch.location_name ? (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedMapPunch(punch)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/50 hover:bg-indigo-100 text-[10.5px] font-bold transition-all cursor-pointer shadow-2xs group select-none"
-                          >
-                            <MapPin className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
-                            <span className="font-sans text-[10.5px] font-bold">
-                              {punch.location_name.length > 22 ? punch.location_name.substring(0, 22) + '...' : punch.location_name}
-                            </span>
-                          </button>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60 text-[10px] font-bold tracking-tight select-none">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block shrink-0" />
-                            Office / Direct Terminal
-                          </span>
-                        )}
+                        </div>
                       </td>
                       <td className="py-3 px-3 text-center">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
@@ -556,24 +548,32 @@ export default function RawPunchLogsPage() {
                         <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {canEdit && (
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(punch)}
-                                className="w-7.5 h-7.5 rounded-lg bg-indigo-50/80 hover:bg-indigo-600 text-indigo-600 hover:text-white dark:bg-indigo-950/40 dark:hover:bg-indigo-600 dark:text-indigo-400 dark:hover:text-white transition-all duration-200 flex items-center justify-center border border-indigo-200/60 dark:border-indigo-800/60 shadow-2xs cursor-pointer group"
-                                title="Edit Raw Punch"
-                              >
-                                <Pencil className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
-                              </button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditModal(punch)}
+                                    className="w-7.5 h-7.5 rounded-lg bg-indigo-50/80 hover:bg-indigo-600 text-indigo-600 hover:text-white dark:bg-indigo-950/40 dark:hover:bg-indigo-600 dark:text-indigo-400 dark:hover:text-white transition-all duration-200 flex items-center justify-center border border-indigo-200/60 dark:border-indigo-800/60 shadow-2xs cursor-pointer group"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit Raw Punch Log</TooltipContent>
+                              </Tooltip>
                             )}
                             {canDelete && (
-                              <button
-                                type="button"
-                                onClick={() => setDeletingPunch(punch)}
-                                className="w-7.5 h-7.5 rounded-lg bg-rose-50/80 hover:bg-rose-600 text-rose-600 hover:text-white dark:bg-rose-950/40 dark:hover:bg-rose-600 dark:text-rose-400 dark:hover:text-white transition-all duration-200 flex items-center justify-center border border-rose-200/60 dark:border-rose-800/60 shadow-2xs cursor-pointer group"
-                                title="Delete Raw Punch"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
-                              </button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeletingPunch(punch)}
+                                    className="w-7.5 h-7.5 rounded-lg bg-rose-50/80 hover:bg-rose-600 text-rose-600 hover:text-white dark:bg-rose-950/40 dark:hover:bg-rose-600 dark:text-rose-400 dark:hover:text-white transition-all duration-200 flex items-center justify-center border border-rose-200/60 dark:border-rose-800/60 shadow-2xs cursor-pointer group"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Delete Raw Punch Log</TooltipContent>
+                              </Tooltip>
                             )}
                           </div>
                         </td>
@@ -632,7 +632,7 @@ export default function RawPunchLogsPage() {
               </div>
             </div>
 
-            {/* Verification Live Selfie / Photo Preview Card (Requirement 4) */}
+            {/* Verification Live Selfie / Photo Preview Card */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -682,7 +682,7 @@ export default function RawPunchLogsPage() {
                   <div>
                     <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">No Image Recorded</h5>
                     <p className="text-[11px] text-slate-400 font-medium max-w-xs mt-0.5">
-                      No live selfie was captured for this punch event (e.g. standard biometric or web check-in).
+                      No live selfie was captured for this punch event.
                     </p>
                   </div>
                 </div>
@@ -699,104 +699,86 @@ export default function RawPunchLogsPage() {
                 </label>
                 <input
                   type="datetime-local"
+                  required
                   value={editPunchTime}
                   onChange={(e) => setEditPunchTime(e.target.value)}
-                  required
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-xs shadow-2xs"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 font-mono"
                 />
               </div>
 
               <div>
                 <label className="block text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                  Punch Direction <span className="text-rose-500">*</span>
+                  Direction / Punch Type
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setEditDirection('IN')}
-                    className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer ${
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                       editDirection === 'IN'
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    🟢 IN (Check-In)
+                    Check IN
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditDirection('OUT')}
-                    className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer ${
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                       editDirection === 'OUT'
-                        ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    🔴 OUT (Check-Out)
+                    Check OUT
                   </button>
                 </div>
               </div>
 
               <div>
                 <label className="block text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                  Terminal / Device Identifier
+                  Device ID / Serial Number
                 </label>
                 <input
                   type="text"
                   value={editDeviceId}
                   onChange={(e) => setEditDeviceId(e.target.value)}
-                  placeholder="e.g. Terminal #1 or Mobile App"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-xs shadow-2xs"
+                  placeholder="e.g. BIO-TERMINAL-01"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500 font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Location Name / Address Notes</span>
+                <label className="block text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  Location Name / Address
                 </label>
                 <input
                   type="text"
                   value={editLocationName}
                   onChange={(e) => setEditLocationName(e.target.value)}
-                  placeholder="e.g. Jubilee Hills, Hyderabad or Main Office"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-xs shadow-2xs"
+                  placeholder="e.g. Headquarters Reception"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
                 />
-              </div>
-
-              {/* Readonly Info Summary */}
-              <div className="p-3.5 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5 text-[11px]">
-                <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
-                  <span>Logged IP Address:</span>
-                  <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                    {editingPunch.ip_address || 'Not Captured'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
-                  <span>Sync Status:</span>
-                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-[10px]">
-                    ● SYNCED TO HRMS
-                  </span>
-                </div>
               </div>
             </div>
 
-            {/* Bottom Actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="pt-3 border-t border-slate-200/80 dark:border-slate-700/80 flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setEditingPunch(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold transition-all cursor-pointer text-xs"
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmittingEdit}
-                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50 text-xs flex items-center gap-2"
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
               >
                 {isSubmittingEdit ? (
                   <>
-                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     <span>Saving...</span>
                   </>
                 ) : (
@@ -946,7 +928,7 @@ export default function RawPunchLogsPage() {
                   href={`https://www.google.com/maps?q=${selectedMapPunch.latitude},${selectedMapPunch.longitude}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-2xs"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-2xs no-underline"
                 >
                   <span>🌐</span> Open in Google Maps
                 </a>
@@ -963,6 +945,7 @@ export default function RawPunchLogsPage() {
         </div>,
         document.body
       )}
+
       {/* Punch Upload Slideout Drawer */}
       <SlideDrawer
         isOpen={punchUploadOpen}
@@ -1014,7 +997,7 @@ export default function RawPunchLogsPage() {
             <button
               onClick={handlePunchUpload}
               disabled={isUploadingPunches || !punchCsvFile}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border-0"
             >
               {isUploadingPunches ? (
                 <>

@@ -27,15 +27,15 @@ interface Employee {
 }
 
 const SHIFT_TABS = [
-  { id: 'policies',    label: 'Shift Policies',           permission: 'view_shift_masters' },
-  { id: 'assignments', label: 'Employee Shift Mapping',   permission: 'view_shift_assignments' },
-  { id: 'rotation',    label: 'Shift Rotation Scheduler', permission: 'view_shift_rotation' },
+  { id: 'policies',    label: 'Shift Policies',           permissions: ['shifts_view', 'view_shifts', 'view_shift_masters'] },
+  { id: 'assignments', label: 'Employee Shift Mapping',   permissions: ['shifts_assignments_view', 'view_shift_assignments', 'shifts_view', 'view_shifts'] },
+  { id: 'rotation',    label: 'Shift Rotation Scheduler', permissions: ['shifts_rotation_view', 'view_shift_rotation', 'shifts_view', 'view_shifts'] },
 ] as const;
 type ShiftTabId = typeof SHIFT_TABS[number]['id'];
 
 export default function ShiftsPage() {
   const { showToast } = useDashboard();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin: isSuperAdminPerm, getPermissionScope } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -43,8 +43,30 @@ export default function ShiftsPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const isSuperAdmin = isSuperAdminPerm || roles.includes('SuperAdmin') || roles.includes('superadmin');
+
+  // 🛡️ Standard Tab 1: Shift Policies (No data scope needed - company wide)
+  const canViewPolicies = isSuperAdmin || hasPermission('shifts_view') || hasPermission('view_shifts') || hasPermission('view_shift_masters');
+  const canCreatePolicies = isSuperAdmin || hasPermission('shifts_create') || hasPermission('create_shifts') || hasPermission('create_shift_masters');
+  const canEditPolicies = isSuperAdmin || hasPermission('shifts_edit') || hasPermission('edit_shifts') || hasPermission('edit_shift_masters');
+  const canDeletePolicies = isSuperAdmin || hasPermission('shifts_delete') || hasPermission('delete_shifts') || hasPermission('delete_shift_masters');
+
+  // 🛡️ Standard Tab 2: Shift Assignments (Data scope needed)
+  const canViewAssignments = isSuperAdmin || hasPermission('shifts_assignments_view') || hasPermission('view_shift_assignments') || hasPermission('shifts_view') || hasPermission('view_shifts');
+  const canCreateAssignments = isSuperAdmin || hasPermission('shifts_assignments_create') || hasPermission('create_shift_assignments') || hasPermission('shifts_create') || hasPermission('create_shifts');
+  const canEditAssignments = isSuperAdmin || hasPermission('shifts_assignments_edit') || hasPermission('edit_shift_assignments') || hasPermission('shifts_edit') || hasPermission('edit_shifts');
+  const canDeleteAssignments = isSuperAdmin || hasPermission('shifts_assignments_delete') || hasPermission('delete_shift_assignments') || hasPermission('shifts_delete') || hasPermission('delete_shifts');
+  const assignmentScope = getPermissionScope('shifts_assignments_view') || getPermissionScope('view_shift_assignments') || getPermissionScope('shifts_view') || 'SELF';
+  const canSeeTeamAssignments = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(assignmentScope);
+
+  // 🛡️ Standard Tab 3: Shift Rotation Scheduler (Data scope needed)
+  const canViewRotation = isSuperAdmin || hasPermission('shifts_rotation_view') || hasPermission('view_shift_rotation') || hasPermission('shifts_view') || hasPermission('view_shifts');
+  const canCreateRotation = isSuperAdmin || hasPermission('shifts_rotation_create') || hasPermission('create_shift_rotation') || hasPermission('shifts_create') || hasPermission('create_shifts');
+  const rotationScope = getPermissionScope('shifts_rotation_view') || getPermissionScope('view_shift_rotation') || getPermissionScope('shifts_view') || 'SELF';
+
   // Tab state: 'policies' | 'assignments' | 'rotation'
   const [activeTab, setActiveTab] = useState<ShiftTabId>('policies');
+  const [assignmentScopeView, setAssignmentScopeView] = useState<'my' | 'team'>('my');
 
   // Search state for filtering shifts and employee assignments
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,9 +159,7 @@ export default function ShiftsPage() {
     return filteredEmployeeShifts.slice(start, start + pageSize);
   }, [filteredEmployeeShifts, currentPage, pageSize]);
 
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
-
-  const visibleTabs = SHIFT_TABS.filter(t => hasPermission(t.permission));
+  const visibleTabs = SHIFT_TABS.filter(t => isSuperAdmin || t.permissions.some(p => hasPermission(p)));
 
   useEffect(() => {
     if (visibleTabs.length > 0 && !visibleTabs.find(t => t.id === activeTab)) {
@@ -569,7 +589,7 @@ export default function ShiftsPage() {
                   </button>
                 )}
               </div>
-              {hasPermission('create_shift_masters') && (
+              {canCreatePolicies && (
                 <button
                   onClick={() => {
                     setNewShiftForm({
@@ -643,7 +663,7 @@ export default function ShiftsPage() {
                           </span>
                         </td>
                         <td className="py-4 px-3 text-right space-x-2">
-                          {hasPermission('edit_shift_masters') && (
+                          {canEditPolicies && (
                             <button
                               onClick={() => {
                                 setNewShiftForm({
@@ -667,7 +687,7 @@ export default function ShiftsPage() {
                               Edit
                             </button>
                           )}
-                          {hasPermission('delete_shift_masters') && (
+                          {canDeletePolicies && (
                             <button
                               onClick={() => handleDeleteShift(s.id)}
                               className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-600 text-red-600 hover:text-white dark:text-red-400 text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"
@@ -730,7 +750,7 @@ export default function ShiftsPage() {
                   </button>
                 )}
               </div>
-              {hasPermission('create_shift_assignments') && (
+              {canCreateAssignments && (
                 <button
                   onClick={() => {
                     setAssignmentForm({
@@ -800,7 +820,7 @@ export default function ShiftsPage() {
                           </span>
                         </td>
                         <td className="py-4 px-3 text-right space-x-2">
-                          {hasPermission('edit_shift_assignments') && (
+                          {canEditAssignments && (
                             <button
                               onClick={() => {
                                 setAssignmentForm({
@@ -818,7 +838,7 @@ export default function ShiftsPage() {
                               Edit
                             </button>
                           )}
-                          {hasPermission('delete_shift_assignments') && (
+                          {canDeleteAssignments && (
                             <button
                               onClick={() => handleDeleteAssignment(es.id)}
                               className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-600 text-red-600 hover:text-white dark:text-red-400 text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer"

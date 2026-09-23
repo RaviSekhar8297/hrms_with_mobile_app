@@ -5054,9 +5054,16 @@ app.get('/api/v1/attendance/summary-count', authenticateToken, async (req: Authe
   const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
   const rawCompany = req.query.companyId || req.query.company_id;
   const companyId = isSuperAdmin ? (rawCompany ? String(rawCompany) : null) : req.user?.companyId;
-  const { year, month, employeeId } = req.query;
+  const { year, month, employeeId, scope } = req.query;
 
   try {
+    const scopeCtx = await getEmployeeDataScope(req, 'attendance', 'attendance_summary_count_view');
+    let loggedInEmpId = scopeCtx.employeeId;
+    if (!loggedInEmpId && req.user?.email) {
+      const empRes = await query('SELECT id FROM hrms.employees WHERE email = $1 AND status = \'ACTIVE\'', [req.user.email]);
+      if (empRes.rows.length > 0) loggedInEmpId = empRes.rows[0].id;
+    }
+
     let sql = `
       SELECT asc_t.*,
              e.first_name, e.last_name, e.emp_id_code, e.email,
@@ -5068,24 +5075,40 @@ app.get('/api/v1/attendance/summary-count', authenticateToken, async (req: Authe
       LEFT JOIN hrms.departments d ON e.department_id = d.id
     `;
     const params: any[] = [];
-    let paramIdx = 1;
-    let whereClauses: string[] = [];
+    const whereClauses: string[] = [];
 
     if (companyId && companyId !== 'all') {
-      whereClauses.push(`asc_t.company_id = $${paramIdx++}`);
       params.push(companyId);
+      whereClauses.push(`asc_t.company_id = $${params.length}`);
     }
     if (year) {
-      whereClauses.push(`asc_t.year = $${paramIdx++}`);
       params.push(Number(year));
+      whereClauses.push(`asc_t.year = $${params.length}`);
     }
-    if (month) {
-      whereClauses.push(`asc_t.month = $${paramIdx++}`);
+    if (month && month !== 'ALL') {
       params.push(Number(month));
+      whereClauses.push(`asc_t.month = $${params.length}`);
     }
     if (employeeId) {
-      whereClauses.push(`asc_t.employee_id = $${paramIdx++}`);
       params.push(employeeId);
+      whereClauses.push(`asc_t.employee_id = $${params.length}`);
+    }
+
+    if (scope === 'my') {
+      if (loggedInEmpId) {
+        params.push(loggedInEmpId);
+        whereClauses.push(`asc_t.employee_id = $${params.length}`);
+      } else {
+        whereClauses.push('1=0');
+      }
+    } else {
+      if (!isSuperAdmin) {
+        const scopeCond = buildDataScopeCondition(scopeCtx, 'asc_t', 'employee_id', params.length + 1);
+        if (scopeCond.whereSql) {
+          whereClauses.push(scopeCond.whereSql);
+          params.push(...scopeCond.params);
+        }
+      }
     }
 
     if (whereClauses.length > 0) {
@@ -5377,7 +5400,7 @@ app.get(['/api/v1/attendance/punches', '/api/v1/attendance/raw-punches'], authen
   const requestedScope = req.query.scope ? String(req.query.scope).toUpperCase().trim() : null;
 
   try {
-    let scopeCtx = await getEmployeeDataScope(req, 'attendance', 'view_attendance_raw_punches');
+    let scopeCtx = await getEmployeeDataScope(req, 'attendance', 'attendance_raw_punches_view');
 
     if (requestedScope) {
       const scopeHierarchy: Record<string, number> = { SELF: 1, REPORTING: 2, TEAM: 2, DEPARTMENT: 3, DEPT: 3, ALL: 4 };
@@ -6649,17 +6672,20 @@ app.get('/api/v1/attendance/regularizations', authenticateToken, async (req: Aut
   const companyId = isSuperAdmin ? (req.query.companyId || null) : req.user?.companyId;
   const email = req.user?.email;
   const scope = req.query.scope as string | undefined;
-  const filterSelf = scope === 'my';
-  const filterTeam = scope === 'team';
+  const filterSelf = scope === 'my' || scope === 'self';
+  const filterTeam = scope === 'team' || scope === 'reporting';
+  const filterDept = scope === 'department' || scope === 'dept';
 
   if (!companyId && !isSuperAdmin) return res.status(400).json({ error: 'Company ID is required' });
 
   try {
     let employeeId = null;
+    let departmentId = null;
     if (email) {
-      const empCheck = await query('SELECT id FROM hrms.employees WHERE email = $1 AND status = \'ACTIVE\'', [email]);
+      const empCheck = await query('SELECT id, department_id FROM hrms.employees WHERE email = $1 AND status = \'ACTIVE\'', [email]);
       if (empCheck.rows.length > 0) {
         employeeId = empCheck.rows[0].id;
+        departmentId = empCheck.rows[0].department_id;
       }
     }
 
@@ -6686,12 +6712,14 @@ app.get('/api/v1/attendance/regularizations', authenticateToken, async (req: Aut
       params.push(employeeId);
       whereClauses.push(`ar.employee_id = $${params.length}`);
     } else if (filterTeam && employeeId) {
-      if (isSuperAdmin) {
+      if (!isSuperAdmin) {
         params.push(employeeId);
-        whereClauses.push(`ar.employee_id != $${params.length}`);
-      } else {
-        params.push(employeeId);
-        whereClauses.push(`e.reporting_to_id = $${params.length}`);
+        whereClauses.push(`(e.reporting_to_id = $${params.length} OR ar.employee_id = $${params.length})`);
+      }
+    } else if (filterDept && departmentId) {
+      if (!isSuperAdmin) {
+        params.push(departmentId);
+        whereClauses.push(`e.department_id = $${params.length}`);
       }
     }
 
@@ -6925,7 +6953,7 @@ app.get('/api/v1/attendance/permissions', authenticateToken, async (req: Authent
   if (!companyId && !isSuperAdmin) return res.status(400).json({ error: 'Company ID is required' });
 
   try {
-    const scopeCtx = await getEmployeeDataScope(req, 'attendance', 'view_permission_requests');
+    const scopeCtx = await getEmployeeDataScope(req, 'attendance', 'attendance_permissions_view');
 
     let sql = `
       SELECT pr.id, pr.company_id, pr.employee_id, pr.permission_type, pr.permission_date, pr.from_time, pr.to_time,
@@ -7720,7 +7748,7 @@ app.get('/api/v1/leave-requests', authenticateToken, async (req: AuthenticatedRe
       params.push(employeeId);
       whereClauses.push(`lr.employee_id = $${params.length}`);
     } else {
-      const scopeCtx = await getEmployeeDataScope(req, 'leave', '0cc6d736-414b-41f6-9de3-4ae2bb35d415');
+      const scopeCtx = await getEmployeeDataScope(req, 'leaves', 'leaves_requests_view');
       const scopeCond = buildDataScopeCondition(scopeCtx, 'e', 'id', params.length + 1);
       if (scopeCond.whereSql) {
         whereClauses.push(scopeCond.whereSql);
@@ -7872,6 +7900,97 @@ app.post('/api/v1/leave-requests', authenticateToken, async (req: AuthenticatedR
     return res.status(201).json({ message: 'Leave request submitted successfully', request: result.rows[0] });
   } catch (err) {
     console.error('Error submitting leave request:', err);
+    return res.status(500).json({ error: 'Internal server database error' });
+  }
+});
+
+app.put('/api/v1/leave-requests/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const { leave_type_id, from_date, to_date, total_days, reason } = req.body;
+
+  if (!leave_type_id || !from_date || !to_date || !total_days || !reason) {
+    return res.status(400).json({ error: 'Required fields missing: leave_type_id, from_date, to_date, total_days, reason' });
+  }
+
+  try {
+    const reqCheck = await query('SELECT * FROM hrms.leave_requests WHERE id = $1', [id]);
+    if (reqCheck.rows.length === 0) return res.status(404).json({ error: 'Leave request not found' });
+    const leaveReq = reqCheck.rows[0];
+
+    if (leaveReq.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Only pending leave requests can be edited' });
+    }
+
+    const employeeId = leaveReq.employee_id;
+    const oldYear = new Date(leaveReq.from_date).getFullYear();
+    const oldDays = parseFloat(leaveReq.total_days || '0');
+    const oldLtId = leaveReq.leave_type_id;
+
+    const newYear = new Date(from_date).getFullYear();
+    const newDays = parseFloat(total_days || '0');
+
+    // Check overlap with other requests
+    const overlapCheck = await query(
+      `SELECT id, from_date, to_date, status FROM hrms.leave_requests 
+       WHERE employee_id = $1 AND status IN ('PENDING', 'APPROVED') AND id != $2
+       AND (from_date <= $3 AND to_date >= $4)`,
+      [employeeId, id, to_date, from_date]
+    );
+
+    if (overlapCheck.rows.length > 0) {
+      const existing = overlapCheck.rows[0];
+      return res.status(400).json({
+        error: `Cannot update: You already have a ${existing.status} leave request from ${new Date(existing.from_date).toISOString().split('T')[0]} to ${new Date(existing.to_date).toISOString().split('T')[0]}.`
+      });
+    }
+
+    // Revert old hold
+    await query(
+      `UPDATE hrms.leave_balances 
+       SET remaining = remaining + $1, pending_approval = GREATEST(0, pending_approval - $1)
+       WHERE employee_id = $2 AND leave_type_id = $3 AND balance_year = $4`,
+      [oldDays, employeeId, oldLtId, oldYear]
+    );
+
+    // Check new balance
+    let balanceCheck = await query(
+      'SELECT id, remaining, pending_approval FROM hrms.leave_balances WHERE employee_id = $1 AND leave_type_id = $2 AND balance_year = $3',
+      [employeeId, leave_type_id, newYear]
+    );
+
+    if (balanceCheck.rows.length === 0) {
+      const ltQuery = await query('SELECT allotted_per_year FROM hrms.leave_types WHERE id = $1', [leave_type_id]);
+      const allotted = ltQuery.rows.length > 0 ? parseFloat(ltQuery.rows[0].allotted_per_year) : 12;
+      const insertBal = await query(
+        `INSERT INTO hrms.leave_balances (employee_id, leave_type_id, balance_year, allotted, used, pending_approval, remaining)
+         VALUES ($1, $2, $3, $4, 0, 0, $4) RETURNING *`,
+        [employeeId, leave_type_id, newYear, allotted]
+      );
+      balanceCheck = insertBal;
+    }
+
+    const balance = balanceCheck.rows[0];
+
+    // Apply new hold
+    await query(
+      `UPDATE hrms.leave_balances 
+       SET pending_approval = pending_approval + $1, remaining = remaining - $1
+       WHERE id = $2`,
+      [newDays, balance.id]
+    );
+
+    const updated = await query(
+      `UPDATE hrms.leave_requests
+       SET leave_type_id = $1, from_date = $2, to_date = $3, total_days = $4, reason = $5
+       WHERE id = $6 RETURNING *`,
+      [leave_type_id, from_date, to_date, newDays, reason, id]
+    );
+
+    logUserAction(req, 'UPDATE_LEAVE_REQUEST', 'Leaves', `Updated leave request ID ${id} to ${newDays} day(s) (${from_date} to ${to_date})`);
+
+    return res.json({ message: 'Leave request updated successfully', request: updated.rows[0] });
+  } catch (err) {
+    console.error('Error updating leave request:', err);
     return res.status(500).json({ error: 'Internal server database error' });
   }
 });
@@ -8244,8 +8363,9 @@ app.get('/api/v1/comp-off-requests', authenticateToken, async (req: Authenticate
     const companyId = req.query.companyId as string;
     const scopeParam = (req.query.scope as string) || 'my';
 
-    let loggedInEmpId: string | null = null;
-    if (req.user?.email) {
+    const scopeCtx = await getEmployeeDataScope(req, 'leaves', 'leaves_compoff_view');
+    let loggedInEmpId = scopeCtx.employeeId;
+    if (!loggedInEmpId && req.user?.email) {
       const empRes = await query('SELECT id FROM hrms.employees WHERE email = $1 AND status = \'ACTIVE\'', [req.user.email]);
       if (empRes.rows.length > 0) loggedInEmpId = empRes.rows[0].id;
     }
@@ -8265,10 +8385,13 @@ app.get('/api/v1/comp-off-requests', authenticateToken, async (req: Authenticate
       } else {
         whereClauses.push('1=0');
       }
-    } else if (scopeParam === 'team') {
-      if (!isSuperAdmin && loggedInEmpId) {
-        params.push(loggedInEmpId);
-        whereClauses.push(`e.reporting_to_id = $${params.length}`);
+    } else {
+      if (!isSuperAdmin) {
+        const scopeCond = buildDataScopeCondition(scopeCtx, 'cor', 'employee_id', params.length + 1);
+        if (scopeCond.whereSql) {
+          whereClauses.push(scopeCond.whereSql);
+          params.push(...scopeCond.params);
+        }
       }
     }
 
@@ -8650,6 +8773,64 @@ app.post('/api/v1/comp-off-requests/:id/action', authenticateToken, async (req: 
   } catch (err) {
     console.error('Error processing comp-off request action:', err);
     return res.status(500).json({ error: 'Failed to process comp-off request' });
+  }
+});
+
+// PUT /api/v1/comp-off-requests/:id (Update Pending Comp-Off Request)
+app.put('/api/v1/comp-off-requests/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const { worked_date, comp_off_type, reason } = req.body;
+
+  try {
+    const existing = await query(`SELECT * FROM hrms.comp_off_requests WHERE id = $1`, [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Comp-off request not found' });
+    }
+
+    if (existing.rows[0].status !== 'PENDING') {
+      return res.status(400).json({ error: 'Cannot edit a request that is already processed' });
+    }
+
+    const creditedDays = comp_off_type === 'HALF_DAY' ? 0.50 : 1.00;
+    const upd = await query(`
+      UPDATE hrms.comp_off_requests
+      SET worked_date = COALESCE($1, worked_date),
+          comp_off_type = COALESCE($2, comp_off_type),
+          credited_days = COALESCE($3, credited_days),
+          reason = COALESCE($4, reason),
+          updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `, [worked_date || null, comp_off_type || null, creditedDays, reason || null, id]);
+
+    logUserAction(req, 'UPDATE_COMP_OFF_REQUEST', 'Leaves', `Updated comp-off request ${id}`);
+    return res.json({ success: true, message: 'Comp-off request updated successfully', request: upd.rows[0] });
+  } catch (err) {
+    console.error('Error updating comp-off request:', err);
+    return res.status(500).json({ error: 'Failed to update comp-off request' });
+  }
+});
+
+// DELETE /api/v1/comp-off-requests/:id (Delete Comp-Off Request)
+app.delete('/api/v1/comp-off-requests/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const existing = await query(`SELECT * FROM hrms.comp_off_requests WHERE id = $1`, [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Comp-off request not found' });
+    }
+
+    if (existing.rows[0].status !== 'PENDING') {
+      return res.status(400).json({ error: 'Cannot delete a request that is already processed' });
+    }
+
+    await query(`DELETE FROM hrms.comp_off_requests WHERE id = $1`, [id]);
+    logUserAction(req, 'DELETE_COMP_OFF_REQUEST', 'Leaves', `Deleted comp-off request ${id}`);
+    return res.json({ success: true, message: 'Comp-off request deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting comp-off request:', err);
+    return res.status(500).json({ error: 'Failed to delete comp-off request' });
   }
 });
 

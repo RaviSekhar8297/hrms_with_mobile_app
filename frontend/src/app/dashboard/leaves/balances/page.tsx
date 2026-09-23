@@ -9,8 +9,34 @@ import { usePermissions } from '../../hooks/usePermissions';
 
 export default function LeaveBalancesPage() {
   const { showToast, companyId } = useDashboard();
-  const { isSuperAdmin, hasPermission } = usePermissions();
-  const canEdit = isSuperAdmin || hasPermission('edit_leave_balances') || hasPermission('manage_leave_balances') || hasPermission('edit_leaves');
+  const { isSuperAdmin: isSuperAdminPerm, hasPermission, getPermissionScope } = usePermissions();
+
+  const isSuperAdmin = isSuperAdminPerm;
+
+  // Permissions
+  const canView = isSuperAdmin || hasPermission('leaves_balances_view') || hasPermission('view_leave_balances') || hasPermission('leaves_view');
+  const canCreate = isSuperAdmin || hasPermission('leaves_balances_create') || hasPermission('create_leave_balances') || hasPermission('leaves_create') || hasPermission('leaves_balances_edit');
+  const canEdit = isSuperAdmin || hasPermission('leaves_balances_edit') || hasPermission('edit_leave_balances') || hasPermission('manage_leave_balances') || hasPermission('leaves_edit');
+  const canDelete = isSuperAdmin || hasPermission('leaves_balances_delete') || hasPermission('delete_leave_balances') || hasPermission('leaves_delete');
+
+  // Scopes
+  const viewScopePerm = getPermissionScope('leaves_balances_view') || getPermissionScope('view_leave_balances') || (isSuperAdmin ? 'ALL' : 'SELF');
+  const editScopePerm = getPermissionScope('leaves_balances_edit') || getPermissionScope('edit_leave_balances') || (isSuperAdmin ? 'ALL' : 'SELF');
+  const deleteScopePerm = getPermissionScope('leaves_balances_delete') || getPermissionScope('delete_leave_balances') || (isSuperAdmin ? 'ALL' : 'SELF');
+
+  const canSeeExtendedTab = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(viewScopePerm);
+  const canEditExtended = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(editScopePerm);
+  const canDeleteExtended = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(deleteScopePerm);
+
+  const getSecondTabLabel = () => {
+    if (isSuperAdmin || viewScopePerm === 'ALL') {
+      return 'All Employee Directory';
+    }
+    if (viewScopePerm === 'DEPARTMENT') {
+      return 'Department Directory';
+    }
+    return 'Team Balances';
+  };
 
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
@@ -60,16 +86,18 @@ export default function LeaveBalancesPage() {
   }, []);
 
   useEffect(() => {
-    fetchBalances();
-    fetchLeaveTypes();
-    fetchEmployees();
-  }, [companyId, selectedYear]);
+    if (canView) {
+      fetchBalances();
+      fetchLeaveTypes();
+      fetchEmployees();
+    }
+  }, [companyId, selectedYear, canView]);
 
   useEffect(() => {
-    if (balances.length > 0 && myBalances.length === 0 && (roles.includes('SuperAdmin') || roles.includes('superadmin'))) {
+    if (canSeeExtendedTab && (roles.includes('SuperAdmin') || roles.includes('superadmin'))) {
       setActiveTab('all');
     }
-  }, [balances, myBalances.length, roles]);
+  }, [canSeeExtendedTab, roles]);
 
   // Reset pagination on search or tab change
   useEffect(() => {
@@ -144,6 +172,25 @@ export default function LeaveBalancesPage() {
     }
   };
 
+  const handleDeleteBalance = async (balanceId: string) => {
+    if (!confirm('Are you sure you want to delete this leave balance quota record?')) return;
+    try {
+      const res = await fetch(`/api/v1/leave-balances/${balanceId}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        showToast('Leave balance deleted successfully', 'success');
+        fetchBalances();
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'Failed to delete balance', 'error');
+      }
+    } catch (e) {
+      showToast('Connection error', 'error');
+    }
+  };
+
   const openEditBalance = (b: any) => {
     setEditingBalance(b);
     setBalanceForm({
@@ -160,9 +207,9 @@ export default function LeaveBalancesPage() {
   const openNewBalance = () => {
     setEditingBalance(null);
     setBalanceForm({
-      employee_id: me?.id || '',
+      employee_id: me?.id || (employees[0]?.id || ''),
       leave_type_id: leaveTypes[0]?.id || '',
-      balance_year: String(new Date().getFullYear()),
+      balance_year: selectedYear || String(new Date().getFullYear()),
       allotted: '12',
       used: '0',
       remaining: '12'
@@ -198,6 +245,30 @@ export default function LeaveBalancesPage() {
     return num.toFixed(1);
   };
 
+  if (!canView) {
+    return (
+      <div className="space-y-6 pb-12">
+        <DashboardPageHeader
+          title="Leave Balances & Quotas Overview"
+          companyId={companyId}
+          isSuperAdmin={isSuperAdmin}
+          email={email}
+          hideCompanySelect={true}
+          hideUserBadge={true}
+        />
+        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm">
+          <div className="w-14 h-14 bg-rose-50 dark:bg-rose-950/50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl font-bold">
+            🚫
+          </div>
+          <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100">Access Restricted</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+            You do not have permission to view leave balances. Please contact your system administrator.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-12">
       <DashboardPageHeader
@@ -212,42 +283,49 @@ export default function LeaveBalancesPage() {
       {/* 🎛️ TAB SWITCHER & HEADER CONTROL BAR */}
       <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         
-        {/* TABS (MY QUOTAS vs ALL DIRECTORY) */}
-        <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 w-full sm:w-auto">
-          <button
-            onClick={() => setActiveTab('my')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'my'
-                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.02]'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-            <span>My Leave Quotas</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'my' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
-              {myBalances.length}
-            </span>
-          </button>
+        {/* TABS (MY QUOTAS vs EXTENDED DIRECTORY) */}
+        {canSeeExtendedTab ? (
+          <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 w-full sm:w-auto">
+            <button
+              onClick={() => setActiveTab('my')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'my'
+                  ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.02]'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              <span>My Leave Quotas</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'my' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                {myBalances.length}
+              </span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'all'
-                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.02]'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.72m12 0a5.971 5.971 0 00-.941-3.197M6 18.72a5.971 5.971 0 01.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 005.058 2.772m-10.116 0A9.094 9.094 0 012.25 15.52a3 3 0 014.682-2.72m0 0c.148.274.321.533.516.776M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-            </svg>
-            <span>All Employee Directory</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
-              {balances.length}
-            </span>
-          </button>
-        </div>
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'all'
+                  ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.02]'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.72m12 0a5.971 5.971 0 00-.941-3.197M6 18.72a5.971 5.971 0 01.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 005.058 2.772m-10.116 0A9.094 9.094 0 012.25 15.52a3 3 0 014.682-2.72m0 0c.148.274.321.533.516.776M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+              </svg>
+              <span>{getSecondTabLabel()}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                {balances.length}
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-2 shrink-0">
+            <span>👤</span>
+            <span>My Leave Quotas ({myBalances.length})</span>
+          </div>
+        )}
 
         {/* RIGHT GROUP: SEARCH -> YEAR FILTER -> ADJUST QUOTA BUTTON */}
         <div className="flex items-center gap-3 shrink-0 flex-wrap w-full xl:w-auto">
@@ -260,7 +338,7 @@ export default function LeaveBalancesPage() {
               placeholder="Search employee or leave code..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-search pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 transition-all"
+              className="w-full pl-8 pr-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 transition-all"
             />
           </div>
 
@@ -277,8 +355,8 @@ export default function LeaveBalancesPage() {
             ))}
           </select>
 
-          {/* ADJUST QUOTA BUTTON */}
-          {canEdit && (
+          {/* ADJUST QUOTA BUTTON (Available if user has extended edit/create permissions) */}
+          {(canCreate || canEdit) && canEditExtended && (
             <button
               onClick={openNewBalance}
               className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-extrabold rounded-xl shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:scale-[1.02] transition-all flex items-center gap-1.5 cursor-pointer"
@@ -293,7 +371,7 @@ export default function LeaveBalancesPage() {
       </div>
 
       {/* 👤 TAB 1: MY PERSONAL LEAVE QUOTA CARDS */}
-      {activeTab === 'my' && (
+      {(!canSeeExtendedTab || activeTab === 'my') && (
         <div className="space-y-4">
           {myBalances.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
@@ -359,7 +437,7 @@ export default function LeaveBalancesPage() {
       )}
 
       {/* 👥 TAB 2: ALL EMPLOYEE DIRECTORY TABLE */}
-      {activeTab === 'all' && (
+      {canSeeExtendedTab && activeTab === 'all' && (
         <div className="space-y-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             {isLoading ? (
@@ -451,15 +529,31 @@ export default function LeaveBalancesPage() {
                               </div>
                             </td>
                             <td className="p-4 text-right">
-                              {canEdit && (
-                                <button
-                                  onClick={() => openEditBalance(b)}
-                                  className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent text-xs font-extrabold rounded-xl shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 ml-auto"
-                                >
-                                  <i className="fa-solid fa-pen-to-square text-xs"></i>
-                                  <span>Edit</span>
-                                </button>
-                              )}
+                              <div className="flex items-center justify-end gap-1.5">
+                                {canEditExtended && (
+                                  <button
+                                    onClick={() => openEditBalance(b)}
+                                    className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-blue-600 hover:text-white text-xs font-extrabold rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
+                                    title="Edit Quota"
+                                  >
+                                    <i className="fa-solid fa-pen-to-square text-xs"></i>
+                                    <span>Edit</span>
+                                  </button>
+                                )}
+                                {canDeleteExtended && (
+                                  <button
+                                    onClick={() => handleDeleteBalance(b.id)}
+                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                                    title="Delete Quota"
+                                  >
+                                    <i className="fa-solid fa-trash text-xs"></i>
+                                    <span>Delete</span>
+                                  </button>
+                                )}
+                                {!canEditExtended && !canDeleteExtended && (
+                                  <span className="text-[11px] text-slate-400 italic">View only</span>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -526,7 +620,7 @@ export default function LeaveBalancesPage() {
 
           {/* SEARCHABLE SELECT EMPLOYEE */}
           <div className="relative">
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <i className="fa-solid fa-user text-indigo-500 text-xs"></i>
                 <span>Select Employee *</span>
@@ -609,9 +703,9 @@ export default function LeaveBalancesPage() {
             )}
           </div>
 
-          {/* SELECT LEAVE CATEGORY DROPDOWN (FIXED: ENABLED FOR EDITING/VIEWING) */}
+          {/* SELECT LEAVE CATEGORY DROPDOWN */}
           <div>
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center gap-1.5">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
               <i className="fa-solid fa-calendar-alt text-indigo-500 text-xs"></i>
               <span>Select Leave Category *</span>
             </label>
