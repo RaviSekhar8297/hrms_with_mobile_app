@@ -846,12 +846,12 @@ export default function RecruitmentDashboard() {
   ];
 
   return (
-    <div style={{ fontFamily: '"DM Sans", sans-serif' }} className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div style={{ fontFamily: '"DM Sans", sans-serif' }} className="flex flex-col -m-4 md:-m-6 min-h-[calc(100%+2rem)] md:min-h-[calc(100%+3rem)] bg-slate-50 dark:bg-slate-950 overflow-hidden">
       
       {/* PAGE HEADER */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-[#07518a] flex items-center justify-center text-white shadow-lg shadow-[#07518a]/20 shrink-0">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
@@ -877,7 +877,7 @@ export default function RecruitmentDashboard() {
                 setNewJob({ title: '', department_id: '', location: '', employment_type: 'Full-Time', experience_range: '', headcount: 1, salary_range: '', currency: 'INR', description: '', interview_rounds: [] });
                 setShowCreateJobModal(true);
               }}
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-indigo-500/25 transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-[#07518a] hover:bg-[#053d69] text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-[#07518a]/25 transition-all cursor-pointer"
             >
               + Create New Job Opening
             </button>
@@ -886,7 +886,7 @@ export default function RecruitmentDashboard() {
           {activeTab === 'ats' && (
             <button 
               onClick={() => setShowAddCandidateModal(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-indigo-500/25 transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-[#07518a] hover:bg-[#053d69] text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-md shadow-[#07518a]/25 transition-all cursor-pointer"
             >
               + Add Candidate
             </button>
@@ -918,7 +918,7 @@ export default function RecruitmentDashboard() {
                 }}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
                   isActive
-                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white border-blue-600 shadow-md shadow-blue-600/25 scale-[1.02]'
+                    ? 'bg-[#07518a] text-white border-[#07518a] shadow-md shadow-[#07518a]/25 scale-[1.02]'
                     : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100/90'
                 }`}
               >
@@ -943,12 +943,16 @@ export default function RecruitmentDashboard() {
             onClick={() => setActiveTab('jobs')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer border ${
               activeTab === 'jobs'
-                ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white border-blue-600 shadow-md shadow-blue-600/25 scale-[1.02]'
+                ? 'bg-[#07518a] text-white border-[#07518a] shadow-md shadow-[#07518a]/25 scale-[1.02]'
                 : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100/90'
             }`}
           >
             <span>💼 Active Jobs</span>
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+              activeTab === 'jobs'
+                ? 'bg-white/20 text-white'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+            }`}>
               {jobs.length}
             </span>
           </button>
@@ -1103,7 +1107,14 @@ export default function RecruitmentDashboard() {
                   </thead>
                   <tbody className="text-sm">
                     {loading ? (
-                      <tr><td colSpan={5} className="p-5 text-center text-slate-500">Loading jobs...</td></tr>
+                      <tr>
+                        <td colSpan={5} className="p-16 text-center">
+                          <div className="space-y-3">
+                            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Jobs...</p>
+                          </div>
+                        </td>
+                      </tr>
                     ) : jobs.length === 0 ? (
                       <tr><td colSpan={5} className="p-5 text-center text-slate-500">No active job postings found.</td></tr>
                     ) : (
@@ -1172,15 +1183,9 @@ export default function RecruitmentDashboard() {
             {(() => {
               if (loadingApps) {
                 return (
-                  <div className="p-16 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center space-y-4 shadow-2xs animate-fadeIn">
-                    <div className="relative flex items-center justify-center">
-                      <div className="w-12 h-12 rounded-full border-4 border-indigo-100 dark:border-indigo-950 border-t-indigo-600 dark:border-t-indigo-400 animate-spin"></div>
-                      <span className="absolute text-sm">⚡</span>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-extrabold text-slate-900 dark:text-white font-outfit">Loading Candidate Pipeline...</h4>
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Fetching candidate records & status for {stageFilter} stage</p>
-                    </div>
+                  <div className="p-16 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center justify-center space-y-3 shadow-2xs animate-fadeIn">
+                    <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Candidate Pipeline...</p>
                   </div>
                 );
               }

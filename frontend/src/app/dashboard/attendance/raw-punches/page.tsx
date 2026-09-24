@@ -353,10 +353,10 @@ export default function RawPunchLogsPage() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3.5 bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
         <div>
           <h2 className="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <span>🔌</span> Biometric & Device Raw Punch Logs
+            <span>🔌</span> Punch Logs
           </h2>
           <p className="text-xs text-slate-400 font-medium mt-0.5">
-            Real-time inspection of raw punch events from biometric terminals and mobile GPS
+            Real-time punch logs
           </p>
         </div>
 

@@ -1472,7 +1472,7 @@ function EmployeeDashboard({
   }, []);
 
   // Calendar state for My Attendance Calendar
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 6, 1)); // Default July 2026
+  const [currentDate, setCurrentDate] = useState(() => new Date());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -2082,39 +2082,39 @@ function EmployeeDashboard({
   return (
     <div className="space-y-6 animate-fadeIn w-full pb-16 font-sans text-slate-800 dark:text-slate-100">
       
-      {/* ── ROW 1: TOP SECTION: GREETING BANNER & TODAY'S ATTENDANCE PUNCH ── */}
+      {/* ── ROW 1: TOP SECTION: GREETING BANNER & TODAY'S ATTENDANCE SUMMARY ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
         
-        {/* Left 2 Cols: Good Morning Banner (LIGHT THEME FOR NON-SUPERADMIN) */}
-        <div className="lg:col-span-2 rounded-3xl border border-indigo-100 dark:border-slate-800 bg-gradient-to-br from-indigo-50/90 via-purple-50/80 to-blue-50/70 dark:bg-slate-900 p-6 md:p-8 relative overflow-hidden flex flex-col justify-between shadow-xs text-slate-800 dark:text-slate-100 group transition-all duration-300">
+        {/* Left 2 Cols: Good Morning / Welcome Banner */}
+        <div className="lg:col-span-2 rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50/60 to-blue-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800/80 p-6 md:p-7 relative overflow-hidden flex flex-col justify-between shadow-xs text-slate-800 dark:text-slate-100 group transition-all duration-300">
           
-          {/* Background blur rings */}
-          <div className="absolute right-0 top-0 -mt-8 -mr-8 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
+          {/* Subtle Accent Glow & Top Gradient Bar */}
+          <div className="absolute right-0 top-0 -mt-10 -mr-10 w-48 h-48 bg-[#07518a]/5 dark:bg-[#07518a]/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#07518a] via-sky-500 to-[#07518a]" />
           
           <div className="flex justify-between items-start gap-4 z-10">
             <div className="space-y-3 text-left w-full">
-              <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-600/10 text-indigo-800 dark:text-indigo-300 text-xs font-black uppercase tracking-widest border border-indigo-200/90 dark:border-indigo-800/50 shadow-2xs">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#07518a]/10 text-[#07518a] dark:text-[#38bdf8] text-[11px] font-bold tracking-wide border border-[#07518a]/20 shadow-2xs">
                 {getGreeting()} <span className="animate-float-emoji inline-block text-sm">👋</span>
               </span>
               
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 pt-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-1">
                 {me?.emp_image ? (
                   <img
                     src={me.emp_image}
                     alt={displayName}
-                    className="w-14 h-14 md:w-16 md:h-16 rounded-2xl object-cover ring-4 ring-indigo-500/20 shadow-md shrink-0"
+                    className="w-14 h-14 md:w-16 md:h-16 rounded-2xl object-cover ring-2 ring-[#07518a]/20 shadow-sm shrink-0"
                   />
                 ) : (
-                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-indigo-700 via-purple-700 to-pink-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0 ring-4 ring-indigo-500/20">
-                    {displayName ? displayName.charAt(0) : 'U'}
+                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-[#07518a] to-sky-600 text-white font-black text-2xl flex items-center justify-center shadow-sm shrink-0 ring-2 ring-[#07518a]/20">
+                    {displayName ? displayName.charAt(0).toUpperCase() : 'U'}
                   </div>
                 )}
                 <div>
-                  <h1 className="text-2xl md:text-3xl lg:text-4xl font-black uppercase tracking-tight font-outfit text-slate-950 dark:text-white drop-shadow-xs">
-                    {displayName.toUpperCase()}
+                  <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight font-outfit text-slate-900 dark:text-white">
+                    {displayName}
                   </h1>
-                  <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold leading-relaxed max-w-md mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-lg mt-0.5">
                     Welcome back to your workspace. Have a highly productive and successful day ahead!
                   </p>
                 </div>
@@ -2123,41 +2123,41 @@ function EmployeeDashboard({
           </div>
 
           {/* Bottom Branch, Department & Designation Chips */}
-          <div className="flex flex-wrap items-center gap-3 mt-6 pt-2 z-10">
+          <div className="flex flex-wrap items-center gap-2.5 mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 z-10">
             {/* Branch */}
-            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 shadow-2xs text-xs font-bold">
-              <span className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center text-sm">📍</span>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold shadow-2xs">
+              <span className="text-sm">📍</span>
               <span>
-                Branch: <strong className="font-black uppercase text-slate-900 dark:text-white tracking-wider">{me?.branch_name || 'Main Branch'}</strong>
+                Branch: <strong className="font-bold text-slate-900 dark:text-white">{me?.branch_name || 'Main Branch'}</strong>
               </span>
             </span>
 
             {/* Department */}
-            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-blue-500/10 text-blue-800 dark:text-blue-300 border border-blue-500/20 shadow-2xs text-xs font-bold">
-              <span className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center text-sm">🏢</span>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-50/60 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 border border-sky-200/70 dark:border-sky-900/60 text-xs font-semibold shadow-2xs">
+              <span className="text-sm">🏢</span>
               <span>
-                Department: <strong className="font-black uppercase text-slate-900 dark:text-white tracking-wider">{me?.department_name || 'Pending'}</strong>
+                Department: <strong className="font-bold text-[#07518a] dark:text-[#38bdf8]">{me?.department_name || 'Pending'}</strong>
               </span>
             </span>
 
             {/* Designation */}
-            <span className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-purple-500/10 text-purple-800 dark:text-purple-300 border border-purple-500/20 shadow-2xs text-xs font-bold">
-              <span className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center text-sm">💼</span>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-900/60 text-xs font-semibold shadow-2xs">
+              <span className="text-sm">💼</span>
               <span>
-                Designation: <strong className="font-black uppercase text-slate-900 dark:text-white tracking-wider">{me?.designation_name || 'Pending'}</strong>
+                Designation: <strong className="font-bold text-slate-900 dark:text-white">{me?.designation_name || 'Pending'}</strong>
               </span>
             </span>
           </div>
         </div>
 
-        {/* Right 1 Col: Today's Attendance Punch Card */}
-        <div className="rounded-3xl border border-indigo-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-6 shadow-lg shadow-indigo-950/5 flex flex-col justify-between text-left transition-all duration-300 hover:shadow-xl hover:border-indigo-200 dark:hover:border-indigo-900/50 group">
+        {/* Right 1 Col: Today's Attendance Summary Card */}
+        <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm flex flex-col justify-between text-left transition-all duration-300 hover:shadow-md group">
           <div>
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
               <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                 TODAY'S ATTENDANCE
               </span>
-              <span className={`text-[10px] font-black px-3 py-1 rounded-full border uppercase tracking-wider flex items-center gap-1.5 shadow-xs ${
+              <span className={`text-[10px] font-black px-3 py-1 rounded-full border uppercase tracking-wider flex items-center gap-1.5 shadow-2xs ${
                 checkedIn
                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400'
                   : 'bg-amber-500/10 text-amber-600 border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-400'
@@ -2167,9 +2167,9 @@ function EmployeeDashboard({
               </span>
             </div>
 
-            <div className="flex items-center justify-between my-6">
+            <div className="flex items-center justify-between my-5">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#07518a] dark:text-sky-400">
                   WORKING HOURS TODAY
                 </p>
                 <div className="flex items-baseline gap-1 mt-1.5">
@@ -2188,63 +2188,26 @@ function EmployeeDashboard({
               </div>
 
               {/* Fingerprint Graphic */}
-              <div className="w-15 h-15 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-blue-500/10 dark:from-indigo-500/20 dark:to-blue-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shadow-md shrink-0 group-hover:scale-105 transition-transform duration-300">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+              <div className="w-14 h-14 rounded-2xl bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-sky-400 border border-[#07518a]/20 flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform duration-300">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11c0 1.341.17 2.643.49 3.882" />
                 </svg>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-2 pt-2">
-            {punchMsg && (
-              <div className={`p-2.5 rounded-xl text-[11px] font-extrabold flex items-center justify-between border shadow-2xs ${
-                punchMsg.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  : 'bg-rose-50 text-rose-800 border-rose-200'
-              }`}>
-                <span>{punchMsg.text}</span>
-                <button onClick={() => setPunchMsg(null)} className="text-xs font-bold px-1 cursor-pointer">&times;</button>
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              {isSuperAdmin ? (
-                <div className="flex-1 py-3 px-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] font-extrabold flex items-center justify-center gap-2">
-                  <span>👑</span>
-                  <span>SuperAdmin Accounts Are Exempt From Attendance Punching</span>
-                </div>
-              ) : (
-                <button
-                  onClick={openMarkAttendanceModal}
-                  disabled={punching}
-                  className={`flex-1 py-3 px-5 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-md disabled:opacity-60 ${
-                    checkedIn
-                      ? 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-rose-500/20'
-                      : 'bg-gradient-to-r from-indigo-600 via-indigo-650 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-indigo-500/25'
-                  }`}
-                >
-                  {punching ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Punching...
-                    </span>
-                  ) : (
-                    <span>{checkedIn ? 'CHECK-OUT NOW' : 'PUNCH CHECK-IN'}</span>
-                  )}
-                </button>
-              )}
-
-              {canViewAttendance && (
-                <Link
-                  href="/dashboard/attendance"
-                  className="py-3 px-4 rounded-2xl text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-center flex items-center justify-center shadow-xs"
-                >
-                  TIMELINE
-                </Link>
-              )}
+          {/* Attendance Link */}
+          {canViewAttendance && (
+            <div className="pt-2">
+              <Link
+                href="/dashboard/attendance"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:text-[#07518a] dark:hover:text-sky-400 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 transition-all text-center flex items-center justify-center gap-1.5 shadow-2xs"
+              >
+                <span>View Attendance Timeline</span>
+                <span>→</span>
+              </Link>
             </div>
-          </div>
+          )}
         </div>
 
       </div>
@@ -2409,7 +2372,7 @@ function EmployeeDashboard({
                 </div>
               </div>
 
-              {/* Single Unified Month & Year Selection Control (Past & Current Months Only) */}
+              {/* Single Unified Month & Year Selection Control (Past 12 Months) */}
               {(() => {
                 const realNow = new Date();
                 const currentRealMonth = realNow.getMonth();
@@ -2418,15 +2381,20 @@ function EmployeeDashboard({
                 const isMaxMonth = currentDate.getFullYear() > currentRealYear || 
                   (currentDate.getFullYear() === currentRealYear && currentDate.getMonth() >= currentRealMonth);
 
+                const minAllowedDate = new Date(currentRealYear, currentRealMonth - 11, 1);
+                const isMinMonth = currentDate.getFullYear() < minAllowedDate.getFullYear() ||
+                  (currentDate.getFullYear() === minAllowedDate.getFullYear() && currentDate.getMonth() <= minAllowedDate.getMonth());
+
+                // Back 12 months from current month
                 const monthYearOptions: Array<{ val: string; label: string }> = [];
-                for (let yr = 2024; yr <= currentRealYear; yr++) {
-                  const maxM = (yr === currentRealYear) ? currentRealMonth : 11;
-                  for (let mIdx = 0; mIdx <= maxM; mIdx++) {
-                    monthYearOptions.push({
-                      val: `${mIdx}-${yr}`,
-                      label: `${monthNames[mIdx]} ${yr}`
-                    });
-                  }
+                for (let i = 0; i < 12; i++) {
+                  const d = new Date(currentRealYear, currentRealMonth - i, 1);
+                  const mIdx = d.getMonth();
+                  const yr = d.getFullYear();
+                  monthYearOptions.push({
+                    val: `${mIdx}-${yr}`,
+                    label: `${monthNames[mIdx]} ${yr}`
+                  });
                 }
 
                 return (
@@ -2434,21 +2402,30 @@ function EmployeeDashboard({
                     <button
                       onClick={() => setCurrentDate(new Date())}
                       title="Jump to Current Month"
-                      className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase bg-indigo-500/10 text-indigo-650 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all cursor-pointer shadow-2xs"
+                      className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase bg-[#07518a]/10 text-[#07518a] dark:bg-[#07518a]/20 dark:text-[#38bdf8] border border-[#07518a]/20 hover:bg-[#07518a]/20 transition-all cursor-pointer shadow-2xs"
                     >
                       Today
                     </button>
 
                     <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/90 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
                       <button
-                        onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-                        className="w-7 h-7 flex items-center justify-center text-xs font-black text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs rounded-lg transition-all cursor-pointer border-0 outline-none"
-                        title="Previous Month"
+                        disabled={isMinMonth}
+                        onClick={() => {
+                          if (!isMinMonth) {
+                            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+                          }
+                        }}
+                        className={`w-7 h-7 flex items-center justify-center text-xs font-black rounded-lg transition-all border-0 outline-none ${
+                          isMinMonth
+                            ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-40'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:shadow-2xs cursor-pointer'
+                        }`}
+                        title={isMinMonth ? "Limit reached (Past 12 months)" : "Previous Month"}
                       >
                         ‹
                       </button>
 
-                      {/* Single Unified Dropdown: Past up to Current Month ONLY */}
+                      {/* Single Unified Dropdown: Past 12 Months up to Current Month */}
                       <select
                         value={`${currentDate.getMonth()}-${currentDate.getFullYear()}`}
                         onChange={(e) => {

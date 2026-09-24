@@ -13,10 +13,11 @@ export interface TooltipProps {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  className?: string;
   children: React.ReactNode;
 }
 
-export function Tooltip({ open: controlledOpen, defaultOpen = false, onOpenChange, children }: TooltipProps) {
+export function Tooltip({ open: controlledOpen, defaultOpen = false, onOpenChange, className = '', children }: TooltipProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
@@ -31,7 +32,7 @@ export function Tooltip({ open: controlledOpen, defaultOpen = false, onOpenChang
 
   return (
     <TooltipContext.Provider value={{ open, setOpen }}>
-      <div className="relative inline-block group">{children}</div>
+      <div className={`relative inline-block group ${className}`}>{children}</div>
     </TooltipContext.Provider>
   );
 }

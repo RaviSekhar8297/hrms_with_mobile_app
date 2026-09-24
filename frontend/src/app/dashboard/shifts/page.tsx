@@ -547,15 +547,15 @@ export default function ShiftsPage() {
           <span>⚠️</span> You don't have permission to access any Shifts modules.
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2.5 p-2 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-fit shadow-xs">
+        <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center gap-1 font-sans overflow-x-auto no-scrollbar max-w-fit">
           {visibleTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => { setActiveTab(tab.id); setSearchQuery(''); }}
-              className={`px-5 py-2.5 rounded-xl text-xs font-bold tracking-normal transition-all duration-200 cursor-pointer border ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer border-0 ${
                 activeTab === tab.id
-                  ? 'bg-[#07518a] text-white border-[#07518a] shadow-md shadow-[#07518a]/25 ring-2 ring-[#07518a]/20'
-                  : 'bg-white dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:border-[#07518a] hover:text-[#07518a] dark:hover:text-[#38bdf8] hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs'
+                  ? 'bg-[#07518a] text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 font-semibold hover:text-[#07518a] dark:hover:text-[#38bdf8] hover:bg-white/60 dark:hover:bg-slate-700/60'
               }`}
             >
               {tab.label}

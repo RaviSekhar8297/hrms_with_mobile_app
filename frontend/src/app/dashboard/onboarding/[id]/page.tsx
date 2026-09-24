@@ -384,21 +384,21 @@ export default function CandidateOnboardingDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-500">
-        <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
-        <span className="text-xs font-extrabold uppercase tracking-wider">Syncing Candidate File...</span>
+      <div className="p-16 text-center space-y-3">
+        <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Candidate Profile...</p>
       </div>
     );
   }
 
   if (!record) {
     return (
-      <div className="p-8 text-center bg-slate-50 dark:bg-slate-950 min-h-screen font-sans flex flex-col items-center justify-center">
+      <div className="p-8 text-center bg-slate-50 dark:bg-slate-950 min-h-[400px] font-sans flex flex-col items-center justify-center">
         <span className="text-4xl mb-2">📁</span>
         <p className="text-base font-bold text-slate-800 dark:text-slate-200">Candidate Record Not Found</p>
         <button
           onClick={() => router.push('/dashboard/onboarding')}
-          className="mt-4 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-md"
+          className="mt-4 px-5 py-2.5 bg-[#07518a] hover:bg-[#064270] text-white font-bold text-xs rounded-xl cursor-pointer shadow-md"
         >
           ← Back to Candidate Onboarding Portal
         </button>
@@ -430,14 +430,14 @@ export default function CandidateOnboardingDetailPage() {
   const currentPct = getProgressPercentage(record.onboarding_status);
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans p-6 sm:p-8 space-y-6 text-left">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans space-y-6 text-left">
       
       {/* TOP ACTION TOOLBAR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
         
         <button
           onClick={() => router.push('/dashboard/onboarding')}
-          className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-fit"
+          className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-2 w-fit shadow-xs"
         >
           <span>←</span> Back to Candidate List
         </button>
@@ -449,7 +449,7 @@ export default function CandidateOnboardingDetailPage() {
             <button
               onClick={openOfferDrawer}
               disabled={processingAction === 'offer'}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-[#07518a]/20 disabled:opacity-50 flex items-center gap-2"
             >
               {processingAction === 'offer' ? (
                 <>
@@ -482,11 +482,11 @@ export default function CandidateOnboardingDetailPage() {
               <button
                 onClick={handleSendOnboardingLink}
                 disabled={processingAction === 'link'}
-                className="px-4 py-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 text-xs font-extrabold rounded-xl hover:bg-blue-100 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] border border-[#07518a]/30 text-xs font-extrabold rounded-xl hover:bg-[#07518a]/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
               >
                 {processingAction === 'link' ? (
                   <>
-                    <span className="w-3.5 h-3.5 border-2 border-blue-600/30 border-t-blue-600 dark:border-blue-300/30 dark:border-t-blue-300 rounded-full animate-spin" />
+                    <span className="w-3.5 h-3.5 border-2 border-[#07518a]/30 border-t-[#07518a] dark:border-[#38bdf8]/30 dark:border-t-[#38bdf8] rounded-full animate-spin" />
                     <span>Sending Link...</span>
                   </>
                 ) : (
@@ -506,7 +506,7 @@ export default function CandidateOnboardingDetailPage() {
                 {!showHrActions ? (
                   <button
                     onClick={() => setShowHrActions(true)}
-                    className="px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-purple-600/20 border-0 group"
+                    className="px-3.5 py-2 bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-[#07518a]/20 border-0 group"
                   >
                     <span className="group-hover:rotate-180 transition-transform duration-500">⚙️</span>
                     <span className="font-extrabold tracking-tight">Actions</span>
@@ -530,7 +530,7 @@ export default function CandidateOnboardingDetailPage() {
                     <button
                       onClick={handleSendOnboardingLink}
                       disabled={processingAction === 'link'}
-                      className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-extrabold rounded-lg transition-all cursor-pointer shadow-xs"
+                      className="px-3 py-1.5 bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold rounded-lg transition-all cursor-pointer shadow-xs"
                     >
                       🔄 Resend Link
                     </button>
@@ -561,7 +561,7 @@ export default function CandidateOnboardingDetailPage() {
                 <button
                   onClick={handleVerifyDocs}
                   disabled={processingAction === 'verify_docs'}
-                  className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-indigo-600/20 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs rounded-xl transition-all shadow-md shadow-[#07518a]/20 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
                   <span>🛡️</span> {processingAction === 'verify_docs' ? 'Verifying...' : 'Verify & Approve Documents'}
                 </button>
@@ -603,7 +603,7 @@ export default function CandidateOnboardingDetailPage() {
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-3">
           <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-indigo-600 animate-pulse" />
+            <span className="h-3 w-3 rounded-full bg-[#07518a] animate-pulse" />
             <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-white font-outfit">
               Candidate Onboarding Lifecycle Progress
             </h2>
@@ -617,7 +617,7 @@ export default function CandidateOnboardingDetailPage() {
                 <select
                   value={senderEmail}
                   onChange={(e) => setSenderEmail(e.target.value)}
-                  className="bg-transparent text-xs font-black text-indigo-600 dark:text-indigo-400 outline-none cursor-pointer pr-1"
+                  className="bg-transparent text-xs font-black text-[#07518a] dark:text-[#38bdf8] outline-none cursor-pointer pr-1"
                 >
                   {availableSenders.map((s, idx) => (
                     <option key={s.id || s.email || idx} value={s.email || s.from_email} className="text-slate-900 bg-white dark:bg-slate-900 font-bold">
@@ -632,7 +632,7 @@ export default function CandidateOnboardingDetailPage() {
               )}
             </div>
 
-            <span className="text-xs font-mono font-extrabold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-3 py-1 rounded-full border border-indigo-200/50">
+            <span className="text-xs font-mono font-extrabold text-[#07518a] dark:text-[#38bdf8] bg-[#07518a]/10 dark:bg-[#07518a]/20 px-3 py-1 rounded-full border border-[#07518a]/20">
               {currentPct}% Completed
             </span>
           </div>
@@ -644,7 +644,7 @@ export default function CandidateOnboardingDetailPage() {
           {/* Background Connecting Track Line */}
           <div className="absolute top-8 left-8 right-8 h-2 bg-slate-100 dark:bg-slate-800 rounded-full z-0 overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 transition-all duration-700 rounded-full shadow-md"
+              className="h-full bg-gradient-to-r from-[#07518a] via-blue-500 to-emerald-500 transition-all duration-700 rounded-full shadow-md"
               style={{ width: `${currentPct}%` }}
             />
           </div>
@@ -656,7 +656,7 @@ export default function CandidateOnboardingDetailPage() {
             <div className="flex flex-col items-center group">
               <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm transition-all duration-300 shadow-md ${
                 isOfferSent 
-                  ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 dark:ring-indigo-950 scale-105' 
+                  ? 'bg-[#07518a] text-white ring-4 ring-[#07518a]/20 scale-105' 
                   : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
               }`}>
                 {isOfferSent ? '✓' : '1'}
@@ -679,7 +679,7 @@ export default function CandidateOnboardingDetailPage() {
                       ⏳ Acceptance Pending
                     </span>
                   )}
-                  <span className="text-[9px] font-mono font-extrabold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md mt-1 border border-indigo-100/50">
+                  <span className="text-[9px] font-mono font-extrabold text-[#07518a] dark:text-[#38bdf8] bg-[#07518a]/10 dark:bg-[#07518a]/20 px-2 py-0.5 rounded-md mt-1 border border-[#07518a]/20">
                     {formatStepDate(record.created_at)}
                   </span>
                 </>
@@ -687,7 +687,7 @@ export default function CandidateOnboardingDetailPage() {
                 <button
                   onClick={openOfferDrawer}
                   disabled={processingAction === 'offer'}
-                  className="mt-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                  className="mt-1.5 px-3 py-1 bg-[#07518a] hover:bg-[#064270] text-white text-[10px] font-black rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {processingAction === 'offer' ? (
                     <>
@@ -707,24 +707,26 @@ export default function CandidateOnboardingDetailPage() {
             <div className="flex flex-col items-center group">
               <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm transition-all duration-300 shadow-md ${
                 isLinkSent 
-                  ? 'bg-blue-600 text-white ring-4 ring-blue-100 dark:ring-blue-950 scale-105' 
+                  ? 'bg-[#07518a] text-white ring-4 ring-[#07518a]/20 scale-105' 
                   : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
               }`}>
                 {isLinkSent ? '✓' : '2'}
               </div>
-              <span className="text-xs font-extrabold mt-2 text-slate-900 dark:text-slate-100 font-outfit">2. Onboarding</span>
+              <span className="text-xs font-extrabold mt-2 text-slate-900 dark:text-slate-100 font-outfit">2. Portal Link</span>
               {isLinkSent ? (
                 <>
-                  <span className="text-[10px] font-bold text-slate-400">Portal Invite Sent</span>
-                  <span className="text-[9px] font-mono font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md mt-1 border border-blue-100/50">
-                    {formatStepDate(record.link_sent_at || record.created_at)}
+                  <span className="text-[10px] font-bold text-slate-400">Magic Link Sent</span>
+                  <span className="text-[9px] font-mono font-extrabold text-[#07518a] dark:text-[#38bdf8] bg-[#07518a]/10 dark:bg-[#07518a]/20 px-2 py-0.5 rounded-md mt-1 border border-[#07518a]/20">
+                    {formatStepDate(record.link_sent_at || record.updated_at)}
                   </span>
                 </>
-              ) : isOfferSent ? (
+              ) : !isOfferSent ? (
+                <span className="text-[10px] font-bold text-slate-400 mt-1">🔒 Locked (Offer 1st)</span>
+              ) : (
                 <button
                   onClick={handleSendOnboardingLink}
                   disabled={processingAction === 'link'}
-                  className="mt-1.5 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                  className="mt-1.5 px-3 py-1 bg-[#07518a] hover:bg-[#064270] text-white text-[10px] font-black rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1"
                 >
                   {processingAction === 'link' ? (
                     <>
@@ -733,20 +735,20 @@ export default function CandidateOnboardingDetailPage() {
                     </>
                   ) : (
                     <>
-                      <span>🔗</span> Send Onboarding Link
+                      <span>🔗</span> Send Portal Link
                     </>
                   )}
                 </button>
-              ) : (
-                <span className="text-[10px] font-bold text-slate-400 mt-1">🔒 Offer Pending</span>
               )}
             </div>
 
             {/* Step 3 */}
             <div className="flex flex-col items-center group">
               <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm transition-all duration-300 shadow-md ${
-                hasSubmittedDocs 
-                  ? 'bg-amber-600 text-white ring-4 ring-amber-100 dark:ring-amber-950 scale-105' 
+                isDocsApproved 
+                  ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 dark:ring-emerald-950 scale-105 shadow-emerald-500/30' 
+                  : hasSubmittedDocs 
+                  ? 'bg-amber-500 text-white ring-4 ring-amber-100 dark:ring-amber-950 scale-105' 
                   : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
               }`}>
                 {isDocsApproved ? '✓' : '3'}
@@ -809,7 +811,7 @@ export default function CandidateOnboardingDetailPage() {
         
         <div className="flex items-center gap-6">
           {/* Avatar with Glow */}
-          <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-700 text-white font-black text-3xl flex items-center justify-center shadow-lg shrink-0 font-outfit relative">
+          <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-[#07518a] via-blue-700 to-[#064270] text-white font-black text-3xl flex items-center justify-center shadow-lg shrink-0 font-outfit relative">
             {(record.candidate_name || 'C').charAt(0).toUpperCase()}
             <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-3 border-white dark:border-slate-900" title="Active Candidate" />
           </div>
@@ -819,7 +821,7 @@ export default function CandidateOnboardingDetailPage() {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-outfit tracking-tight">
                 {record.candidate_name || 'Candidate Record'}
               </h1>
-              <span className="px-3 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-mono font-bold text-xs border border-indigo-200/50 dark:border-indigo-800/40">
+              <span className="px-3 py-1 rounded-md bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] font-mono font-bold text-xs border border-[#07518a]/20">
                 {record.onboarding_code}
               </span>
             </div>
@@ -829,7 +831,7 @@ export default function CandidateOnboardingDetailPage() {
             </p>
 
             <div className="pt-1 flex items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-slate-700">
+              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-slate-100 dark:bg-slate-800 text-[#07518a] dark:text-[#38bdf8] border border-slate-200 dark:border-slate-700">
                 💼 Offered Role: <strong className="text-slate-900 dark:text-white">{record.job_title || 'AI & ML Lead'}</strong>
               </span>
             </div>
@@ -863,8 +865,8 @@ export default function CandidateOnboardingDetailPage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/60 dark:border-slate-700'
-                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                  ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/20'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
               }`}
             >
               <span className="text-sm">{tab.icon}</span>
@@ -881,7 +883,7 @@ export default function CandidateOnboardingDetailPage() {
         {activeTab === 'verification' && (
           (!subData.pan_number && !subData.aadhar_number && !subData.current_address && !emergencyInfo.name) ? (
             <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 space-y-3 shadow-2xs">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 text-3xl flex items-center justify-center mx-auto">
+              <div className="w-16 h-16 rounded-2xl bg-[#07518a]/10 text-[#07518a] text-3xl flex items-center justify-center mx-auto">
                 🪪
               </div>
               <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-200">No Verification Details Submitted Yet</h3>
@@ -923,7 +925,7 @@ export default function CandidateOnboardingDetailPage() {
                         {docsObj.pan_card && docsObj.pan_card.data && (
                           <button
                             onClick={() => setPreviewDoc({ title: 'PAN Card Proof', file: docsObj.pan_card })}
-                            className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-extrabold rounded-xl transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+                            className="px-3 py-1.5 bg-[#07518a]/10 hover:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] border border-[#07518a]/20 text-xs font-extrabold rounded-xl transition-all cursor-pointer shadow-2xs flex items-center gap-1"
                           >
                             <span>👁️</span> View File
                           </button>
@@ -954,7 +956,7 @@ export default function CandidateOnboardingDetailPage() {
                         {docsObj.aadhar_card && docsObj.aadhar_card.data && (
                           <button
                             onClick={() => setPreviewDoc({ title: 'Aadhaar Card Proof', file: docsObj.aadhar_card })}
-                            className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-extrabold rounded-xl transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+                            className="px-3 py-1.5 bg-[#07518a]/10 hover:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] border border-[#07518a]/20 text-xs font-extrabold rounded-xl transition-all cursor-pointer shadow-2xs flex items-center gap-1"
                           >
                             <span>👁️</span> View File
                           </button>
@@ -980,7 +982,7 @@ export default function CandidateOnboardingDetailPage() {
                       Residential Address & Emergency Nominee
                     </h3>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 border border-indigo-200">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#07518a]/10 text-[#07518a] dark:text-[#38bdf8] border border-[#07518a]/20">
                     PRIMARY RESIDENCE
                   </span>
                 </div>
@@ -1006,7 +1008,7 @@ export default function CandidateOnboardingDetailPage() {
                       {emergencyInfo.phone && (
                         <a
                           href={`tel:${emergencyInfo.phone}`}
-                          className="font-mono font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-3 py-1.5 rounded-xl border border-indigo-200/60 hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
+                          className="font-mono font-black text-[#07518a] dark:text-[#38bdf8] bg-[#07518a]/10 dark:bg-[#07518a]/20 px-3 py-1.5 rounded-xl border border-[#07518a]/20 hover:bg-[#07518a]/20 transition-colors flex items-center gap-1.5"
                         >
                           <span>📞</span> {emergencyInfo.phone}
                         </a>
@@ -1033,7 +1035,7 @@ export default function CandidateOnboardingDetailPage() {
                     Compliance documents, proof of identity, educational certificates, and salary slips submitted by candidate.
                   </p>
                 </div>
-                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 border border-indigo-200 w-fit">
+                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] border border-[#07518a]/20 w-fit">
                   {submittedDocList.length} Files Attached
                 </span>
               </div>
@@ -1051,12 +1053,12 @@ export default function CandidateOnboardingDetailPage() {
                   {submittedDocList.map((docItem) => (
                     <div
                       key={docItem.key}
-                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-5 space-y-4 shadow-2xs hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex flex-col justify-between"
+                      className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-5 space-y-4 shadow-2xs hover:border-[#07518a]/40 dark:hover:border-[#07518a]/50 transition-all flex flex-col justify-between"
                     >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-2xl">{docItem.icon}</span>
-                          <span className="text-[10px] font-mono font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                          <span className="text-[10px] font-mono font-bold bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] px-2.5 py-0.5 rounded-full border border-[#07518a]/20">
                             {docItem.category}
                           </span>
                         </div>
@@ -1088,7 +1090,7 @@ export default function CandidateOnboardingDetailPage() {
                       <div className="pt-2 flex items-center gap-2">
                         <button
                           onClick={() => setPreviewDoc({ title: docItem.label, file: docItem.file })}
-                          className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl transition-colors cursor-pointer shadow-2xs flex items-center justify-center gap-1"
+                          className="flex-1 py-2 bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs rounded-xl transition-colors cursor-pointer shadow-2xs flex items-center justify-center gap-1"
                         >
                           <span>👁️</span> View
                         </button>
@@ -1135,9 +1137,9 @@ export default function CandidateOnboardingDetailPage() {
               </div>
               
               {/* Metallic Luxury Card */}
-              <div className="p-7 rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white space-y-5 border border-white/10 shadow-2xl relative overflow-hidden">
+              <div className="p-7 rounded-3xl bg-gradient-to-br from-slate-900 via-[#07518a]/80 to-slate-900 text-white space-y-5 border border-white/10 shadow-2xl relative overflow-hidden">
                 <div className="flex justify-between items-center relative z-10">
-                  <span className="text-base font-black uppercase tracking-wider text-indigo-300 font-outfit">
+                  <span className="text-base font-black uppercase tracking-wider text-sky-300 font-outfit">
                     {bankInfo.bank_name || 'PRIMARY BANK'}
                   </span>
                   <span className="text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full border border-emerald-400/30">
@@ -1161,8 +1163,8 @@ export default function CandidateOnboardingDetailPage() {
                 </div>
 
                 <div className="flex justify-between text-xs pt-4 border-white/10 relative z-10">
-                  <span>IFSC Code: <strong className="font-mono text-indigo-200 text-sm font-black">{bankInfo.ifsc_code || 'N/A'}</strong></span>
-                  <span>Branch: <strong className="font-bold text-indigo-200">{bankInfo.branch_name || 'Main Branch'}</strong></span>
+                  <span>IFSC Code: <strong className="font-mono text-sky-200 text-sm font-black">{bankInfo.ifsc_code || 'N/A'}</strong></span>
+                  <span>Branch: <strong className="font-bold text-sky-200">{bankInfo.branch_name || 'Main Branch'}</strong></span>
                 </div>
               </div>
             </div>
@@ -1183,7 +1185,7 @@ export default function CandidateOnboardingDetailPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleDownloadFile(previewDoc.file.name, previewDoc.file.data)}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs flex items-center gap-1.5"
+                  className="px-4 py-2 bg-[#07518a] hover:bg-[#064270] text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs flex items-center gap-1.5"
                 >
                   <span>⬇️</span> Download File
                 </button>
@@ -1207,7 +1209,7 @@ export default function CandidateOnboardingDetailPage() {
                   <p className="text-sm font-bold text-slate-700 dark:text-slate-300">File Preview Not Directly Embeddable</p>
                   <button
                     onClick={() => handleDownloadFile(previewDoc.file.name, previewDoc.file.data)}
-                    className="px-5 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl cursor-pointer shadow-md"
+                    className="px-5 py-2.5 bg-[#07518a] hover:bg-[#064270] text-white font-bold text-xs rounded-xl cursor-pointer shadow-md"
                   >
                     Download & View File ({previewDoc.file.name})
                   </button>
@@ -1253,7 +1255,7 @@ export default function CandidateOnboardingDetailPage() {
                   placeholder="e.g. Please re-upload a clear copy of your PAN Card and Month 3 Payslip. The previous upload was blurry."
                   value={reuploadNotes}
                   onChange={(e) => setReuploadNotes(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 transition-all resize-none"
                 />
               </div>
 
@@ -1261,7 +1263,7 @@ export default function CandidateOnboardingDetailPage() {
                 <button
                   type="button"
                   onClick={() => setIsReuploadModalOpen(false)}
-                  className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 font-extrabold text-xs rounded-xl cursor-pointer"
+                  className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-extrabold text-xs rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1286,7 +1288,7 @@ export default function CandidateOnboardingDetailPage() {
             {/* Drawer Header */}
             <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/80">
               <div className="flex items-center gap-3">
-                <span className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg font-bold">
+                <span className="w-9 h-9 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] flex items-center justify-center text-lg font-bold">
                   📝
                 </span>
                 <div>
@@ -1311,8 +1313,8 @@ export default function CandidateOnboardingDetailPage() {
               
               {/* Left Column: Form Controls (5 cols) */}
               <div className="lg:col-span-5 space-y-4">
-                <div className="bg-indigo-50/60 dark:bg-indigo-950/40 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 space-y-3">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
+                <div className="bg-[#07518a]/5 dark:bg-[#07518a]/10 p-4 rounded-2xl border border-[#07518a]/20 space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8] flex items-center gap-1.5">
                     <span>⚙️</span> Email Dispatch Settings
                   </h4>
 
@@ -1324,7 +1326,7 @@ export default function CandidateOnboardingDetailPage() {
                     <select
                       value={senderEmail}
                       onChange={(e) => setSenderEmail(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-[#07518a]"
                     >
                       {availableSenders.map((s, idx) => (
                         <option key={s.id || s.email || idx} value={s.email || s.from_email}>
@@ -1350,7 +1352,7 @@ export default function CandidateOnboardingDetailPage() {
                       value={customDesignation}
                       onChange={(e) => setCustomDesignation(e.target.value)}
                       placeholder="e.g. Senior Software Engineer"
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-[#07518a]"
                     />
                   </div>
 
@@ -1363,7 +1365,7 @@ export default function CandidateOnboardingDetailPage() {
                         type="date"
                         value={customJoiningDate}
                         onChange={(e) => setCustomJoiningDate(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-[#07518a]"
                       />
                     </div>
                     <div>
@@ -1374,7 +1376,7 @@ export default function CandidateOnboardingDetailPage() {
                         type="text"
                         value={customWorkLocation}
                         onChange={(e) => setCustomWorkLocation(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-[#07518a]"
                       />
                     </div>
                   </div>
@@ -1388,7 +1390,7 @@ export default function CandidateOnboardingDetailPage() {
                       value={customMessage}
                       onChange={(e) => setCustomMessage(e.target.value)}
                       placeholder="Edit main email body text, compensation terms, or correct spelling errors here..."
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500 resize-none"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-[#07518a] resize-none"
                     />
                   </div>
                 </div>
@@ -1418,7 +1420,7 @@ export default function CandidateOnboardingDetailPage() {
                     <p><strong>To:</strong> <strong className="text-slate-900">{record.candidate_name || record.candidate_email}</strong></p>
                   </div>
 
-                  <div className="border-l-4 border-indigo-600 pl-3 py-1 font-black text-indigo-950 text-xs">
+                  <div className="border-l-4 border-[#07518a] pl-3 py-1 font-black text-[#07518a] text-xs">
                     Subject: Offer of Employment – {customDesignation || record.job_title || 'Position'}
                   </div>
 
@@ -1426,17 +1428,17 @@ export default function CandidateOnboardingDetailPage() {
 
                   <p>We are pleased to offer you employment with <strong>Brihaspathi Technologies Limited</strong> for the position of <strong>{customDesignation || record.job_title || 'Position'}</strong>.</p>
 
-                  <div className="border-l-3 border-blue-500 pl-3 py-1 space-y-1 font-bold">
-                    <p>📅 Proposed Date of Joining: <span className="text-indigo-600">{customJoiningDate ? new Date(customJoiningDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'As per mutual agreement'}</span></p>
-                    <p>📍 Place of Work: <span className="text-indigo-600">{customWorkLocation || 'Corporate Office, Hyderabad'}</span></p>
+                  <div className="border-l-3 border-[#07518a] pl-3 py-1 space-y-1 font-bold">
+                    <p>📅 Proposed Date of Joining: <span className="text-[#07518a]">{customJoiningDate ? new Date(customJoiningDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'As per mutual agreement'}</span></p>
+                    <p>📍 Place of Work: <span className="text-[#07518a]">{customWorkLocation || 'Corporate Office, Hyderabad'}</span></p>
                   </div>
 
                   <div className="text-slate-700 dark:text-slate-300 text-xs font-medium leading-relaxed my-3 whitespace-pre-wrap">
                     {customMessage || 'Your compensation and other employment benefits will be as discussed and agreed upon during the selection process. The detailed terms and conditions of your employment will be provided as part of your appointment and joining formalities.'}
                   </div>
 
-                  <div className="text-center py-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
-                    <span className="inline-block bg-indigo-600 text-white font-extrabold px-6 py-2 rounded-xl text-xs shadow-xs">
+                  <div className="text-center py-3 bg-[#07518a]/5 rounded-xl border border-[#07518a]/20">
+                    <span className="inline-block bg-[#07518a] text-white font-extrabold px-6 py-2 rounded-xl text-xs shadow-xs">
                       👍 Accept Offer Letter
                     </span>
                     <p className="text-[10px] text-slate-500 mt-2 font-bold px-4">
@@ -1466,7 +1468,7 @@ export default function CandidateOnboardingDetailPage() {
                 type="button"
                 onClick={handleSendOfferLetter}
                 disabled={processingAction === 'offer'}
-                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-indigo-600/20 cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2.5 bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs rounded-xl shadow-lg shadow-[#07518a]/20 cursor-pointer disabled:opacity-50 flex items-center gap-2"
               >
                 {processingAction === 'offer' ? (
                   <>

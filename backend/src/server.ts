@@ -4822,6 +4822,239 @@ app.delete('/api/v1/attendance/device-api-keys/:id', authenticateToken, async (r
   }
 });
 
+// Compatibility route aliases
+app.get('/api/v1/attendance/device-binding/list', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
+  const companyIdRaw = isSuperAdmin ? (req.query.companyId || req.query.company_id) : req.user?.companyId;
+  const companyId = (companyIdRaw === 'ALL' || companyIdRaw === 'undefined' || companyIdRaw === 'null' || !companyIdRaw) ? null : String(companyIdRaw);
+
+  try {
+    const scopeCtx = await getEmployeeDataScope(req, 'attendance', 'view_employee_devices');
+    let sql = `
+      SELECT 
+        e.id as employee_id,
+        e.emp_id_code,
+        e.first_name,
+        e.last_name,
+        e.email,
+        d.name as department_name,
+        des.name as designation_name,
+        ed.id as device_id,
+        ed.device_identifier,
+        ed.device_model,
+        CASE 
+          WHEN ed.id IS NOT NULL AND (ed.status = 'ACTIVE' OR ed.status = 'COMPLETED') THEN 'COMPLETED'
+          ELSE 'PENDING'
+        END as binding_status,
+        ed.created_at as registered_at
+      FROM hrms.employees e
+      LEFT JOIN hrms.departments d ON e.department_id = d.id
+      LEFT JOIN hrms.designations des ON e.designation_id = des.id
+      LEFT JOIN hrms.employee_devices ed ON e.id = ed.employee_id
+    `;
+    const params: any[] = [];
+    const whereClauses: string[] = [];
+
+    if (companyId) {
+      params.push(companyId);
+      whereClauses.push(`e.company_id = $${params.length}`);
+    }
+
+    const scopeCond = buildDataScopeCondition(scopeCtx, 'e', 'id', params.length + 1);
+    if (scopeCond.whereSql) {
+      whereClauses.push(scopeCond.whereSql);
+      params.push(...scopeCond.params);
+    }
+
+    if (whereClauses.length > 0) {
+      sql += ` WHERE ` + whereClauses.join(' AND ');
+    }
+
+    sql += ` ORDER BY e.first_name ASC, e.last_name ASC`;
+    const result = await query(sql, params);
+    return res.json({ devices: result.rows, dataScope: scopeCtx.dataScope });
+  } catch (err) {
+    console.error('Error in device-binding/list alias:', err);
+    return res.status(500).json({ error: 'Failed to fetch device bindings' });
+  }
+});
+
+app.post('/api/v1/attendance/device-binding/reset/:employeeId', authenticateToken, requirePermission('edit_employee_devices'), async (req: AuthenticatedRequest, res: Response) => {
+  const { employeeId } = req.params;
+  if (!employeeId) return res.status(400).json({ error: 'Employee ID is required' });
+
+  try {
+    await query(`DELETE FROM hrms.employee_devices WHERE employee_id = $1`, [employeeId]);
+    return res.json({ message: 'Device binding reset successfully' });
+  } catch (err) {
+    console.error('Error resetting device binding:', err);
+    return res.status(500).json({ error: 'Failed to reset device binding' });
+  }
+});
+
+app.get('/api/v1/attendance/device-binding/access-settings', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
+  const companyIdRaw = isSuperAdmin ? (req.query.companyId || req.query.company_id) : req.user?.companyId;
+  const companyId = (companyIdRaw === 'ALL' || companyIdRaw === 'undefined' || companyIdRaw === 'null' || !companyIdRaw) ? null : String(companyIdRaw);
+
+  try {
+    const scopeCtx = await getEmployeeDataScope(req, 'attendance', 'view_employee_devices');
+    let sql = `
+      SELECT 
+        e.id as employee_id,
+        e.emp_id_code,
+        e.first_name,
+        e.last_name,
+        e.email,
+        e.status as employee_status,
+        d.name as department_name,
+        des.name as designation_name,
+        COALESCE(ess.login_mode, 'BOTH') as login_mode,
+        COALESCE(ess.allow_web_punch, TRUE) as allow_web_punch,
+        COALESCE(ess.allow_mobile_punch, TRUE) as allow_mobile_punch,
+        COALESCE(ess.require_punch_approval, FALSE) as require_punch_approval,
+        COALESCE(ess.is_active, TRUE) as is_active,
+        ess.updated_at
+      FROM hrms.employees e
+      LEFT JOIN hrms.departments d ON e.department_id = d.id
+      LEFT JOIN hrms.designations des ON e.designation_id = des.id
+      LEFT JOIN hrms.employee_security_settings ess ON e.id = ess.employee_id
+    `;
+    const params: any[] = [];
+    const whereClauses: string[] = [];
+
+    if (companyId) {
+      params.push(companyId);
+      whereClauses.push(`e.company_id = $${params.length}`);
+    }
+
+    const scopeCond = buildDataScopeCondition(scopeCtx, 'e', 'id', params.length + 1);
+    if (scopeCond.whereSql) {
+      whereClauses.push(scopeCond.whereSql);
+      params.push(...scopeCond.params);
+    }
+
+    if (whereClauses.length > 0) {
+      sql += ` WHERE ` + whereClauses.join(' AND ');
+    }
+
+    sql += ` ORDER BY e.first_name ASC, e.last_name ASC`;
+    const result = await query(sql, params);
+    return res.json({ bindings: result.rows, dataScope: scopeCtx.dataScope });
+  } catch (err) {
+    console.error('Error in device-binding/access-settings alias:', err);
+    return res.status(500).json({ error: 'Failed to fetch access bindings' });
+  }
+});
+
+app.put('/api/v1/attendance/device-binding/access-settings/:employeeId', authenticateToken, requirePermission('edit_employee_devices'), async (req: AuthenticatedRequest, res: Response) => {
+  const { employeeId } = req.params;
+  const { login_mode, allow_web_punch, allow_mobile_punch, require_punch_approval, is_active } = req.body;
+
+  if (!employeeId) return res.status(400).json({ error: 'Employee ID is required' });
+
+  try {
+    const empCheck = await query('SELECT id, company_id FROM hrms.employees WHERE id = $1', [employeeId]);
+    if (empCheck.rows.length === 0) return res.status(404).json({ error: 'Employee not found' });
+    const compId = empCheck.rows[0].company_id;
+
+    const validLoginModes = ['NONE', 'WEB_ONLY', 'MOBILE_ONLY', 'BOTH'];
+    const safeLoginMode = validLoginModes.includes(login_mode) ? login_mode : 'BOTH';
+
+    const result = await query(`
+      INSERT INTO hrms.employee_security_settings (
+        company_id, employee_id, login_mode, allow_web_punch, allow_mobile_punch, require_punch_approval, is_active, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      ON CONFLICT (company_id, employee_id) DO UPDATE SET
+        login_mode = EXCLUDED.login_mode,
+        allow_web_punch = EXCLUDED.allow_web_punch,
+        allow_mobile_punch = EXCLUDED.allow_mobile_punch,
+        require_punch_approval = EXCLUDED.require_punch_approval,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *
+    `, [
+      compId,
+      employeeId,
+      safeLoginMode,
+      allow_web_punch !== undefined ? Boolean(allow_web_punch) : true,
+      allow_mobile_punch !== undefined ? Boolean(allow_mobile_punch) : true,
+      require_punch_approval !== undefined ? Boolean(require_punch_approval) : false,
+      is_active !== undefined ? Boolean(is_active) : true
+    ]);
+
+    return res.json({ message: 'Access settings updated successfully', settings: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating access binding alias:', err);
+    return res.status(500).json({ error: 'Failed to update access binding' });
+  }
+});
+
+app.get('/api/v1/attendance/device-binding/api-keys', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
+  const companyIdRaw = isSuperAdmin ? (req.query.companyId || req.query.company_id) : req.user?.companyId;
+  const companyId = (companyIdRaw === 'ALL' || companyIdRaw === 'undefined' || companyIdRaw === 'null' || !companyIdRaw) ? null : String(companyIdRaw);
+
+  try {
+    let sql = `SELECT id, company_id, device_name, api_key, allowed_ip, timezone, is_active, created_at FROM hrms.tenant_api_keys`;
+    const params: any[] = [];
+    if (companyId) {
+      params.push(companyId);
+      sql += ` WHERE company_id = $1`;
+    }
+    sql += ` ORDER BY created_at DESC`;
+
+    const result = await query(sql, params);
+    return res.json({ keys: result.rows });
+  } catch (err) {
+    console.error('Error fetching device API keys alias:', err);
+    return res.status(500).json({ error: 'Failed to fetch device API keys' });
+  }
+});
+
+app.post('/api/v1/attendance/device-binding/api-keys/generate', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
+  const companyId = isSuperAdmin ? (req.body.companyId || req.body.company_id) : req.user?.companyId;
+  const { device_name, allowed_ip, timezone } = req.body;
+
+  if (!companyId) {
+    return res.status(400).json({ error: 'Company ID is required to generate API Key.' });
+  }
+
+  try {
+    const randomHex = require('crypto').randomBytes(16).toString('hex');
+    const newApiKey = `hrms_live_sec_${randomHex}`;
+    const devName = device_name || 'Main Biometric Machine';
+    const tz = timezone || 'Asia/Kolkata';
+
+    const insertRes = await query(
+      `INSERT INTO hrms.tenant_api_keys (company_id, device_name, api_key, allowed_ip, timezone, is_active)
+       VALUES ($1, $2, $3, $4, $5, true) RETURNING *`,
+      [companyId, devName, newApiKey, allowed_ip || null, tz]
+    );
+
+    return res.status(201).json({
+      message: 'Device API Key generated successfully.',
+      key: insertRes.rows[0]
+    });
+  } catch (err) {
+    console.error('Error creating device API key alias:', err);
+    return res.status(500).json({ error: 'Failed to generate device API key' });
+  }
+});
+
+app.delete('/api/v1/attendance/device-binding/api-keys/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    await query(`DELETE FROM hrms.tenant_api_keys WHERE id = $1`, [id]);
+    return res.json({ message: 'Device API Key revoked successfully.' });
+  } catch (err) {
+    console.error('Error deleting device API key alias:', err);
+    return res.status(500).json({ error: 'Failed to revoke device API key' });
+  }
+});
+
 // 4. Public Unauthenticated Biometric Punch Webhook API
 app.post('/api/v1/attendance/public/device-punch', async (req: express.Request, res: express.Response) => {
   const apiKey = (req.headers['x-api-key'] || req.headers['authorization'] || req.body.api_key || req.query.api_key) as string;
@@ -6690,7 +6923,7 @@ app.get('/api/v1/attendance/regularizations', authenticateToken, async (req: Aut
     }
 
     let sql = `
-      SELECT ar.id, ar.employee_id, ar.attendance_date, ar.requested_in, ar.requested_out, ar.reason,
+      SELECT ar.id, ar.employee_id, ar.attendance_date, ar.requested_in, ar.requested_out, ar.punch_type, ar.reason,
              ar.attachment_url, ar.status, ar.approved_by, ar.approved_at, ar.remarks, ar.created_at,
              e.first_name, e.last_name, e.emp_id_code, e.company_id as company_id,
              appr.first_name as approved_by_first_name, appr.last_name as approved_by_last_name,
@@ -6738,31 +6971,101 @@ app.get('/api/v1/attendance/regularizations', authenticateToken, async (req: Aut
 
 app.post('/api/v1/attendance/regularizations', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-  const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
-  const { employee_id, attendance_date, requested_in, requested_out, reason } = req.body;
+  let companyId = isSuperAdmin ? (req.body.companyId || req.body.company_id || req.user?.companyId) : (req.user?.companyId || req.body.companyId || req.body.company_id);
+  let { employee_id, employeeId, attendance_date, requested_in, requested_out, punch_type, requested_time, reason } = req.body;
 
-  if (!companyId || !employee_id || !attendance_date || !reason) {
-    return res.status(400).json({ error: 'Required fields missing' });
+  let empId = employee_id || employeeId;
+
+  // Resolve employee ID if not explicitly passed
+  if (!empId) {
+    if (req.user?.employeeId) {
+      empId = req.user.employeeId;
+    } else if (req.user?.email) {
+      const empRes = await query("SELECT id, company_id FROM hrms.employees WHERE email = $1 AND status = 'ACTIVE' LIMIT 1", [req.user.email]);
+      if (empRes.rows.length > 0) {
+        empId = empRes.rows[0].id;
+        if (!companyId) companyId = empRes.rows[0].company_id;
+      }
+    }
+  }
+
+  // If still no companyId, find from employee
+  if (!companyId && empId) {
+    const empRes = await query('SELECT company_id FROM hrms.employees WHERE id = $1', [empId]);
+    if (empRes.rows.length > 0) {
+      companyId = empRes.rows[0].company_id;
+    }
+  }
+
+  if (punch_type && requested_time) {
+    if (punch_type === 'CHECK_IN') {
+      requested_in = requested_time;
+      requested_out = requested_out || null;
+    } else if (punch_type === 'CHECK_OUT') {
+      requested_out = requested_time;
+      requested_in = requested_in || null;
+    }
+  }
+
+  const effectivePunchType = punch_type || ((requested_in && requested_out) ? 'BOTH' : (requested_out ? 'CHECK_OUT' : 'CHECK_IN'));
+
+  if (!companyId || !empId || !attendance_date || !reason) {
+    return res.status(400).json({ error: 'Required fields missing: employee, company, attendance date, and reason are mandatory.' });
   }
 
   try {
-    const empCheck = await query('SELECT id FROM hrms.employees WHERE id = $1 AND company_id = $2', [employee_id, companyId]);
+    const empCheck = await query('SELECT id, company_id FROM hrms.employees WHERE id = $1', [empId]);
     if (empCheck.rows.length === 0) return res.status(400).json({ error: 'Invalid employee reference' });
 
-    const result = await query(
-      `INSERT INTO hrms.attendance_regularizations (employee_id, attendance_date, requested_in, requested_out, reason, status)
-       VALUES ($1, $2, $3, $4, $5, 'PENDING')
-       ON CONFLICT (employee_id, attendance_date)
-       DO UPDATE SET
-         requested_in = EXCLUDED.requested_in,
-         requested_out = EXCLUDED.requested_out,
-         reason = EXCLUDED.reason,
-         status = 'PENDING',
-         created_at = NOW()
-       RETURNING *`,
-      [employee_id, attendance_date, requested_in || null, requested_out || null, reason]
+    // Check for existing active (PENDING or APPROVED) regularization requests for the same date
+    const existingActive = await query(
+      `SELECT id, punch_type, requested_in, requested_out, status
+       FROM hrms.attendance_regularizations
+       WHERE employee_id = $1 AND attendance_date = $2 AND status IN ('PENDING', 'APPROVED')`,
+      [empId, attendance_date]
     );
-    logUserAction(req, 'APPLY_REGULARIZATION', 'Attendance Regularizations', `Submitted attendance regularization request for date ${attendance_date}`);
+
+    for (const ex of existingActive.rows) {
+      const exPunch = ex.punch_type || ((ex.requested_in && ex.requested_out) ? 'BOTH' : (ex.requested_out ? 'CHECK_OUT' : 'CHECK_IN'));
+      const st = ex.status.toLowerCase();
+      if (exPunch === 'BOTH') {
+        return res.status(400).json({
+          error: `A regularization request (Both In & Out Punch) for date ${attendance_date} is already ${st}.`
+        });
+      }
+      if (exPunch === 'CHECK_IN') {
+        if (effectivePunchType === 'CHECK_IN') {
+          return res.status(400).json({
+            error: `A Check-In regularization request for date ${attendance_date} is already ${st}.`
+          });
+        }
+        if (effectivePunchType === 'BOTH') {
+          return res.status(400).json({
+            error: `A Check-In request for date ${attendance_date} is already ${st}. You can only apply for Check-Out.`
+          });
+        }
+      }
+      if (exPunch === 'CHECK_OUT') {
+        if (effectivePunchType === 'CHECK_OUT') {
+          return res.status(400).json({
+            error: `A Check-Out regularization request for date ${attendance_date} is already ${st}.`
+          });
+        }
+        if (effectivePunchType === 'BOTH') {
+          return res.status(400).json({
+            error: `A Check-Out request for date ${attendance_date} is already ${st}. You can only apply for Check-In.`
+          });
+        }
+      }
+    }
+
+    const result = await query(
+      `INSERT INTO hrms.attendance_regularizations (employee_id, attendance_date, requested_in, requested_out, punch_type, reason, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING')
+       RETURNING *`,
+      [empId, attendance_date, requested_in || null, requested_out || null, effectivePunchType, reason]
+    );
+    logUserAction(req, 'APPLY_REGULARIZATION', 'Attendance Regularizations', `Submitted attendance regularization request for date ${attendance_date} (${effectivePunchType})`);
     return res.status(201).json({ message: 'Regularization request submitted successfully', regularization: result.rows[0] });
   } catch (err) {
     console.error('Error submitting regularization:', err);
@@ -6895,6 +7198,8 @@ app.put('/api/v1/attendance/regularizations/:id', authenticateToken, async (req:
     }
   }
 
+  const effectivePunchType = punch_type || ((requested_in && requested_out) ? 'BOTH' : (requested_out ? 'CHECK_OUT' : (requested_in ? 'CHECK_IN' : null)));
+
   try {
     const existing = await query('SELECT * FROM hrms.attendance_regularizations WHERE id = $1', [id]);
     if (existing.rows.length === 0) return res.status(404).json({ error: 'Regularization request not found' });
@@ -6906,12 +7211,13 @@ app.put('/api/v1/attendance/regularizations/:id', authenticateToken, async (req:
     const updated = await query(
       `UPDATE hrms.attendance_regularizations
        SET attendance_date = COALESCE($1, attendance_date),
-           requested_in = COALESCE($2, requested_in),
-           requested_out = COALESCE($3, requested_out),
-           reason = COALESCE($4, reason),
+           requested_in = $2,
+           requested_out = $3,
+           punch_type = COALESCE($4, punch_type),
+           reason = COALESCE($5, reason),
            created_at = NOW()
-       WHERE id = $5 RETURNING *`,
-      [attendance_date || null, requested_in || null, requested_out || null, reason || null, id]
+       WHERE id = $6 RETURNING *`,
+      [attendance_date || null, requested_in || null, requested_out || null, effectivePunchType || null, reason || null, id]
     );
 
     return res.json({ message: 'Regularization request updated successfully', regularization: updated.rows[0] });
@@ -7021,6 +7327,24 @@ app.post('/api/v1/attendance/permissions', authenticateToken, async (req: Authen
   try {
     const empCheck = await query('SELECT id FROM hrms.employees WHERE id = $1 AND company_id = $2', [employee_id, companyId]);
     if (empCheck.rows.length === 0) return res.status(400).json({ error: 'Invalid employee reference' });
+
+    // Check for existing active (PENDING or APPROVED) permission requests for the same date and overlapping time
+    const dupCheck = await query(
+      `SELECT id, permission_date, from_time, to_time, status
+       FROM hrms.permission_requests
+       WHERE employee_id = $1
+         AND permission_date = $2
+         AND status IN ('PENDING', 'APPROVED')
+         AND from_time < $4 AND to_time > $3`,
+      [employee_id, permission_date, from_time, to_time]
+    );
+
+    if (dupCheck.rows.length > 0) {
+      const existing = dupCheck.rows[0];
+      return res.status(400).json({
+        error: `A permission request for this date (${permission_date}) and time slot (${existing.from_time} - ${existing.to_time}) is already ${existing.status.toLowerCase()}.`
+      });
+    }
 
     const result = await query(
       `INSERT INTO hrms.permission_requests (company_id, employee_id, permission_type, permission_date, from_time, to_time, duration_minutes, reason, status)
@@ -7152,6 +7476,25 @@ app.put('/api/v1/attendance/permissions/:id', authenticateToken, async (req: Aut
 
     if (!isSuperAdmin && reqItem.emp_email?.toLowerCase() !== userEmail?.toLowerCase()) {
       return res.status(403).json({ error: 'Unauthorized to edit this permission request' });
+    }
+
+    // Check for existing active (PENDING or APPROVED) other permission requests for the same date and overlapping time
+    const dupCheck = await query(
+      `SELECT id, permission_date, from_time, to_time, status
+       FROM hrms.permission_requests
+       WHERE employee_id = $1
+         AND permission_date = $2
+         AND status IN ('PENDING', 'APPROVED')
+         AND from_time < $4 AND to_time > $3
+         AND id != $5`,
+      [reqItem.employee_id, permission_date, from_time, to_time, id]
+    );
+
+    if (dupCheck.rows.length > 0) {
+      const existing = dupCheck.rows[0];
+      return res.status(400).json({
+        error: `Another permission request for date ${permission_date} and time slot (${existing.from_time} - ${existing.to_time}) is already ${existing.status.toLowerCase()}.`
+      });
     }
 
     const updateRes = await query(

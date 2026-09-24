@@ -10,6 +10,7 @@ import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { usePermissions } from '../hooks/usePermissions';
 import ModernPagination from '../components/ModernPagination';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface Company {
   id: string;
@@ -376,6 +377,23 @@ export default function EmployeesPage() {
       const data = await res.json();
       if (res.ok) setCompanies(data.companies || []);
     } catch (e) { console.error(e); }
+  };
+
+  const formatEmpIdCode = (empCode: string, empCompanyId?: string) => {
+    if (!empCode) return '';
+    const cleanCode = String(empCode).trim();
+    const comp = companies.find(c => c.id === empCompanyId) || companies.find(c => c.id === selectedCompanyId) || companies.find(c => c.id === globalCompanyId) || companies[0];
+    const prefix = comp ? (comp.company_code || comp.subdomain?.toUpperCase() || '').trim() : '';
+
+    if (!prefix) return cleanCode;
+
+    const upperCode = cleanCode.toUpperCase();
+    const upperPrefix = prefix.toUpperCase();
+    if (upperCode.startsWith(upperPrefix + '-') || upperCode.startsWith(upperPrefix)) {
+      return cleanCode;
+    }
+
+    return `${prefix}-${cleanCode}`;
   };
 
   const fetchEmployees = async () => {
@@ -990,7 +1008,7 @@ export default function EmployeesPage() {
                 placeholder="Search by name, email, employee code..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full !pl-10 !pr-9 py-2 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-slate-100 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 placeholder:text-slate-600 dark:placeholder:text-slate-300 placeholder:font-bold transition-all duration-200 shadow-2xs"
+                className="w-full h-[42px] !pl-10 !pr-9 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-slate-100 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 placeholder:text-slate-600 dark:placeholder:text-slate-300 placeholder:font-bold transition-all duration-200 shadow-2xs"
               />
               {searchQuery && (
                 <button
@@ -1026,7 +1044,7 @@ export default function EmployeesPage() {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="px-3.5 py-2 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black text-slate-900 dark:text-slate-100 outline-none cursor-pointer focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 shadow-2xs"
+              className="h-[42px] px-3.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black text-slate-900 dark:text-slate-100 outline-none cursor-pointer focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 shadow-2xs"
             >
               <option value="ALL">All Status</option>
               <option value="ACTIVE">ACTIVE</option>
@@ -1070,7 +1088,7 @@ export default function EmployeesPage() {
                           className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105" 
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-tr from-slate-200 via-slate-100 to-indigo-100 dark:from-slate-800 dark:to-indigo-950/60 flex items-center justify-center text-2xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest transition-transform duration-500 group-hover:scale-105">
+                        <div className="w-full h-full bg-slate-100/90 dark:bg-slate-800/90 flex items-center justify-center text-3xl font-black text-[#07518a] dark:text-[#38bdf8] uppercase tracking-widest transition-transform duration-500 group-hover:scale-105">
                           {initials || 'EM'}
                         </div>
                       )}
@@ -1078,17 +1096,23 @@ export default function EmployeesPage() {
 
                     {/* Name & Designation (Directly below image) */}
                     <div className="text-left px-1">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <h4 className="text-base font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-[#07518a] dark:group-hover:text-[#38bdf8] transition-colors tracking-tight truncate uppercase" title={fullName}>
-                          {fullName}
-                        </h4>
+                      <div className="flex items-center justify-between gap-1.5 min-w-0">
+                        <Tooltip className="max-w-[calc(100%-1.5rem)] truncate">
+                          <TooltipTrigger asChild className="truncate block">
+                            <h4 className="text-base font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-[#07518a] dark:group-hover:text-[#38bdf8] transition-colors tracking-tight truncate uppercase cursor-default">
+                              {fullName}
+                            </h4>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">{fullName}</TooltipContent>
+                        </Tooltip>
+
                         <span 
-                          className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                          className={`h-2.5 w-2.5 rounded-full shrink-0 ${
                             status === 'ACTIVE' 
-                              ? 'bg-emerald-500 ring-4 ring-emerald-100 dark:ring-emerald-950/60 animate-pulse' 
+                              ? 'bg-emerald-500 shadow-sm' 
                               : status === 'SUSPENDED' 
-                              ? 'bg-amber-500 ring-4 ring-amber-100 dark:ring-amber-950/60' 
-                              : 'bg-rose-500 ring-4 ring-rose-100 dark:ring-rose-950/60'
+                              ? 'bg-amber-500' 
+                              : 'bg-rose-500'
                           }`} 
                           title={`Status: ${status}`}
                         />
@@ -1097,20 +1121,20 @@ export default function EmployeesPage() {
                         {emp.designation_name || 'Designation N/A'}
                       </p>
 
-                      {/* Sub-info Role / Dept / ID Pills (Replacing Properties / Sold / Rating) */}
+                      {/* Sub-info Role / Dept / ID Pills */}
                       <div className="space-y-1.5 mb-4">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-[11px] font-bold">
-                            ID: <span className="font-mono text-indigo-600 dark:text-indigo-400">{emp.emp_id_code}</span>
+                        <div className="flex items-center gap-1.5 w-full min-w-0">
+                          <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-[11px] font-bold shrink-0 whitespace-nowrap">
+                            ID: <span className="font-mono text-indigo-600 dark:text-indigo-400 font-extrabold">{formatEmpIdCode(emp.emp_id_code, emp.company_id)}</span>
                           </span>
                           {emp.role_name && (
-                            <span className="px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 text-[11px] font-bold border border-purple-200/50 dark:border-purple-800/50">
+                            <span className="px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 text-[11px] font-bold border border-purple-200/50 dark:border-purple-800/50 truncate min-w-0" title={`Role: ${emp.role_name}`}>
                               Role: {emp.role_name}
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 text-[11px] font-bold truncate max-w-full">
+                        <div className="flex items-center gap-1.5 w-full min-w-0">
+                          <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 text-[11px] font-bold truncate max-w-full min-w-0">
                             Dept: <span className="text-slate-900 dark:text-slate-200">{emp.department_name || 'General'}</span>
                           </span>
                         </div>
@@ -1125,7 +1149,6 @@ export default function EmployeesPage() {
                         <button
                           onClick={() => openEditDrawer(emp)}
                           className="flex-1 py-2 rounded-xl border border-teal-500/60 dark:border-teal-500/40 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                          title="Edit Employee Profile"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
@@ -1137,7 +1160,6 @@ export default function EmployeesPage() {
                         <button
                           onClick={() => setDeletingEmployee(emp)}
                           className="flex-1 py-2 rounded-xl border border-rose-400/60 dark:border-rose-500/40 text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                          title="Delete Employee Profile"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />

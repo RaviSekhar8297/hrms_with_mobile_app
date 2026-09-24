@@ -15,7 +15,7 @@ export const ATTENDANCE_NAV_ITEMS = [
   { id: 'locks', label: 'Locks', href: '/dashboard/attendance/locks', icon: '🔒' },
   { id: 'regularization', label: 'Regularization', href: '/dashboard/attendance/regularization', icon: '📝' },
   { id: 'permissions', label: 'Permission', href: '/dashboard/attendance/permissions', icon: '🎫' },
-  { id: 'raw', label: 'Attendance Logs', href: '/dashboard/attendance/raw-punches', icon: '🔌' },
+  { id: 'raw', label: 'Punch Logs', href: '/dashboard/attendance/raw-punches', icon: '🔌' },
   { id: 'summary', label: 'Attendance Summary', href: '/dashboard/attendance_summary', icon: '📊' },
 ] as const;
 

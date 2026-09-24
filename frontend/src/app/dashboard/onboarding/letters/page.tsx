@@ -298,33 +298,37 @@ Sincerely,`,
   const filteredEmployees = employees.filter(emp => {
     const fullName = `${emp.first_name || ''} ${emp.last_name || ''}`.toLowerCase();
     const code = (emp.emp_id_code || '').toLowerCase();
-    const desig = (emp.designation_name || '').toLowerCase();
-    const q = empSearchTerm.toLowerCase();
-    return fullName.includes(q) || code.includes(q) || desig.includes(q);
+    const query = empSearchTerm.toLowerCase();
+    return fullName.includes(query) || code.includes(query);
   });
 
-  // Switch Letter Preset
+  // Switch Active Preset
   const handleSelectPreset = (preset: LetterPreset) => {
     setActivePresetId(preset.id);
     showToast(`Loaded ${preset.name} template`, 'info');
   };
 
-  // Rich Text Execute Command
-  const executeCommand = (cmd: string, val: string = '') => {
-    document.execCommand(cmd, false, val);
+  // Execute formatting command on contentEditable paper
+  const executeCommand = (command: string, value: string | undefined = undefined) => {
+    document.execCommand(command, false, value);
+    if (letterPaperRef.current) {
+      letterPaperRef.current.focus();
+    }
   };
 
-  // Toggle Underline Workaround
+  // Toggle Underline safely
   const handleToggleUnderline = () => {
     setIsUnderline(prev => !prev);
     executeCommand('underline');
   };
 
-  // Insert Variable at Current Caret position
+  // Insert text/placeholder into active caret position on paper
   const insertVariable = (varKey: string) => {
     const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && letterPaperRef.current?.contains(sel.anchorNode)) {
-      const range = sel.getRangeAt(0);
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+
+    if (letterPaperRef.current && letterPaperRef.current.contains(range.commonAncestorContainer)) {
       range.deleteContents();
       const node = document.createTextNode(varKey);
       range.insertNode(node);
@@ -399,7 +403,7 @@ Sincerely,`,
 
             <button
               onClick={() => setEmailModalOpen(true)}
-              className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              className="px-3.5 py-2 bg-[#07518a]/10 hover:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] border border-[#07518a]/20 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
               <Mail className="w-4 h-4" />
               <span>Email Letter ({selectedEmpIds.length})</span>
@@ -407,7 +411,7 @@ Sincerely,`,
 
             <button
               onClick={handlePrint}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2 bg-[#07518a] hover:bg-[#064270] text-white font-extrabold text-xs rounded-xl shadow-md shadow-[#07518a]/20 transition-all flex items-center gap-2 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>Print / Save PDF</span>
@@ -419,7 +423,7 @@ Sincerely,`,
       {/* 🔖 SINGLE ROW LETTER TEMPLATES BAR (At Top in Single Row) (Hidden on print) */}
       <div className="print:hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-2.5 shadow-xs flex items-center justify-between gap-3 overflow-x-auto">
         <div className="flex items-center gap-2 shrink-0 px-2 text-xs font-extrabold text-slate-400 uppercase tracking-wider">
-          <Bookmark className="w-4 h-4 text-indigo-500" /> Letter Templates:
+          <Bookmark className="w-4 h-4 text-[#07518a] dark:text-[#38bdf8]" /> Letter Templates:
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto flex-1">
@@ -431,11 +435,11 @@ Sincerely,`,
                 onClick={() => handleSelectPreset(preset)}
                 className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 flex-1 justify-center ${
                   isSel
-                    ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/30 font-extrabold'
+                    ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 ring-2 ring-[#07518a]/30 font-extrabold'
                     : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
                 }`}
               >
-                <span className={isSel ? 'text-white' : 'text-indigo-500 dark:text-indigo-400'}>
+                <span className={isSel ? 'text-white' : 'text-[#07518a] dark:text-[#38bdf8]'}>
                   {preset.icon}
                 </span>
                 <span>{preset.name}</span>
@@ -456,9 +460,9 @@ Sincerely,`,
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-xs space-y-2.5 relative" ref={dropdownRef}>
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
               <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-indigo-500" /> Target Employee(s)
+                <Users className="w-3.5 h-3.5 text-[#07518a] dark:text-[#38bdf8]" /> Target Employee(s)
               </span>
-              <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950">
+              <span className="text-[10px] font-black text-[#07518a] dark:text-[#38bdf8] px-2 py-0.5 rounded-full bg-[#07518a]/10 dark:bg-[#07518a]/20">
                 {selectedEmpIds.length} Selected
               </span>
             </div>
@@ -466,22 +470,22 @@ Sincerely,`,
             {/* Custom Multi-Select Dropdown Trigger Button */}
             <div
               onClick={() => setEmpDropdownOpen(!empDropdownOpen)}
-              className="w-full min-h-[38px] p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold flex items-center justify-between cursor-pointer hover:border-indigo-300 transition-all shadow-2xs"
+              className="w-full min-h-[38px] p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold flex items-center justify-between cursor-pointer hover:border-[#07518a]/40 transition-all shadow-2xs"
             >
               <div className="flex items-center gap-1.5 flex-wrap max-w-[90%] truncate">
                 {selectedEmpIds.length === 0 ? (
                   <span className="text-slate-400 italic">Select employees for letter...</span>
                 ) : selectedEmpIds.length === 1 ? (
-                  <span className="text-indigo-600 dark:text-indigo-400 font-extrabold truncate">
+                  <span className="text-[#07518a] dark:text-[#38bdf8] font-extrabold truncate">
                     {targetEmp.code} - {targetEmp.name} ({targetEmp.designation})
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-lg bg-indigo-600 text-white font-extrabold text-[11px]">
+                  <span className="px-2 py-0.5 rounded-lg bg-[#07518a] text-white font-extrabold text-[11px]">
                     {selectedEmpIds.length} Employees Selected (Bulk Mode)
                   </span>
                 )}
               </div>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${empDropdownOpen ? 'rotate-180 text-indigo-600' : ''}`} />
+              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${empDropdownOpen ? 'rotate-180 text-[#07518a]' : ''}`} />
             </div>
 
             {/* SEARCHABLE MULTI-SELECT POPUP PANEL */}
@@ -497,13 +501,13 @@ Sincerely,`,
                       placeholder="Search name, emp code..."
                       value={empSearchTerm}
                       onChange={e => setEmpSearchTerm(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-xs rounded-xl font-medium focus:outline-none"
+                      className="w-full pl-8 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-xs rounded-xl font-medium focus:outline-none focus:ring-1 focus:ring-[#07518a]"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={handleSelectAllEmployees}
-                    className="px-2.5 py-1.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 text-[11px] font-extrabold rounded-lg hover:bg-indigo-100 transition-all shrink-0"
+                    className="px-2.5 py-1.5 bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] text-[11px] font-extrabold rounded-lg hover:bg-[#07518a]/20 transition-all shrink-0 cursor-pointer"
                   >
                     {selectedEmpIds.length === employees.length ? 'Deselect All' : 'Select All'}
                   </button>
@@ -518,13 +522,13 @@ Sincerely,`,
                         onClick={() => toggleEmployeeSelect(emp.id)}
                         className={`p-2 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-between ${
                           isChecked
-                            ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800'
+                            ? 'bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] border border-[#07518a]/30'
                             : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate">
                           {isChecked ? (
-                            <CheckSquare className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <CheckSquare className="w-4 h-4 text-[#07518a] dark:text-[#38bdf8] shrink-0" />
                           ) : (
                             <Square className="w-4 h-4 text-slate-300 shrink-0" />
                           )}
@@ -552,14 +556,14 @@ Sincerely,`,
           {/* SECTION 2: HEADER STYLE SWITCHER */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-xs space-y-2.5">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-indigo-500" /> Header Layout Style
+              <Building2 className="w-3.5 h-3.5 text-[#07518a] dark:text-[#38bdf8]" /> Header Layout Style
             </span>
             <div className="grid grid-cols-1 gap-1.5 pt-1">
               <button
                 onClick={() => setHeaderStyle('FULL')}
-                className={`py-2 px-3 text-xs font-extrabold rounded-xl transition-all text-left flex items-center justify-between ${
+                className={`py-2 px-3 text-xs font-extrabold rounded-xl transition-all text-left flex items-center justify-between cursor-pointer ${
                   headerStyle === 'FULL'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-[#07518a] text-white shadow-xs'
                     : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
@@ -568,9 +572,9 @@ Sincerely,`,
               </button>
               <button
                 onClick={() => setHeaderStyle('CENTER_LOGO')}
-                className={`py-2 px-3 text-xs font-extrabold rounded-xl transition-all text-left flex items-center justify-between ${
+                className={`py-2 px-3 text-xs font-extrabold rounded-xl transition-all text-left flex items-center justify-between cursor-pointer ${
                   headerStyle === 'CENTER_LOGO'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-[#07518a] text-white shadow-xs'
                     : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
@@ -579,9 +583,9 @@ Sincerely,`,
               </button>
               <button
                 onClick={() => setHeaderStyle('MINIMAL')}
-                className={`py-2 px-3 text-xs font-extrabold rounded-xl transition-all text-left flex items-center justify-between ${
+                className={`py-2 px-3 text-xs font-extrabold rounded-xl transition-all text-left flex items-center justify-between cursor-pointer ${
                   headerStyle === 'MINIMAL'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-[#07518a] text-white shadow-xs'
                     : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
@@ -594,7 +598,7 @@ Sincerely,`,
           {/* SECTION 3: TYPOGRAPHY & ALIGNMENT CONTROLS */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-xs space-y-3">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5 text-indigo-500" /> Typography & Formatting
+              <Sliders className="w-3.5 h-3.5 text-[#07518a] dark:text-[#38bdf8]" /> Typography & Formatting
             </span>
 
             <div className="space-y-2">
@@ -603,7 +607,7 @@ Sincerely,`,
                 <select
                   value={fontFamily}
                   onChange={e => setFontFamily(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold focus:outline-none cursor-pointer"
                 >
                   <option value="font-sans">Modern Sans-Serif</option>
                   <option value="font-serif">Classic Serif</option>
@@ -620,7 +624,7 @@ Sincerely,`,
                       executeCommand('bold');
                     }}
                     className={`flex-1 py-1.5 rounded-lg flex items-center justify-center font-black text-xs cursor-pointer transition-all ${
-                      isBold ? 'bg-indigo-600 text-white shadow-xs' : 'hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                      isBold ? 'bg-[#07518a] text-white shadow-xs' : 'hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
                     }`}
                     title="Bold Text"
                   >
@@ -632,7 +636,7 @@ Sincerely,`,
                       executeCommand('italic');
                     }}
                     className={`flex-1 py-1.5 rounded-lg flex items-center justify-center font-bold text-xs cursor-pointer transition-all ${
-                      isItalic ? 'bg-indigo-600 text-white shadow-xs' : 'hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                      isItalic ? 'bg-[#07518a] text-white shadow-xs' : 'hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
                     }`}
                     title="Italic Text"
                   >
@@ -641,7 +645,7 @@ Sincerely,`,
                   <button
                     onClick={handleToggleUnderline}
                     className={`flex-1 py-1.5 rounded-lg flex items-center justify-center font-bold text-xs cursor-pointer transition-all ${
-                      isUnderline ? 'bg-indigo-600 text-white shadow-xs' : 'hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                      isUnderline ? 'bg-[#07518a] text-white shadow-xs' : 'hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
                     }`}
                     title="Toggle Underline"
                   >
@@ -656,24 +660,24 @@ Sincerely,`,
                 <div className="grid grid-cols-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1">
                   <button
                     onClick={() => setSubjectAlign('text-left')}
-                    className={`py-1.5 rounded-lg flex items-center justify-center text-xs transition-all ${
-                      subjectAlign === 'text-left' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                    className={`py-1.5 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${
+                      subjectAlign === 'text-left' ? 'bg-[#07518a] text-white font-bold' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <AlignLeft className="w-3.5 h-3.5 mr-1" /> Left
                   </button>
                   <button
                     onClick={() => setSubjectAlign('text-center')}
-                    className={`py-1.5 rounded-lg flex items-center justify-center text-xs transition-all ${
-                      subjectAlign === 'text-center' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                    className={`py-1.5 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${
+                      subjectAlign === 'text-center' ? 'bg-[#07518a] text-white font-bold' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <AlignCenter className="w-3.5 h-3.5 mr-1" /> Center
                   </button>
                   <button
                     onClick={() => setSubjectAlign('text-right')}
-                    className={`py-1.5 rounded-lg flex items-center justify-center text-xs transition-all ${
-                      subjectAlign === 'text-right' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-600 hover:text-slate-900'
+                    className={`py-1.5 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${
+                      subjectAlign === 'text-right' ? 'bg-[#07518a] text-white font-bold' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <AlignRight className="w-3.5 h-3.5 mr-1" /> Right
@@ -687,13 +691,13 @@ Sincerely,`,
           {/* SECTION 4: SHOW / HIDE ELEMENT TOGGLES */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-xs space-y-2.5">
             <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Eye className="w-3.5 h-3.5 text-indigo-500" /> Show / Hide Paper Elements
+              <Eye className="w-3.5 h-3.5 text-[#07518a] dark:text-[#38bdf8]" /> Show / Hide Paper Elements
             </span>
             <div className="grid grid-cols-2 gap-2 pt-1 text-xs font-extrabold">
               {[
                 { label: 'Logo', state: showHeaderLogo, setter: setShowHeaderLogo },
                 { label: 'Address', state: showHeaderAddress, setter: setShowHeaderAddress },
-                { label: 'Black Line', state: showSeparatorLine, setter: setShowSeparatorLine },
+                { label: 'Header Line', state: showSeparatorLine, setter: setShowSeparatorLine },
                 { label: 'Ref No & Date', state: showRefAndDate, setter: setShowRefAndDate },
                 { label: 'Official Seal', state: showOfficialStamp, setter: setShowOfficialStamp }
               ].map(item => (
@@ -702,12 +706,12 @@ Sincerely,`,
                   onClick={() => item.setter(!item.state)}
                   className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-between text-[11.5px] ${
                     item.state
-                      ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800 shadow-2xs'
+                      ? 'bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] border-[#07518a]/30 shadow-2xs'
                       : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 opacity-60'
                   }`}
                 >
                   <span>{item.label}</span>
-                  <span className={`w-2 h-2 rounded-full ${item.state ? 'bg-indigo-600 animate-pulse' : 'bg-slate-400'}`} />
+                  <span className={`w-2 h-2 rounded-full ${item.state ? 'bg-[#07518a] animate-pulse' : 'bg-slate-400'}`} />
                 </button>
               ))}
             </div>
@@ -715,7 +719,7 @@ Sincerely,`,
 
           {/* SECTION 5: DYNAMIC VARIABLE INSERTION PILLS */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-xs space-y-2.5">
-            <span className="text-[11px] font-extrabold uppercase text-indigo-600 dark:text-indigo-400 block">
+            <span className="text-[11px] font-extrabold uppercase text-[#07518a] dark:text-[#38bdf8] block">
               ⚡ Insert Variable at Caret:
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -731,7 +735,7 @@ Sincerely,`,
                   key={item.val}
                   type="button"
                   onClick={() => insertVariable(item.val)}
-                  className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[11px] font-extrabold border border-indigo-200 dark:border-indigo-800 transition-all cursor-pointer shadow-2xs"
+                  className="px-2.5 py-1.5 rounded-xl bg-[#07518a]/10 hover:bg-[#07518a]/20 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] text-[11px] font-extrabold border border-[#07518a]/20 transition-all cursor-pointer shadow-2xs"
                 >
                   {item.label}
                 </button>
@@ -746,8 +750,8 @@ Sincerely,`,
           
           {/* Desk Header Badge */}
           <div className="print:hidden w-full max-w-[800px] flex items-center justify-between mb-4 text-xs font-bold text-slate-500 px-1">
-            <span className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
-              <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="flex items-center gap-2 text-[#07518a] dark:text-[#38bdf8] bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+              <Edit3 className="w-3.5 h-3.5 text-[#07518a] dark:text-[#38bdf8]" />
               <span>Direct Paper Canvas — Click ANY text below to edit directly</span>
             </span>
             <span className="bg-white dark:bg-slate-900 px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-800 font-mono">
@@ -760,7 +764,7 @@ Sincerely,`,
             ref={letterPaperRef}
             contentEditable={true}
             suppressContentEditableWarning={true}
-            className={`w-full max-w-[800px] min-h-[1050px] bg-white text-slate-900 p-10 sm:p-14 shadow-2xl rounded-sm border border-slate-200 relative flex flex-col justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all ${fontFamily} print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none print:w-full`}
+            className={`w-full max-w-[800px] min-h-[1050px] bg-white text-slate-900 p-10 sm:p-14 shadow-2xl rounded-sm border border-slate-200 relative flex flex-col justify-between focus:outline-none focus:ring-2 focus:ring-[#07518a]/30 transition-all ${fontFamily} print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none print:w-full`}
           >
             
             {/* TOP DOCUMENT HEADER */}
@@ -779,7 +783,7 @@ Sincerely,`,
                         className="h-16 max-w-[220px] object-contain mb-2"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-indigo-900 text-white font-black text-3xl flex items-center justify-center font-sans shadow-md">
+                      <div className="w-16 h-16 rounded-2xl bg-[#07518a] text-white font-black text-3xl flex items-center justify-center font-sans shadow-md">
                         {companyInitial}
                       </div>
                     )
@@ -804,7 +808,7 @@ Sincerely,`,
                           className="h-10 max-w-[150px] object-contain"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-xl bg-indigo-900 text-white font-black text-xl flex items-center justify-center font-sans shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-[#07518a] text-white font-black text-xl flex items-center justify-center font-sans shadow-sm">
                           {companyInitial}
                         </div>
                       )
@@ -831,7 +835,7 @@ Sincerely,`,
                             className="h-12 max-w-[180px] object-contain"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-xl bg-indigo-900 text-white font-black text-2xl flex items-center justify-center font-sans shadow-md">
+                          <div className="w-12 h-12 rounded-xl bg-[#07518a] text-white font-black text-2xl flex items-center justify-center font-sans shadow-md">
                             {companyInitial}
                           </div>
                         )
@@ -851,7 +855,7 @@ Sincerely,`,
                         <p className="font-bold text-slate-900">Corporate HQ</p>
                         <p>Plot No: 12, Tech Enclave, Hitec City</p>
                         <p>Hyderabad, Telangana - 500081</p>
-                        <p className="mt-1 font-semibold text-indigo-700">www.brihaspathi.com</p>
+                        <p className="mt-1 font-semibold text-[#07518a]">www.brihaspathi.com</p>
                       </div>
                     )}
                   </div>
@@ -919,24 +923,24 @@ Sincerely,`,
                 {/* Signature Block */}
                 <div className="space-y-2">
                   <div className="h-12 flex items-center">
-                    <div className="font-serif italic text-indigo-900 text-lg font-bold opacity-80 border-b border-dashed border-slate-300 pb-1">
+                    <div className="font-serif italic text-[#07518a] text-lg font-bold opacity-80 border-b border-dashed border-slate-300 pb-1">
                       {activePreset.signatory}
                     </div>
                   </div>
                   <div>
                     <p className="text-xs font-black text-slate-900">{activePreset.signatory}</p>
                     <p className="text-[11px] font-semibold text-slate-500">{activePreset.title}</p>
-                    <p className="text-[10px] font-bold text-indigo-900">{companyName}</p>
+                    <p className="text-[10px] font-bold text-[#07518a]">{companyName}</p>
                   </div>
                 </div>
 
                 {/* Official Seal Emblem */}
                 {showOfficialStamp && (
-                  <div className="w-24 h-24 rounded-full border-2 border-indigo-900/40 p-1 flex items-center justify-center text-center opacity-70 rotate-[-12deg]">
-                    <div className="w-full h-full rounded-full border border-dashed border-indigo-900 flex flex-col items-center justify-center p-1">
-                      <span className="text-[8px] font-black uppercase text-indigo-950 tracking-tighter">OFFICIAL SEAL</span>
-                      <span className="text-[9px] font-bold text-indigo-900">★ {companyInitial} ★</span>
-                      <span className="text-[7.5px] text-indigo-900 font-semibold">HYDERABAD</span>
+                  <div className="w-24 h-24 rounded-full border-2 border-[#07518a]/40 p-1 flex items-center justify-center text-center opacity-70 rotate-[-12deg]">
+                    <div className="w-full h-full rounded-full border border-dashed border-[#07518a] flex flex-col items-center justify-center p-1">
+                      <span className="text-[8px] font-black uppercase text-[#07518a] tracking-tighter">OFFICIAL SEAL</span>
+                      <span className="text-[9px] font-bold text-[#07518a]">★ {companyInitial} ★</span>
+                      <span className="text-[7.5px] text-[#07518a] font-semibold">HYDERABAD</span>
                     </div>
                   </div>
                 )}
@@ -962,7 +966,7 @@ Sincerely,`,
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 text-[#07518a] dark:text-[#38bdf8] flex items-center justify-center font-bold">
                   <Mail className="w-4 h-4" />
                 </div>
                 <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
@@ -971,7 +975,7 @@ Sincerely,`,
               </div>
               <button
                 onClick={() => setEmailModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -986,7 +990,7 @@ Sincerely,`,
                   type="email"
                   value={recipientEmail}
                   onChange={e => setRecipientEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none font-medium"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#07518a] font-medium"
                   required
                 />
               </div>
@@ -1003,11 +1007,11 @@ Sincerely,`,
                 />
               </div>
 
-              <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900 text-xs text-indigo-900 dark:text-indigo-300 space-y-1">
+              <div className="p-3 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/20 text-xs text-[#07518a] dark:text-[#38bdf8] space-y-1">
                 <p className="font-bold flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Exact Paper Rendering Attached
+                  <Sparkles className="w-3.5 h-3.5 text-[#07518a] dark:text-[#38bdf8]" /> Exact Paper Rendering Attached
                 </p>
-                <p className="text-[11px] text-indigo-700 dark:text-indigo-400">
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
                   Your customized paper canvas text, fonts, alignments, and logos will be rendered into an official PDF document attached to this email.
                 </p>
               </div>
@@ -1016,7 +1020,7 @@ Sincerely,`,
                 <button
                   type="submit"
                   disabled={isSendingEmail}
-                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-[#07518a] hover:bg-[#064270] text-white font-bold text-xs rounded-xl shadow-md shadow-[#07518a]/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isSendingEmail ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1030,7 +1034,7 @@ Sincerely,`,
                 <button
                   type="button"
                   onClick={() => setEmailModalOpen(false)}
-                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl"
+                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>

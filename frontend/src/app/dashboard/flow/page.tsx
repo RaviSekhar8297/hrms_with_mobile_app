@@ -249,9 +249,9 @@ export default function WorkFlowGuidePage() {
 
         {/* Dynamic Database Roles Grid */}
         {loading ? (
-          <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-2 shadow-sm">
-            <div className="w-8 h-8 border-2 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-[#07518a] dark:text-[#38bdf8] uppercase tracking-wider">Loading company database roles...</p>
+          <div className="p-16 text-center space-y-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Roles...</p>
           </div>
         ) : dbRoles.length === 0 ? (
           <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-slate-400 shadow-sm">

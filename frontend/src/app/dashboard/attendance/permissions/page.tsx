@@ -9,6 +9,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import ModernPagination from '../../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AlertTriangle, Search, CheckCircle2, XCircle, Trash2, Edit2, Clock } from 'lucide-react';
+import CustomDatePicker from '../../components/CustomDatePicker';
 
 interface Employee {
   id: string;
@@ -308,8 +309,25 @@ export default function AttendancePermissionsPage() {
       showToast('Please set both From Time and To Time.', 'error');
       return;
     }
-    if (!form.reason || form.reason.trim().length < 5) {
+    const trimmedReason = form.reason ? form.reason.trim() : '';
+    if (!trimmedReason || trimmedReason.length < 5) {
       showToast('Please provide a reason (minimum 5 characters).', 'error');
+      return;
+    }
+    if (trimmedReason.length > 100) {
+      showToast('Reason must not exceed 100 characters.', 'error');
+      return;
+    }
+
+    // Client-side instant overlap check against active permissions
+    const activeConflict = requests.find(r => 
+      r.id !== editingId &&
+      (r.status === 'PENDING' || r.status === 'APPROVED') &&
+      r.permission_date === form.permission_date &&
+      (form.from_time < r.to_time && form.to_time > r.from_time)
+    );
+    if (activeConflict) {
+      showToast(`A permission request for date ${form.permission_date} and time slot (${activeConflict.from_time} - ${activeConflict.to_time}) is already ${activeConflict.status.toLowerCase()}.`, 'error');
       return;
     }
 
@@ -838,7 +856,7 @@ export default function AttendancePermissionsPage() {
         }}
         title={editingId ? 'Edit Permission Request' : 'Apply Short-Time Permission'}
       >
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold p-1">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs font-semibold p-1">
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Permission Type *
@@ -848,10 +866,10 @@ export default function AttendancePermissionsPage() {
               onChange={e => setForm({ ...form, permission_type: e.target.value })}
               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
             >
-              <option value="MID_DAY">🍔 Mid-Day Break Permission</option>
-              <option value="LATE_ARRIVALS">🕒 Late Arrival Permission</option>
-              <option value="EARLY_EXIT">🚪 Early Exit Permission</option>
-              <option value="ON_DUTY">💼 On-Duty Outdoor Permission</option>
+              <option value="MID_DAY">Mid-Day Break Permission</option>
+              <option value="LATE_ARRIVALS">Late Arrival Permission</option>
+              <option value="EARLY_EXIT">Early Exit Permission</option>
+              <option value="ON_DUTY">On-Duty Outdoor Permission</option>
             </select>
           </div>
 
@@ -859,12 +877,11 @@ export default function AttendancePermissionsPage() {
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Permission Date *
             </label>
-            <input
-              type="date"
-              required
+            <CustomDatePicker
               value={form.permission_date}
-              onChange={e => setForm({ ...form, permission_date: e.target.value })}
-              className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
+              onChange={(val) => setForm({ ...form, permission_date: val })}
+              maxDate={new Date().toISOString().split('T')[0]}
+              placeholder="Select permission date"
             />
           </div>
 
@@ -876,7 +893,6 @@ export default function AttendancePermissionsPage() {
                 </label>
                 <input
                   type="time"
-                  required
                   value={form.from_time}
                   onChange={e => handleFromTimeChange(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
@@ -915,10 +931,7 @@ export default function AttendancePermissionsPage() {
               </span>
             </div>
             <textarea
-              required
               rows={3}
-              minLength={5}
-              maxLength={100}
               placeholder="Provide a clear, brief reason (max 100 characters)..."
               value={form.reason}
               onChange={e => setForm({ ...form, reason: e.target.value.slice(0, 100) })}

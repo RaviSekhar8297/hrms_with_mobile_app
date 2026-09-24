@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders, API_BASE } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
@@ -19,7 +20,8 @@ import {
   Clock, 
   Award,
   Calendar as CalendarIcon,
-  Filter
+  Filter,
+  Loader2
 } from 'lucide-react';
 
 export default function CompOffClaimsPage() {
@@ -426,30 +428,30 @@ export default function CompOffClaimsPage() {
         
         {/* SCOPE SWITCHER / BADGE (LEFT) */}
         {canSeeTeamTab ? (
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
+          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shrink-0">
             <button
               onClick={() => setViewScope('my')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                 viewScope === 'my'
-                  ? 'bg-white dark:bg-slate-900 text-[#07518a] dark:text-[#38bdf8] shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
+                  ? 'bg-[#07518a] text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold'
               }`}
             >
               👤 My Requests
             </button>
             <button
               onClick={() => setViewScope('team')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border-0 ${
                 viewScope === 'team'
-                  ? 'bg-white dark:bg-slate-900 text-[#07518a] dark:text-[#38bdf8] shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
+                  ? 'bg-[#07518a] text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold'
               }`}
             >
               👥 {viewScope_perm === 'ALL' || isSuperAdmin ? 'All Requests' : 'Team Requests'}
             </button>
           </div>
         ) : (
-          <div className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 shrink-0">
+          <div className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 shrink-0">
             <span>👤 My Requests</span>
           </div>
         )}
@@ -465,7 +467,7 @@ export default function CompOffClaimsPage() {
               placeholder="Search name, ID, reason..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold placeholder:text-slate-400 text-slate-800 dark:text-slate-100 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#07518a] transition-all"
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold placeholder:text-slate-400 text-slate-800 dark:text-slate-100 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-[#07518a] transition-all"
             />
           </div>
 
@@ -490,12 +492,12 @@ export default function CompOffClaimsPage() {
           </div>
 
           {/* 4. STATUS FILTER PILLS */}
-          <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 w-full sm:w-auto overflow-x-auto">
+          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 w-full sm:w-auto overflow-x-auto">
             {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map(st => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer border-0 ${
                   statusFilter === st
                     ? 'bg-[#07518a] text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold'
@@ -569,7 +571,7 @@ export default function CompOffClaimsPage() {
                         )}
                       </td>
                       <td className="p-4 font-semibold text-slate-700 dark:text-slate-200">
-                        📅 {req.worked_date?.split('T')[0]}
+                        {req.worked_date ? req.worked_date.split('T')[0] : '-'}
                       </td>
                       <td className="p-4">
                         <span className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-extrabold text-[10.5px] border border-indigo-200/60 dark:border-indigo-800/60">
@@ -577,7 +579,7 @@ export default function CompOffClaimsPage() {
                         </span>
                       </td>
                       <td className="p-4 font-mono font-bold text-slate-700 dark:text-slate-300">
-                        {req.credited_days || '1.00'} Day(s)
+                        {Number(req.credited_days ?? 1).toFixed(1)} Day(s)
                       </td>
                       <td className="p-4 text-slate-600 dark:text-slate-300 max-w-[220px]">
                         <div className="flex items-center gap-1.5">
@@ -587,13 +589,17 @@ export default function CompOffClaimsPage() {
                               : 'N/A'}
                           </span>
                           {req.reason && req.reason.length > 22 && (
-                            <button
-                              onClick={() => setSelectedReason(req.reason)}
-                              title="Click to view full reason"
-                              className="px-2 py-0.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 rounded-md border border-indigo-200/80 dark:border-indigo-800/60 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white transition-all shrink-0 cursor-pointer shadow-2xs"
-                            >
-                              View
-                            </button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => setSelectedReason(req.reason)}
+                                  className="px-2 py-0.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 rounded-md border border-indigo-200/80 dark:border-indigo-800/60 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white transition-all shrink-0 cursor-pointer shadow-2xs"
+                                >
+                                  View
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Click to view full reason</TooltipContent>
+                            </Tooltip>
                           )}
                         </div>
                       </td>
@@ -786,9 +792,9 @@ export default function CompOffClaimsPage() {
       </SlideDrawer>
 
       {/* 💬 ACTION MODAL */}
-      {actionModal.open && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+      {actionModal.open && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-scaleUp">
             <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
               {actionModal.type === 'APPROVE' ? 'Approve Comp-Off Claim' : 'Reject Comp-Off Claim'}
             </h4>
@@ -812,26 +818,29 @@ export default function CompOffClaimsPage() {
               <button
                 onClick={handleProcessCompOff}
                 disabled={isSaving}
-                className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors ${
+                className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
                   actionModal.type === 'APPROVE' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
                 }`}
               >
-                {isSaving ? 'Processing...' : `Confirm ${actionModal.type}`}
+                {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isSaving ? 'Processing...' : `Confirm ${actionModal.type}`}</span>
               </button>
               <button
+                disabled={isSaving}
                 onClick={() => setActionModal({ open: false, req: null, type: 'APPROVE' })}
-                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 🗑️ DELETE CONFIRMATION MODAL */}
-      {deleteModal.isOpen && (
-        <div className="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+      {deleteModal.isOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-scaleUp text-center">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-600 flex items-center justify-center mx-auto text-xl">
               <Trash2 className="w-6 h-6" />
@@ -844,24 +853,27 @@ export default function CompOffClaimsPage() {
               <button
                 onClick={handleDeleteConfirm}
                 disabled={deleteModal.isDeleting}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors"
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors flex items-center justify-center gap-1.5"
               >
-                {deleteModal.isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                {deleteModal.isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{deleteModal.isDeleting ? 'Deleting...' : 'Yes, Delete'}</span>
               </button>
               <button
+                disabled={deleteModal.isDeleting}
                 onClick={() => setDeleteModal({ isOpen: false, requestId: null, isDeleting: false })}
-                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 📜 FULL REASON MODAL POPOVER */}
-      {selectedReason && (
-        <div className="fixed inset-0 z-[110] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setSelectedReason(null)}>
+      {selectedReason && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedReason(null)}>
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-scaleUp" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
@@ -877,7 +889,7 @@ export default function CompOffClaimsPage() {
               </button>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed max-h-60 overflow-y-auto">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap">
               {selectedReason}
             </div>
 
@@ -890,7 +902,8 @@ export default function CompOffClaimsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -61,7 +61,7 @@ export default function SearchableSelect({
       {/* Select Trigger element */}
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full min-h-[42px] flex items-center justify-between rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 cursor-pointer outline-none transition-all duration-200 shadow-xs ${
+        className={`w-full h-[42px] flex items-center justify-between rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 cursor-pointer outline-none transition-all duration-200 shadow-xs ${
           disabled ? 'opacity-50 cursor-not-allowed border-slate-200 dark:border-slate-800' : 'hover:border-slate-400 dark:hover:border-slate-600'
         } ${isOpen ? 'border-[#07518a] ring-4 ring-[#07518a]/15 bg-white dark:bg-slate-900' : ''}`}
       >

@@ -6,6 +6,32 @@ import { getHeaders } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import ModernPagination from '../../components/ModernPagination';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
+const AVATAR_COLORS = [
+  'bg-indigo-500 text-white',
+  'bg-rose-500 text-white',
+  'bg-emerald-500 text-white',
+  'bg-amber-500 text-white',
+  'bg-violet-500 text-white',
+  'bg-sky-500 text-white',
+  'bg-pink-500 text-white',
+  'bg-teal-500 text-white',
+  'bg-blue-600 text-white',
+  'bg-fuchsia-600 text-white',
+  'bg-cyan-600 text-white',
+  'bg-orange-500 text-white',
+];
+
+const getAvatarColor = (name?: string, id?: string) => {
+  const str = (name || id || 'EMP').toUpperCase();
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
 
 export default function LeaveBalancesPage() {
   const { showToast, companyId } = useDashboard();
@@ -55,9 +81,9 @@ export default function LeaveBalancesPage() {
   const [balanceDrawerOpen, setBalanceDrawerOpen] = useState(false);
   const [editingBalance, setEditingBalance] = useState<any | null>(null);
 
-  // Pagination State (50 items per page)
+  // Pagination State (25 items per page default)
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 50;
+  const [pageSize, setPageSize] = useState(25);
 
   const [balanceForm, setBalanceForm] = useState({
     employee_id: '',
@@ -92,12 +118,6 @@ export default function LeaveBalancesPage() {
       fetchEmployees();
     }
   }, [companyId, selectedYear, canView]);
-
-  useEffect(() => {
-    if (canSeeExtendedTab && (roles.includes('SuperAdmin') || roles.includes('superadmin'))) {
-      setActiveTab('all');
-    }
-  }, [canSeeExtendedTab, roles]);
 
   // Reset pagination on search or tab change
   useEffect(() => {
@@ -220,15 +240,19 @@ export default function LeaveBalancesPage() {
   const filteredBalances = balances.filter(b => {
     const name = b.employee_name || '';
     const code = b.leave_type_code || '';
-    return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           b.leave_type_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const empCode = b.emp_id_code || b.employee_email || '';
+    const searchLower = searchTerm.toLowerCase();
+    return name.toLowerCase().includes(searchLower) ||
+           code.toLowerCase().includes(searchLower) ||
+           empCode.toLowerCase().includes(searchLower) ||
+           b.leave_type_name?.toLowerCase().includes(searchLower);
   });
 
   // Pagination Math
   const totalItems = filteredBalances.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
   const paginatedBalances = filteredBalances.slice(startIndex, startIndex + pageSize);
 
   const selectedEmpObj = employees.find(e => e.id === balanceForm.employee_id);
@@ -457,7 +481,6 @@ export default function LeaveBalancesPage() {
                       <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                         <th className="p-4 w-14 text-center">SL. NO</th>
                         <th className="p-4">Employee</th>
-                        <th className="p-4">Tenant / Company</th>
                         <th className="p-4">Leave Category</th>
                         <th className="p-4">Year</th>
                         <th className="p-4">Allotted</th>
@@ -482,20 +505,14 @@ export default function LeaveBalancesPage() {
                             </td>
                             <td className="p-4 font-bold text-slate-800 dark:text-slate-100">
                               <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
-                                  {b.employee_name?.slice(0, 1) || 'E'}
+                                <div className={`w-8 h-8 rounded-full font-black text-xs flex items-center justify-center shrink-0 shadow-xs ${getAvatarColor(b.employee_name, b.employee_id || b.id)}`}>
+                                  {b.employee_name?.slice(0, 1)?.toUpperCase() || 'E'}
                                 </div>
                                 <div>
                                   <span className="block font-extrabold text-slate-900 dark:text-slate-100">{b.employee_name || 'Staff Member'}</span>
                                   <span className="text-[10px] font-mono text-slate-400 block">{b.emp_id_code || b.employee_email}</span>
                                 </div>
                               </div>
-                            </td>
-                            <td className="p-4 text-slate-600 dark:text-slate-300 font-medium">
-                              <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold border border-slate-200/60 dark:border-slate-700/60 inline-flex items-center gap-1.5">
-                                <i className="fa-solid fa-building text-indigo-500 text-[10px]"></i>
-                                {b.company_name || 'Organization'}
-                              </span>
                             </td>
                             <td className="p-4 font-semibold text-slate-700 dark:text-slate-200">
                               <div className="flex items-center gap-1.5">
@@ -531,24 +548,34 @@ export default function LeaveBalancesPage() {
                             <td className="p-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">
                                 {canEditExtended && (
-                                  <button
-                                    onClick={() => openEditBalance(b)}
-                                    className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-blue-600 hover:text-white text-xs font-extrabold rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1"
-                                    title="Edit Quota"
-                                  >
-                                    <i className="fa-solid fa-pen-to-square text-xs"></i>
-                                    <span>Edit</span>
-                                  </button>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={() => openEditBalance(b)}
+                                        className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-blue-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/edit"
+                                      >
+                                        <svg className="w-3.5 h-3.5 transition-transform group-hover/edit:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                        </svg>
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Edit Quota</TooltipContent>
+                                  </Tooltip>
                                 )}
                                 {canDeleteExtended && (
-                                  <button
-                                    onClick={() => handleDeleteBalance(b.id)}
-                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1"
-                                    title="Delete Quota"
-                                  >
-                                    <i className="fa-solid fa-trash text-xs"></i>
-                                    <span>Delete</span>
-                                  </button>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={() => handleDeleteBalance(b.id)}
+                                        className="h-8 w-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 hover:bg-gradient-to-r hover:from-rose-600 hover:to-red-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-rose-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/del"
+                                      >
+                                        <svg className="w-3.5 h-3.5 transition-transform group-hover/del:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                        </svg>
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Delete Quota</TooltipContent>
+                                  </Tooltip>
                                 )}
                                 {!canEditExtended && !canDeleteExtended && (
                                   <span className="text-[11px] text-slate-400 italic">View only</span>
@@ -562,32 +589,21 @@ export default function LeaveBalancesPage() {
                   </table>
                 </div>
 
-                {/* 📄 PAGINATION CONTROLS (50 RECORDS PER PAGE) */}
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/50">
-                  <div>
-                    Showing <strong className="text-slate-900 dark:text-slate-100">{totalItems === 0 ? 0 : startIndex + 1}</strong> to <strong className="text-slate-900 dark:text-slate-100">{Math.min(startIndex + pageSize, totalItems)}</strong> of <strong className="text-slate-900 dark:text-slate-100">{totalItems}</strong> leave quotas
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                    >
-                      Previous
-                    </button>
-                    <span className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-extrabold border border-indigo-200 dark:border-indigo-900">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
+                {/* Modern Pagination Control Bar */}
+                {totalItems > 0 && (
+                  <ModernPagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    pageSize={pageSize}
+                    totalItems={totalItems}
+                    startIndex={startIndex}
+                    endIndex={endIndex}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={setPageSize}
+                    pageSizeOptions={[10, 25, 50, 100, 200]}
+                    itemLabel="leave quotas"
+                  />
+                )}
               </>
             )}
           </div>

@@ -9,6 +9,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { Edit2, Trash2, CheckCircle2, XCircle, Clock, FileText, AlertTriangle, ShieldCheck, Search, Filter } from 'lucide-react';
 import ModernPagination from '../../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import CustomDatePicker from '../../components/CustomDatePicker';
 
 export default function AttendanceRegularizationPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
@@ -52,12 +53,6 @@ export default function AttendanceRegularizationPage() {
   // Edit Drawer State
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [editingReq, setEditingReq] = useState<any | null>(null);
-  const [editForm, setEditForm] = useState({
-    attendance_date: '',
-    punch_type: 'CHECK_IN',
-    requested_time: '09:30',
-    reason: '',
-  });
 
   // Delete Confirmation Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -69,11 +64,23 @@ export default function AttendanceRegularizationPage() {
   const [pageSize, setPageSize] = useState(10);
 
   const [form, setForm] = useState({
+    employee_id: '',
     attendance_date: new Date().toISOString().split('T')[0],
-    punch_type: 'CHECK_IN',
-    requested_time: '09:30',
+    punch_type: 'CHECK_IN' as 'CHECK_IN' | 'CHECK_OUT' | 'BOTH',
+    requested_in: '09:30',
+    requested_out: '18:30',
     reason: '',
   });
+
+  const [editForm, setEditForm] = useState({
+    attendance_date: '',
+    punch_type: 'CHECK_IN' as 'CHECK_IN' | 'CHECK_OUT' | 'BOTH',
+    requested_in: '09:30',
+    requested_out: '18:30',
+    reason: '',
+  });
+
+  const todayStr = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -178,16 +185,76 @@ export default function AttendanceRegularizationPage() {
       showToast('You do not have permission to submit regularizations', 'error');
       return;
     }
-    const cid = activeCompanyId || companyId;
+    const cid = activeCompanyId || companyId || localStorage.getItem('companyId');
     if (!cid) {
       showToast('Please select a company context', 'error');
       return;
     }
-    const trimmedReason = form.reason ? form.reason.trim() : '';
-    if (trimmedReason.length < 5 || trimmedReason.length > 100) {
-      showToast('Reason must be between 5 and 100 characters', 'error');
+    if (!form.attendance_date) {
+      showToast('Please select an attendance date', 'error');
       return;
     }
+    if (form.punch_type === 'CHECK_IN' && !form.requested_in) {
+      showToast('Please enter requested In-Time', 'error');
+      return;
+    }
+    if (form.punch_type === 'CHECK_OUT' && !form.requested_out) {
+      showToast('Please enter requested Out-Time', 'error');
+      return;
+    }
+    if (form.punch_type === 'BOTH' && (!form.requested_in || !form.requested_out)) {
+      showToast('Please enter both In-Time and Out-Time', 'error');
+      return;
+    }
+    const trimmedReason = form.reason ? form.reason.trim() : '';
+    if (!trimmedReason || trimmedReason.length < 5) {
+      showToast('Reason must be at least 5 characters', 'error');
+      return;
+    }
+    if (trimmedReason.length > 100) {
+      showToast('Reason cannot exceed 100 characters', 'error');
+      return;
+    }
+    
+    // Resolve employee ID
+    const currentEmpId = localStorage.getItem('employeeId') || (employees.find(emp => emp.email === email)?.id) || '';
+    const targetEmpId = form.employee_id || currentEmpId;
+
+    // Client-side instant overlap check
+    const activeReq = requests.find(r => 
+      (r.status === 'PENDING' || r.status === 'APPROVED') &&
+      r.attendance_date?.split('T')[0] === form.attendance_date &&
+      (!targetEmpId || r.employee_id === targetEmpId)
+    );
+    if (activeReq) {
+      const exPunch = activeReq.punch_type || ((activeReq.requested_in && activeReq.requested_out) ? 'BOTH' : (activeReq.requested_out ? 'CHECK_OUT' : 'CHECK_IN'));
+      const st = activeReq.status.toLowerCase();
+      if (exPunch === 'BOTH') {
+        showToast(`A regularization request (Both In & Out) for date ${form.attendance_date} is already ${st}.`, 'error');
+        return;
+      }
+      if (exPunch === 'CHECK_IN') {
+        if (form.punch_type === 'CHECK_IN') {
+          showToast(`A Check-In request for date ${form.attendance_date} is already ${st}.`, 'error');
+          return;
+        }
+        if (form.punch_type === 'BOTH') {
+          showToast(`A Check-In request for date ${form.attendance_date} is already ${st}. You can only apply for Check-Out.`, 'error');
+          return;
+        }
+      }
+      if (exPunch === 'CHECK_OUT') {
+        if (form.punch_type === 'CHECK_OUT') {
+          showToast(`A Check-Out request for date ${form.attendance_date} is already ${st}.`, 'error');
+          return;
+        }
+        if (form.punch_type === 'BOTH') {
+          showToast(`A Check-Out request for date ${form.attendance_date} is already ${st}. You can only apply for Check-In.`, 'error');
+          return;
+        }
+      }
+    }
+
     setIsSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/v1/attendance/regularizations`, {
@@ -195,7 +262,12 @@ export default function AttendanceRegularizationPage() {
         headers: getHeaders(),
         body: JSON.stringify({
           company_id: cid,
-          ...form,
+          companyId: cid,
+          employee_id: targetEmpId || undefined,
+          attendance_date: form.attendance_date,
+          punch_type: form.punch_type,
+          requested_in: (form.punch_type === 'CHECK_IN' || form.punch_type === 'BOTH') ? form.requested_in : undefined,
+          requested_out: (form.punch_type === 'CHECK_OUT' || form.punch_type === 'BOTH') ? form.requested_out : undefined,
           reason: trimmedReason,
         }),
       });
@@ -204,9 +276,11 @@ export default function AttendanceRegularizationPage() {
         showToast('Regularization request submitted successfully!', 'success');
         setDrawerOpen(false);
         setForm({
-          attendance_date: new Date().toISOString().split('T')[0],
+          employee_id: '',
+          attendance_date: todayStr,
           punch_type: 'CHECK_IN',
-          requested_time: '09:30',
+          requested_in: '09:30',
+          requested_out: '18:30',
           reason: '',
         });
         fetchRequests();
@@ -225,12 +299,12 @@ export default function AttendanceRegularizationPage() {
   const openEditDrawer = (req: any) => {
     setEditingReq(req);
     const dateStr = req.attendance_date ? new Date(req.attendance_date).toISOString().split('T')[0] : '';
-    const reqTime = req.requested_in || req.requested_out || req.requested_time || '09:30';
-    const punchType = req.requested_out ? 'CHECK_OUT' : 'CHECK_IN';
+    const punchType: 'CHECK_IN' | 'CHECK_OUT' | 'BOTH' = (req.requested_in && req.requested_out) ? 'BOTH' : (req.requested_out ? 'CHECK_OUT' : 'CHECK_IN');
     setEditForm({
       attendance_date: dateStr,
       punch_type: punchType,
-      requested_time: reqTime,
+      requested_in: req.requested_in || '09:30',
+      requested_out: req.requested_out || '18:30',
       reason: req.reason || '',
     });
     setEditDrawerOpen(true);
@@ -249,7 +323,13 @@ export default function AttendanceRegularizationPage() {
       const res = await fetch(`${API_BASE}/api/v1/attendance/regularizations/${editingReq.id}`, {
         method: 'PUT',
         headers: getHeaders(),
-        body: JSON.stringify({ ...editForm, reason: trimmedReason }),
+        body: JSON.stringify({
+          attendance_date: editForm.attendance_date,
+          punch_type: editForm.punch_type,
+          requested_in: (editForm.punch_type === 'CHECK_IN' || editForm.punch_type === 'BOTH') ? editForm.requested_in : null,
+          requested_out: (editForm.punch_type === 'CHECK_OUT' || editForm.punch_type === 'BOTH') ? editForm.requested_out : null,
+          reason: trimmedReason
+        }),
       });
 
       if (res.ok) {
@@ -442,10 +522,10 @@ export default function AttendanceRegularizationPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-xs">
         <div>
           <h2 className="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <span>📝</span> Attendance Punch Regularization Requests
+            <span>📝</span> Attendance Regularization Requests
           </h2>
           <p className="text-xs text-slate-400 font-medium mt-0.5">
-            Submit missed IN/OUT punch correction applications and review team submissions
+            Submit missed IN/OUT punchs
           </p>
         </div>
 
@@ -548,8 +628,10 @@ export default function AttendanceRegularizationPage() {
                 paginatedRequests.map((req) => {
                   const empName = req.first_name ? `${req.first_name} ${req.last_name || ''}` : (req.employee_name || 'Self');
                   const empCode = req.emp_id_code || '';
-                  const punchType = req.requested_out ? 'CHECK_OUT' : (req.requested_in ? 'CHECK_IN' : (req.punch_type || 'CHECK_IN'));
-                  const punchTime = req.requested_in || req.requested_out || req.requested_time || '--:--';
+                  const punchType = req.punch_type || ((req.requested_in && req.requested_out) ? 'BOTH' : (req.requested_out ? 'CHECK_OUT' : 'CHECK_IN'));
+                  const punchTime = punchType === 'BOTH'
+                    ? (req.requested_in && req.requested_out ? `In: ${req.requested_in} | Out: ${req.requested_out}` : (req.requested_in || req.requested_out || '--:--'))
+                    : (req.requested_in || req.requested_out || req.requested_time || '--:--');
                   const dateStr = req.attendance_date ? new Date(req.attendance_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
 
                   return (
@@ -577,9 +659,11 @@ export default function AttendanceRegularizationPage() {
                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
                           punchType === 'CHECK_IN'
                             ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300'
-                            : 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
+                            : punchType === 'CHECK_OUT'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
+                              : 'bg-teal-100 text-teal-800 dark:bg-teal-950/70 dark:text-teal-300'
                         }`}>
-                          {punchType === 'CHECK_IN' ? 'Check-In Punch' : 'Check-Out Punch'}
+                          {punchType === 'CHECK_IN' ? 'Check-In Punch' : punchType === 'CHECK_OUT' ? 'Check-Out Punch' : 'Both (In & Out)'}
                         </span>
                       </td>
 
@@ -743,17 +827,16 @@ export default function AttendanceRegularizationPage() {
         onClose={() => setDrawerOpen(false)}
         title="Apply Punch Regularization"
       >
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs font-sans p-1">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs font-sans p-1">
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Attendance Date *
             </label>
-            <input
-              type="date"
+            <CustomDatePicker
               value={form.attendance_date}
-              onChange={(e) => setForm({ ...form, attendance_date: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
-              required
+              onChange={(val) => setForm({ ...form, attendance_date: val })}
+              maxDate={todayStr}
+              placeholder="Select attendance date..."
             />
           </div>
 
@@ -763,26 +846,65 @@ export default function AttendanceRegularizationPage() {
             </label>
             <select
               value={form.punch_type}
-              onChange={(e) => setForm({ ...form, punch_type: e.target.value })}
+              onChange={(e) => setForm({ ...form, punch_type: e.target.value as any })}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold cursor-pointer"
             >
-              <option value="CHECK_IN">Check-In Punch</option>
-              <option value="CHECK_OUT">Check-Out Punch</option>
+              <option value="CHECK_IN">📥 Check-In Punch (In-Time Only)</option>
+              <option value="CHECK_OUT">📤 Check-Out Punch (Out-Time Only)</option>
+              <option value="BOTH">🌐 Both (In & Out Punch)</option>
             </select>
           </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Requested Punch Time (HH:MM) *
-            </label>
-            <input
-              type="time"
-              value={form.requested_time}
-              onChange={(e) => setForm({ ...form, requested_time: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
-              required
-            />
-          </div>
+          {form.punch_type === 'BOTH' ? (
+            <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-950/60 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Requested In-Time *
+                </label>
+                <input
+                  type="time"
+                  value={form.requested_in}
+                  onChange={(e) => setForm({ ...form, requested_in: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Requested Out-Time *
+                </label>
+                <input
+                  type="time"
+                  value={form.requested_out}
+                  onChange={(e) => setForm({ ...form, requested_out: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold"
+                />
+              </div>
+            </div>
+          ) : form.punch_type === 'CHECK_IN' ? (
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Requested Check-In Time (HH:MM) *
+              </label>
+              <input
+                type="time"
+                value={form.requested_in}
+                onChange={(e) => setForm({ ...form, requested_in: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Requested Check-Out Time (HH:MM) *
+              </label>
+              <input
+                type="time"
+                value={form.requested_out}
+                onChange={(e) => setForm({ ...form, requested_out: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
+              />
+            </div>
+          )}
 
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -799,9 +921,6 @@ export default function AttendanceRegularizationPage() {
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
               placeholder="e.g. Biometric machine offline / Forgot to punch"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium"
-              minLength={5}
-              maxLength={100}
-              required
             />
           </div>
 
@@ -830,17 +949,16 @@ export default function AttendanceRegularizationPage() {
         onClose={() => setEditDrawerOpen(false)}
         title="Edit Regularization Request"
       >
-        <form onSubmit={handleEditSubmit} className="space-y-4 text-xs font-sans p-1">
+        <form onSubmit={handleEditSubmit} noValidate className="space-y-4 text-xs font-sans p-1">
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Attendance Date *
             </label>
-            <input
-              type="date"
+            <CustomDatePicker
               value={editForm.attendance_date}
-              onChange={(e) => setEditForm({ ...editForm, attendance_date: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
-              required
+              onChange={(val) => setEditForm({ ...editForm, attendance_date: val })}
+              maxDate={todayStr}
+              placeholder="Select attendance date..."
             />
           </div>
 
@@ -850,26 +968,65 @@ export default function AttendanceRegularizationPage() {
             </label>
             <select
               value={editForm.punch_type}
-              onChange={(e) => setEditForm({ ...editForm, punch_type: e.target.value })}
+              onChange={(e) => setEditForm({ ...editForm, punch_type: e.target.value as any })}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold cursor-pointer"
             >
-              <option value="CHECK_IN">Check-In Punch</option>
-              <option value="CHECK_OUT">Check-Out Punch</option>
+              <option value="CHECK_IN">📥 Check-In Punch (In-Time Only)</option>
+              <option value="CHECK_OUT">📤 Check-Out Punch (Out-Time Only)</option>
+              <option value="BOTH">🌐 Both (In & Out Punch)</option>
             </select>
           </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Requested Punch Time (HH:MM) *
-            </label>
-            <input
-              type="time"
-              value={editForm.requested_time}
-              onChange={(e) => setEditForm({ ...editForm, requested_time: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
-              required
-            />
-          </div>
+          {editForm.punch_type === 'BOTH' ? (
+            <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-950/60 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Requested In-Time *
+                </label>
+                <input
+                  type="time"
+                  value={editForm.requested_in}
+                  onChange={(e) => setEditForm({ ...editForm, requested_in: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Requested Out-Time *
+                </label>
+                <input
+                  type="time"
+                  value={editForm.requested_out}
+                  onChange={(e) => setEditForm({ ...editForm, requested_out: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold"
+                />
+              </div>
+            </div>
+          ) : editForm.punch_type === 'CHECK_IN' ? (
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Requested Check-In Time (HH:MM) *
+              </label>
+              <input
+                type="time"
+                value={editForm.requested_in}
+                onChange={(e) => setEditForm({ ...editForm, requested_in: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Requested Check-Out Time (HH:MM) *
+              </label>
+              <input
+                type="time"
+                value={editForm.requested_out}
+                onChange={(e) => setEditForm({ ...editForm, requested_out: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
+              />
+            </div>
+          )}
 
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -886,9 +1043,6 @@ export default function AttendanceRegularizationPage() {
               onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
               placeholder="e.g. Biometric machine offline / Forgot to punch"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-medium"
-              minLength={5}
-              maxLength={100}
-              required
             />
           </div>
 

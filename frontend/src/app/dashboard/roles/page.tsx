@@ -515,8 +515,8 @@ export default function RolesPage() {
         >
           <div className="flex items-center gap-3 flex-wrap justify-end">
             {/* Legend for Action & Data Scope */}
-            <div className="hidden lg:flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-[9px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
+            <div className="hidden lg:flex flex-col items-end gap-1.5">
+              <div className="flex items-center gap-1.5 text-[9px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
                 <Tooltip>
                   <TooltipTrigger>
                     <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help">V = View</span>
@@ -542,7 +542,7 @@ export default function RolesPage() {
                   <TooltipContent side="bottom">D = Delete: Remove records</TooltipContent>
                 </Tooltip>
               </div>
-              <div className="flex items-center gap-1.5 text-[9px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
+              <div className="flex items-center gap-1.5 text-[9px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
                 <Tooltip>
                   <TooltipTrigger>
                     <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold cursor-help">N = None</span>
@@ -676,19 +676,6 @@ export default function RolesPage() {
                   style={{ paddingLeft: '2.5rem' }}
                   className="w-full pl-search pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 transition-all placeholder-slate-400 font-sans"
                 />
-              </div>
-
-              <div className="flex items-center gap-1.5 text-[9.5px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help" title="V = View: Read-only access">V = View</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help" title="C = Create: Add new records">C = Create</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help" title="E = Edit: Update existing records">E = Edit</span>
-                <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold cursor-help" title="D = Delete: Remove records">D = Delete</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[9.5px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
-                <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold cursor-help" title="S = Self: Own records only">S = Self</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold cursor-help" title="T = Team: Direct reporting team records">T = Team</span>
-                <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-400 font-bold cursor-help" title="D = Dept: All records in assigned department">D = Dept</span>
-                <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold cursor-help" title="A = All: Company-wide access">A = All</span>
               </div>
 
               </div>
@@ -1187,7 +1174,7 @@ export default function RolesPage() {
 
               {/* Accordion Rows container */}
               <div className="space-y-4">
-                {filteredModules.map(moduleName => {
+                {filteredModules.map((moduleName, moduleIdx) => {
                   const modulePermissions = permissions
                     .filter(p => p.module === moduleName)
                     .filter(p => {
@@ -1217,7 +1204,10 @@ export default function RolesPage() {
                         onClick={() => setExpandedModule(isExpanded ? null : moduleName)}
                         className="px-6 py-4 flex items-center justify-between cursor-pointer select-none"
                       >
-                        <div className="flex items-center gap-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                            {moduleIdx + 1}
+                          </span>
                           <span className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isExpanded
                             ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'

@@ -24,7 +24,7 @@ const router = (0, express_1.Router)();
  *       401:
  *         description: Unauthorized
  */
-router.get('/', auth_1.authenticateToken, (0, auth_1.requirePermission)('recruitment:read'), async (req, res) => {
+router.get('/', auth_1.authenticateToken, async (req, res) => {
     try {
         const userRoles = req.user?.roles || [];
         const isSuper = req.user?.role === 'SUPER_ADMIN' || req.user?.is_super_admin || userRoles.some((r) => r.toLowerCase().includes('superadmin'));

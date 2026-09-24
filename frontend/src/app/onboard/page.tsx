@@ -210,8 +210,8 @@ function CandidateOnboardingPortalContent() {
         
         {loadingStatus ? (
           <div className="py-20 text-center space-y-4">
-            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm font-bold text-slate-500">Verifying candidate onboarding link...</p>
+            <div className="w-10 h-10 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Verifying candidate onboarding link...</p>
           </div>
         ) : alreadySubmitted || submitted ? (
           <div className="py-16 text-center space-y-5 animate-fadeIn">
@@ -272,7 +272,7 @@ function CandidateOnboardingPortalContent() {
                   <span>To: {candidateInfo.candidate_name || 'Candidate'}</span>
                 </div>
 
-                <div className="bg-indigo-50/80 border-l-4 border-indigo-600 p-3 rounded-md text-indigo-950 font-black text-sm">
+                <div className="bg-[#07518a]/10 border-l-4 border-[#07518a] p-3 rounded-md text-[#07518a] font-black text-sm">
                   Subject: Offer of Employment – {candidateInfo.designation || 'Software Engineer'}
                 </div>
 
@@ -316,7 +316,7 @@ function CandidateOnboardingPortalContent() {
                 <div className="pt-3 border-t border-slate-200 font-bold">
                   <span>Warm Regards,</span><br/>
                   <span>Human Resources Department</span><br/>
-                  <strong className="text-indigo-600 font-extrabold">{candidateInfo.company_name || 'Brihaspathi Rail Private Limited'}</strong>
+                  <strong className="text-[#07518a] font-extrabold">{candidateInfo.company_name || 'Brihaspathi Rail Private Limited'}</strong>
                 </div>
               </div>
 
@@ -375,7 +375,7 @@ function CandidateOnboardingPortalContent() {
                   </div>
                 ) : null}
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="px-3 py-0.5 rounded-full text-[11px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider">
+                  <span className="px-3 py-0.5 rounded-full text-[11px] font-extrabold bg-[#07518a]/10 text-[#07518a] border border-[#07518a]/20 uppercase tracking-wider">
                     Candidate Onboarding Portal
                   </span>
                 </div>
@@ -383,14 +383,14 @@ function CandidateOnboardingPortalContent() {
                   Welcome to {candidateInfo.company_name || 'Brihaspathi Technologies Limited'}
                 </h2>
                 <p className="text-sm text-slate-600 mt-1">
-                  Dear <strong className="text-indigo-600 font-extrabold">{candidateInfo.candidate_name || 'Candidate'}</strong>, please enter your details and upload required compliance document files below.
+                  Dear <strong className="text-[#07518a] font-extrabold">{candidateInfo.candidate_name || 'Candidate'}</strong>, please enter your details and upload required compliance document files below.
                 </p>
               </div>
 
               {candidateInfo.target_joining_date && (
-                <div className="shrink-0 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-center md:text-right shadow-2xs">
-                  <span className="text-[11px] font-extrabold text-indigo-500 uppercase tracking-wider block mb-0.5">Target Joining Date</span>
-                  <strong className="text-sm font-black text-indigo-950">
+                <div className="shrink-0 bg-[#07518a]/10 border border-[#07518a]/20 rounded-2xl p-4 text-center md:text-right shadow-2xs">
+                  <span className="text-[11px] font-extrabold text-[#07518a] uppercase tracking-wider block mb-0.5">Target Joining Date</span>
+                  <strong className="text-sm font-black text-[#07518a]">
                     {new Date(candidateInfo.target_joining_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </strong>
                 </div>
@@ -404,14 +404,14 @@ function CandidateOnboardingPortalContent() {
             )}
 
             {/* CANDIDATE JOINING TYPE INFORMATIONAL BADGE (Configured by HR) */}
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-2xl border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="bg-[#07518a]/5 p-4 rounded-2xl border border-[#07518a]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{candidateType === 'EXPERIENCED' ? '💼' : '🎓'}</span>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-indigo-950">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#07518a]">
                     Candidate Profile: {candidateType === 'EXPERIENCED' ? 'Experienced Professional' : 'Fresher Candidate'}
                   </h3>
-                  <p className="text-xs text-indigo-700 font-medium">
+                  <p className="text-xs text-slate-600 font-medium">
                     {candidateType === 'EXPERIENCED'
                       ? 'HR has configured your profile as Experienced. Please upload your last 3 months payslips along with statutory documents.'
                       : 'HR has configured your profile as a Fresher. Standard statutory compliance document uploads are required.'}
@@ -420,7 +420,7 @@ function CandidateOnboardingPortalContent() {
               </div>
               <span className={`px-3 py-1.5 rounded-xl text-xs font-extrabold shrink-0 border ${
                 candidateType === 'EXPERIENCED'
-                  ? 'bg-purple-600 text-white border-purple-600'
+                  ? 'bg-[#07518a] text-white border-[#07518a]'
                   : 'bg-emerald-600 text-white border-emerald-600'
               }`}>
                 {candidateType === 'EXPERIENCED' ? '💼 Experienced' : '🎓 Fresher'}
@@ -434,9 +434,9 @@ function CandidateOnboardingPortalContent() {
               <div className="space-y-8">
                 
                 {/* CARD 1: Statutory Identity & Compliance Verification */}
-                <div className="space-y-5 bg-slate-50/70 p-6 sm:p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-2 border-b border-slate-200 pb-3">
-                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[11px] flex items-center justify-center font-bold">1</span>
+                <div className="space-y-5 bg-slate-50/70 p-6 sm:p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#07518a]/30 transition-all">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#07518a] flex items-center gap-2 border-b border-slate-200 pb-3">
+                    <span className="w-6 h-6 rounded-full bg-[#07518a] text-white text-[11px] flex items-center justify-center font-bold">1</span>
                     <span>Statutory Identity & Document Uploads</span>
                   </h3>
                   
@@ -450,7 +450,7 @@ function CandidateOnboardingPortalContent() {
                         placeholder="e.g. ABCDE1234F"
                         value={panNumber}
                         onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                        className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 uppercase placeholder:text-slate-400 mb-2"
+                        className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 uppercase placeholder:text-slate-400 mb-2"
                       />
                       <label className="block text-[11px] font-extrabold text-slate-600 mb-1">Upload PAN Card Image (PNG, JPG, JPEG, PDF) *</label>
                       <div className="relative">
@@ -458,7 +458,7 @@ function CandidateOnboardingPortalContent() {
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, application/pdf"
                           onChange={(e) => handleFileUpload(e, setPanFile)}
-                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
+                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#07518a]/10 file:text-[#07518a] hover:file:bg-[#07518a]/20 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
                         />
                         {panFile && <p className="text-[11px] font-bold text-emerald-600 mt-1">✓ Attached: {panFile.name}</p>}
                       </div>
@@ -474,7 +474,7 @@ function CandidateOnboardingPortalContent() {
                         placeholder="12-digit Aadhaar Number"
                         value={aadharNumber}
                         onChange={(e) => setAadharNumber(e.target.value)}
-                        className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 placeholder:text-slate-400 mb-2"
+                        className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400 mb-2"
                       />
                       <label className="block text-[11px] font-extrabold text-slate-600 mb-1">Upload Aadhaar Card Image (PNG, JPG, JPEG, PDF) *</label>
                       <div className="relative">
@@ -482,7 +482,7 @@ function CandidateOnboardingPortalContent() {
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, application/pdf"
                           onChange={(e) => handleFileUpload(e, setAadharFile)}
-                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
+                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#07518a]/10 file:text-[#07518a] hover:file:bg-[#07518a]/20 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
                         />
                         {aadharFile && <p className="text-[11px] font-bold text-emerald-600 mt-1">✓ Attached: {aadharFile.name}</p>}
                       </div>
@@ -491,9 +491,9 @@ function CandidateOnboardingPortalContent() {
                 </div>
 
                 {/* CARD 2: Educational Qualification & Address */}
-                <div className="space-y-5 bg-slate-50/70 p-6 sm:p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-2 border-b border-slate-200 pb-3">
-                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[11px] flex items-center justify-center font-bold">2</span>
+                <div className="space-y-5 bg-slate-50/70 p-6 sm:p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#07518a]/30 transition-all">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#07518a] flex items-center gap-2 border-b border-slate-200 pb-3">
+                    <span className="w-6 h-6 rounded-full bg-[#07518a] text-white text-[11px] flex items-center justify-center font-bold">2</span>
                     <span>Education & Residential Address</span>
                   </h3>
 
@@ -506,7 +506,7 @@ function CandidateOnboardingPortalContent() {
                         placeholder="e.g. B.Tech Computer Science / MCA / MBA / Degree"
                         value={highestEducation}
                         onChange={(e) => setHighestEducation(e.target.value)}
-                        className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 placeholder:text-slate-400 mb-2"
+                        className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400 mb-2"
                       />
                       <label className="block text-[11px] font-extrabold text-slate-600 mb-1">Upload Degree Certificate / Marksheet (PNG, JPG, JPEG, PDF) *</label>
                       <div className="relative">
@@ -514,7 +514,7 @@ function CandidateOnboardingPortalContent() {
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, application/pdf"
                           onChange={(e) => handleFileUpload(e, setEducationFile)}
-                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
+                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#07518a]/10 file:text-[#07518a] hover:file:bg-[#07518a]/20 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
                         />
                         {educationFile && <p className="text-[11px] font-bold text-emerald-600 mt-1">✓ Attached: {educationFile.name}</p>}
                       </div>
@@ -528,7 +528,7 @@ function CandidateOnboardingPortalContent() {
                         placeholder="House No, Street, City, State, Pincode"
                         value={currentAddress}
                         onChange={(e) => setCurrentAddress(e.target.value)}
-                        className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 placeholder:text-slate-400 resize-none"
+                        className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400 resize-none"
                       />
                     </div>
                   </div>
@@ -540,9 +540,9 @@ function CandidateOnboardingPortalContent() {
               <div className="space-y-8">
                 
                 {/* CARD 3: Salary Disbursement Bank Account Details */}
-                <div className="space-y-5 bg-slate-50/70 p-6 sm:p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-2 border-b border-slate-200 pb-3">
-                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[11px] flex items-center justify-center font-bold">3</span>
+                <div className="space-y-5 bg-slate-50/70 p-6 sm:p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#07518a]/30 transition-all">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#07518a] flex items-center gap-2 border-b border-slate-200 pb-3">
+                    <span className="w-6 h-6 rounded-full bg-[#07518a] text-white text-[11px] flex items-center justify-center font-bold">3</span>
                     <span>Bank Account & Passbook / Cheque Upload</span>
                   </h3>
 
@@ -556,7 +556,7 @@ function CandidateOnboardingPortalContent() {
                           placeholder="e.g. HDFC Bank / ICICI / SBI"
                           value={bankName}
                           onChange={(e) => setBankName(e.target.value)}
-                          className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 placeholder:text-slate-400"
+                          className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400"
                         />
                       </div>
 
@@ -568,7 +568,7 @@ function CandidateOnboardingPortalContent() {
                           placeholder="e.g. HDFC0001234"
                           value={ifscCode}
                           onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-                          className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 placeholder:text-slate-400 uppercase"
+                          className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400 uppercase"
                         />
                       </div>
                     </div>
@@ -581,7 +581,7 @@ function CandidateOnboardingPortalContent() {
                         placeholder="Account Number"
                         value={accountNumber}
                         onChange={(e) => setAccountNumber(e.target.value)}
-                        className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 placeholder:text-slate-400 mb-2"
+                        className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400 mb-2"
                       />
                       <label className="block text-[11px] font-extrabold text-slate-600 mb-1">Upload Cancelled Cheque / Bank Passbook Image (PNG, JPG, JPEG, PDF) *</label>
                       <div className="relative">
@@ -589,7 +589,7 @@ function CandidateOnboardingPortalContent() {
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, application/pdf"
                           onChange={(e) => handleFileUpload(e, setBankFile)}
-                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
+                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#07518a]/10 file:text-[#07518a] hover:file:bg-[#07518a]/20 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
                         />
                         {bankFile && <p className="text-[11px] font-bold text-emerald-600 mt-1">✓ Attached: {bankFile.name}</p>}
                       </div>
@@ -598,9 +598,9 @@ function CandidateOnboardingPortalContent() {
                 </div>
 
                 {/* CARD 4: Emergency Contact Details & Passport Photo Upload */}
-                <div className="space-y-5 bg-slate-50/70 p-6 sm:p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-2 border-b border-slate-200 pb-3">
-                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[11px] flex items-center justify-center font-bold">4</span>
+                <div className="space-y-5 bg-slate-50/70 p-6 sm:p-7 rounded-2xl border border-slate-200/80 shadow-xs hover:border-[#07518a]/30 transition-all">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#07518a] flex items-center gap-2 border-b border-slate-200 pb-3">
+                    <span className="w-6 h-6 rounded-full bg-[#07518a] text-white text-[11px] flex items-center justify-center font-bold">4</span>
                     <span>Emergency Contact & Passport Photograph</span>
                   </h3>
 
@@ -614,7 +614,7 @@ function CandidateOnboardingPortalContent() {
                           placeholder="Contact Name"
                           value={emergencyName}
                           onChange={(e) => setEmergencyName(e.target.value)}
-                          className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 placeholder:text-slate-400"
+                          className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400"
                         />
                       </div>
 
@@ -626,7 +626,7 @@ function CandidateOnboardingPortalContent() {
                           placeholder="e.g. Father / Spouse / Mother"
                           value={emergencyRel}
                           onChange={(e) => setEmergencyRel(e.target.value)}
-                          className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 placeholder:text-slate-400"
+                          className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400"
                         />
                       </div>
                     </div>
@@ -639,7 +639,7 @@ function CandidateOnboardingPortalContent() {
                         placeholder="10-digit Phone Number"
                         value={emergencyPhone}
                         onChange={(e) => setEmergencyPhone(e.target.value)}
-                        className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 placeholder:text-slate-400 mb-2"
+                        className="w-full text-xs font-mono font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400 mb-2"
                       />
                       <label className="block text-[11px] font-extrabold text-slate-600 mb-1">Upload Passport Size Photograph (PNG, JPG, JPEG) *</label>
                       <div className="relative">
@@ -647,7 +647,7 @@ function CandidateOnboardingPortalContent() {
                           type="file"
                           accept="image/png, image/jpeg, image/jpg"
                           onChange={(e) => handleFileUpload(e, setPhotoFile)}
-                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
+                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#07518a]/10 file:text-[#07518a] hover:file:bg-[#07518a]/20 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
                         />
                         {photoFile && <p className="text-[11px] font-bold text-emerald-600 mt-1">✓ Attached: {photoFile.name}</p>}
                       </div>
@@ -657,9 +657,9 @@ function CandidateOnboardingPortalContent() {
 
                 {/* CARD 5: Experienced Professional - Last 3 Months Payslips (Conditional on EXPERIENCED) */}
                 {candidateType === 'EXPERIENCED' && (
-                  <div className="space-y-5 bg-purple-50/70 p-6 sm:p-7 rounded-2xl border border-purple-200/80 shadow-xs hover:border-purple-300 transition-all animate-fadeIn">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-purple-800 flex items-center gap-2 border-b border-purple-200 pb-3">
-                      <span className="w-6 h-6 rounded-full bg-purple-700 text-white text-[11px] flex items-center justify-center font-bold">5</span>
+                  <div className="space-y-5 bg-[#07518a]/5 p-6 sm:p-7 rounded-2xl border border-[#07518a]/20 shadow-xs hover:border-[#07518a]/40 transition-all animate-fadeIn">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-[#07518a] flex items-center gap-2 border-b border-[#07518a]/20 pb-3">
+                      <span className="w-6 h-6 rounded-full bg-[#07518a] text-white text-[11px] flex items-center justify-center font-bold">5</span>
                       <span>Previous Employment & Last 3 Months Payslips</span>
                     </h3>
 
@@ -672,7 +672,7 @@ function CandidateOnboardingPortalContent() {
                             placeholder="Previous Company"
                             value={previousCompany}
                             onChange={(e) => setPreviousCompany(e.target.value)}
-                            className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-purple-600 focus:ring-2 focus:ring-purple-100 outline-none text-slate-900 placeholder:text-slate-400"
+                            className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400"
                           />
                         </div>
 
@@ -683,7 +683,7 @@ function CandidateOnboardingPortalContent() {
                             placeholder="e.g. Senior Software Engineer"
                             value={previousDesignation}
                             onChange={(e) => setPreviousDesignation(e.target.value)}
-                            className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-purple-600 focus:ring-2 focus:ring-purple-100 outline-none text-slate-900 placeholder:text-slate-400"
+                            className="w-full text-xs font-bold px-3.5 py-3 rounded-xl border border-slate-300 bg-white focus:border-[#07518a] focus:ring-2 focus:ring-[#07518a]/20 outline-none text-slate-900 placeholder:text-slate-400"
                           />
                         </div>
                       </div>
@@ -695,7 +695,7 @@ function CandidateOnboardingPortalContent() {
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, application/pdf"
                           onChange={(e) => handleFileUpload(e, setPayslip1File)}
-                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-purple-100 file:text-purple-800 hover:file:bg-purple-200 cursor-pointer border border-slate-300 rounded-xl bg-white p-1 mb-2"
+                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#07518a]/10 file:text-[#07518a] hover:file:bg-[#07518a]/20 cursor-pointer border border-slate-300 rounded-xl bg-white p-1 mb-2"
                         />
                         {payslip1File && <p className="text-[11px] font-bold text-emerald-600 mb-3">✓ Attached Month 1: {payslip1File.name}</p>}
 
@@ -704,7 +704,7 @@ function CandidateOnboardingPortalContent() {
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, application/pdf"
                           onChange={(e) => handleFileUpload(e, setPayslip2File)}
-                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-purple-100 file:text-purple-800 hover:file:bg-purple-200 cursor-pointer border border-slate-300 rounded-xl bg-white p-1 mb-2"
+                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#07518a]/10 file:text-[#07518a] hover:file:bg-[#07518a]/20 cursor-pointer border border-slate-300 rounded-xl bg-white p-1 mb-2"
                         />
                         {payslip2File && <p className="text-[11px] font-bold text-emerald-600 mb-3">✓ Attached Month 2: {payslip2File.name}</p>}
 
@@ -713,7 +713,7 @@ function CandidateOnboardingPortalContent() {
                           type="file"
                           accept="image/png, image/jpeg, image/jpg, application/pdf"
                           onChange={(e) => handleFileUpload(e, setPayslip3File)}
-                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-purple-100 file:text-purple-800 hover:file:bg-purple-200 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
+                          className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#07518a]/10 file:text-[#07518a] hover:file:bg-[#07518a]/20 cursor-pointer border border-slate-300 rounded-xl bg-white p-1"
                         />
                         {payslip3File && <p className="text-[11px] font-bold text-emerald-600 mt-1">✓ Attached Month 3: {payslip3File.name}</p>}
                       </div>
@@ -750,7 +750,7 @@ function CandidateOnboardingPortalContent() {
                 disabled={!isFormValid || submitting}
                 className={`px-10 py-4 font-extrabold text-sm rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 ${
                   isFormValid && !submitting
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white cursor-pointer shadow-indigo-500/25'
+                    ? 'bg-[#07518a] hover:bg-[#064270] text-white cursor-pointer shadow-md shadow-[#07518a]/25'
                     : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed shadow-none'
                 }`}
               >
@@ -769,7 +769,7 @@ export default function CandidateOnboardingPortalPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <CandidateOnboardingPortalContent />

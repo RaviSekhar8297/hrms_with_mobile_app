@@ -622,7 +622,7 @@ export default function SmartHRPage() {
               className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>Create New Schedule</span>
+              <span>New Schedule</span>
             </button>
           )}
           {activeTab === 'templates' && canCreateTemplates && (
@@ -631,7 +631,7 @@ export default function SmartHRPage() {
               className="px-4 py-2 bg-[#07518a] hover:bg-[#053d69] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>Create New Template</span>
+              <span>New Template</span>
             </button>
           )}
         </div>
@@ -641,7 +641,10 @@ export default function SmartHRPage() {
       {activeTab === 'schedules' && (
         <div className="space-y-4">
           {isLoading ? (
-            <div className="p-12 text-center text-xs text-slate-400">Loading schedules...</div>
+            <div className="p-16 text-center space-y-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Schedules...</p>
+            </div>
           ) : schedules.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 rounded-2xl">
               <span className="text-4xl block mb-3">🪄</span>

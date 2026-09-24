@@ -14,11 +14,13 @@ export default function LeaveRequestsPage() {
 
   const isSuperAdmin = isSuperAdminPerm;
 
-  // Permissions
+  // Permissions (Standard VCED: View, Create, Edit, Delete)
   const canView = isSuperAdmin || hasPermission('leaves_requests_view') || hasPermission('view_leave_requests') || hasPermission('leaves_view');
   const canCreate = isSuperAdmin || hasPermission('leaves_requests_create') || hasPermission('create_leave_requests') || hasPermission('leaves_create');
   const canEdit = isSuperAdmin || hasPermission('leaves_requests_edit') || hasPermission('edit_leave_requests') || hasPermission('leaves_edit');
   const canDelete = isSuperAdmin || hasPermission('leaves_requests_delete') || hasPermission('delete_leave_requests') || hasPermission('leaves_delete');
+  const canApprove = canEdit;
+  const canReject = canEdit;
 
   // Scopes
   const viewScopePerm = getPermissionScope('leaves_requests_view') || getPermissionScope('view_leave_requests') || (isSuperAdmin ? 'ALL' : 'SELF');
@@ -26,8 +28,10 @@ export default function LeaveRequestsPage() {
   const deleteScopePerm = getPermissionScope('leaves_requests_delete') || getPermissionScope('delete_leave_requests') || (isSuperAdmin ? 'ALL' : 'SELF');
 
   const canSeeExtendedTab = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(viewScopePerm);
-  const canEditExtended = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(editScopePerm);
-  const canDeleteExtended = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(deleteScopePerm);
+  const canEditExtended = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(editScopePerm) || canEdit;
+  const canDeleteExtended = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(deleteScopePerm) || canDelete;
+  const canApproveExtended = canEditExtended;
+  const canRejectExtended = canEditExtended;
 
   const getSecondTabLabel = () => {
     if (isSuperAdmin || viewScopePerm === 'ALL') {
@@ -69,9 +73,9 @@ export default function LeaveRequestsPage() {
 
   const [applyForm, setApplyForm] = useState({
     leave_type_id: '',
-    from_date: new Date().toISOString().split('T')[0],
-    to_date: new Date().toISOString().split('T')[0],
-    total_days: '1',
+    from_date: '',
+    to_date: '',
+    total_days: '0',
     reason: ''
   });
 
@@ -88,17 +92,7 @@ export default function LeaveRequestsPage() {
       } catch (e) { }
     }
     if (storedEmail) setEmail(storedEmail);
-
-    const isSuper = parsedRoles.includes('SuperAdmin') || parsedRoles.includes('superadmin');
-    const isMgr = parsedRoles.some(r => {
-      const lr = r.toLowerCase();
-      return lr.includes('manager') || lr.includes('head') || lr.includes('lead') || lr.includes('executive') || lr.includes('director');
-    });
-
-    if (isSuper || isMgr || canSeeExtendedTab) {
-      setViewScope('team');
-    }
-  }, [canSeeExtendedTab]);
+  }, []);
 
   useEffect(() => {
     if (canView) {
@@ -222,17 +216,21 @@ export default function LeaveRequestsPage() {
           cur.setDate(cur.getDate() + 1);
         }
         setApplyForm(prev => ({ ...prev, total_days: String(count > 0 ? count : 1) }));
+      } else {
+        setApplyForm(prev => ({ ...prev, total_days: '0' }));
       }
+    } else {
+      setApplyForm(prev => ({ ...prev, total_days: '0' }));
     }
   }, [applyForm.from_date, applyForm.to_date, holidays, weekoffPolicy]);
 
   const handleOpenApplyDrawer = () => {
     setEditingRequest(null);
     setApplyForm({
-      leave_type_id: leaveTypes[0]?.id ? String(leaveTypes[0].id) : '',
-      from_date: new Date().toISOString().split('T')[0],
-      to_date: new Date().toISOString().split('T')[0],
-      total_days: '1',
+      leave_type_id: '',
+      from_date: '',
+      to_date: '',
+      total_days: '0',
       reason: ''
     });
     setApplyDrawerOpen(true);
@@ -375,10 +373,15 @@ export default function LeaveRequestsPage() {
 
   const filteredRequests = requests.filter(req => {
     const matchesStatus = statusFilter === 'ALL' || req.status === statusFilter;
+    const emp = employees.find(e => e.id === req.employee_id || e.emp_id_code === req.emp_id_code);
     const empName = req.employee_name || '';
-    const matchesSearch = empName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.leave_type_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.reason?.toLowerCase().includes(searchTerm.toLowerCase());
+    const empCode = req.emp_id_code || emp?.emp_id_code || '';
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = empName.toLowerCase().includes(searchLower) ||
+      empCode.toLowerCase().includes(searchLower) ||
+      req.leave_type_name?.toLowerCase().includes(searchLower) ||
+      req.leave_type_code?.toLowerCase().includes(searchLower) ||
+      req.reason?.toLowerCase().includes(searchLower);
     return matchesStatus && matchesSearch;
   });
 
@@ -624,7 +627,7 @@ export default function LeaveRequestsPage() {
           <div className="relative w-full sm:w-64">
             <input
               type="text"
-              placeholder="Search employee, leave..."
+              placeholder="Search employee, ID, leave..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#07518a] font-medium"
@@ -722,14 +725,23 @@ export default function LeaveRequestsPage() {
 
                       <td className="p-4 whitespace-nowrap">
                         <span className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-extrabold text-[11px] border border-indigo-100 dark:border-indigo-900">
-                          {req.total_days} Day(s)
+                          {parseFloat(String(req.total_days || 0)).toFixed(1)} Day(s)
                         </span>
                       </td>
 
                       <td className="p-4 text-slate-500 dark:text-slate-400">
-                        <span title={fullReason} className="cursor-help hover:text-slate-700 dark:hover:text-slate-200 font-medium">
-                          {truncatedReason}
-                        </span>
+                        <div className="relative group/reason inline-block max-w-[220px]">
+                          <span className="truncate block font-medium text-slate-700 dark:text-slate-300 cursor-help hover:text-[#07518a] dark:hover:text-sky-400 transition-colors">
+                            {truncatedReason}
+                          </span>
+                          {fullReason && fullReason !== 'No details provided' && (
+                            <div className="pointer-events-none absolute bottom-full left-0 mb-2 hidden group-hover/reason:flex flex-col z-50 min-w-[200px] max-w-[320px] p-2.5 bg-slate-900/95 dark:bg-slate-950/95 text-white text-[11px] rounded-xl shadow-2xl border border-slate-700/60 backdrop-blur-md transition-all whitespace-normal">
+                              <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider mb-1">Reason for leave</span>
+                              <span className="leading-relaxed font-normal text-slate-100">{fullReason}</span>
+                              <div className="absolute top-full left-4 -mt-1 border-4 border-transparent border-t-slate-900 dark:border-t-slate-950" />
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       <td className="p-4">
@@ -748,31 +760,17 @@ export default function LeaveRequestsPage() {
                         {viewScope === 'team' ? (
                           req.status === 'PENDING' ? (
                             <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {/* 1. EDIT */}
                               {canEditExtended && (
-                                <>
-                                  <button
-                                    onClick={() => setActionModal({ open: true, req, type: 'APPROVE' })}
-                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1"
-                                    title="Approve Leave"
-                                  >
-                                    <span>Approve</span>
-                                  </button>
-                                  <button
-                                    onClick={() => setActionModal({ open: true, req, type: 'REJECT' })}
-                                    className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1"
-                                    title="Reject Leave"
-                                  >
-                                    <span>Reject</span>
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenEditDrawer(req)}
-                                    className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-[11px] font-bold rounded-lg hover:bg-blue-100 transition-all cursor-pointer"
-                                    title="Edit Leave Request"
-                                  >
-                                    <span>Edit</span>
-                                  </button>
-                                </>
+                                <button
+                                  onClick={() => handleOpenEditDrawer(req)}
+                                  className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-[11px] font-bold rounded-lg hover:bg-blue-100 transition-all cursor-pointer"
+                                  title="Edit Leave Request"
+                                >
+                                  <span>Edit</span>
+                                </button>
                               )}
+                              {/* 2. DELETE */}
                               {canDeleteExtended && (
                                 <button
                                   onClick={() => handleDeleteRequest(req.id)}
@@ -782,17 +780,38 @@ export default function LeaveRequestsPage() {
                                   <span>Delete</span>
                                 </button>
                               )}
-                              {!canEditExtended && !canDeleteExtended && (
+                              {/* 3. APPROVE */}
+                              {canApproveExtended && (
+                                <button
+                                  onClick={() => setActionModal({ open: true, req, type: 'APPROVE' })}
+                                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1"
+                                  title="Approve Leave"
+                                >
+                                  <span>Approve</span>
+                                </button>
+                              )}
+                              {/* 4. REJECT */}
+                              {canRejectExtended && (
+                                <button
+                                  onClick={() => setActionModal({ open: true, req, type: 'REJECT' })}
+                                  className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1"
+                                  title="Reject Leave"
+                                >
+                                  <span>Reject</span>
+                                </button>
+                              )}
+                              {!canEditExtended && !canDeleteExtended && !canApproveExtended && !canRejectExtended && (
                                 <span className="text-[11px] text-slate-400 italic">No action permission</span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-[11px] text-slate-400 italic">Processed</span>
+                            <span className="text-[11px] text-slate-400 italic">-</span>
                           )
                         ) : (
                           /* BASE (MY REQUESTS) VIEW ACTIONS */
                           req.status === 'PENDING' ? (
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* 1. EDIT */}
                               {canEdit && (
                                 <button
                                   onClick={() => handleOpenEditDrawer(req)}
@@ -802,13 +821,14 @@ export default function LeaveRequestsPage() {
                                   <span>Edit</span>
                                 </button>
                               )}
+                              {/* 2. DELETE */}
                               {canDelete && (
                                 <button
                                   onClick={() => handleDeleteRequest(req.id)}
                                   className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1"
                                   title="Cancel / Delete My Request"
                                 >
-                                  <span>Cancel</span>
+                                  <span>Delete</span>
                                 </button>
                               )}
                               {!canEdit && !canDelete && (
@@ -816,7 +836,7 @@ export default function LeaveRequestsPage() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-[11px] text-slate-400 italic">No action needed</span>
+                            <span className="text-[11px] text-slate-400 italic">-</span>
                           )
                         )}
                       </td>
@@ -849,17 +869,11 @@ export default function LeaveRequestsPage() {
               className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
             >
               <option value="">-- Choose Leave Category --</option>
-              {leaveTypes.map(lt => {
-                const bal = getLeaveTypeBalance(lt.id);
-                const existingHeld = editingRequest && String(editingRequest.leave_type_id) === String(lt.id) ? Number(editingRequest.total_days || 0) : 0;
-                const effBal = bal.remaining + existingHeld;
-                const availLabel = effBal <= 0 ? '0 Day(s)' : `${effBal} Day(s)`;
-                return (
-                  <option key={lt.id} value={lt.id}>
-                    {lt.name} ({lt.code}) — {availLabel} Available ({bal.isMonthlyCarryForward ? 'Carry-forward' : 'Monthly quota'})
-                  </option>
-                );
-              })}
+              {leaveTypes.map(lt => (
+                <option key={lt.id} value={lt.id}>
+                  {lt.name} ({lt.code})
+                </option>
+              ))}
             </select>
 
             {applyForm.leave_type_id && (() => {
@@ -1033,10 +1047,21 @@ export default function LeaveRequestsPage() {
               <button
                 onClick={handleProcessRequest}
                 disabled={isSaving}
-                className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer ${actionModal.type === 'APPROVE' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
-                  }`}
+                className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer flex items-center justify-center gap-2 ${
+                  actionModal.type === 'APPROVE' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
+                }`}
               >
-                {isSaving ? 'Processing...' : `Confirm ${actionModal.type === 'APPROVE' ? 'Approval' : 'Rejection'}`}
+                {isSaving ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  `Confirm ${actionModal.type === 'APPROVE' ? 'Approval' : 'Rejection'}`
+                )}
               </button>
               <button
                 onClick={() => setActionModal({ open: false, req: null, type: 'APPROVE' })}

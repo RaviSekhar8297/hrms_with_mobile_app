@@ -416,7 +416,7 @@ export default function HolidaysPage() {
               <span>⚠️</span> You don't have permission to view Holidays. Contact your administrator.
             </div>
           ) : (
-            <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center gap-1 font-sans overflow-x-auto no-scrollbar">
+            <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center gap-1 font-sans overflow-x-auto no-scrollbar">
               {visibleTabs.map(tab => {
                 const isActive = activeTab === tab.id;
                 const IconComponent = tab.icon;
@@ -424,10 +424,10 @@ export default function HolidaysPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`py-2 px-4 rounded-lg text-xs transition-all duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap border-0 ${
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap border-0 ${
                       isActive
-                        ? 'bg-[#07518a] text-white font-bold shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 font-bold hover:text-[#07518a] dark:hover:text-[#38bdf8] hover:bg-white/60 dark:hover:bg-slate-700/60'
+                        ? 'bg-[#07518a] text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 font-semibold hover:text-[#07518a] dark:hover:text-[#38bdf8] hover:bg-white/60 dark:hover:bg-slate-700/60'
                     }`}
                   >
                     <IconComponent className="w-4 h-4" />

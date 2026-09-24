@@ -64,7 +64,7 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
   if (!isSuperAdmin) {
     const formatted = formatCompanyName(companyName || 'Company Tenant');
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs" title={companyName}>
+      <div className="flex items-center h-[38px] px-3.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs" title={companyName}>
         <span className="text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[320px]">
           {formatted}
         </span>
@@ -73,7 +73,7 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
   }
 
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs">
+    <div className="flex items-center h-[38px] px-2.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs">
       <select
         value={companyId || 'all'}
         onChange={(e) => {
