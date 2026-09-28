@@ -114,6 +114,51 @@ export default function AttendanceHistoryPage() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [weekoffPolicy, setWeekoffPolicy] = useState<any>(null);
+  const [attendancePolicy, setAttendancePolicy] = useState<any>(null);
+
+  // Time Formatter helper: converts UTC timestamps / 24h strings to clean 12h time (without date)
+  const formatPunchTime = (val: string | null | undefined): string => {
+    if (!val || val === '--:--' || val === '-' || val === 'null' || val === 'undefined') return '--:--';
+    const str = String(val).trim();
+    if (!str) return '--:--';
+
+    // Check if ISO / datetime string (e.g. 2026-09-28T04:14:47.000Z or 2026-09-28 04:14:47)
+    if (str.includes('T') || str.includes('Z') || (str.includes('-') && str.includes(':'))) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+      }
+    }
+
+    // Check if "HH:MM:SS" or "HH:MM"
+    const parts = str.split(':');
+    if (parts.length >= 2) {
+      let hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      if (!isNaN(hours) && !isNaN(minutes)) {
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const formattedMins = minutes < 10 ? `0${minutes}` : `${minutes}`;
+        const formattedHours = hours < 10 ? `0${hours}` : `${hours}`;
+        return `${formattedHours}:${formattedMins} ${ampm}`;
+      }
+    }
+
+    return str;
+  };
+
+  // Helper to format worked duration cleanly into "HH:MM" (e.g. 08:02, 04:15, 00:00)
+  const formatDuration = (mins: number): string => {
+    const safeMins = Math.max(0, Math.round(mins || 0));
+    const h = Math.floor(safeMins / 60);
+    const m = safeMins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
 
   const currentUserEmail = (typeof window !== 'undefined' ? localStorage.getItem('email') : '') || '';
   const currentEmp = useMemo(() => {
@@ -216,7 +261,7 @@ export default function AttendanceHistoryPage() {
     return true;
   };
 
-  // Step 2: loadAllAttendanceHistoryData (Concurrent 6 API calls)
+  // Step 2: loadAllAttendanceHistoryData (Concurrent 7 API calls)
   const loadAllAttendanceHistoryData = async () => {
     setLoading(true);
     try {
@@ -229,13 +274,14 @@ export default function AttendanceHistoryPage() {
 
       const headers = getHeaders();
 
-      const [empRes, summaryRes, punchesRes, holidayRes, leaveRes, weekoffRes] = await Promise.allSettled([
+      const [empRes, summaryRes, punchesRes, holidayRes, leaveRes, weekoffRes, policyRes] = await Promise.allSettled([
         fetch(`/api/v1/employees?limit=500${companyParam}`, { headers }),
         fetch(`/api/v1/attendance/summary?startDate=${startDayStr}&endDate=${endDayStr}${companyParam}`, { headers }),
         fetch(`/api/v1/attendance/raw-punches?startDate=${startDayStr}&endDate=${endDayStr}${companyParam}`, { headers }),
         fetch(`/api/v1/holidays?year=${selectedYear}${companyParam}`, { headers }),
         fetch(`/api/v1/leave-requests?startDate=${startDayStr}&endDate=${endDayStr}${companyParam}`, { headers }),
         fetch(`/api/v1/weekoffs?${companyParam.replace(/^&/, '')}`, { headers }),
+        fetch(`/api/v1/attendance/policies?${companyParam.replace(/^&/, '')}`, { headers }),
       ]);
 
       // Parse Employees
@@ -278,6 +324,13 @@ export default function AttendanceHistoryPage() {
         const wData = await weekoffRes.value.json();
         const policyObj = wData.weekoff || wData.policy || (Array.isArray(wData.weekoffs) ? wData.weekoffs[0] : null);
         setWeekoffPolicy(policyObj || null);
+      }
+
+      // Parse Attendance Policy (Working hours & overtime cutoff rules)
+      if (policyRes.status === 'fulfilled' && policyRes.value.ok) {
+        const polData = await policyRes.value.json();
+        const polObj = polData.policy || (Array.isArray(polData.policies) ? polData.policies[0] : null) || (Array.isArray(polData) ? polData[0] : null);
+        setAttendancePolicy(polObj || null);
       }
     } catch (err) {
       console.error('Error loading attendance history data:', err);
@@ -356,7 +409,7 @@ export default function AttendanceHistoryPage() {
     return map;
   }, [leaveRequests]);
 
-  // Step 3: Matrix Calculation per Employee per Day
+  // Step 3: Matrix Calculation per Employee per Day (Strictly adheres to DB Policy min_full_day_hours & min_half_day_hours)
   const getDayStatus = (empId: string, day: { dayNum: number; dayName: string; dateStr: string; dayOfWeek: number; dateObj: Date }) => {
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const isFuture = day.dateStr > todayStr;
@@ -377,36 +430,114 @@ export default function AttendanceHistoryPage() {
       return { code: leaveCode, label: `Leave (${leaveCode})`, type: 'LEAVE' };
     }
 
-    // 4. Attendance Summary Check
+    // 4. Policy Working Hours Cutoffs (Dynamic from /dashboard/attendance/rules)
+    const fullDayHours = attendancePolicy?.full_day_min_hours ? Number(attendancePolicy.full_day_min_hours) : 8;
+    const halfDayHours = attendancePolicy?.half_day_min_hours ? Number(attendancePolicy.half_day_min_hours) : 4;
+    const minFullDayMins = fullDayHours * 60;
+    const minHalfDayMins = halfDayHours * 60;
+
+    const isToday = day.dateStr === todayStr;
+
+    // 5. Attendance Summary Check
     const summary = summariesMap.get(`${empId}_${day.dateStr}`);
     const hasPunch = rawPunchesSet.has(`${empId}_${day.dateStr}`);
 
     if (summary) {
       const statusUpper = (summary.status || '').toUpperCase();
-      const workedMins = summary.worked_minutes || 0;
-      const lateMins = summary.late_minutes || 0;
+      let workedMins = summary.worked_minutes || 0;
+      let lateMins = summary.late_minutes || 0;
 
-      if (statusUpper === 'PRESENT' || workedMins >= 420 || (summary.first_in && summary.first_in !== '--:--')) {
-        if (lateMins > 0) {
-          return { code: 'L', label: `Late (${lateMins}m)`, type: 'LATE', summary };
+      // Calculate late minutes if not preset in summary
+      if (!lateMins && summary.first_in && summary.first_in !== '--:--') {
+        const startTime = (summary as any).shift_start_time || '09:30:00';
+        const graceIn = typeof (summary as any).shift_grace_in === 'number' 
+          ? (summary as any).shift_grace_in 
+          : (attendancePolicy?.grace_period_mins ? Number(attendancePolicy.grace_period_mins) : 15);
+        
+        let ph = -1, pm = -1;
+        const rawStr = String(summary.first_in).trim();
+        if (rawStr.includes('T') || rawStr.includes('Z')) {
+          const d = new Date(rawStr);
+          if (!isNaN(d.getTime())) {
+            const ist = new Date(d.getTime() + 5.5 * 3600 * 1000);
+            ph = ist.getUTCHours();
+            pm = ist.getUTCMinutes();
+          }
+        } else {
+          const str = rawStr.replace('T', ' ');
+          const parts = str.split(' ');
+          const timePart = parts.length >= 2 ? parts[1] : parts[0];
+          if (timePart && timePart.includes(':')) {
+            const pieces = timePart.split(':');
+            ph = parseInt(pieces[0], 10);
+            pm = parseInt(pieces[1], 10);
+          }
         }
-        if (workedMins >= 240 && workedMins < 420) {
-          return { code: 'Hd', label: 'Half Day', type: 'HALFDAY', summary };
+
+        if (ph >= 0 && pm >= 0) {
+          const [sh, sm] = startTime.split(':').map(Number);
+          const punchMins = ph * 60 + pm;
+          const shiftStartMins = (sh || 0) * 60 + (sm || 0);
+          const graceDeadlineMins = shiftStartMins + graceIn;
+          if (punchMins > graceDeadlineMins) {
+            lateMins = punchMins - shiftStartMins;
+          }
         }
-        return { code: 'P', label: 'Present', type: 'PRESENT', summary };
+      }
+
+      // If worked_minutes is 0/missing but first_in and last_out exist and differ, calculate worked duration
+      if (!workedMins && summary.first_in && summary.last_out && summary.first_in !== '--:--' && summary.last_out !== '--:--' && summary.first_in !== summary.last_out) {
+        const inD = new Date(summary.first_in.includes('T') ? summary.first_in : `2000-01-01T${summary.first_in}`);
+        const outD = new Date(summary.last_out.includes('T') ? summary.last_out : `2000-01-01T${summary.last_out}`);
+        if (!isNaN(inD.getTime()) && !isNaN(outD.getTime()) && outD > inD) {
+          workedMins = Math.round((outD.getTime() - inD.getTime()) / 60000);
+        }
       }
 
       if (statusUpper === 'LEAVE') {
         return { code: 'L', label: 'Leave', type: 'LEAVE', summary };
       }
 
-      if (statusUpper === 'HALF_DAY' || statusUpper === 'HALF DAY') {
-        return { code: 'Hd', label: 'Half Day', type: 'HALFDAY', summary };
+      // If worked minutes reach Full Day cutoff (e.g. >= 8 hrs)
+      if (workedMins >= minFullDayMins) {
+        if (lateMins > 0) {
+          return { code: 'L', label: `Late (${lateMins}m) (${formatDuration(workedMins)})`, type: 'LATE', summary };
+        }
+        return { code: 'P', label: `Present (${formatDuration(workedMins)})`, type: 'PRESENT', summary };
       }
+
+      // If worked minutes qualify for Half Day (e.g. >= 4 hrs and < 8 hrs)
+      if (workedMins >= minHalfDayMins) {
+        if (lateMins > 0) {
+          return { code: 'L', label: `Late (${lateMins}m) (${formatDuration(workedMins)})`, type: 'LATE', summary };
+        }
+        return { code: 'Hd', label: `Half Day (${formatDuration(workedMins)})`, type: 'HALFDAY', summary };
+      }
+
+      // If today and employee has punched in, shift is in progress
+      if (isToday && summary.first_in && summary.first_in !== '--:--') {
+        if (lateMins > 0) {
+          return { code: 'L', label: `Late (${lateMins}m) (In Progress)`, type: 'LATE', summary };
+        }
+        return { code: 'P', label: 'Present (In Progress)', type: 'PRESENT', summary };
+      }
+
+      // For past days with insufficient hours (< half day cutoff e.g. < 4 hours), classify as Absent
+      return { 
+        code: 'A', 
+        label: summary.first_in && summary.first_in !== '--:--' 
+          ? `Absent (${formatDuration(workedMins)})` 
+          : 'Absent', 
+        type: 'ABSENT', 
+        summary 
+      };
     }
 
     if (hasPunch) {
-      return { code: 'P', label: 'Present (Punched)', type: 'PRESENT' };
+      if (isToday) {
+        return { code: 'P', label: 'Present (In Progress)', type: 'PRESENT' };
+      }
+      return { code: 'A', label: 'Absent (00:00)', type: 'ABSENT' };
     }
 
     // Future date
@@ -672,9 +803,13 @@ export default function AttendanceHistoryPage() {
 
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {paginatedEmployees.map((emp) => {
-                  const empName = `${emp.first_name || ''} ${emp.last_name || ''} ${emp.name || ''}`.trim() || 'Employee';
+                  const cleanFirstName = (emp.first_name || '').trim();
+                  const cleanLastName = (emp.last_name || '').trim();
+                  const rawCombined = [cleanFirstName, cleanLastName].filter(Boolean).join(' ');
+                  const fullEmpName = rawCombined || (emp.name || '').trim() || 'Employee';
+                  const displayEmpName = fullEmpName.length > 20 ? `${fullEmpName.slice(0, 20)}...` : fullEmpName;
                   const empCode = emp.emp_id_code || emp.emp_code || emp.id.slice(0, 6);
-                  const initial = empName.charAt(0).toUpperCase();
+                  const initial = fullEmpName.charAt(0).toUpperCase();
 
                   return (
                     <tr
@@ -692,8 +827,11 @@ export default function AttendanceHistoryPage() {
                             {initial}
                           </div>
                           <div className="truncate">
-                            <div className="font-extrabold text-slate-900 dark:text-white uppercase tracking-tight truncate text-[11px]">
-                              {empName}
+                            <div 
+                              className="font-extrabold text-slate-900 dark:text-white uppercase tracking-tight truncate text-[11px] cursor-help"
+                              title={fullEmpName}
+                            >
+                              {displayEmpName}
                             </div>
                             <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
                               {empCode}
@@ -724,7 +862,7 @@ export default function AttendanceHistoryPage() {
                                         <span className="text-purple-600 text-sm animate-pulse">★</span>
                                       )}
                                       {status.type === 'WEEKOFF' && (
-                                        <span className="text-emerald-500 text-sm">🗓️</span>
+                                        <span className="text-emerald-500 text-sm">🌴</span>
                                       )}
                                       {status.type === 'PRESENT' && (
                                         <span className="text-emerald-600 font-black text-sm">✓</span>
@@ -775,12 +913,12 @@ export default function AttendanceHistoryPage() {
                                   )}
                                 </div>
                               </TooltipTrigger>
-                              <TooltipContent side="top" className="text-center font-sans text-xs p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl rounded-xl border border-slate-800 dark:border-slate-200 z-50">
+                              <TooltipContent side="top" className="text-center font-sans text-xs p-2.5 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl rounded-xl border border-slate-800 dark:border-slate-200 z-50">
                                 <div className="font-bold text-[11px]">{day.dateStr} ({day.dayName})</div>
                                 <div className="text-[10px] opacity-90 font-semibold">{status.label}</div>
                                 {status.summary?.first_in && (
-                                  <div className="text-[9px] mt-0.5 opacity-80 font-mono">
-                                    In: {status.summary.first_in} | Out: {status.summary.last_out || '--:--'}
+                                  <div className="text-[9.5px] mt-1 opacity-90 font-mono tracking-tight font-semibold bg-slate-800/80 dark:bg-slate-200/80 px-2 py-0.5 rounded">
+                                    In: {formatPunchTime(status.summary.first_in)} | Out: {formatPunchTime(status.summary.last_out)}
                                   </div>
                                 )}
                               </TooltipContent>
@@ -831,7 +969,7 @@ export default function AttendanceHistoryPage() {
 
         {/* Day Off (WO) */}
         <div className="flex items-center gap-1.5">
-          <span className="text-emerald-500 text-sm">🗓️</span>
+          <span className="text-emerald-500 text-sm">🌴</span>
           <span>➜ Day Off (WO)</span>
         </div>
 
@@ -840,7 +978,7 @@ export default function AttendanceHistoryPage() {
         {/* Present (P) */}
         <div className="flex items-center gap-1.5">
           <span className="text-emerald-600 font-bold">✓</span>
-          <span>➜ Present (≥9h) (P)</span>
+          <span>➜ Present (≥{attendancePolicy?.full_day_min_hours ? Number(attendancePolicy.full_day_min_hours) : 8}h) (P)</span>
         </div>
 
         <span className="text-slate-300 dark:text-slate-700">|</span>
@@ -848,7 +986,7 @@ export default function AttendanceHistoryPage() {
         {/* Half Day (Hd) */}
         <div className="flex items-center gap-1.5">
           <span className="text-sky-600 font-bold">✓ / ✕</span>
-          <span>➜ Half Day (4.5h–9h) (Hd)</span>
+          <span>➜ Half Day ({attendancePolicy?.half_day_min_hours ? Number(attendancePolicy.half_day_min_hours) : 4}h–{attendancePolicy?.full_day_min_hours ? Number(attendancePolicy.full_day_min_hours) : 8}h) (Hd)</span>
         </div>
 
         <span className="text-slate-300 dark:text-slate-700">|</span>
@@ -864,7 +1002,7 @@ export default function AttendanceHistoryPage() {
         {/* Absent (Ab) */}
         <div className="flex items-center gap-1.5">
           <span className="text-rose-600 font-bold">✕</span>
-          <span>➜ Absent (&lt;4.5h) (Ab)</span>
+          <span>➜ Absent (&lt;{attendancePolicy?.half_day_min_hours ? Number(attendancePolicy.half_day_min_hours) : 4}h) (Ab)</span>
         </div>
 
         <span className="text-slate-300 dark:text-slate-700">|</span>

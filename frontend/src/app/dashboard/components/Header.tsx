@@ -7,6 +7,7 @@ import { getHeaders, getUrl } from '../utils/api';
 import NotificationBell from './NotificationBell';
 import { useDashboard } from './DashboardContext';
 import MoodBooster from './MoodBooster';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface HeaderProps {
   companyName: string;
@@ -64,11 +65,18 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
   if (!isSuperAdmin) {
     const formatted = formatCompanyName(companyName || 'Company Tenant');
     return (
-      <div className="flex items-center h-[38px] px-3.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs" title={companyName}>
-        <span className="text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[320px]">
-          {formatted}
-        </span>
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center h-[38px] px-3.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs cursor-default">
+            <span className="text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[320px]">
+              {formatted}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs font-bold text-xs bg-slate-900 text-white dark:bg-slate-800 border border-slate-700 shadow-xl">
+          {companyName || 'Corporate Tenant'}
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -471,24 +479,35 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2 bg-slate-100/70 dark:bg-slate-800/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 p-1 sm:pl-3.5 sm:pr-2 sm:py-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 select-none transition-all cursor-pointer shadow-xs shrink-0"
           >
             {/* 1. NAMES ON LEFT */}
-            <div className="hidden sm:flex flex-col text-right">
-              <span
-                className="text-xs font-black tracking-tight leading-none text-[#07518a] dark:text-[#38bdf8] truncate max-w-[200px]"
-                title={userFullName || email}
-              >
-                {((userFullName || (email ? email.split('@')[0] : 'ADMIN')).length > 30
-                  ? (userFullName || (email ? email.split('@')[0] : 'ADMIN')).slice(0, 30) + '...'
-                  : (userFullName || (email ? email.split('@')[0] : 'ADMIN'))).toUpperCase()}
-              </span>
-              <span
-                className="text-[9px] font-black text-slate-950 dark:text-white tracking-wider uppercase mt-1 leading-none truncate max-w-[200px]"
-                title={designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')}
-              >
-                {((designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).length > 30
-                  ? (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).slice(0, 30) + '...'
-                  : (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE'))).toUpperCase()}
-              </span>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="hidden sm:flex flex-col text-right cursor-pointer">
+                  <span className="text-xs font-black tracking-tight leading-none text-[#07518a] dark:text-[#38bdf8] truncate max-w-[200px]">
+                    {((userFullName || (email ? email.split('@')[0] : 'ADMIN')).length > 30
+                      ? (userFullName || (email ? email.split('@')[0] : 'ADMIN')).slice(0, 30) + '...'
+                      : (userFullName || (email ? email.split('@')[0] : 'ADMIN'))).toUpperCase()}
+                  </span>
+                  <span className="text-[9px] font-black text-slate-950 dark:text-white tracking-wider uppercase mt-1 leading-none truncate max-w-[200px]">
+                    {((designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).length > 30
+                      ? (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).slice(0, 30) + '...'
+                      : (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE'))).toUpperCase()}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="p-2.5 space-y-1 text-left min-w-[190px] shadow-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-xl">
+                <div className="text-xs font-black text-slate-850 dark:text-white leading-tight">
+                  {userFullName || (email ? email.split('@')[0] : 'Admin User')}
+                </div>
+                <div className="text-[10.5px] font-bold text-[#07518a] dark:text-[#38bdf8]">
+                  {designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')}
+                </div>
+                {email && (
+                  <div className="text-[9.5px] font-semibold text-slate-400 dark:text-slate-500 font-mono break-all pt-0.5 border-t border-slate-100 dark:border-slate-800">
+                    {email}
+                  </div>
+                )}
+              </TooltipContent>
+            </Tooltip>
 
             {/* 2. IMAGE / CAPITAL INITIAL BADGE ON RIGHT */}
             <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-[#07518a] text-white font-extrabold text-xs uppercase shadow-sm flex-shrink-0 overflow-hidden">

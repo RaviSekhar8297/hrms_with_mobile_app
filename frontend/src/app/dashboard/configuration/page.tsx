@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useDashboard } from '../components/DashboardContext';
+import SlideDrawer from '../components/SlideDrawer';
+import { Loader2 } from 'lucide-react';
 
 export default function GlobalConfigurationPage() {
   const { companyId: globalCompanyId } = useDashboard();
@@ -33,6 +35,7 @@ export default function GlobalConfigurationPage() {
   
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; type: 'campaign' | 'rule' | 'email' | 'whatsapp'; provider?: string } | null>(null);
+  const [isSavingSmtp, setIsSavingSmtp] = useState(false);
 
   const [companies, setCompanies] = useState<any[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
@@ -157,7 +160,7 @@ export default function GlobalConfigurationPage() {
   }, [activeCompanyId]);
 
   const openNewSmtpModal = () => {
-    setSmtpCreds({ id: '', fromEmail: '', password: '', smtpServer: 'smtp.gmail.com', smtpType: 'TLS' });
+    setSmtpCreds({ id: '', fromEmail: '', password: '', smtpServer: '', smtpType: 'TLS' });
     setShowSmtpModal(true);
   };
 
@@ -220,6 +223,37 @@ export default function GlobalConfigurationPage() {
   };
 
   const handleSaveIntegration = async (provider: string, credentials: any, isActive: boolean) => {
+    const targetCid = activeCompanyId || selectedCompanyId || localStorage.getItem('companyId');
+    if (!targetCid || targetCid === 'all') {
+      showToast('Please select a target company context.', 'error');
+      return;
+    }
+
+    if (provider === 'SMTP') {
+      const emailTrimmed = (credentials.fromEmail || '').trim();
+      const hostTrimmed = (credentials.smtpServer || '').trim();
+      const passTrimmed = (credentials.password || '').trim();
+
+      if (!emailTrimmed) {
+        showToast('From Email address is required.', 'error');
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailTrimmed)) {
+        showToast('Please enter a valid email address.', 'error');
+        return;
+      }
+      if (!hostTrimmed) {
+        showToast('SMTP Server Host is required (e.g. smtp.gmail.com).', 'error');
+        return;
+      }
+      if (!passTrimmed) {
+        showToast('App Password / Security Token is required.', 'error');
+        return;
+      }
+      setIsSavingSmtp(true);
+    }
+
     try {
       const token = localStorage.getItem('access_token');
       let url = '';
@@ -229,20 +263,20 @@ export default function GlobalConfigurationPage() {
         url = '/api/v1/recruitment/settings/email';
         payload = {
           id: credentials.id || undefined,
-          company_id: selectedCompanyId,
-          smtp_host: credentials.smtpServer,
+          company_id: targetCid,
+          smtp_host: credentials.smtpServer ? credentials.smtpServer.trim() : '',
           smtp_port: credentials.smtpType === 'SSL' ? 465 : 587,
-          smtp_username: credentials.fromEmail,
+          smtp_username: credentials.fromEmail ? credentials.fromEmail.trim() : '',
           smtp_password_encrypted: credentials.password,
-          encryption_type: credentials.smtpType,
-          from_email: credentials.fromEmail,
+          encryption_type: credentials.smtpType || 'TLS',
+          from_email: credentials.fromEmail ? credentials.fromEmail.trim() : '',
           from_name: 'HR Team',
           is_active: isActive
         };
       } else if (provider === 'WHATSAPP') {
         url = '/api/v1/recruitment/settings/whatsapp';
         payload = {
-          company_id: selectedCompanyId,
+          company_id: targetCid,
           provider: 'WHATSAPP',
           api_url: credentials.url,
           api_key_encrypted: credentials.apiKey,
@@ -262,13 +296,23 @@ export default function GlobalConfigurationPage() {
         setShowSmtpModal(false);
         setShowWhatsappModal(false);
         fetchIntegrations();
-        showToast(`${provider} configuration saved!`, 'success');
+        showToast(
+          provider === 'SMTP'
+            ? (credentials.id ? 'SMTP Gateway updated successfully!' : 'SMTP Gateway configured successfully!')
+            : `${provider} configuration saved successfully!`,
+          'success'
+        );
       } else {
-        showToast(`Failed to save ${provider} settings`, 'error');
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || `Failed to save ${provider} settings`, 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('Error saving settings', 'error');
+      showToast('Error saving settings. Please check your network.', 'error');
+    } finally {
+      if (provider === 'SMTP') {
+        setIsSavingSmtp(false);
+      }
     }
   };
 
@@ -1025,56 +1069,97 @@ export default function GlobalConfigurationPage() {
           </div>
         )}
 
-      {/* 🛠️ MODAL 1: SMTP SETTINGS */}
-      {showSmtpModal && (
-        <div className="fixed inset-0 z-50 overflow-hidden font-sans">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" onClick={() => setShowSmtpModal(false)}></div>
-          <div className="fixed inset-y-0 right-0 max-w-md w-full flex shadow-2xl">
-            <div className="w-full h-full bg-white dark:bg-slate-900 flex flex-col">
-              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-blue-50/60 dark:bg-blue-950/40">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#07518a] text-white flex items-center justify-center font-bold">
-                    ✉️
-                  </div>
-                  <div>
-                    <h2 className="text-base font-black text-slate-900 dark:text-white">SMTP Email Gateway Settings</h2>
-                    <p className="text-[11px] text-slate-500 font-medium">Configure corporate outgoing mail server</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowSmtpModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 font-bold cursor-pointer rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-800">✕</button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">From Email Address</label>
-                  <input type="email" value={smtpCreds.fromEmail} onChange={e => setSmtpCreds({...smtpCreds, fromEmail: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="hr@company.com" />
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">SMTP Server Host</label>
-                  <input type="text" value={smtpCreds.smtpServer} onChange={e => setSmtpCreds({...smtpCreds, smtpServer: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="smtp.gmail.com" />
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">App Password / Security Token</label>
-                  <input type="password" value={smtpCreds.password} onChange={e => setSmtpCreds({...smtpCreds, password: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]" placeholder="••••••••" />
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Encryption Protocol</label>
-                  <select value={smtpCreds.smtpType} onChange={e => setSmtpCreds({...smtpCreds, smtpType: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a]">
-                    <option value="SSL">SSL (Port 465)</option>
-                    <option value="TLS">TLS (Port 587)</option>
-                    <option value="None">None (Port 25)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/50 dark:bg-slate-900">
-                <button onClick={() => setShowSmtpModal(false)} className="px-5 py-2.5 rounded-xl font-extrabold text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 text-xs cursor-pointer">Cancel</button>
-                <button onClick={() => handleSaveIntegration('SMTP', smtpCreds, true)} className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-[#07518a] hover:bg-[#064270] text-xs shadow-md shadow-[#07518a]/20 cursor-pointer">Save SMTP Credentials</button>
-              </div>
-            </div>
+      {/* 🛠️ MODAL 1: SMTP SETTINGS (SlideDrawer with high z-index overlay to cover sidebar & header) */}
+      <SlideDrawer
+        isOpen={showSmtpModal}
+        onClose={() => setShowSmtpModal(false)}
+        title="SMTP Email Gateway Settings"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSaveIntegration('SMTP', smtpCreds, true);
+          }}
+          noValidate
+          className="space-y-5 text-left font-sans"
+        >
+          <div>
+            <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">
+              From Email Address <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="email"
+              required
+              value={smtpCreds.fromEmail}
+              onChange={e => setSmtpCreds({ ...smtpCreds, fromEmail: e.target.value })}
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a] text-slate-800 dark:text-slate-200"
+              placeholder="e.g. hr@company.com"
+            />
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">
+              SMTP Server Host <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={smtpCreds.smtpServer}
+              onChange={e => setSmtpCreds({ ...smtpCreds, smtpServer: e.target.value })}
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a] text-slate-800 dark:text-slate-200"
+              placeholder="e.g. smtp.gmail.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">
+              App Password / Security Token <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="password"
+              required
+              value={smtpCreds.password}
+              onChange={e => setSmtpCreds({ ...smtpCreds, password: e.target.value })}
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a] text-slate-800 dark:text-slate-200"
+              placeholder="••••••••••••••••"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">
+              Encryption Protocol <span className="text-rose-500">*</span>
+            </label>
+            <select
+              value={smtpCreds.smtpType}
+              onChange={e => setSmtpCreds({ ...smtpCreds, smtpType: e.target.value })}
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#07518a] text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
+              <option value="TLS">TLS (Port 587 - Recommended)</option>
+              <option value="SSL">SSL (Port 465)</option>
+              <option value="None">None (Port 25)</option>
+            </select>
+          </div>
+
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+            <button
+              type="button"
+              disabled={isSavingSmtp}
+              onClick={() => setShowSmtpModal(false)}
+              className="px-5 py-2.5 rounded-xl font-extrabold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingSmtp}
+              className="px-5 py-2.5 rounded-xl font-extrabold text-white bg-[#07518a] hover:bg-[#064270] text-xs shadow-md shadow-[#07518a]/20 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isSavingSmtp && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{isSavingSmtp ? 'Saving...' : 'Save SMTP Credentials'}</span>
+            </button>
+          </div>
+        </form>
+      </SlideDrawer>
 
       {/* 🛠️ MODAL 2: WHATSAPP SETTINGS */}
       {showWhatsappModal && (

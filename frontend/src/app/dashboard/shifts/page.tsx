@@ -9,6 +9,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import CustomDatePicker from '../components/CustomDatePicker';
 import ModernPagination from '../components/ModernPagination';
 import { usePermissions } from '../hooks/usePermissions';
+import { Loader2 } from 'lucide-react';
 
 interface Company {
   id: string;
@@ -74,18 +75,19 @@ export default function ShiftsPage() {
   // Shifts state
   const [shifts, setShifts] = useState<any[]>([]);
   const [addShiftDrawerOpen, setAddShiftDrawerOpen] = useState(false);
+  const [isSubmittingShift, setIsSubmittingShift] = useState(false);
   const [newShiftForm, setNewShiftForm] = useState({
     id: '',
     name: '',
-    start_time: '09:00',
-    end_time: '18:00',
-    grace_in_minutes: '15',
-    grace_out_minutes: '15',
-    halfday_minutes: '240',
-    fullday_minutes: '480',
+    start_time: '',
+    end_time: '',
+    grace_in_minutes: '',
+    grace_out_minutes: '',
+    halfday_minutes: '',
+    fullday_minutes: '',
     is_overnight: false,
     allow_overtime: false,
-    ot_after_minutes: '0',
+    ot_after_minutes: '',
     company_id: ''
   });
 
@@ -269,15 +271,51 @@ export default function ShiftsPage() {
 
   const handleCreateShift = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newShiftForm.name || !newShiftForm.start_time || !newShiftForm.end_time) {
-      showToast('Please fill in Shift Name, Start Time and End Time.', 'error');
+    const cleanName = (newShiftForm.name || '').trim();
+    const cleanStart = (newShiftForm.start_time || '').trim().slice(0, 5);
+    const cleanEnd = (newShiftForm.end_time || '').trim().slice(0, 5);
+
+    if (!cleanName) {
+      showToast('Shift Name is required.', 'error');
+      return;
+    }
+    if (!cleanStart || !cleanEnd) {
+      showToast('Please provide both Start Time and End Time (e.g. 09:00 and 18:00).', 'error');
       return;
     }
     const targetCompanyId = companyId || newShiftForm.company_id;
-    if (!targetCompanyId) {
-      showToast('Please select a company for this shift policy.', 'error');
+    if (!targetCompanyId || targetCompanyId === 'all') {
+      showToast('Please select a target company for this shift policy.', 'error');
       return;
     }
+
+    // Client-side Duplicate Name validation
+    const isDuplicateName = shifts.some(s => {
+      if (newShiftForm.id && String(s.id) === String(newShiftForm.id)) return false;
+      const sComp = s.company_id ? String(s.company_id) : '';
+      if (sComp && targetCompanyId && targetCompanyId !== 'all' && sComp !== String(targetCompanyId)) return false;
+      return String(s.name || '').trim().toLowerCase() === cleanName.toLowerCase();
+    });
+    if (isDuplicateName) {
+      showToast(`A shift named "${cleanName}" already exists! Please choose a unique name.`, 'error');
+      return;
+    }
+
+    // Client-side Duplicate Timing validation (same start_time and end_time)
+    const isDuplicateTiming = shifts.some(s => {
+      if (newShiftForm.id && String(s.id) === String(newShiftForm.id)) return false;
+      const sComp = s.company_id ? String(s.company_id) : '';
+      if (sComp && targetCompanyId && targetCompanyId !== 'all' && sComp !== String(targetCompanyId)) return false;
+      const sStart = String(s.start_time || '').trim().slice(0, 5);
+      const sEnd = String(s.end_time || '').trim().slice(0, 5);
+      return sStart === cleanStart && sEnd === cleanEnd;
+    });
+    if (isDuplicateTiming) {
+      showToast(`A shift with timing (${cleanStart} - ${cleanEnd}) already exists! Duplicate shift timing is not allowed.`, 'error');
+      return;
+    }
+
+    setIsSubmittingShift(true);
     try {
       const method = newShiftForm.id ? 'PUT' : 'POST';
       const url = newShiftForm.id 
@@ -289,13 +327,35 @@ export default function ShiftsPage() {
         headers: getHeaders(),
         body: JSON.stringify({
           companyId: targetCompanyId,
-          ...newShiftForm
+          ...newShiftForm,
+          name: cleanName,
+          start_time: cleanStart,
+          end_time: cleanEnd,
+          grace_in_minutes: newShiftForm.grace_in_minutes || '15',
+          grace_out_minutes: newShiftForm.grace_out_minutes || '15',
+          halfday_minutes: newShiftForm.halfday_minutes || '240',
+          fullday_minutes: newShiftForm.fullday_minutes || '480',
+          ot_after_minutes: newShiftForm.ot_after_minutes || '0'
         })
       });
 
       if (res.ok) {
-        showToast(`Shift ${newShiftForm.id ? 'updated' : 'created'} successfully!`, 'success');
+        showToast(`Shift policy ${newShiftForm.id ? 'updated' : 'created'} successfully!`, 'success');
         setAddShiftDrawerOpen(false);
+        setNewShiftForm({
+          id: '',
+          name: '',
+          start_time: '',
+          end_time: '',
+          grace_in_minutes: '',
+          grace_out_minutes: '',
+          halfday_minutes: '',
+          fullday_minutes: '',
+          is_overnight: false,
+          allow_overtime: false,
+          ot_after_minutes: '',
+          company_id: ''
+        });
         fetchShifts();
       } else {
         const err = await res.json();
@@ -304,6 +364,8 @@ export default function ShiftsPage() {
     } catch (err) {
       console.error(err);
       showToast('Connection to server failed', 'error');
+    } finally {
+      setIsSubmittingShift(false);
     }
   };
 
@@ -595,16 +657,16 @@ export default function ShiftsPage() {
                     setNewShiftForm({
                       id: '',
                       name: '',
-                      start_time: '09:00',
-                      end_time: '18:00',
-                      grace_in_minutes: '15',
-                      grace_out_minutes: '15',
-                      halfday_minutes: '240',
-                      fullday_minutes: '480',
+                      start_time: '',
+                      end_time: '',
+                      grace_in_minutes: '',
+                      grace_out_minutes: '',
+                      halfday_minutes: '',
+                      fullday_minutes: '',
                       is_overnight: false,
                       allow_overtime: false,
-                      ot_after_minutes: '0',
-                      company_id: ''
+                      ot_after_minutes: '',
+                      company_id: (companyId && companyId !== 'all') ? companyId : ''
                     });
                     setAddShiftDrawerOpen(true);
                   }}
@@ -1336,16 +1398,19 @@ export default function ShiftsPage() {
           <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800/80">
             <button
               type="button"
+              disabled={isSubmittingShift}
               onClick={() => setAddShiftDrawerOpen(false)}
-              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50/10 text-xs font-bold text-slate-500 dark:text-slate-400 transition-all cursor-pointer bg-transparent"
+              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50/10 text-xs font-bold text-slate-500 dark:text-slate-400 transition-all cursor-pointer bg-transparent disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-xs font-bold text-white shadow-md shadow-[#07518a]/20 transition-all cursor-pointer"
+              disabled={isSubmittingShift}
+              className="px-5 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-xs font-bold text-white shadow-md shadow-[#07518a]/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {newShiftForm.id ? 'Update Shift' : 'Create Shift'}
+              {isSubmittingShift && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{isSubmittingShift ? 'Saving...' : (newShiftForm.id ? 'Update Shift' : 'Create Shift')}</span>
             </button>
           </div>
         </form>

@@ -179,20 +179,29 @@ export default function RolesPage() {
       showToast('Corporate context selection is required', 'error');
       return;
     }
-    if (!roleForm.name) {
+    const cleanName = roleForm.name.trim();
+    if (!cleanName) {
       showToast('Role Name Identifier is required', 'error');
       return;
     }
-    if (!roleForm.description) {
+    if (!roleForm.description?.trim()) {
       showToast('Role description is required', 'error');
       return;
     }
+
+    // Duplicate check within currently active company
+    const isDuplicate = tenantRoles.some(r => r.name.trim().toLowerCase() === cleanName.toLowerCase());
+    if (isDuplicate) {
+      showToast(`A role with the name "${cleanName}" already exists in this company`, 'error');
+      return;
+    }
+
     setIsCreatingRole(true);
     try {
       const res = await fetch('/api/v1/roles', {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ ...roleForm, companyId })
+        body: JSON.stringify({ ...roleForm, name: cleanName, companyId })
       });
       const data = await res.json();
       if (res.ok) {
@@ -220,16 +229,27 @@ export default function RolesPage() {
   const handleUpdateRole = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRole) return;
-    if (!editRoleForm.name) {
+    const cleanName = editRoleForm.name.trim();
+    if (!cleanName) {
       showToast('Role Name is required', 'error');
       return;
     }
+
+    // Duplicate check on update within currently active company
+    const isDuplicate = tenantRoles.some(
+      r => r.id !== editingRole.id && r.name.trim().toLowerCase() === cleanName.toLowerCase()
+    );
+    if (isDuplicate) {
+      showToast(`A role with the name "${cleanName}" already exists in this company`, 'error');
+      return;
+    }
+
     setIsUpdatingRole(true);
     try {
       const res = await fetch(`/api/v1/roles/${editingRole.id}`, {
         method: 'PUT',
         headers: getHeaders(),
-        body: JSON.stringify(editRoleForm)
+        body: JSON.stringify({ ...editRoleForm, name: cleanName })
       });
       const data = await res.json();
       if (res.ok) {
@@ -497,7 +517,7 @@ export default function RolesPage() {
   const inputStyle = "w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-purple-500 focus:bg-card focus:ring-4 focus:ring-purple-500/10 transition-all duration-200 placeholder-slate-400";
 
   return (
-    <div className="space-y-8 animate-fadeIn w-full pb-32 font-['DM_Sans',sans-serif]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="space-y-8 animate-fadeIn w-full pb-32 font-sidebar">
 
       {/* Header Panel */}
       <div className="w-full">

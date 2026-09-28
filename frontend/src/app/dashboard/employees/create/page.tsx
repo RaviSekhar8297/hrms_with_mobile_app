@@ -26,6 +26,7 @@ function CreateEmployeeContent() {
   const canCreateBranch = isSuperAdmin || hasPermission('create_branches');
   const canCreateDepartment = isSuperAdmin || hasPermission('create_departments');
   const canCreateDesignation = isSuperAdmin || hasPermission('create_designations');
+  const canCreateShift = isSuperAdmin || hasPermission('create_shifts') || hasPermission('shifts_create');
 
   const modeParam = searchParams.get('mode');
   const [onboardingMode, setOnboardingMode] = useState<'single' | 'bulk'>('single');
@@ -337,12 +338,14 @@ function CreateEmployeeContent() {
     }) || null;
   }, [empForm.email, serverDuplicateEmail, safeEmployees]);
 
-  // Quick Add modal states for Branch, Department, Designation
-  const [quickAddModal, setQuickAddModal] = useState<'branch' | 'department' | 'designation' | null>(null);
+  // Quick Add modal states for Branch, Department, Designation, Shift
+  const [quickAddModal, setQuickAddModal] = useState<'branch' | 'department' | 'designation' | 'shift' | null>(null);
   const [quickAddForm, setQuickAddForm] = useState({
     name: '',
     address: '',
     description: '',
+    start_time: '09:00',
+    end_time: '18:00',
   });
   const [quickAddLoading, setQuickAddLoading] = useState(false);
 
@@ -367,7 +370,7 @@ function CreateEmployeeContent() {
       showToast('⚠️ Please select a company first.', 'error');
       return;
     }
-    setQuickAddForm({ name: '', address: '', description: '' });
+    setQuickAddForm({ name: '', address: '', description: '', start_time: '09:00', end_time: '18:00' });
     setQuickAddModal('branch');
   };
 
@@ -384,7 +387,7 @@ function CreateEmployeeContent() {
       showToast('⚠️ Please select or create a Branch first before adding a Department.', 'error');
       return;
     }
-    setQuickAddForm({ name: '', address: '', description: '' });
+    setQuickAddForm({ name: '', address: '', description: '', start_time: '09:00', end_time: '18:00' });
     setQuickAddModal('department');
   };
 
@@ -405,8 +408,21 @@ function CreateEmployeeContent() {
       showToast('⚠️ Please select or create a Department first before adding a Designation.', 'error');
       return;
     }
-    setQuickAddForm({ name: '', address: '', description: '' });
+    setQuickAddForm({ name: '', address: '', description: '', start_time: '09:00', end_time: '18:00' });
     setQuickAddModal('designation');
+  };
+
+  const handleOpenQuickAddShift = () => {
+    if (!canCreateShift) {
+      showToast('⚠️ You do not have permission to create shifts.', 'error');
+      return;
+    }
+    if (!activeCompanyId || activeCompanyId === 'all') {
+      showToast('⚠️ Please select a company first.', 'error');
+      return;
+    }
+    setQuickAddForm({ name: '', address: '', description: '', start_time: '09:00', end_time: '18:00' });
+    setQuickAddModal('shift');
   };
 
   const handleQuickAddSubmit = async (e: React.FormEvent) => {
@@ -476,6 +492,26 @@ function CreateEmployeeContent() {
           setQuickAddModal(null);
         } else {
           showToast(data.error || 'Failed to create designation.', 'error');
+        }
+      } else if (quickAddModal === 'shift') {
+        const res = await fetch(`${API_BASE}/api/v1/shifts`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({
+            companyId: activeCompanyId,
+            name: quickAddForm.name.trim(),
+            start_time: quickAddForm.start_time || '09:00',
+            end_time: quickAddForm.end_time || '18:00',
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.shift) {
+          showToast(`✅ Shift "${data.shift.name}" created successfully!`, 'success');
+          setShifts(prev => [...prev, data.shift]);
+          setEmpForm(prev => ({ ...prev, shift_id: data.shift.id }));
+          setQuickAddModal(null);
+        } else {
+          showToast(data.error || 'Failed to create shift.', 'error');
         }
       }
     } catch (err: any) {
@@ -1188,12 +1224,31 @@ function CreateEmployeeContent() {
                     <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                       Assigned Shift <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
-                    <SearchableSelect
-                      options={deduplicateOptions(filteredShifts.map(s => ({ value: s.id, label: `${s.name} (${s.start_time} - ${s.end_time})` })), empForm.shift_id)}
-                      value={empForm.shift_id}
-                      onChange={(val) => setEmpForm({ ...empForm, shift_id: val })}
-                      placeholder="Select Shift"
-                    />
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <SearchableSelect
+                          options={deduplicateOptions(filteredShifts.map(s => ({ value: s.id, label: `${s.name} (${s.start_time} - ${s.end_time})` })), empForm.shift_id)}
+                          value={empForm.shift_id}
+                          onChange={(val) => setEmpForm({ ...empForm, shift_id: val })}
+                          placeholder="Select Shift"
+                        />
+                      </div>
+                      {canCreateShift && (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            onClick={handleOpenQuickAddShift}
+                            title="Add Shift"
+                            className="h-[42px] w-[42px] shrink-0 flex items-center justify-center rounded-xl bg-[#07518a] hover:bg-[#064270] text-white border border-[#07518a] shadow-xs transition-all duration-200 text-lg font-bold cursor-pointer active:scale-95"
+                          >
+                            +
+                          </button>
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white opacity-0 shadow transition-opacity group-hover:opacity-100 z-30">
+                            Add Shift
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <DatePickerSimple
@@ -1800,7 +1855,13 @@ function CreateEmployeeContent() {
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <span className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-base font-bold">
-                  {quickAddModal === 'branch' ? '🏢' : quickAddModal === 'department' ? '🏬' : '💼'}
+                  {quickAddModal === 'branch'
+                    ? '🏢'
+                    : quickAddModal === 'department'
+                    ? '🏬'
+                    : quickAddModal === 'designation'
+                    ? '💼'
+                    : '⏰'}
                 </span>
                 <div>
                   <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">
@@ -1808,7 +1869,9 @@ function CreateEmployeeContent() {
                       ? 'Quick Add Branch'
                       : quickAddModal === 'department'
                       ? 'Quick Add Department'
-                      : 'Quick Add Designation'}
+                      : quickAddModal === 'designation'
+                      ? 'Quick Add Designation'
+                      : 'Quick Add Shift'}
                   </h3>
                   <p className="text-[11px] text-slate-400">
                     Add immediately into currently active company context
@@ -1831,7 +1894,9 @@ function CreateEmployeeContent() {
                     ? 'Branch Name'
                     : quickAddModal === 'department'
                     ? 'Department Name'
-                    : 'Designation Title'}{' '}
+                    : quickAddModal === 'designation'
+                    ? 'Designation Title'
+                    : 'Shift Name'}{' '}
                   <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
                 <input
@@ -1845,11 +1910,42 @@ function CreateEmployeeContent() {
                       ? 'e.g. Hyderabad Hitech City'
                       : quickAddModal === 'department'
                       ? 'e.g. Product Engineering'
-                      : 'e.g. Senior Full Stack Engineer'
+                      : quickAddModal === 'designation'
+                      ? 'e.g. Senior Full Stack Engineer'
+                      : 'e.g. Morning Regular (9 AM - 6 PM)'
                   }
                   className={stylishInputClass}
                 />
               </div>
+
+              {quickAddModal === 'shift' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Start Time <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={quickAddForm.start_time}
+                      onChange={(e) => setQuickAddForm({ ...quickAddForm, start_time: e.target.value })}
+                      className={stylishInputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      End Time <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={quickAddForm.end_time}
+                      onChange={(e) => setQuickAddForm({ ...quickAddForm, end_time: e.target.value })}
+                      className={stylishInputClass}
+                    />
+                  </div>
+                </div>
+              )}
 
               {quickAddModal === 'branch' && (
                 <div>

@@ -45,6 +45,8 @@ export default function RawPunchLogsPage() {
   const [pageSize, setPageSize] = useState(50);
 
   const [selectedMapPunch, setSelectedMapPunch] = useState<any | null>(null);
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [editingPunch, setEditingPunch] = useState<any | null>(null);
   const [deletingPunch, setDeletingPunch] = useState<any | null>(null);
 
@@ -160,6 +162,44 @@ export default function RawPunchLogsPage() {
 
     fetchCompanies();
   }, []);
+
+  useEffect(() => {
+    if (!selectedMapPunch) {
+      setResolvedAddress(null);
+      setIsGeocoding(false);
+      return;
+    }
+
+    const loc = selectedMapPunch.location_name;
+    if (loc && loc !== 'IN' && loc !== 'OUT' && loc !== 'AUTO') {
+      setResolvedAddress(loc);
+      return;
+    }
+
+    if (selectedMapPunch.latitude && selectedMapPunch.longitude) {
+      setIsGeocoding(true);
+      fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${selectedMapPunch.latitude}&lon=${selectedMapPunch.longitude}&zoom=18&addressdetails=1`,
+        { headers: { 'User-Agent': 'Brihaspathi-HRMS/1.0' } }
+      )
+        .then((res) => res.json())
+        .then((geoData) => {
+          if (geoData && geoData.display_name) {
+            setResolvedAddress(geoData.display_name);
+          } else {
+            setResolvedAddress(`GPS Location (${selectedMapPunch.latitude}, ${selectedMapPunch.longitude})`);
+          }
+        })
+        .catch(() => {
+          setResolvedAddress(`GPS Location (${selectedMapPunch.latitude}, ${selectedMapPunch.longitude})`);
+        })
+        .finally(() => {
+          setIsGeocoding(false);
+        });
+    } else {
+      setResolvedAddress('Biometric Terminal Punch (No GPS coordinates)');
+    }
+  }, [selectedMapPunch]);
 
   useEffect(() => {
     if (canView) {
@@ -375,7 +415,7 @@ export default function RawPunchLogsPage() {
 
           {/* 2. DATES */}
           <div className="flex items-center gap-1.5">
-            <div className="w-[140px]">
+            <div className="w-[175px] sm:w-[180px]">
               <DatePickerSimple
                 value={startDate}
                 onChange={(val) => {
@@ -390,7 +430,7 @@ export default function RawPunchLogsPage() {
               />
             </div>
             <span className="text-slate-400 text-xs font-bold">to</span>
-            <div className="w-[140px]">
+            <div className="w-[175px] sm:w-[180px]">
               <DatePickerSimple
                 value={endDate}
                 onChange={(val) => setEndDate(val)}
@@ -532,15 +572,19 @@ export default function RawPunchLogsPage() {
                         </span>
                       </td>
                       <td className="py-3 px-3 text-slate-700 dark:text-slate-300 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          {punch.device_id && punch.device_id !== 'System' && punch.device_id.toUpperCase() !== (punch.source || '').toUpperCase() ? (
-                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{punch.device_id}</span>
-                          ) : punch.device_model && punch.device_model !== 'System' && punch.device_model.toUpperCase() !== (punch.source || '').toUpperCase() ? (
-                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{punch.device_model}</span>
-                          ) : null}
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border border-slate-200/80 dark:border-slate-700 uppercase tracking-wider">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border ${
+                            (punch.source || '').toUpperCase().includes('MOBILE')
+                              ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-800/60'
+                              : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/60 dark:border-indigo-800/60'
+                          }`}>
                             {punch.source || 'BIOMETRIC'}
                           </span>
+                          {(punch.device_id || punch.device_model) && (punch.device_id || punch.device_model) !== 'System' && String(punch.device_id || punch.device_model).toUpperCase() !== String(punch.source || '').toUpperCase() ? (
+                            <span className="text-[10px] font-mono font-medium text-slate-500 dark:text-slate-400">
+                              Machine ID: <strong className="text-slate-700 dark:text-slate-200">{punch.device_id || punch.device_model}</strong>
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                       <td className="py-3 px-3 text-xs text-slate-500 dark:text-slate-400 tabular-nums font-medium">
@@ -553,8 +597,14 @@ export default function RawPunchLogsPage() {
                             onClick={() => setSelectedMapPunch(punch)}
                             className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline cursor-pointer border-0 bg-transparent"
                           >
-                            <MapPin className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate max-w-[130px]">{punch.location_name || 'View GPS'}</span>
+                            <MapPin className="w-3.5 h-3.5 shrink-0 text-blue-500" />
+                            <span className="truncate max-w-[130px]">
+                              {punch.location_name && punch.location_name !== 'IN' && punch.location_name !== 'OUT'
+                                ? punch.location_name
+                                : punch.latitude && punch.longitude
+                                ? 'View GPS'
+                                : 'Terminal'}
+                            </span>
                           </button>
                         </div>
                       </td>
@@ -914,16 +964,23 @@ export default function RawPunchLogsPage() {
                 </div>
               </div>
 
-              {selectedMapPunch.location_name && (
-                <div className="p-3.5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40">
-                  <span className="text-[9.5px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-1">
-                    Verified Address
-                  </span>
+              <div className="p-3.5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40">
+                <span className="text-[9.5px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-1">
+                  Verified Address / Location
+                </span>
+                {isGeocoding ? (
+                  <div className="flex items-center gap-2 text-slate-500 text-xs py-1">
+                    <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    <span>Resolving location address...</span>
+                  </div>
+                ) : (
                   <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
-                    {selectedMapPunch.location_name}
+                    {resolvedAddress || (selectedMapPunch.latitude && selectedMapPunch.longitude
+                      ? `GPS Coordinates (${selectedMapPunch.latitude}, ${selectedMapPunch.longitude})`
+                      : 'Physical Biometric Terminal Punch')}
                   </p>
-                </div>
-              )}
+                )}
+              </div>
 
               {selectedMapPunch.latitude && selectedMapPunch.longitude ? (
                 <div className="space-y-2">

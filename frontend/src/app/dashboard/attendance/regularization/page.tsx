@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders, API_BASE } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { Edit2, Trash2, CheckCircle2, XCircle, Clock, FileText, AlertTriangle, ShieldCheck, Search, Filter } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle2, XCircle, Clock, FileText, AlertTriangle, ShieldCheck, Search, Filter, Loader2 } from 'lucide-react';
 import ModernPagination from '../../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import CustomDatePicker from '../../components/CustomDatePicker';
+import SearchableSelect from '../../components/SearchableSelect';
 
 export default function AttendanceRegularizationPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
@@ -65,10 +66,10 @@ export default function AttendanceRegularizationPage() {
 
   const [form, setForm] = useState({
     employee_id: '',
-    attendance_date: new Date().toISOString().split('T')[0],
-    punch_type: 'CHECK_IN' as 'CHECK_IN' | 'CHECK_OUT' | 'BOTH',
-    requested_in: '09:30',
-    requested_out: '18:30',
+    attendance_date: '',
+    punch_type: '' as '' | 'CHECK_IN' | 'CHECK_OUT' | 'BOTH',
+    requested_in: '',
+    requested_out: '',
     reason: '',
   });
 
@@ -194,6 +195,10 @@ export default function AttendanceRegularizationPage() {
       showToast('Please select an attendance date', 'error');
       return;
     }
+    if (!form.punch_type) {
+      showToast('Please select a Punch Type', 'error');
+      return;
+    }
     if (form.punch_type === 'CHECK_IN' && !form.requested_in) {
       showToast('Please enter requested In-Time', 'error');
       return;
@@ -216,15 +221,19 @@ export default function AttendanceRegularizationPage() {
       return;
     }
     
-    // Resolve employee ID
-    const currentEmpId = localStorage.getItem('employeeId') || (employees.find(emp => emp.email === email)?.id) || '';
+    const currentEmpId = localStorage.getItem('employeeId') || (employees.find(emp => emp.email?.toLowerCase() === email.toLowerCase())?.id) || '';
     const targetEmpId = form.employee_id || currentEmpId;
+
+    if (!targetEmpId) {
+      showToast('Please select an employee profile.', 'error');
+      return;
+    }
 
     // Client-side instant overlap check
     const activeReq = requests.find(r => 
       (r.status === 'PENDING' || r.status === 'APPROVED') &&
       r.attendance_date?.split('T')[0] === form.attendance_date &&
-      (!targetEmpId || r.employee_id === targetEmpId)
+      r.employee_id === targetEmpId
     );
     if (activeReq) {
       const exPunch = activeReq.punch_type || ((activeReq.requested_in && activeReq.requested_out) ? 'BOTH' : (activeReq.requested_out ? 'CHECK_OUT' : 'CHECK_IN'));
@@ -263,7 +272,7 @@ export default function AttendanceRegularizationPage() {
         body: JSON.stringify({
           company_id: cid,
           companyId: cid,
-          employee_id: targetEmpId || undefined,
+          employee_id: targetEmpId,
           attendance_date: form.attendance_date,
           punch_type: form.punch_type,
           requested_in: (form.punch_type === 'CHECK_IN' || form.punch_type === 'BOTH') ? form.requested_in : undefined,
@@ -277,10 +286,10 @@ export default function AttendanceRegularizationPage() {
         setDrawerOpen(false);
         setForm({
           employee_id: '',
-          attendance_date: todayStr,
-          punch_type: 'CHECK_IN',
-          requested_in: '09:30',
-          requested_out: '18:30',
+          attendance_date: '',
+          punch_type: '' as any,
+          requested_in: '',
+          requested_out: '',
           reason: '',
         });
         fetchRequests();
@@ -431,6 +440,17 @@ export default function AttendanceRegularizationPage() {
   const approvedCount = safeRequests.filter(r => r?.status === 'APPROVED').length;
   const rejectedCount = safeRequests.filter(r => r?.status === 'REJECTED').length;
 
+  const employeeOptions = useMemo(() => {
+    return employees.map(emp => {
+      const fullName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim();
+      const code = emp.emp_id_code ? ` [${emp.emp_id_code}]` : '';
+      return {
+        value: emp.id,
+        label: `${fullName}${code}`
+      };
+    });
+  }, [employees]);
+
   // 🛑 Access Restriction Screen if View Permission is missing
   if (!canView) {
     return (
@@ -579,7 +599,17 @@ export default function AttendanceRegularizationPage() {
           {/* CREATE BUTTON (No scope needed, just attendance_regularizations_create) */}
           {canCreate && (
             <button
-              onClick={() => setDrawerOpen(true)}
+              onClick={() => {
+                setForm({
+                  employee_id: '',
+                  attendance_date: '',
+                  punch_type: '' as any,
+                  requested_in: '',
+                  requested_out: '',
+                  reason: '',
+                });
+                setDrawerOpen(true);
+              }}
               className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 transition-all cursor-pointer border-0 flex items-center gap-2 whitespace-nowrap"
             >
               <span>+</span> Apply Regularization
@@ -828,6 +858,20 @@ export default function AttendanceRegularizationPage() {
         title="Apply Punch Regularization"
       >
         <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs font-sans p-1">
+          {(isSuperAdmin || canSeeTeamTab) && employees.length > 0 && (
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Select Employee *
+              </label>
+              <SearchableSelect
+                options={employeeOptions}
+                value={form.employee_id}
+                onChange={val => setForm({ ...form, employee_id: val })}
+                placeholder="-- Search & Select Employee --"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Attendance Date *
@@ -849,6 +893,7 @@ export default function AttendanceRegularizationPage() {
               onChange={(e) => setForm({ ...form, punch_type: e.target.value as any })}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold cursor-pointer"
             >
+              <option value="">-- Select Punch Type --</option>
               <option value="CHECK_IN">📥 Check-In Punch (In-Time Only)</option>
               <option value="CHECK_OUT">📤 Check-Out Punch (Out-Time Only)</option>
               <option value="BOTH">🌐 Both (In & Out Punch)</option>
@@ -892,7 +937,7 @@ export default function AttendanceRegularizationPage() {
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
               />
             </div>
-          ) : (
+          ) : form.punch_type === 'CHECK_OUT' ? (
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
                 Requested Check-Out Time (HH:MM) *
@@ -904,7 +949,7 @@ export default function AttendanceRegularizationPage() {
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs font-bold"
               />
             </div>
-          )}
+          ) : null}
 
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -935,9 +980,10 @@ export default function AttendanceRegularizationPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold border-0 shadow-md cursor-pointer disabled:opacity-50"
+              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold border-0 shadow-md cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              {isSaving ? 'Submitting...' : 'Submit Request'}
+              {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSaving ? 'Submitting...' : 'Submit Request'}</span>
             </button>
           </div>
         </form>

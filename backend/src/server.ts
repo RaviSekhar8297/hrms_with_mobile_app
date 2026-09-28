@@ -1412,7 +1412,7 @@ app.post(
         if (adminRoleId) {
           await query(
             `INSERT INTO hrms.role_permissions (role_id, permission_id, data_scope)
-             SELECT $1, id, 'ALL' FROM hrms.permissions WHERE name != 'create_companies'
+             SELECT $1, id, 'ALL' FROM hrms.permissions WHERE name NOT IN ('companies_create', 'create_companies')
              ON CONFLICT DO NOTHING`,
             [adminRoleId]
           );
@@ -3933,20 +3933,32 @@ app.post(
     if (!companyId) {
       return res.status(400).json({ error: 'Company ID is required' });
     }
-    if (!name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) {
       return res.status(400).json({ error: 'Role name is required' });
+    }
+    if (cleanName.length > 50) {
+      return res.status(400).json({ error: 'Role name cannot exceed 50 characters' });
     }
 
     try {
+      const dupCheck = await query(
+        'SELECT id FROM hrms.roles WHERE company_id = $1 AND LOWER(TRIM(name)) = LOWER($2)',
+        [companyId, cleanName]
+      );
+      if (dupCheck.rows.length > 0) {
+        return res.status(409).json({ error: `A role with the name "${cleanName}" already exists in this company` });
+      }
+
       const result = await query(
         'INSERT INTO hrms.roles (company_id, name, description) VALUES ($1, $2, $3) RETURNING *',
-        [companyId, name, description || '']
+        [companyId, cleanName, description || '']
       );
       return res.status(201).json({ message: 'Role created successfully', role: result.rows[0] });
     } catch (err: any) {
       console.error('Error creating role:', err);
       if (err.code === '23505') {
-        return res.status(409).json({ error: 'Role already exists' });
+        return res.status(409).json({ error: `A role with the name "${cleanName}" already exists in this company` });
       }
       return res.status(500).json({ error: 'Internal server database error' });
     }
@@ -3963,24 +3975,38 @@ app.put(
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = req.user?.companyId;
 
-    if (!name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) {
       return res.status(400).json({ error: 'Role name is required' });
+    }
+    if (cleanName.length > 50) {
+      return res.status(400).json({ error: 'Role name cannot exceed 50 characters' });
     }
 
     try {
+      const roleCheck = await query('SELECT company_id FROM hrms.roles WHERE id = $1', [id]);
+      if (roleCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Role not found' });
+      }
+      const targetCompId = roleCheck.rows[0].company_id;
+
       if (!isSuperAdmin) {
-        const roleCheck = await query('SELECT company_id FROM hrms.roles WHERE id = $1', [id]);
-        if (roleCheck.rows.length === 0) {
-          return res.status(404).json({ error: 'Role not found' });
-        }
-        if (roleCheck.rows[0].company_id !== companyId) {
+        if (targetCompId !== companyId) {
           return res.status(403).json({ error: 'Access denied: Role is not in your company context' });
         }
       }
 
+      const dupCheck = await query(
+        'SELECT id FROM hrms.roles WHERE company_id = $1 AND LOWER(TRIM(name)) = LOWER($2) AND id != $3',
+        [targetCompId, cleanName, id]
+      );
+      if (dupCheck.rows.length > 0) {
+        return res.status(409).json({ error: `A role with the name "${cleanName}" already exists in this company` });
+      }
+
       const result = await query(
         'UPDATE hrms.roles SET name = $1, description = $2 WHERE id = $3 RETURNING *',
-        [name, description || '', id]
+        [cleanName, description || '', id]
       );
 
       if (result.rows.length === 0) {
@@ -3991,7 +4017,7 @@ app.put(
     } catch (err: any) {
       console.error('Error updating role:', err);
       if (err.code === '23505') {
-        return res.status(409).json({ error: 'Role name already exists' });
+        return res.status(409).json({ error: `A role with the name "${cleanName}" already exists in this company` });
       }
       return res.status(500).json({ error: 'Internal server database error' });
     }
@@ -4085,11 +4111,11 @@ app.post(
 
       await query('DELETE FROM hrms.role_permissions WHERE role_id = $1', [roleId]);
 
-      // Filter out companies_create permission so tenant roles can never get company creation
-      const compCreateRes = await query("SELECT id FROM hrms.permissions WHERE name = 'companies_create' LIMIT 1");
-      const compCreatePermId = compCreateRes.rows[0]?.id;
+      // Filter out companies_create / create_companies permissions so tenant roles can never get company creation
+      const compCreateRes = await query("SELECT id FROM hrms.permissions WHERE name IN ('companies_create', 'create_companies')");
+      const compCreatePermIds = new Set(compCreateRes.rows.map((r: any) => r.id));
 
-      const uniquePermIds = Array.from(new Set(permissionIds)).filter((id: any) => id !== compCreatePermId);
+      const uniquePermIds = Array.from(new Set(permissionIds)).filter((id: any) => !compCreatePermIds.has(id));
 
       if (uniquePermIds.length > 0) {
         const values: any[] = [];
@@ -4167,14 +4193,37 @@ app.post('/api/v1/shifts', authenticateToken, async (req: AuthenticatedRequest, 
     return res.status(400).json({ error: 'Required fields missing: companyId, name, start_time, end_time' });
   }
 
+  const cleanName = String(name).trim();
+  const cleanStart = String(start_time).trim().slice(0, 5);
+  const cleanEnd = String(end_time).trim().slice(0, 5);
+
   try {
+    const dupCheck = await query(
+      'SELECT id FROM hrms.shift_masters WHERE company_id = $1 AND LOWER(TRIM(shift_name)) = LOWER($2)',
+      [companyId, cleanName]
+    );
+    if (dupCheck.rows.length > 0) {
+      return res.status(409).json({ error: `A shift with the name "${cleanName}" already exists in this company` });
+    }
+
+    const dupTiming = await query(
+      `SELECT id, shift_name, start_time, end_time FROM hrms.shift_masters 
+       WHERE company_id = $1 
+       AND SUBSTRING(start_time::text, 1, 5) = $2 
+       AND SUBSTRING(end_time::text, 1, 5) = $3`,
+      [companyId, cleanStart, cleanEnd]
+    );
+    if (dupTiming.rows.length > 0) {
+      return res.status(409).json({ error: `A shift with the same timings (${cleanStart} - ${cleanEnd}) already exists ("${dupTiming.rows[0].shift_name}").` });
+    }
+
     const result = await query(
       `INSERT INTO hrms.shift_masters (company_id, shift_name, start_time, end_time, grace_in_minutes, grace_out_minutes, min_half_day_minutes, min_full_day_minutes, is_night_shift, allow_overtime, ot_after_minutes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
        RETURNING id, company_id, shift_name as name, start_time, end_time, grace_in_minutes, grace_out_minutes, min_half_day_minutes as halfday_minutes, min_full_day_minutes as fullday_minutes, is_night_shift as is_overnight, allow_overtime, ot_after_minutes`,
       [
         companyId,
-        name,
+        cleanName,
         start_time,
         end_time,
         grace_in_minutes ? parseInt(grace_in_minutes) : 15,
@@ -4186,10 +4235,13 @@ app.post('/api/v1/shifts', authenticateToken, async (req: AuthenticatedRequest, 
         ot_after_minutes ? parseInt(ot_after_minutes) : 0
       ]
     );
-    logUserAction(req, 'CREATE_SHIFT', 'Shifts', `Created shift timing '${name}' (${start_time} - ${end_time})`);
+    logUserAction(req, 'CREATE_SHIFT', 'Shifts', `Created shift timing '${cleanName}' (${start_time} - ${end_time})`);
     return res.status(201).json({ message: 'Shift created successfully', shift: result.rows[0] });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error creating shift:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ error: `A shift with the name "${cleanName}" already exists in this company` });
+    }
     return res.status(500).json({ error: 'Internal server database error' });
   }
 });
@@ -4200,10 +4252,47 @@ app.put('/api/v1/shifts/:id', authenticateToken, async (req: AuthenticatedReques
   const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
   const { name, start_time, end_time, grace_in_minutes, grace_out_minutes, halfday_minutes, fullday_minutes, is_overnight, allow_overtime, ot_after_minutes } = req.body;
 
+  const cleanName = String(name || '').trim();
+  if (!cleanName) {
+    return res.status(400).json({ error: 'Shift name is required' });
+  }
+
+  const cleanStart = String(start_time || '').trim().slice(0, 5);
+  const cleanEnd = String(end_time || '').trim().slice(0, 5);
+
   try {
+    const shiftCheck = await query('SELECT company_id FROM hrms.shift_masters WHERE id = $1', [id]);
+    if (shiftCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Shift not found' });
+    }
+    const targetCompId = shiftCheck.rows[0].company_id;
+
     if (!isSuperAdmin) {
-      const check = await query('SELECT id FROM hrms.shift_masters WHERE id = $1 AND company_id = $2', [id, companyId]);
-      if (check.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+      if (targetCompId !== companyId) {
+        return res.status(403).json({ error: 'Access denied: Shift is not in your company context' });
+      }
+    }
+
+    const dupCheck = await query(
+      'SELECT id FROM hrms.shift_masters WHERE company_id = $1 AND LOWER(TRIM(shift_name)) = LOWER($2) AND id != $3',
+      [targetCompId, cleanName, id]
+    );
+    if (dupCheck.rows.length > 0) {
+      return res.status(409).json({ error: `A shift with the name "${cleanName}" already exists in this company` });
+    }
+
+    if (cleanStart && cleanEnd) {
+      const dupTiming = await query(
+        `SELECT id, shift_name, start_time, end_time FROM hrms.shift_masters 
+         WHERE company_id = $1 
+         AND SUBSTRING(start_time::text, 1, 5) = $2 
+         AND SUBSTRING(end_time::text, 1, 5) = $3
+         AND id != $4`,
+        [targetCompId, cleanStart, cleanEnd, id]
+      );
+      if (dupTiming.rows.length > 0) {
+        return res.status(409).json({ error: `A shift with the same timings (${cleanStart} - ${cleanEnd}) already exists ("${dupTiming.rows[0].shift_name}").` });
+      }
     }
 
     const result = await query(
@@ -4212,7 +4301,7 @@ app.put('/api/v1/shifts/:id', authenticateToken, async (req: AuthenticatedReques
        WHERE id = $11 
        RETURNING id, company_id, shift_name as name, start_time, end_time, grace_in_minutes, grace_out_minutes, min_half_day_minutes as halfday_minutes, min_full_day_minutes as fullday_minutes, is_night_shift as is_overnight, allow_overtime, ot_after_minutes`,
       [
-        name,
+        cleanName,
         start_time,
         end_time,
         grace_in_minutes ? parseInt(grace_in_minutes) : 15,
@@ -4225,10 +4314,13 @@ app.put('/api/v1/shifts/:id', authenticateToken, async (req: AuthenticatedReques
         id
       ]
     );
-    logUserAction(req, 'UPDATE_SHIFT', 'Shifts', `Updated shift timing '${name}'`);
+    logUserAction(req, 'UPDATE_SHIFT', 'Shifts', `Updated shift timing '${cleanName}'`);
     return res.json({ message: 'Shift updated successfully', shift: result.rows[0] });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error updating shift:', err);
+    if (err.code === '23505') {
+      return res.status(409).json({ error: `A shift with the name "${cleanName}" already exists in this company` });
+    }
     return res.status(500).json({ error: 'Internal server database error' });
   }
 });
@@ -5199,10 +5291,14 @@ app.post(['/api/SavePunch', '/api/savepunch', '/api/v1/attendance/savepunch', '/
       const rawPunchTimeStr = String(item.DateOfTransaction || item.dateOfTransaction || item.punch_time || item.punchTime || item.PunchTime || '').trim();
       const latVal = item.Lattitude !== undefined ? item.Lattitude : item.Latitude !== undefined ? item.Latitude : item.latitude !== undefined ? item.latitude : item.lat;
       const lngVal = item.Longitude !== undefined ? item.Longitude : item.longitude !== undefined ? item.longitude : item.lng;
-      const locationNameVal = item.Direction || item.direction || item.area || item.location_name || item.locationName || null;
-      const machineIdVal = item.MachineId || item.machineId || item.device_id || item.deviceId || item.branchCode || null;
-      const sourceVal = item.OutDoor || item.outDoor || item.source || 'MobilePunched';
       const imgVal = item.ImgCapture || item.imgCapture || item.image_url || item.imageUrl || item.capturedImage || null;
+      const parsedLat = (latVal !== undefined && latVal !== null && latVal !== '') ? parseFloat(String(latVal)) : null;
+      const parsedLng = (lngVal !== undefined && lngVal !== null && lngVal !== '') ? parseFloat(String(lngVal)) : null;
+      const hasGps = parsedLat !== null && parsedLng !== null && !isNaN(parsedLat) && !isNaN(parsedLng);
+      const hasImg = imgVal && String(imgVal).trim().length > 0;
+      const sourceVal = (hasImg || hasGps) ? (item.OutDoor || item.outDoor || item.source || 'MobilePunched') : 'BIOMETRIC';
+      const locationNameVal = item.location_name || item.locationName || item.location || item.address || item.area || item.place || null;
+      const machineIdVal = item.MachineId || item.machineId || item.device_id || item.deviceId || item.branchCode || null;
 
       if (!targetUserId) {
         skippedCount++;
@@ -5654,13 +5750,24 @@ app.get('/api/v1/attendance/summary', authenticateToken, async (req: Authenticat
       if (row.first_in) {
         let ph = -1;
         let pm = -1;
-        const str = String(row.first_in).replace('T', ' ').replace(/\.000Z$/, '').replace(/Z$/, '');
-        const parts = str.split(' ');
-        const timePart = parts.length >= 2 ? parts[1] : parts[0];
-        if (timePart && timePart.includes(':')) {
-          const pieces = timePart.split(':');
-          ph = parseInt(pieces[0], 10);
-          pm = parseInt(pieces[1], 10);
+        const rawStr = String(row.first_in).trim();
+        if (rawStr.includes('T') || rawStr.includes('Z')) {
+          const d = new Date(rawStr);
+          if (!isNaN(d.getTime())) {
+            // Convert UTC to IST (+5:30)
+            const istDate = new Date(d.getTime() + 5.5 * 3600 * 1000);
+            ph = istDate.getUTCHours();
+            pm = istDate.getUTCMinutes();
+          }
+        } else {
+          const str = rawStr.replace('T', ' ');
+          const parts = str.split(' ');
+          const timePart = parts.length >= 2 ? parts[1] : parts[0];
+          if (timePart && timePart.includes(':')) {
+            const pieces = timePart.split(':');
+            ph = parseInt(pieces[0], 10);
+            pm = parseInt(pieces[1], 10);
+          }
         }
 
         if (ph >= 0 && pm >= 0) {
@@ -5887,8 +5994,15 @@ app.get(['/api/v1/attendance/punches', '/api/v1/attendance/raw-punches'], authen
 
     const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const sql = `SELECT rp.id, rp.company_id, rp.employee_id, rp.punch_time, rp.device_id, rp.source,
-                        rp.direction, rp.latitude, rp.longitude, rp.location_name, rp.device_model, rp.ip_address, rp.image_url, rp.is_processed, rp.created_at,
+    const sql = `SELECT rp.id, rp.company_id, rp.employee_id, rp.punch_time, rp.device_id, 
+                        (CASE 
+                           WHEN (rp.image_url IS NOT NULL AND TRIM(rp.image_url) <> '') OR (rp.latitude IS NOT NULL AND rp.longitude IS NOT NULL) 
+                           THEN COALESCE(NULLIF(rp.source, ''), 'MobilePunched')
+                           ELSE 'BIOMETRIC'
+                         END) as source,
+                        rp.direction, rp.latitude, rp.longitude, 
+                        (CASE WHEN rp.location_name IN ('IN', 'OUT', 'AUTO') THEN NULL ELSE rp.location_name END) as location_name, 
+                        rp.device_model, rp.ip_address, rp.image_url, rp.is_processed, rp.created_at,
                         COALESCE(e.first_name, '') as first_name, COALESCE(e.last_name, '') as last_name, e.emp_id_code,
                         c.name as company_name
                  FROM hrms.attendance_raw_punches rp
@@ -7210,6 +7324,12 @@ app.post('/api/v1/attendance/regularizations', authenticateToken, async (req: Au
     }
   }
 
+  // If still no companyId and isSuperAdmin, fallback to first active company
+  if (!companyId && isSuperAdmin) {
+    const compRes = await query('SELECT id FROM hrms.companies ORDER BY created_at ASC LIMIT 1');
+    if (compRes.rows.length > 0) companyId = compRes.rows[0].id;
+  }
+
   if (punch_type && requested_time) {
     if (punch_type === 'CHECK_IN') {
       requested_in = requested_time;
@@ -7222,8 +7342,17 @@ app.post('/api/v1/attendance/regularizations', authenticateToken, async (req: Au
 
   const effectivePunchType = punch_type || ((requested_in && requested_out) ? 'BOTH' : (requested_out ? 'CHECK_OUT' : 'CHECK_IN'));
 
-  if (!companyId || !empId || !attendance_date || !reason) {
-    return res.status(400).json({ error: 'Required fields missing: employee, company, attendance date, and reason are mandatory.' });
+  if (!empId) {
+    return res.status(400).json({ error: 'Employee reference is required. Please select an employee.' });
+  }
+  if (!companyId) {
+    return res.status(400).json({ error: 'Company context is required.' });
+  }
+  if (!attendance_date) {
+    return res.status(400).json({ error: 'Attendance date is required.' });
+  }
+  if (!reason) {
+    return res.status(400).json({ error: 'Reason for regularization is required.' });
   }
 
   try {
@@ -7525,9 +7654,41 @@ app.get('/api/v1/attendance/permissions', authenticateToken, async (req: Authent
 });
 
 app.post('/api/v1/attendance/permissions', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-  const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
-  const { employee_id, permission_type, permission_date, from_time, to_time, duration_minutes, reason } = req.body;
+  const isSuperAdmin = req.user && (
+    (Array.isArray(req.user.roles) && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'))) ||
+    (req.user as any).role === 'SuperAdmin' || (req.user as any).role === 'superadmin' ||
+    (req.user as any).isSuperAdmin === true
+  );
+  const companyId = isSuperAdmin ? (req.body.companyId || req.body.company_id || req.user?.companyId) : req.user?.companyId;
+  let { employee_id, permission_type, permission_date, from_time, to_time, duration_minutes, reason } = req.body;
+
+  // Auto-resolve employee_id if not provided
+  if (!employee_id) {
+    if ((req.user as any)?.employeeId) {
+      employee_id = (req.user as any).employeeId;
+    } else if ((req.user as any)?.id || req.user?.email) {
+      const empRes = await query(
+        'SELECT id FROM hrms.employees WHERE (user_id = $1 OR LOWER(email) = LOWER($2)) AND ($3::uuid IS NULL OR company_id = $3) LIMIT 1',
+        [(req.user as any)?.id || null, req.user?.email || '', companyId || null]
+      );
+      if (empRes.rows.length > 0) {
+        employee_id = empRes.rows[0].id;
+      }
+    }
+  }
+
+  // Auto-calculate duration_minutes if missing
+  if (!duration_minutes && from_time && to_time) {
+    const fParts = String(from_time).split(':').map(Number);
+    const tParts = String(to_time).split(':').map(Number);
+    if (!isNaN(fParts[0]) && !isNaN(tParts[0])) {
+      const fMins = fParts[0] * 60 + (fParts[1] || 0);
+      const tMins = tParts[0] * 60 + (tParts[1] || 0);
+      let diff = tMins - fMins;
+      if (diff <= 0) diff += 24 * 60;
+      duration_minutes = diff;
+    }
+  }
 
   if (!companyId || !employee_id || !permission_type || !permission_date || !from_time || !to_time || !duration_minutes || !reason) {
     return res.status(400).json({ error: 'Required fields missing' });
@@ -7666,9 +7827,26 @@ app.post('/api/v1/attendance/permissions/:id/action', authenticateToken, async (
 
 app.put('/api/v1/attendance/permissions/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
-  const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
+  const isSuperAdmin = req.user && (
+    (Array.isArray(req.user.roles) && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'))) ||
+    (req.user as any).role === 'SuperAdmin' || (req.user as any).role === 'superadmin' ||
+    (req.user as any).isSuperAdmin === true
+  );
   const userEmail = req.user?.email;
-  const { permission_type, permission_date, from_time, to_time, duration_minutes, reason } = req.body;
+  let { permission_type, permission_date, from_time, to_time, duration_minutes, reason } = req.body;
+
+  // Auto-calculate duration_minutes if missing
+  if (!duration_minutes && from_time && to_time) {
+    const fParts = String(from_time).split(':').map(Number);
+    const tParts = String(to_time).split(':').map(Number);
+    if (!isNaN(fParts[0]) && !isNaN(tParts[0])) {
+      const fMins = fParts[0] * 60 + (fParts[1] || 0);
+      const tMins = tParts[0] * 60 + (tParts[1] || 0);
+      let diff = tMins - fMins;
+      if (diff <= 0) diff += 24 * 60;
+      duration_minutes = diff;
+    }
+  }
 
   if (!permission_type || !permission_date || !from_time || !to_time || !duration_minutes || !reason) {
     return res.status(400).json({ error: 'Required fields missing' });
@@ -7803,6 +7981,18 @@ app.post('/api/v1/holidays', authenticateToken, requirePermission('create_holida
     : (typeof restricted_branches === 'string' ? restricted_branches : '[]');
 
   try {
+    const dupCheck = await query(
+      `SELECT id FROM hrms.holiday_masters 
+       WHERE company_id = $1 
+         AND LOWER(TRIM(name)) = LOWER(TRIM($2)) 
+         AND EXTRACT(YEAR FROM holiday_date::date) = EXTRACT(YEAR FROM $3::date)`,
+      [companyId, name, holiday_date]
+    );
+
+    if (dupCheck.rows.length > 0) {
+      return res.status(400).json({ error: `A holiday named '${name}' is already declared for this year.` });
+    }
+
     const result = await query(
       `INSERT INTO hrms.holiday_masters (company_id, branch_id, name, holiday_date, description, is_restricted, restricted_branches)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,

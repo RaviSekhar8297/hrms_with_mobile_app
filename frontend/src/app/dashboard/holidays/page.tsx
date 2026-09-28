@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { Calendar, Building2, Plus, Search, Edit3, Trash2, CheckCircle2, Sparkles } from 'lucide-react';
+import { Calendar, Building2, Plus, Search, Edit3, Trash2, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { DatePickerSimple } from '@/components/ui/custom-controls';
 
@@ -71,6 +72,8 @@ export default function HolidaysPage() {
   const [deleteConfirmHolidayId, setDeleteConfirmHolidayId] = useState<string | null>(null);
   const [deleteConfirmCompanyId, setDeleteConfirmCompanyId] = useState<string | null>(null);
   const [deleteConfirmHolidayName, setDeleteConfirmHolidayName] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const visibleTabs = HOLIDAY_TABS.filter(t => canView);
 
@@ -168,7 +171,8 @@ export default function HolidaysPage() {
 
   const handleCreateHoliday = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newHolidayForm.name || !newHolidayForm.holiday_date) {
+    const trimmedName = newHolidayForm.name ? newHolidayForm.name.trim() : '';
+    if (!trimmedName || !newHolidayForm.holiday_date) {
       showToast('Please fill in Holiday Name and Holiday Date.', 'error');
       return;
     }
@@ -185,6 +189,20 @@ export default function HolidaysPage() {
       return;
     }
 
+    // Client-side Duplicate Name validation (case-insensitive for same company)
+    const isDuplicateName = holidays.some(h => {
+      if (newHolidayForm.id && String(h.id) === String(newHolidayForm.id)) return false;
+      const hCompany = String(h.company_id || '');
+      if (hCompany && targetCompanyId && targetCompanyId !== 'all' && hCompany !== String(targetCompanyId)) return false;
+      return String(h.name || '').trim().toLowerCase() === trimmedName.toLowerCase();
+    });
+
+    if (isDuplicateName) {
+      showToast(`A holiday named "${trimmedName}" already exists! Please enter a unique holiday name.`, 'error');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const method = newHolidayForm.id ? 'PUT' : 'POST';
       const url = newHolidayForm.id
@@ -196,7 +214,8 @@ export default function HolidaysPage() {
         headers: getHeaders(),
         body: JSON.stringify({
           companyId: targetCompanyId,
-          ...newHolidayForm
+          ...newHolidayForm,
+          name: trimmedName
         })
       });
 
@@ -219,6 +238,8 @@ export default function HolidaysPage() {
     } catch (err) {
       console.error(err);
       showToast('Connection to server failed', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -229,6 +250,7 @@ export default function HolidaysPage() {
   };
 
   const confirmDeleteHoliday = async (id: string, holidayCompanyId: string) => {
+    setIsDeleting(true);
     try {
       const res = await fetch(`/api/v1/holidays/${id}`, {
         method: 'DELETE',
@@ -248,6 +270,8 @@ export default function HolidaysPage() {
     } catch (e) {
       console.error(e);
       showToast('Connection to server failed', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -927,25 +951,38 @@ export default function HolidaysPage() {
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={() => setAddHolidayDrawerOpen(false)}
-              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold cursor-pointer"
+              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white font-bold cursor-pointer shadow-xs"
+              disabled={isSubmitting}
+              className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white font-bold cursor-pointer shadow-xs flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {newHolidayForm.id ? 'Save Changes' : 'Create Entry'}
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{isSubmitting ? 'Saving...' : (newHolidayForm.id ? 'Save Changes' : 'Create Entry')}</span>
             </button>
           </div>
         </form>
       </SlideDrawer>
 
-      {/* DELETE CONFIRMATION MODAL */}
-      {deleteConfirmHolidayId && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 text-center">
+      {/* DELETE CONFIRMATION MODAL - FULL SCREEN PORTAL COVERING HEADER & SIDEBAR */}
+      {deleteConfirmHolidayId && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity animate-fadeIn"
+            onClick={() => {
+              if (!isDeleting) {
+                setDeleteConfirmHolidayId(null);
+                setDeleteConfirmCompanyId(null);
+                setDeleteConfirmHolidayName(null);
+              }
+            }}
+          />
+          <div className="relative z-10 bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 text-center animate-scaleUp">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center text-xl mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -961,25 +998,29 @@ export default function HolidaysPage() {
             <div className="flex justify-center gap-3 pt-2">
               <button
                 type="button"
+                disabled={isDeleting}
                 onClick={() => {
                   setDeleteConfirmHolidayId(null);
                   setDeleteConfirmCompanyId(null);
                   setDeleteConfirmHolidayName(null);
                 }}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
+                disabled={isDeleting}
                 onClick={() => confirmDeleteHoliday(deleteConfirmHolidayId, deleteConfirmCompanyId || '')}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Confirm Delete
+                {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>{isDeleting ? 'Deleting...' : 'Confirm Delete'}</span>
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

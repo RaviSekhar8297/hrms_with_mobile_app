@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders, API_BASE } from '../../utils/api';
 import SlideDrawer from '../../components/SlideDrawer';
@@ -10,6 +10,7 @@ import ModernPagination from '../../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AlertTriangle, Search, CheckCircle2, XCircle, Trash2, Edit2, Clock } from 'lucide-react';
 import CustomDatePicker from '../../components/CustomDatePicker';
+import SearchableSelect from '../../components/SearchableSelect';
 
 interface Employee {
   id: string;
@@ -114,10 +115,11 @@ export default function AttendancePermissionsPage() {
 
   // Form state
   const [form, setForm] = useState({
-    permission_type: 'MID_DAY',
-    permission_date: new Date().toISOString().split('T')[0],
-    from_time: '14:00',
-    to_time: '16:00',
+    employee_id: '',
+    permission_type: '',
+    permission_date: '',
+    from_time: '',
+    to_time: '',
     reason: ''
   });
 
@@ -244,6 +246,7 @@ export default function AttendancePermissionsPage() {
   const handleEditOpen = (reqItem: PermissionRequest) => {
     setEditingId(reqItem.id);
     setForm({
+      employee_id: reqItem.employee_id || currentEmployee?.id || me?.id || '',
       permission_type: reqItem.permission_type || 'MID_DAY',
       permission_date: reqItem.permission_date || new Date().toISOString().split('T')[0],
       from_time: reqItem.from_time || '14:00',
@@ -280,10 +283,11 @@ export default function AttendancePermissionsPage() {
   const handleApplyOpen = () => {
     setEditingId(null);
     setForm({
-      permission_type: 'MID_DAY',
-      permission_date: new Date().toISOString().split('T')[0],
-      from_time: '14:00',
-      to_time: '16:00',
+      employee_id: '',
+      permission_type: '',
+      permission_date: '',
+      from_time: '',
+      to_time: '',
       reason: ''
     });
     setIsSubmitOpen(true);
@@ -295,7 +299,16 @@ export default function AttendancePermissionsPage() {
       showToast('You do not have permission to submit permissions', 'error');
       return;
     }
-    if (!activeCompanyId) return;
+    if (!activeCompanyId) {
+      showToast('Please select a company.', 'error');
+      return;
+    }
+
+    const targetEmployeeId = form.employee_id || currentEmployee?.id || me?.id || (typeof window !== 'undefined' ? localStorage.getItem('employeeId') : null);
+    if (!targetEmployeeId) {
+      showToast('Employee profile reference is required.', 'error');
+      return;
+    }
 
     if (!form.permission_type) {
       showToast('Please select a permission type.', 'error');
@@ -331,6 +344,18 @@ export default function AttendancePermissionsPage() {
       return;
     }
 
+    // Calculate duration in minutes
+    let durationMins = Number(policy?.max_single_permission_minutes) || 120;
+    if (form.from_time && form.to_time) {
+      const fParts = form.from_time.split(':').map(Number);
+      const tParts = form.to_time.split(':').map(Number);
+      if (!isNaN(fParts[0]) && !isNaN(tParts[0])) {
+        let diff = (tParts[0] * 60 + (tParts[1] || 0)) - (fParts[0] * 60 + (fParts[1] || 0));
+        if (diff <= 0) diff += 24 * 60;
+        durationMins = diff;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const url = editingId 
@@ -343,8 +368,11 @@ export default function AttendancePermissionsPage() {
         method,
         headers: getHeaders(),
         body: JSON.stringify({
+          ...form,
           company_id: activeCompanyId,
-          ...form
+          companyId: activeCompanyId,
+          employee_id: targetEmployeeId,
+          duration_minutes: durationMins,
         })
       });
 
@@ -478,6 +506,17 @@ export default function AttendancePermissionsPage() {
   const pendingCount = safeRequests.filter(r => r?.status === 'PENDING').length;
   const approvedCount = safeRequests.filter(r => r?.status === 'APPROVED').length;
   const rejectedCount = safeRequests.filter(r => r?.status === 'REJECTED').length;
+
+  const employeeSelectOptions = useMemo(() => {
+    return employees.map(emp => {
+      const fullName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim();
+      const code = emp.emp_id_code ? ` [${emp.emp_id_code}]` : '';
+      return {
+        value: emp.id,
+        label: `${fullName}${code}`
+      };
+    });
+  }, [employees]);
 
   // 🛑 Access Restriction Screen if View Permission is missing
   if (!canView) {
@@ -857,6 +896,20 @@ export default function AttendancePermissionsPage() {
         title={editingId ? 'Edit Permission Request' : 'Apply Short-Time Permission'}
       >
         <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs font-semibold p-1">
+          {(isSuperAdmin || canSeeTeamTab) && employees.length > 0 && (
+            <div>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Select Employee *
+              </label>
+              <SearchableSelect
+                options={employeeSelectOptions}
+                value={form.employee_id}
+                onChange={val => setForm({ ...form, employee_id: val })}
+                placeholder="-- Search & Select Employee --"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Permission Type *
@@ -866,6 +919,7 @@ export default function AttendancePermissionsPage() {
               onChange={e => setForm({ ...form, permission_type: e.target.value })}
               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a]"
             >
+              <option value="">-- Select Permission Type --</option>
               <option value="MID_DAY">Mid-Day Break Permission</option>
               <option value="LATE_ARRIVALS">Late Arrival Permission</option>
               <option value="EARLY_EXIT">Early Exit Permission</option>

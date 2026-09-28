@@ -374,7 +374,20 @@ export default function CompaniesPage() {
                     {/* Company Details with Company Code right below Company Name */}
                     <td className="py-3.5 px-4">
                       <div className="flex flex-col text-left space-y-1">
-                        <span className="font-bold text-slate-850 dark:text-slate-100 text-sm tracking-tight">{c.name}</span>
+                        {c.name && c.name.length > 30 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="font-bold text-slate-850 dark:text-slate-100 text-sm tracking-tight cursor-default max-w-xs truncate inline-block">
+                                {c.name.slice(0, 30)}...
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs font-bold text-xs">
+                              {c.name}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className="font-bold text-slate-850 dark:text-slate-100 text-sm tracking-tight">{c.name}</span>
+                        )}
                         <div className="flex items-center gap-1.5">
                           <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">CODE:</span>
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-mono font-extrabold text-[10.5px] border border-indigo-200/70 dark:border-indigo-900/50 uppercase tracking-wider">
@@ -386,10 +399,24 @@ export default function CompaniesPage() {
 
                     {/* Subdomain */}
                     <td className="py-3.5 px-4 font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                        <span>{c.subdomain}.hrms.com</span>
-                      </div>
+                      {c.subdomain && `${c.subdomain}.hrms.com`.length > 30 ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1.5 cursor-default max-w-[240px]">
+                              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                              <span className="truncate">{`${c.subdomain}.hrms.com`.slice(0, 30)}...</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs font-mono font-bold text-xs">
+                            {c.subdomain}.hrms.com
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                          <span>{c.subdomain}.hrms.com</span>
+                        </div>
+                      )}
                     </td>
 
                     {/* Connected Domain */}
@@ -711,6 +738,16 @@ export default function CompaniesPage() {
               )}
               {isSaving ? (editMode ? "Saving Changes..." : "Registering...") : (editMode ? "Save Changes" : "Register Corporate Tenant")}
             </button>
+
+            {!editMode && (
+              <div className="mt-3.5 p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-800/50 flex items-start gap-2.5 animate-fadeIn">
+                <span className="text-blue-600 dark:text-blue-400 text-sm mt-0.5 shrink-0">ℹ️</span>
+                <div className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+                  <span className="font-bold text-blue-700 dark:text-blue-300 block mb-0.5">Note on Automated Setup:</span>
+                  Once this company is created, an <strong className="text-slate-900 dark:text-white font-bold">Admin</strong> role will be automatically created with all system permissions (excluding tenant company creation) assigned to it automatically.
+                </div>
+              </div>
+            )}
           </div>
         </form>
       </SlideDrawer>
