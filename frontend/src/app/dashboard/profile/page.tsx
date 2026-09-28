@@ -896,9 +896,9 @@ export default function ProfilePage() {
 
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-24 space-y-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent" />
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Syncing Profile Details...</p>
+        <div className="p-16 text-center space-y-3">
+          <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Profile Details...</p>
         </div>
       ) : (
         <div className="w-full space-y-6">

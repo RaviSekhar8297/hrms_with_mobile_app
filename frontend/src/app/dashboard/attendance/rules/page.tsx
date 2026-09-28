@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders, API_BASE } from '../../utils/api';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import SlideDrawer from '../../components/SlideDrawer';
-import { Eye, EyeOff, Radio } from 'lucide-react';
+import { Eye, EyeOff, Radio, Save } from 'lucide-react';
 
 export default function AttendanceRulesPage() {
   const { showToast, companyId: globalCompanyId, setCompanyId: setGlobalCompanyId } = useDashboard();
@@ -22,6 +22,10 @@ export default function AttendanceRulesPage() {
   const [email, setEmail] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Top save button ref and scroll visibility state
+  const topSaveRef = useRef<HTMLButtonElement | null>(null);
+  const [showFloatingSave, setShowFloatingSave] = useState(false);
 
   // 🗑️ Delete Policy Confirmation State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -165,6 +169,35 @@ export default function AttendanceRulesPage() {
   }, []);
 
   useEffect(() => {
+    const handleScroll = () => {
+      const scrollContainer = topSaveRef.current?.closest('main') || document.querySelector('main');
+      const scrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+
+      if (topSaveRef.current) {
+        const rect = topSaveRef.current.getBoundingClientRect();
+        // Top save button is near the top of the page.
+        // If container scrolled > 80px or rect.bottom <= 130px, top save is out of direct view
+        const isOutOfView = scrollTop > 80 || rect.bottom <= 130 || rect.top < 60;
+        setShowFloatingSave(isOutOfView);
+      } else {
+        setShowFloatingSave(scrollTop > 80);
+      }
+    };
+
+    // Use capture: true so container scroll events on <main> are caught
+    document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+
+    // Initial check
+    handleScroll();
+
+    return () => {
+      document.removeEventListener('scroll', handleScroll, { capture: true } as any);
+      window.removeEventListener('scroll', handleScroll, { capture: true } as any);
+    };
+  }, []);
+
+  useEffect(() => {
     fetchRules();
   }, [activeCompanyId]);
 
@@ -261,8 +294,8 @@ export default function AttendanceRulesPage() {
   };
 
 
-  const handleSaveRules = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveRules = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!isModified) return;
     const targetCid = activeCompanyId || companyId;
     if (!targetCid) {
@@ -373,6 +406,7 @@ export default function AttendanceRulesPage() {
 
             {canEdit ? (
               <button
+                ref={topSaveRef}
                 type="submit"
                 disabled={!isModified || isSaving}
                 className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 border ${
@@ -1151,6 +1185,42 @@ export default function AttendanceRulesPage() {
           </div>
         </form>
       </SlideDrawer>
+
+      {/* 🚀 Floating Right-Side Save Button (Appears ONLY when changes exist AND top save button is scrolled out of view) */}
+      {canEdit && isModified && showFloatingSave && (
+        <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40 animate-fadeIn select-none pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => handleSaveRules()}
+            disabled={isSaving}
+            className="group relative flex items-center gap-2.5 px-4 py-3 rounded-l-2xl shadow-2xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white ring-2 ring-emerald-400/40 shadow-emerald-700/30 hover:pr-5.5 transition-all duration-300 cursor-pointer"
+            title="Unsaved changes detected! Click to save"
+          >
+            {/* Pulsing indicator */}
+            {!isSaving && (
+              <span className="absolute -left-1.5 -top-1.5 flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 border-2 border-white dark:border-slate-900" />
+              </span>
+            )}
+
+            {isSaving ? (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            ) : (
+              <Save className="w-4 h-4 flex-shrink-0 text-white animate-bounce" />
+            )}
+
+            <div className="flex flex-col text-left">
+              <span className="text-[12px] font-black uppercase tracking-wider whitespace-nowrap">
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </span>
+              <span className="text-[9px] font-bold text-emerald-100/90 whitespace-nowrap leading-tight">
+                ● Unsaved edits
+              </span>
+            </div>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

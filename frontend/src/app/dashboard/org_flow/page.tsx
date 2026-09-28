@@ -224,9 +224,9 @@ export default function OrgFlowPage() {
       />
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center p-16 rounded-3xl border border-slate-200 dark:border-slate-800 bg-card gap-2.5">
-          <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading Enterprise Flow...</span>
+        <div className="p-16 text-center space-y-3">
+          <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Enterprise Flow...</p>
         </div>
       ) : (
         <div className="space-y-6">

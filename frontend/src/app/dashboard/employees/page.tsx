@@ -848,7 +848,7 @@ export default function EmployeesPage() {
           actionError=""
           companies={companies}
           companyId={selectedCompanyId}
-          handleCompanyChange={handleCompanyChange}
+          handleCompanyChange={handleCompanyChange} 
           isSuperAdmin={isSuperAdmin}
           email={email}
           hideUserBadge={true}

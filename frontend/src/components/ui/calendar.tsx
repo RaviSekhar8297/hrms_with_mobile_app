@@ -11,6 +11,8 @@ export interface CalendarProps {
   onSelect?: (date: Date | undefined) => void;
   maxDate?: Date | string;
   minDate?: Date | string;
+  disabledDates?: (Date | string)[];
+  isDateDisabledFn?: (date: Date) => boolean;
   className?: string;
 }
 
@@ -28,6 +30,8 @@ export function Calendar({
   onSelect,
   maxDate,
   minDate,
+  disabledDates,
+  isDateDisabledFn,
   className = '',
 }: CalendarProps) {
   const initialDate = selected || defaultMonth || new Date();
@@ -85,6 +89,20 @@ export function Calendar({
 
   const isDateDisabled = (day: number) => {
     const dayDate = new Date(currentYear, currentMonth, day);
+    const dayDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    if (disabledDates && disabledDates.length > 0) {
+      const isMatched = disabledDates.some(d => {
+        const dStr = typeof d === 'string' ? d.split('T')[0] : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return dStr === dayDateStr;
+      });
+      if (isMatched) return true;
+    }
+
+    if (isDateDisabledFn && isDateDisabledFn(dayDate)) {
+      return true;
+    }
+
     if (maxDate) {
       const max = typeof maxDate === 'string' ? new Date(maxDate) : maxDate;
       const maxEnd = new Date(max.getFullYear(), max.getMonth(), max.getDate(), 23, 59, 59, 999);

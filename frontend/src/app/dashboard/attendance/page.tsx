@@ -60,7 +60,7 @@ export default function AttendancePage() {
   const isSelfScope = !isSuperAdmin && attendanceScope === 'SELF';
   const isTeamScope = !isSuperAdmin && (attendanceScope === 'TEAM' || attendanceScope === 'REPORTING');
   const isDeptScope = !isSuperAdmin && attendanceScope === 'DEPARTMENT';
-  const canCreateAttendance = isSuperAdmin || hasPermission('attendance_create');
+  const canCreateAttendance = isSuperAdmin || hasPermission('attendance_raw_punches_create');
 
   // Quick Action / Application Permissions for Off-canvas Drawer
   const canApplyLeave = isSuperAdmin || hasPermission('leave_requests_create') || hasPermission('leave_request_create');
@@ -534,6 +534,10 @@ export default function AttendancePage() {
   };
 
   const handleNextMonth = () => {
+    const now = new Date();
+    if (calYear > now.getFullYear() || (calYear === now.getFullYear() && calMonth >= now.getMonth())) {
+      return; // Cannot navigate to future months
+    }
     if (calMonth === 11) {
       setCalMonth(0);
       setCalYear(prev => prev + 1);
@@ -1352,27 +1356,6 @@ export default function AttendancePage() {
 
           {/* Action Controls */}
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {/* Month Navigator */}
-            <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
-              <button
-                onClick={handlePrevMonth}
-                className="w-7 h-7 rounded-lg hover:bg-white text-slate-700 font-extrabold flex items-center justify-center transition-all cursor-pointer hover:shadow-2xs text-sm"
-                title="Previous Month"
-              >
-                ‹
-              </button>
-              <span className="px-3 text-xs font-bold text-slate-800 min-w-[110px] text-center">
-                📅 {monthNames[calMonth]} {calYear}
-              </span>
-              <button
-                onClick={handleNextMonth}
-                className="w-7 h-7 rounded-lg hover:bg-white text-slate-700 font-extrabold flex items-center justify-center transition-all cursor-pointer hover:shadow-2xs text-sm"
-                title="Next Month"
-              >
-                ›
-              </button>
-            </div>
-
             {!isSelfScope && (
               <div className="w-52">
                 <SearchableSelect
@@ -1525,13 +1508,31 @@ export default function AttendancePage() {
           {/* CENTER COLUMN: Calendar Monthly Grid (6 cols on lg/xl) */}
           <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-4">
             
-            {/* Center Header: Month Name & Total Hours */}
+            {/* Center Header: Month Navigator */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-extrabold text-slate-900">
-                {monthNames[calMonth]} {calYear}
-              </h3>
-              <div className="text-xs font-medium text-slate-500">
-                Total Hours <span className="font-black text-emerald-600 text-sm ml-1">{totalWorkedHours} hrs</span>
+              <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                <button
+                  onClick={handlePrevMonth}
+                  className="w-7 h-7 rounded-lg hover:bg-white text-slate-700 font-extrabold flex items-center justify-center transition-all cursor-pointer hover:shadow-2xs text-sm"
+                  title="Previous Month"
+                >
+                  ‹
+                </button>
+                <span className="px-3 text-xs font-bold text-slate-800 min-w-[120px] text-center">
+                  📅 {monthNames[calMonth]} {calYear}
+                </span>
+                <button
+                  onClick={handleNextMonth}
+                  disabled={calYear > new Date().getFullYear() || (calYear === new Date().getFullYear() && calMonth >= new Date().getMonth())}
+                  className={`w-7 h-7 rounded-lg font-extrabold flex items-center justify-center transition-all text-sm ${
+                    (calYear > new Date().getFullYear() || (calYear === new Date().getFullYear() && calMonth >= new Date().getMonth()))
+                      ? 'opacity-25 cursor-not-allowed text-slate-300'
+                      : 'hover:bg-white text-slate-700 cursor-pointer hover:shadow-2xs'
+                  }`}
+                  title={(calYear > new Date().getFullYear() || (calYear === new Date().getFullYear() && calMonth >= new Date().getMonth())) ? "Future months disabled" : "Next Month"}
+                >
+                  ›
+                </button>
               </div>
             </div>
 
@@ -1598,6 +1599,7 @@ export default function AttendancePage() {
                     statusBadge = '';
                     hoursLabel = '--';
                     dotColor = 'bg-slate-200';
+                    cellBg = 'bg-slate-50/20 border-slate-100';
                   } else if (dayLog && (dayLog.first_in || dayLog.status === 'PRESENT' || dayLog.status === 'HALF_DAY')) {
                     if (dayLog.worked_minutes > 0) {
                       const hrs = (dayLog.worked_minutes / 60).toFixed(1);
@@ -1654,10 +1656,15 @@ export default function AttendancePage() {
                     <div
                       key={`day-${dayNum}`}
                       onClick={() => {
+                        if (isFuture) return;
                         setSelectedDayLog(cellPayload);
                         setDayDetailModalOpen(true);
                       }}
-                      className={`h-20 rounded-xl p-2.5 border flex flex-col justify-between cursor-pointer transition-all duration-200 hover:shadow-md group ${cellBg} ${
+                      className={`h-20 rounded-xl p-2.5 border flex flex-col justify-between transition-all duration-200 ${
+                        isFuture
+                          ? 'opacity-30 bg-slate-100/40 border-dashed border-slate-200/80 cursor-not-allowed select-none'
+                          : `cursor-pointer hover:shadow-md group ${cellBg}`
+                      } ${
                         isToday ? 'border-2 border-cyan-500 bg-cyan-50/40 ring-2 ring-cyan-400/20 shadow-xs' : ''
                       }`}
                     >

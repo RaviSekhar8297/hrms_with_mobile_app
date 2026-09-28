@@ -4224,6 +4224,194 @@ app.post('/api/v1/attendance/public/device-punch', async (req, res) => {
     }
 });
 /**
+ * 🚀 PUBLIC / REMOTE PUNCH SYNC API (SavePunch)
+ * Accepts incoming punch data from external C# / .NET / Mobile client,
+ * deduplicates, inserts into hrms.attendance_raw_punches, and recalculates hrms.attendance_summary.
+ */
+app.post(['/api/SavePunch', '/api/savepunch', '/api/v1/attendance/savepunch', '/api/v1/attendance/biometric-punch', '/api/v1/attendance/biometric-punches'], async (req, res) => {
+    try {
+        const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+        const incomingIp = Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : '';
+        // Handle batch or single payload
+        let rawItems = [];
+        if (Array.isArray(req.body)) {
+            rawItems = req.body;
+        }
+        else if (req.body && Array.isArray(req.body.punches)) {
+            rawItems = req.body.punches;
+        }
+        else if (req.body && Array.isArray(req.body.logs)) {
+            rawItems = req.body.logs;
+        }
+        else if (req.body && Array.isArray(req.body.data)) {
+            rawItems = req.body.data;
+        }
+        else if (req.body && typeof req.body === 'object') {
+            rawItems = [req.body];
+        }
+        if (rawItems.length === 0) {
+            return res.status(400).json({ success: false, error: 'Empty payload or invalid punch format.' });
+        }
+        // Ensure columns exist in hrms.attendance_raw_punches
+        await (0, db_1.query)(`ALTER TABLE hrms.attendance_raw_punches ADD COLUMN IF NOT EXISTS location_name TEXT`).catch(() => { });
+        await (0, db_1.query)(`ALTER TABLE hrms.attendance_raw_punches ADD COLUMN IF NOT EXISTS device_model TEXT`).catch(() => { });
+        await (0, db_1.query)(`ALTER TABLE hrms.attendance_raw_punches ALTER COLUMN image_url TYPE TEXT`).catch(() => { });
+        let processedCount = 0;
+        let skippedCount = 0;
+        const insertedPunches = [];
+        const summarySyncSet = new Set(); // Set of "companyId|employeeId|dateStr"
+        for (const item of rawItems) {
+            const targetUserId = String(item.UserId || item.userId || item.emp_id || item.emp_code || item.empCode || item.employee_code || item.employeeCode || '').trim();
+            const rawPunchTimeStr = String(item.DateOfTransaction || item.dateOfTransaction || item.punch_time || item.punchTime || item.PunchTime || '').trim();
+            const latVal = item.Lattitude !== undefined ? item.Lattitude : item.Latitude !== undefined ? item.Latitude : item.latitude !== undefined ? item.latitude : item.lat;
+            const lngVal = item.Longitude !== undefined ? item.Longitude : item.longitude !== undefined ? item.longitude : item.lng;
+            const locationNameVal = item.Direction || item.direction || item.area || item.location_name || item.locationName || null;
+            const machineIdVal = item.MachineId || item.machineId || item.device_id || item.deviceId || item.branchCode || null;
+            const sourceVal = item.OutDoor || item.outDoor || item.source || 'MobilePunched';
+            const imgVal = item.ImgCapture || item.imgCapture || item.image_url || item.imageUrl || item.capturedImage || null;
+            if (!targetUserId) {
+                skippedCount++;
+                continue;
+            }
+            // Resolve employee and company
+            const empRes = await (0, db_1.query)(`SELECT id, company_id, emp_id_code, first_name, last_name 
+         FROM hrms.employees 
+         WHERE LOWER(emp_id_code) = LOWER($1) 
+            OR id::text = $1 
+            OR regexp_replace(emp_id_code, '\\D', '', 'g') = $1
+         ORDER BY (CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END) ASC
+         LIMIT 1`, [targetUserId]);
+            if (empRes.rows.length === 0) {
+                skippedCount++;
+                continue;
+            }
+            const emp = empRes.rows[0];
+            const companyId = emp.company_id;
+            // Parse Punch Time
+            let parsedDate;
+            let dateStr = new Date().toISOString().split('T')[0];
+            if (rawPunchTimeStr) {
+                const ampmMatch = rawPunchTimeStr.match(/^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})[\sT]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?\s*(AM|PM)?$/i);
+                if (ampmMatch) {
+                    const datePart = ampmMatch[1].replace(/\./g, '-').replace(/\//g, '-');
+                    dateStr = datePart;
+                    let hours = parseInt(ampmMatch[2], 10);
+                    const minutes = parseInt(ampmMatch[3], 10);
+                    const seconds = parseInt(ampmMatch[4] || '0', 10);
+                    const mer = (ampmMatch[5] || '').toUpperCase();
+                    if (mer === 'PM' && hours < 12)
+                        hours += 12;
+                    if (mer === 'AM' && hours === 12)
+                        hours = 0;
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const formattedIso = `${datePart}T${pad(hours)}:${pad(minutes)}:${pad(seconds)}+05:30`;
+                    parsedDate = new Date(formattedIso);
+                }
+                else {
+                    dateStr = rawPunchTimeStr.split(' ')[0].split('T')[0].replace(/\./g, '-').replace(/\//g, '-');
+                    if (!rawPunchTimeStr.includes('+') && !rawPunchTimeStr.endsWith('Z')) {
+                        parsedDate = new Date(rawPunchTimeStr.replace(' ', 'T') + '+05:30');
+                    }
+                    else {
+                        parsedDate = new Date(rawPunchTimeStr);
+                    }
+                }
+            }
+            else {
+                parsedDate = new Date();
+                dateStr = parsedDate.toISOString().split('T')[0];
+            }
+            if (isNaN(parsedDate.getTime())) {
+                parsedDate = new Date();
+            }
+            const isoUtcString = parsedDate.toISOString();
+            // Duplicate Check: same employee within 30 seconds / same timestamp
+            const dupCheck = await (0, db_1.query)(`SELECT id, punch_time, direction FROM hrms.attendance_raw_punches 
+         WHERE employee_id = $1 
+           AND (
+             punch_time = $2 
+             OR raw_punch_time = $3 
+             OR (punch_time >= $2::timestamptz - INTERVAL '30 seconds' AND punch_time <= $2::timestamptz + INTERVAL '30 seconds')
+           )
+         LIMIT 1`, [emp.id, isoUtcString, rawPunchTimeStr]);
+            if (dupCheck.rows.length > 0) {
+                skippedCount++;
+                summarySyncSet.add(`${companyId}|${emp.id}|${dateStr}`);
+                if (rawItems.length === 1) {
+                    await (0, attendanceSync_1.updateEmployeeDailySummary)(companyId, emp.id, dateStr, 'Asia/Kolkata');
+                    return res.status(200).json({
+                        success: true,
+                        message: 'Punch already recorded. Duplicate skipped.',
+                        punch: dupCheck.rows[0]
+                    });
+                }
+                continue;
+            }
+            // Determine Direction: 1st punch = IN, 2nd / subsequent = OUT (or alternate)
+            let finalDirection = (item.PunchType || item.punch_type || item.punchType || '').toUpperCase();
+            if (finalDirection !== 'IN' && finalDirection !== 'OUT') {
+                const dayPunches = await (0, db_1.query)(`SELECT id, direction FROM hrms.attendance_raw_punches 
+           WHERE employee_id = $1 
+             AND (punch_time::date = $2::date OR raw_punch_time LIKE $3 || '%')
+           ORDER BY punch_time ASC`, [emp.id, dateStr, dateStr]);
+                if (dayPunches.rows.length === 0) {
+                    finalDirection = 'IN';
+                }
+                else {
+                    const lastPunch = dayPunches.rows[dayPunches.rows.length - 1];
+                    finalDirection = (lastPunch.direction === 'IN') ? 'OUT' : 'IN';
+                }
+            }
+            // Insert into hrms.attendance_raw_punches
+            const insertRes = await (0, db_1.query)(`INSERT INTO hrms.attendance_raw_punches 
+         (company_id, employee_id, emp_code, punch_time, raw_punch_time, timezone, source, direction, ip_address, latitude, longitude, location_name, image_url, device_model, is_processed)
+         VALUES ($1, $2, $3, $4, $5, 'Asia/Kolkata', $6, $7, $8, $9, $10, $11, $12, $13, true)
+         RETURNING *`, [
+                companyId,
+                emp.id,
+                emp.emp_id_code || targetUserId,
+                isoUtcString,
+                rawPunchTimeStr || isoUtcString,
+                sourceVal,
+                finalDirection,
+                incomingIp || null,
+                (latVal !== undefined && latVal !== null && latVal !== '') ? parseFloat(String(latVal)) : null,
+                (lngVal !== undefined && lngVal !== null && lngVal !== '') ? parseFloat(String(lngVal)) : null,
+                locationNameVal ? String(locationNameVal) : null,
+                imgVal ? String(imgVal) : null,
+                machineIdVal ? String(machineIdVal) : null
+            ]);
+            processedCount++;
+            insertedPunches.push(insertRes.rows[0]);
+            summarySyncSet.add(`${companyId}|${emp.id}|${dateStr}`);
+        }
+        // Batch Recalculate Attendance Daily Summaries for all affected employee dates
+        for (const entry of Array.from(summarySyncSet)) {
+            const [cId, eId, dStr] = entry.split('|');
+            await (0, attendanceSync_1.updateEmployeeDailySummary)(cId, eId, dStr, 'Asia/Kolkata');
+        }
+        console.log(`🚀 [BIOMETRIC PUNCH SYNC] Processed: ${processedCount}, Skipped: ${skippedCount}, Total: ${rawItems.length}`);
+        if (rawItems.length === 1 && insertedPunches.length === 1) {
+            return res.status(200).json({
+                success: true,
+                message: 'Punch recorded and attendance summary updated successfully.',
+                punch: insertedPunches[0]
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            message: `Batch processed ${processedCount} punches successfully (${skippedCount} duplicates/invalid skipped).`,
+            processed_count: processedCount,
+            skipped_count: skippedCount,
+            total_received: rawItems.length
+        });
+    }
+    catch (err) {
+        console.error('❌ Error in SavePunch / Biometric endpoint:', err);
+        return res.status(500).json({ success: false, error: err?.message || 'Server error processing SavePunch' });
+    }
+});
+/**
  * 📍 LIVE GPS LOCATION TRACKING APIs (attendance_location_tracking)
  */
 app.post('/api/v1/attendance/live-location', auth_1.authenticateToken, async (req, res) => {
@@ -5795,7 +5983,7 @@ app.get('/api/v1/attendance/regularizations', auth_1.authenticateToken, async (r
             }
         }
         let sql = `
-      SELECT ar.id, ar.employee_id, ar.attendance_date, ar.requested_in, ar.requested_out, ar.reason,
+      SELECT ar.id, ar.employee_id, ar.attendance_date, ar.requested_in, ar.requested_out, ar.punch_type, ar.reason,
              ar.attachment_url, ar.status, ar.approved_by, ar.approved_at, ar.remarks, ar.created_at,
              e.first_name, e.last_name, e.emp_id_code, e.company_id as company_id,
              appr.first_name as approved_by_first_name, appr.last_name as approved_by_last_name,
@@ -5875,6 +6063,7 @@ app.post('/api/v1/attendance/regularizations', auth_1.authenticateToken, async (
             requested_in = requested_in || null;
         }
     }
+    const effectivePunchType = punch_type || ((requested_in && requested_out) ? 'BOTH' : (requested_out ? 'CHECK_OUT' : 'CHECK_IN'));
     if (!companyId || !empId || !attendance_date || !reason) {
         return res.status(400).json({ error: 'Required fields missing: employee, company, attendance date, and reason are mandatory.' });
     }
@@ -5882,17 +6071,47 @@ app.post('/api/v1/attendance/regularizations', auth_1.authenticateToken, async (
         const empCheck = await (0, db_1.query)('SELECT id, company_id FROM hrms.employees WHERE id = $1', [empId]);
         if (empCheck.rows.length === 0)
             return res.status(400).json({ error: 'Invalid employee reference' });
-        const result = await (0, db_1.query)(`INSERT INTO hrms.attendance_regularizations (employee_id, attendance_date, requested_in, requested_out, reason, status)
-       VALUES ($1, $2, $3, $4, $5, 'PENDING')
-       ON CONFLICT (employee_id, attendance_date)
-       DO UPDATE SET
-         requested_in = EXCLUDED.requested_in,
-         requested_out = EXCLUDED.requested_out,
-         reason = EXCLUDED.reason,
-         status = 'PENDING',
-         created_at = NOW()
-       RETURNING *`, [empId, attendance_date, requested_in || null, requested_out || null, reason]);
-        (0, exports.logUserAction)(req, 'APPLY_REGULARIZATION', 'Attendance Regularizations', `Submitted attendance regularization request for date ${attendance_date}`);
+        // Check for existing active (PENDING or APPROVED) regularization requests for the same date
+        const existingActive = await (0, db_1.query)(`SELECT id, punch_type, requested_in, requested_out, status
+       FROM hrms.attendance_regularizations
+       WHERE employee_id = $1 AND attendance_date = $2 AND status IN ('PENDING', 'APPROVED')`, [empId, attendance_date]);
+        for (const ex of existingActive.rows) {
+            const exPunch = ex.punch_type || ((ex.requested_in && ex.requested_out) ? 'BOTH' : (ex.requested_out ? 'CHECK_OUT' : 'CHECK_IN'));
+            const st = ex.status.toLowerCase();
+            if (exPunch === 'BOTH') {
+                return res.status(400).json({
+                    error: `A regularization request (Both In & Out Punch) for date ${attendance_date} is already ${st}.`
+                });
+            }
+            if (exPunch === 'CHECK_IN') {
+                if (effectivePunchType === 'CHECK_IN') {
+                    return res.status(400).json({
+                        error: `A Check-In regularization request for date ${attendance_date} is already ${st}.`
+                    });
+                }
+                if (effectivePunchType === 'BOTH') {
+                    return res.status(400).json({
+                        error: `A Check-In request for date ${attendance_date} is already ${st}. You can only apply for Check-Out.`
+                    });
+                }
+            }
+            if (exPunch === 'CHECK_OUT') {
+                if (effectivePunchType === 'CHECK_OUT') {
+                    return res.status(400).json({
+                        error: `A Check-Out regularization request for date ${attendance_date} is already ${st}.`
+                    });
+                }
+                if (effectivePunchType === 'BOTH') {
+                    return res.status(400).json({
+                        error: `A Check-Out request for date ${attendance_date} is already ${st}. You can only apply for Check-In.`
+                    });
+                }
+            }
+        }
+        const result = await (0, db_1.query)(`INSERT INTO hrms.attendance_regularizations (employee_id, attendance_date, requested_in, requested_out, punch_type, reason, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING')
+       RETURNING *`, [empId, attendance_date, requested_in || null, requested_out || null, effectivePunchType, reason]);
+        (0, exports.logUserAction)(req, 'APPLY_REGULARIZATION', 'Attendance Regularizations', `Submitted attendance regularization request for date ${attendance_date} (${effectivePunchType})`);
         return res.status(201).json({ message: 'Regularization request submitted successfully', regularization: result.rows[0] });
     }
     catch (err) {
@@ -6003,6 +6222,7 @@ app.put('/api/v1/attendance/regularizations/:id', auth_1.authenticateToken, asyn
             requested_in = null;
         }
     }
+    const effectivePunchType = punch_type || ((requested_in && requested_out) ? 'BOTH' : (requested_out ? 'CHECK_OUT' : (requested_in ? 'CHECK_IN' : null)));
     try {
         const existing = await (0, db_1.query)('SELECT * FROM hrms.attendance_regularizations WHERE id = $1', [id]);
         if (existing.rows.length === 0)
@@ -6012,11 +6232,12 @@ app.put('/api/v1/attendance/regularizations/:id', auth_1.authenticateToken, asyn
         }
         const updated = await (0, db_1.query)(`UPDATE hrms.attendance_regularizations
        SET attendance_date = COALESCE($1, attendance_date),
-           requested_in = COALESCE($2, requested_in),
-           requested_out = COALESCE($3, requested_out),
-           reason = COALESCE($4, reason),
+           requested_in = $2,
+           requested_out = $3,
+           punch_type = COALESCE($4, punch_type),
+           reason = COALESCE($5, reason),
            created_at = NOW()
-       WHERE id = $5 RETURNING *`, [attendance_date || null, requested_in || null, requested_out || null, reason || null, id]);
+       WHERE id = $6 RETURNING *`, [attendance_date || null, requested_in || null, requested_out || null, effectivePunchType || null, reason || null, id]);
         return res.json({ message: 'Regularization request updated successfully', regularization: updated.rows[0] });
     }
     catch (err) {
@@ -6116,6 +6337,19 @@ app.post('/api/v1/attendance/permissions', auth_1.authenticateToken, async (req,
         const empCheck = await (0, db_1.query)('SELECT id FROM hrms.employees WHERE id = $1 AND company_id = $2', [employee_id, companyId]);
         if (empCheck.rows.length === 0)
             return res.status(400).json({ error: 'Invalid employee reference' });
+        // Check for existing active (PENDING or APPROVED) permission requests for the same date and overlapping time
+        const dupCheck = await (0, db_1.query)(`SELECT id, permission_date, from_time, to_time, status
+       FROM hrms.permission_requests
+       WHERE employee_id = $1
+         AND permission_date = $2
+         AND status IN ('PENDING', 'APPROVED')
+         AND from_time < $4 AND to_time > $3`, [employee_id, permission_date, from_time, to_time]);
+        if (dupCheck.rows.length > 0) {
+            const existing = dupCheck.rows[0];
+            return res.status(400).json({
+                error: `A permission request for this date (${permission_date}) and time slot (${existing.from_time} - ${existing.to_time}) is already ${existing.status.toLowerCase()}.`
+            });
+        }
         const result = await (0, db_1.query)(`INSERT INTO hrms.permission_requests (company_id, employee_id, permission_type, permission_date, from_time, to_time, duration_minutes, reason, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING')
        RETURNING *`, [companyId, employee_id, permission_type, permission_date, from_time, to_time, duration_minutes, reason]);
@@ -6228,6 +6462,20 @@ app.put('/api/v1/attendance/permissions/:id', auth_1.authenticateToken, async (r
         }
         if (!isSuperAdmin && reqItem.emp_email?.toLowerCase() !== userEmail?.toLowerCase()) {
             return res.status(403).json({ error: 'Unauthorized to edit this permission request' });
+        }
+        // Check for existing active (PENDING or APPROVED) other permission requests for the same date and overlapping time
+        const dupCheck = await (0, db_1.query)(`SELECT id, permission_date, from_time, to_time, status
+       FROM hrms.permission_requests
+       WHERE employee_id = $1
+         AND permission_date = $2
+         AND status IN ('PENDING', 'APPROVED')
+         AND from_time < $4 AND to_time > $3
+         AND id != $5`, [reqItem.employee_id, permission_date, from_time, to_time, id]);
+        if (dupCheck.rows.length > 0) {
+            const existing = dupCheck.rows[0];
+            return res.status(400).json({
+                error: `Another permission request for date ${permission_date} and time slot (${existing.from_time} - ${existing.to_time}) is already ${existing.status.toLowerCase()}.`
+            });
         }
         const updateRes = await (0, db_1.query)(`UPDATE hrms.permission_requests
        SET permission_type = $1, permission_date = $2, from_time = $3, to_time = $4, duration_minutes = $5, reason = $6, updated_at = NOW()

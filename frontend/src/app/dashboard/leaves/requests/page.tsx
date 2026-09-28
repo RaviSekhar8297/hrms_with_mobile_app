@@ -659,9 +659,9 @@ export default function LeaveRequestsPage() {
       {/* 📜 LEAVE REQUESTS TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="p-12 flex flex-col items-center justify-center gap-3">
-            <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
-            <span className="text-xs font-medium text-slate-400">Loading leave requests...</span>
+          <div className="p-16 text-center space-y-3">
+            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Leave Requests...</p>
           </div>
         ) : filteredRequests.length === 0 ? (
           <div className="p-12 text-center">

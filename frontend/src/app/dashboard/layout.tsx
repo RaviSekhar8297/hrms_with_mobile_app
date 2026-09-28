@@ -385,13 +385,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
 
-  // Helper to check dynamic role-based permissions strictly
+  // Helper to check dynamic role-based permissions strictly following tablename_action
   const hasPermission = (permissionName?: string) => {
     if (!permissionName) return true;
     if (isSuperAdmin) return true;
     if (permissions.includes(permissionName) || permissions.includes('*')) return true;
-    if (permissionName === 'view_payroll_runs' && permissions.includes('view_payroll')) return true;
-    if (permissionName === 'view_payroll' && permissions.includes('view_payroll_runs')) return true;
     return false;
   };
 
@@ -441,7 +439,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           {
             tab: 'employees',
             label: 'Employees',
-            permission: 'view_employees',
+            permission: 'employees_view',
             badge: 'Active',
             icon: (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -492,7 +490,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           {
             tab: 'employees',
             label: 'Employees',
-            permission: 'view_employees',
+            permission: 'employees_view',
             badge: 'Active',
             icon: (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -520,8 +518,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           tab: 'org_flow',
           label: 'Organization Flow',
           icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.3" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 3.75H4.5A2.25 2.25 0 002.25 6v2.25a2.25 2.25 0 002.25 2.25H9A2.25 2.25 0 0011.25 8.25V6A2.25 2.25 0 009 3.75zM19.5 13.5H15a2.25 2.25 0 00-2.25 2.25v2.25A2.25 2.25 0 0015 20.25h4.5A2.25 2.25 0 0021.75 18v-2.25A2.25 2.25 0 0019.5 13.5zM9 13.5H4.5A2.25 2.25 0 002.25 15.75v2.25A2.25 2.25 0 004.5 20.25H9a2.25 2.25 0 002.25-2.25v-2.25A2.25 2.25 0 009 13.5zM6.75 10.5v3M11.25 6h4.5a2.25 2.25 0 012.25 2.25v5.25" />
             </svg>
           ),
         },
@@ -538,7 +536,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'branches',
           label: 'Branches',
-          permission: 'view_branches',
+          permission: 'branches_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -549,7 +547,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'departments',
           label: 'Departments',
-          permission: 'view_departments',
+          permission: 'departments_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -559,7 +557,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'designations',
           label: 'Designations',
-          permission: 'view_designations',
+          permission: 'designations_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -569,7 +567,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'roles',
           label: 'Roles & Access',
-          permission: 'view_roles',
+          permission: 'roles_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m-2 4a2 2 0 012-2m-2 4a2 2 0 11-4 0M9 9a2 2 0 00-2 2m2 4a2 2 0 00-2-2m2 4a2 2 0 11-4 0M9 12H5m0 0l-2-2m2 2l-2 2m14-2a6 6 0 11-12 0 6 6 0 0112 0z" />
@@ -584,7 +582,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'payroll',
           label: 'Payroll Hub',
-          permission: 'view_payroll_runs',
+          permission: 'payroll_runs_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -594,7 +592,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'payroll/generate',
           label: 'Generate Payroll',
-          permission: 'view_payroll_runs',
+          permission: 'payroll_runs_view',
           badge: 'Pro',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -605,7 +603,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'formula',
           label: 'Formulas',
-          permission: 'view_salary_component_configurations',
+          permission: 'salary_component_configurations_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -615,7 +613,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'structure',
           label: 'Structure',
-          permission: 'view_salary_structures',
+          permission: 'salary_structures_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -625,7 +623,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'payroll/tds',
           label: 'TDS Tax',
-          permission: 'view_payroll_runs',
+          permission: 'payroll_runs_view',
           badge: 'Tax',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -636,7 +634,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'payslip',
           label: 'Payslips',
-          permission: 'view_payslips',
+          permission: 'payslips_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -660,7 +658,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'atd_history',
           label: 'History',
-          permission: 'view_attendance_summary',
+          permission: 'attendance_summary_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -670,7 +668,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'attendance/live-tracking',
           label: 'Tracking',
-          permission: 'view_attendance_summary',
+          permission: 'attendance_summary_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -712,7 +710,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'attendance/permissions',
           label: 'Permissions',
-          permission: 'attendance_permissions_view',
+          permission: 'permission_requests_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -722,7 +720,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'leaves/compoff',
           label: 'Comp-Offs',
-          permission: 'view_comp_off_requests',
+          permission: 'comp_off_requests_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15c-3.314 0-6-2.686-6-6s2.686-6 6-6 6 2.686 6 6-2.686 6-6 6zm-3.79-1.11L7 22l5-3 5 3-1.21-8.11" />
@@ -752,7 +750,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'attendance_summary',
           label: 'Summary',
-          permission: 'view_attendance_summary',
+          permission: 'attendance_summary_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -762,7 +760,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'attendance/device-binding',
           label: 'Device Binding',
-          permission: 'view_employee_devices',
+          permission: 'employee_devices_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -777,7 +775,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'shifts',
           label: 'Shifts',
-          permission: 'view_shift_masters',
+          permission: 'shift_masters_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -787,7 +785,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'holidays',
           label: 'Holidays',
-          permission: 'view_holiday_masters',
+          permission: 'holiday_masters_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
@@ -797,7 +795,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'weekoffs',
           label: 'Week-offs',
-          permission: 'view_weekoff_policies',
+          permission: 'weekoff_policies_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1.5M12 19.5V21M3 12h1.5m15 0H21m-1.5-6.364l-1.06 1.06m-11.88 0L5.436 5.636m12.728 12.728l-1.06-1.06M6.436 17.364l-1.06 1.06M16.5 12a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
@@ -812,7 +810,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'leaves/requests',
           label: 'Leave Requests',
-          permission: 'view_leave_requests',
+          permission: 'leave_requests_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -823,7 +821,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'leaves/balances',
           label: 'Leave Balances',
-          permission: 'view_leave_balances',
+          permission: 'leave_balances_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -833,7 +831,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'leaves',
           label: 'Leave Types',
-          permission: 'view_leave_types',
+          permission: 'leave_types_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -849,7 +847,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'recruitment',
           label: 'Recruitment (ATS)',
-          permission: 'view_job_postings',
+          permission: 'job_postings_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -868,7 +866,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {
           tab: 'onboarding',
           label: 'Pre Joining',
-          permission: 'view_employee_onboardings',
+          permission: 'employee_onboardings_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />

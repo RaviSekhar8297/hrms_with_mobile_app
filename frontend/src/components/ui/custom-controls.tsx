@@ -60,6 +60,8 @@ export interface DatePickerSimpleProps {
   triggerClassName?: string;
   maxDate?: Date | string;
   minDate?: Date | string;
+  disabledDates?: (Date | string)[];
+  isDateDisabledFn?: (date: Date) => boolean;
   id?: string;
   disabled?: boolean;
 }
@@ -73,6 +75,8 @@ export function DatePickerSimple({
   triggerClassName = '',
   maxDate,
   minDate,
+  disabledDates,
+  isDateDisabledFn,
   id,
   disabled = false,
 }: DatePickerSimpleProps = {}) {
@@ -161,6 +165,8 @@ export function DatePickerSimple({
             onSelect={handleSelect}
             maxDate={maxDate}
             minDate={minDate}
+            disabledDates={disabledDates}
+            isDateDisabledFn={isDateDisabledFn}
           />
           <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800">
             <button

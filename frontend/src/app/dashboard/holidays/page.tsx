@@ -8,6 +8,7 @@ import { useDashboard } from '../components/DashboardContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Calendar, Building2, Plus, Search, Edit3, Trash2, CheckCircle2, Sparkles } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { DatePickerSimple } from '@/components/ui/custom-controls';
 
 interface Company {
   id: string;
@@ -151,12 +152,33 @@ export default function HolidaysPage() {
     // Handled globally by DashboardContext
   };
 
+  const existingHolidayDates = React.useMemo(() => {
+    const targetCompanyId = newHolidayForm.company_id || (companyId !== 'all' ? companyId : null);
+    return holidays
+      .filter(h => {
+        // If editing an existing holiday, don't disable its own date
+        if (newHolidayForm.id && String(h.id) === String(newHolidayForm.id)) return false;
+        // If company context applies
+        if (targetCompanyId && h.company_id && String(h.company_id) !== String(targetCompanyId)) return false;
+        return true;
+      })
+      .map(h => String(h.holiday_date || h.date || '').split('T')[0].split(' ')[0])
+      .filter(Boolean);
+  }, [holidays, newHolidayForm.id, newHolidayForm.company_id, companyId]);
+
   const handleCreateHoliday = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHolidayForm.name || !newHolidayForm.holiday_date) {
       showToast('Please fill in Holiday Name and Holiday Date.', 'error');
       return;
     }
+
+    const rawDate = String(newHolidayForm.holiday_date).split('T')[0].split(' ')[0];
+    if (existingHolidayDates.includes(rawDate)) {
+      showToast('A holiday is already scheduled on this date! Please choose a different date.', 'error');
+      return;
+    }
+
     const targetCompanyId = newHolidayForm.company_id || companyId;
     if (!targetCompanyId || targetCompanyId === 'all') {
       showToast('Please select a target company.', 'error');
@@ -529,9 +551,9 @@ export default function HolidaysPage() {
 
         {/* ALL HOLIDAYS DIRECT UNIFIED DISPLAY GRID */}
         {isLoading ? (
-          <div className="p-12 flex flex-col items-center justify-center gap-2.5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading holiday data...</span>
+          <div className="p-16 text-center space-y-3 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Holidays...</p>
           </div>
         ) : activeTab === 'list' ? (
           <div>
@@ -855,13 +877,18 @@ export default function HolidaysPage() {
             <label className="block text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">
               Holiday Observance Date <span className="text-rose-500">*</span>
             </label>
-            <input
-              type="date"
+            <DatePickerSimple
               value={newHolidayForm.holiday_date}
-              onChange={e => setNewHolidayForm(prev => ({ ...prev, holiday_date: e.target.value }))}
-              required
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a] font-mono"
+              onChange={(dateStr) => setNewHolidayForm(prev => ({ ...prev, holiday_date: dateStr }))}
+              placeholder="Select holiday date"
+              disabledDates={existingHolidayDates}
+              triggerClassName="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200"
             />
+            {existingHolidayDates.length > 0 && (
+              <span className="block text-[10px] text-slate-400 mt-1">
+                * Existing holiday dates for this company/year cannot be re-selected.
+              </span>
+            )}
           </div>
 
           <div>

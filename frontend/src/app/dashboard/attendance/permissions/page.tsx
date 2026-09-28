@@ -45,16 +45,16 @@ export default function AttendancePermissionsPage() {
   const { hasPermission, isSuperAdmin, getPermissionScope } = usePermissions();
 
   // 🛡️ Standardized tablename_action Permissions
-  const canView = isSuperAdmin || hasPermission('attendance_permissions_view') || hasPermission('view_permission_requests') || hasPermission('view_attendance_permissions');
-  const canCreate = isSuperAdmin || hasPermission('attendance_permissions_create') || hasPermission('create_permission_requests') || hasPermission('create_attendance_permissions');
-  const canEdit = isSuperAdmin || hasPermission('attendance_permissions_edit') || hasPermission('edit_permission_requests') || hasPermission('edit_attendance_permissions');
-  const canDelete = isSuperAdmin || hasPermission('attendance_permissions_delete') || hasPermission('delete_permission_requests') || hasPermission('delete_attendance_permissions');
-  const canApprove = isSuperAdmin || hasPermission('attendance_permissions_edit') || hasPermission('approve_attendance_permissions') || hasPermission('approve_permission_requests');
+  const canView = isSuperAdmin || hasPermission('permission_requests_view') || hasPermission('attendance_permissions_view') || hasPermission('view_permission_requests') || hasPermission('view_attendance_permissions');
+  const canCreate = isSuperAdmin || hasPermission('permission_requests_create') || hasPermission('attendance_permissions_create') || hasPermission('create_permission_requests') || hasPermission('create_attendance_permissions');
+  const canEdit = isSuperAdmin || hasPermission('permission_requests_edit') || hasPermission('attendance_permissions_edit') || hasPermission('edit_permission_requests') || hasPermission('edit_attendance_permissions');
+  const canDelete = isSuperAdmin || hasPermission('permission_requests_delete') || hasPermission('attendance_permissions_delete') || hasPermission('delete_permission_requests') || hasPermission('delete_attendance_permissions');
+  const canApprove = isSuperAdmin || hasPermission('permission_requests_edit') || hasPermission('attendance_permissions_edit') || hasPermission('approve_attendance_permissions') || hasPermission('approve_permission_requests');
 
   // 🌐 Data Scopes
-  const viewScope_perm = getPermissionScope('attendance_permissions_view') || getPermissionScope('view_permission_requests') || 'SELF';
-  const editScope_perm = getPermissionScope('attendance_permissions_edit') || getPermissionScope('edit_permission_requests') || 'SELF';
-  const deleteScope_perm = getPermissionScope('attendance_permissions_delete') || getPermissionScope('delete_permission_requests') || 'SELF';
+  const viewScope_perm = getPermissionScope('permission_requests_view') || getPermissionScope('attendance_permissions_view') || getPermissionScope('view_permission_requests') || 'SELF';
+  const editScope_perm = getPermissionScope('permission_requests_edit') || getPermissionScope('attendance_permissions_edit') || getPermissionScope('edit_permission_requests') || 'SELF';
+  const deleteScope_perm = getPermissionScope('permission_requests_delete') || getPermissionScope('attendance_permissions_delete') || getPermissionScope('delete_permission_requests') || 'SELF';
 
   // Can see the extended All/Team Requests tab
   const canSeeTeamTab = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(viewScope_perm);

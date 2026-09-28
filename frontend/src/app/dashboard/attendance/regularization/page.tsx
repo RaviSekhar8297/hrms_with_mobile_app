@@ -606,10 +606,10 @@ export default function AttendanceRegularizationPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-medium text-slate-700 dark:text-slate-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs font-bold">Loading regularization requests...</span>
+                  <td colSpan={7} className="p-16 text-center">
+                    <div className="space-y-3">
+                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Regularization Requests...</p>
                     </div>
                   </td>
                 </tr>

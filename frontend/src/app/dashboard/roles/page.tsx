@@ -1018,43 +1018,38 @@ export default function RolesPage() {
 
                     const roleNameLower = role.name.toLowerCase();
                     let roleTheme = {
-                      avatar: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/70 border-indigo-200/80 dark:border-indigo-800/60 shadow-indigo-500/10',
-                      activeBorder: 'border-indigo-500/90 ring-2 ring-indigo-500/25 bg-gradient-to-b from-indigo-500/15 via-indigo-500/5 to-white dark:from-indigo-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-indigo-500/15',
-                      tag: 'bg-indigo-600 text-white',
-                      keyText: 'text-indigo-600 dark:text-indigo-400',
-                      badge: 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/30'
+                      avatar: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/70 border-indigo-200 dark:border-indigo-800/80',
+                      activeBorder: 'border-[#07518a] dark:border-[#07518a] ring-2 ring-[#07518a]/25 bg-gradient-to-b from-[#07518a]/10 via-[#07518a]/5 to-white dark:from-[#07518a]/25 dark:via-slate-900 dark:to-slate-900 shadow-lg shadow-[#07518a]/15',
+                      keyText: 'text-[#07518a] dark:text-sky-400',
+                      badge: 'bg-[#07518a] text-white border-[#07518a] shadow-xs'
                     };
                     if (roleNameLower.includes('admin')) {
                       roleTheme = {
-                        avatar: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/70 border-purple-200/80 dark:border-purple-800/60 shadow-purple-500/10',
-                        activeBorder: 'border-purple-500/90 ring-2 ring-purple-500/25 bg-gradient-to-b from-purple-500/15 via-purple-500/5 to-white dark:from-purple-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-purple-500/15',
-                        tag: 'bg-purple-600 text-white',
-                        keyText: 'text-purple-600 dark:text-purple-400',
-                        badge: 'bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-500/30'
+                        avatar: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/70 border-purple-200 dark:border-purple-800/80',
+                        activeBorder: 'border-purple-600 dark:border-purple-500 ring-2 ring-purple-500/25 bg-gradient-to-b from-purple-500/10 via-purple-500/5 to-white dark:from-purple-950/60 dark:via-slate-900 dark:to-slate-900 shadow-lg shadow-purple-500/15',
+                        keyText: 'text-purple-700 dark:text-purple-400',
+                        badge: 'bg-purple-600 text-white border-purple-600 shadow-xs'
                       };
                     } else if (roleNameLower.includes('hr')) {
                       roleTheme = {
-                        avatar: 'text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/70 border-pink-200/80 dark:border-pink-800/60 shadow-pink-500/10',
-                        activeBorder: 'border-pink-500/90 ring-2 ring-pink-500/25 bg-gradient-to-b from-pink-500/15 via-pink-500/5 to-white dark:from-pink-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-pink-500/15',
-                        tag: 'bg-pink-600 text-white',
-                        keyText: 'text-pink-600 dark:text-pink-400',
-                        badge: 'bg-pink-600 text-white border-pink-600 shadow-sm shadow-pink-500/30'
+                        avatar: 'text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/70 border-pink-200 dark:border-pink-800/80',
+                        activeBorder: 'border-pink-600 dark:border-pink-500 ring-2 ring-pink-500/25 bg-gradient-to-b from-pink-500/10 via-pink-500/5 to-white dark:from-pink-950/60 dark:via-slate-900 dark:to-slate-900 shadow-lg shadow-pink-500/15',
+                        keyText: 'text-pink-700 dark:text-pink-400',
+                        badge: 'bg-pink-600 text-white border-pink-600 shadow-xs'
                       };
                     } else if (roleNameLower.includes('manager')) {
                       roleTheme = {
-                        avatar: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/70 border-amber-200/80 dark:border-amber-800/60 shadow-amber-500/10',
-                        activeBorder: 'border-amber-500/90 ring-2 ring-amber-500/25 bg-gradient-to-b from-amber-500/15 via-amber-500/5 to-white dark:from-amber-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-amber-500/15',
-                        tag: 'bg-amber-600 text-white',
-                        keyText: 'text-amber-600 dark:text-amber-400',
-                        badge: 'bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-500/30'
+                        avatar: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/70 border-amber-200 dark:border-amber-800/80',
+                        activeBorder: 'border-amber-600 dark:border-amber-500 ring-2 ring-amber-500/25 bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-white dark:from-amber-950/60 dark:via-slate-900 dark:to-slate-900 shadow-lg shadow-amber-500/15',
+                        keyText: 'text-amber-700 dark:text-amber-400',
+                        badge: 'bg-amber-600 text-white border-amber-600 shadow-xs'
                       };
                     } else if (roleNameLower.includes('employee')) {
                       roleTheme = {
-                        avatar: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/70 border-blue-200/80 dark:border-blue-800/60 shadow-blue-500/10',
-                        activeBorder: 'border-blue-500/90 ring-2 ring-blue-500/25 bg-gradient-to-b from-blue-500/15 via-blue-500/5 to-white dark:from-blue-950/60 dark:via-slate-900/90 dark:to-slate-900/80 shadow-lg shadow-blue-500/15',
-                        tag: 'bg-blue-600 text-white',
-                        keyText: 'text-blue-600 dark:text-blue-400',
-                        badge: 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/30'
+                        avatar: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/70 border-blue-200 dark:border-blue-800/80',
+                        activeBorder: 'border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/25 bg-gradient-to-b from-blue-500/10 via-blue-500/5 to-white dark:from-blue-950/60 dark:via-slate-900 dark:to-slate-900 shadow-lg shadow-blue-500/15',
+                        keyText: 'text-blue-700 dark:text-blue-400',
+                        badge: 'bg-blue-600 text-white border-blue-600 shadow-xs'
                       };
                     }
 
@@ -1062,31 +1057,37 @@ export default function RolesPage() {
                       <div
                         key={role.id}
                         onClick={() => setSelectedRoleId(role.id)}
-                        className={`relative group rounded-2xl p-4 cursor-pointer transition-all duration-300 flex-shrink-0 min-w-[230px] flex flex-col justify-between border ${isActive
+                        className={`group rounded-2xl p-4 cursor-pointer transition-all duration-300 flex-shrink-0 min-w-[250px] flex flex-col justify-between border ${isActive
                           ? `${roleTheme.activeBorder} scale-[1.02]`
                           : 'bg-white/95 dark:bg-slate-900/70 border-slate-200/90 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 hover:bg-slate-50/90 dark:hover:bg-slate-850/60 hover:shadow-md'
                           }`}
                       >
-                        {isActive && (
-                          <span className={`absolute -top-2 left-6 px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest shadow-md ${roleTheme.tag}`}>
-                            ACTIVE
-                          </span>
-                        )}
-
-                        {/* Top Row: Avatar Initial + Role Title + Edit/Delete Actions */}
-                        <div className="flex items-center justify-between gap-2">
+                        {/* Top Row: Avatar Initial + Role Title + Active Badge + Edit/Delete Actions */}
+                        <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs border ${roleTheme.avatar} flex-shrink-0 shadow-xs transition-transform group-hover:scale-105`}>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm border ${roleTheme.avatar} flex-shrink-0 shadow-xs transition-transform group-hover:scale-105`}>
                               {role.name.charAt(0).toUpperCase()}
                             </div>
-                            <div className="truncate">
-                              <h5 className={`text-[13px] font-black uppercase tracking-wider truncate ${isActive ? roleTheme.keyText : 'text-slate-800 dark:text-slate-100'}`}>
-                                {role.name}
-                              </h5>
+                            <div className="min-w-0 flex flex-col">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h5 className={`text-[13.5px] font-black uppercase tracking-wider truncate ${isActive ? roleTheme.keyText : 'text-slate-800 dark:text-slate-100'}`}>
+                                  {role.name}
+                                </h5>
+                              </div>
+                              {isActive ? (
+                                <div className="inline-flex items-center gap-1 mt-0.5">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700/80 shadow-2xs">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    Active
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Click to manage</span>
+                              )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
                             <Tooltip>
                               <TooltipTrigger>
                                 <button
@@ -1117,8 +1118,8 @@ export default function RolesPage() {
 
                         {/* Bottom Row: Key & Permissions Badge */}
                         <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px]">
-                          <span className={`font-mono text-[9.5px] font-bold tracking-wider ${isActive ? roleTheme.keyText : 'text-slate-400 dark:text-slate-500'}`}>
-                            KEY: {role.name.toLowerCase().replace(/\s+/g, '_')}
+                          <span className={`font-mono text-[10px] font-bold tracking-wider ${isActive ? 'text-slate-600 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+                            KEY: <span className="font-semibold">{role.name.toLowerCase().replace(/\s+/g, '_')}</span>
                           </span>
 
                           <span className={`px-2.5 py-0.5 rounded-full font-black text-[9.5px] tracking-wide border transition-all ${isActive
