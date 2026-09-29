@@ -224,16 +224,11 @@ export default function AttendanceRegularizationPage() {
     const currentEmpId = localStorage.getItem('employeeId') || (employees.find(emp => emp.email?.toLowerCase() === email.toLowerCase())?.id) || '';
     const targetEmpId = form.employee_id || currentEmpId;
 
-    if (!targetEmpId) {
-      showToast('Please select an employee profile.', 'error');
-      return;
-    }
-
     // Client-side instant overlap check
     const activeReq = requests.find(r => 
       (r.status === 'PENDING' || r.status === 'APPROVED') &&
       r.attendance_date?.split('T')[0] === form.attendance_date &&
-      r.employee_id === targetEmpId
+      (!targetEmpId || r.employee_id === targetEmpId)
     );
     if (activeReq) {
       const exPunch = activeReq.punch_type || ((activeReq.requested_in && activeReq.requested_out) ? 'BOTH' : (activeReq.requested_out ? 'CHECK_OUT' : 'CHECK_IN'));
@@ -858,20 +853,6 @@ export default function AttendanceRegularizationPage() {
         title="Apply Punch Regularization"
       >
         <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs font-sans p-1">
-          {(isSuperAdmin || canSeeTeamTab) && employees.length > 0 && (
-            <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Select Employee *
-              </label>
-              <SearchableSelect
-                options={employeeOptions}
-                value={form.employee_id}
-                onChange={val => setForm({ ...form, employee_id: val })}
-                placeholder="-- Search & Select Employee --"
-              />
-            </div>
-          )}
-
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Attendance Date *

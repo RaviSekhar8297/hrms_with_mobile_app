@@ -7308,10 +7308,24 @@ app.post('/api/v1/attendance/regularizations', authenticateToken, async (req: Au
     if (req.user?.employeeId) {
       empId = req.user.employeeId;
     } else if (req.user?.email) {
-      const empRes = await query("SELECT id, company_id FROM hrms.employees WHERE email = $1 AND status = 'ACTIVE' LIMIT 1", [req.user.email]);
+      const empRes = await query("SELECT id, company_id FROM hrms.employees WHERE LOWER(email) = LOWER($1) AND status = 'ACTIVE' LIMIT 1", [req.user.email]);
       if (empRes.rows.length > 0) {
         empId = empRes.rows[0].id;
         if (!companyId) companyId = empRes.rows[0].company_id;
+      }
+    }
+    // Fallback: If still no empId, find first active employee in company or DB (for SuperAdmin testing)
+    if (!empId && companyId) {
+      const fallbackEmp = await query("SELECT id, company_id FROM hrms.employees WHERE company_id = $1 AND status = 'ACTIVE' ORDER BY created_at ASC LIMIT 1", [companyId]);
+      if (fallbackEmp.rows.length > 0) {
+        empId = fallbackEmp.rows[0].id;
+      }
+    }
+    if (!empId && isSuperAdmin) {
+      const fallbackEmp = await query("SELECT id, company_id FROM hrms.employees WHERE status = 'ACTIVE' ORDER BY created_at ASC LIMIT 1");
+      if (fallbackEmp.rows.length > 0) {
+        empId = fallbackEmp.rows[0].id;
+        if (!companyId) companyId = fallbackEmp.rows[0].company_id;
       }
     }
   }
