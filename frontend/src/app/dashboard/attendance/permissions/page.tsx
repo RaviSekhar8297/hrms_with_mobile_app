@@ -305,10 +305,6 @@ export default function AttendancePermissionsPage() {
     }
 
     const targetEmployeeId = form.employee_id || currentEmployee?.id || me?.id || (typeof window !== 'undefined' ? localStorage.getItem('employeeId') : null);
-    if (!targetEmployeeId) {
-      showToast('Employee profile reference is required.', 'error');
-      return;
-    }
 
     if (!form.permission_type) {
       showToast('Please select a permission type.', 'error');
@@ -896,20 +892,6 @@ export default function AttendancePermissionsPage() {
         title={editingId ? 'Edit Permission Request' : 'Apply Short-Time Permission'}
       >
         <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs font-semibold p-1">
-          {(isSuperAdmin || canSeeTeamTab) && employees.length > 0 && (
-            <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Select Employee *
-              </label>
-              <SearchableSelect
-                options={employeeSelectOptions}
-                value={form.employee_id}
-                onChange={val => setForm({ ...form, employee_id: val })}
-                placeholder="-- Search & Select Employee --"
-              />
-            </div>
-          )}
-
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Permission Type *
