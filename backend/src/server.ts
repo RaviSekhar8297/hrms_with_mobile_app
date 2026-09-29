@@ -11765,6 +11765,12 @@ app.listen(Number(PORT), '0.0.0.0', async () => {
 
       CREATE INDEX IF NOT EXISTS idx_attendance_summary_count_company_period ON hrms.attendance_summary_count (company_id, year, month);
       CREATE INDEX IF NOT EXISTS idx_attendance_summary_count_employee ON hrms.attendance_summary_count (employee_id);
+      CREATE INDEX IF NOT EXISTS idx_employees_company_id ON hrms.employees (company_id);
+      CREATE INDEX IF NOT EXISTS idx_employees_dept_id ON hrms.employees (department_id);
+      CREATE INDEX IF NOT EXISTS idx_employees_branch_id ON hrms.employees (branch_id);
+      CREATE INDEX IF NOT EXISTS idx_employees_desig_id ON hrms.employees (designation_id);
+      CREATE INDEX IF NOT EXISTS idx_employees_reporting_to ON hrms.employees (reporting_to_id);
+      CREATE INDEX IF NOT EXISTS idx_employee_shifts_emp_effective ON hrms.employee_shifts (employee_id, effective_from DESC);
     `);
 
     // Database schema migration for 7 Enterprise Payroll Tables

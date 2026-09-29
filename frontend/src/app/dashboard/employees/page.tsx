@@ -428,24 +428,26 @@ export default function EmployeesPage() {
     const fetchDropdownOptions = async () => {
       try {
         const targetId = activeId && activeId !== 'all' ? activeId : null;
-        const resB = await fetch(getUrl('/api/v1/branches', targetId), { headers: getHeaders() });
-        const dataB = await resB.json();
+        const [resB, resD, resDe, resR, resS] = await Promise.all([
+          fetch(getUrl('/api/v1/branches', targetId), { headers: getHeaders() }),
+          fetch(getUrl('/api/v1/departments', targetId), { headers: getHeaders() }),
+          fetch(getUrl('/api/v1/designations', targetId), { headers: getHeaders() }),
+          fetch(getUrl('/api/v1/roles', targetId), { headers: getHeaders() }),
+          fetch(getUrl('/api/v1/shifts', targetId), { headers: getHeaders() }),
+        ]);
+
+        const [dataB, dataD, dataDe, dataR, dataS] = await Promise.all([
+          resB.json(),
+          resD.json(),
+          resDe.json(),
+          resR.json(),
+          resS.json(),
+        ]);
+
         if (resB.ok) setBranches(dataB.branches || []);
-
-        const resD = await fetch(getUrl('/api/v1/departments', targetId), { headers: getHeaders() });
-        const dataD = await resD.json();
         if (resD.ok) setDepartments(dataD.departments || []);
-
-        const resDe = await fetch(getUrl('/api/v1/designations', targetId), { headers: getHeaders() });
-        const dataDe = await resDe.json();
         if (resDe.ok) setDesignations(dataDe.designations || []);
-
-        const resR = await fetch(getUrl('/api/v1/roles', targetId), { headers: getHeaders() });
-        const dataR = await resR.json();
         if (resR.ok) setTenantRoles(dataR.roles || []);
-
-        const resS = await fetch(getUrl('/api/v1/shifts', targetId), { headers: getHeaders() });
-        const dataS = await resS.json();
         if (resS.ok) setShifts(dataS.shifts || []);
       } catch (err) {
         console.error('Error fetching dropdown options:', err);
@@ -1321,7 +1323,7 @@ export default function EmployeesPage() {
               <input
                 type="text" required placeholder="Ravi"
                 value={empForm.first_name}
-                onChange={e => setEmpForm({ ...empForm, first_name: e.target.value })}
+                onChange={e => setEmpForm({ ...empForm, first_name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                 className={inputStyle}
               />
             </div>
@@ -1330,7 +1332,7 @@ export default function EmployeesPage() {
               <input
                 type="text" required placeholder="Kumar"
                 value={empForm.last_name}
-                onChange={e => setEmpForm({ ...empForm, last_name: e.target.value })}
+                onChange={e => setEmpForm({ ...empForm, last_name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                 className={inputStyle}
               />
             </div>

@@ -1097,7 +1097,7 @@ function CreateEmployeeContent() {
                       <input
                         type="text"
                         value={empForm.first_name}
-                        onChange={(e) => setEmpForm({ ...empForm, first_name: e.target.value })}
+                        onChange={(e) => setEmpForm({ ...empForm, first_name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                         placeholder="Rahul"
                         className={stylishInputClass}
                       />
@@ -1110,7 +1110,7 @@ function CreateEmployeeContent() {
                       <input
                         type="text"
                         value={empForm.last_name}
-                        onChange={(e) => setEmpForm({ ...empForm, last_name: e.target.value })}
+                        onChange={(e) => setEmpForm({ ...empForm, last_name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                         placeholder="Sharma"
                         className={stylishInputClass}
                       />
