@@ -10,6 +10,7 @@ import { getHeaders, API_BASE, getUrl } from '../../utils/api';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { DatePickerSimple } from '@/components/ui/custom-controls';
+import { CheckCircle2, Sparkles, ArrowRight, UserPlus, Clock } from 'lucide-react';
 
 const STEPPER_STEPS = [
   { id: 1, title: 'Personal Details', subtitle: 'Identity & contact', icon: '' },
@@ -17,6 +18,51 @@ const STEPPER_STEPS = [
   { id: 3, title: 'Bank & Financials', subtitle: 'Salary, bank & PAN', icon: '' },
   { id: 4, title: 'Address & Contact', subtitle: 'Address & emergency', icon: '' },
 ] as const;
+
+const INITIAL_EMP_FORM = {
+  // Step 1: Personal
+  emp_id_code: '',
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone: '',
+  gender: 'MALE',
+  dob: '',
+  blood_group: 'O_POSITIVE',
+  marital_status: 'SINGLE',
+  employment_type: 'FULL_TIME',
+  status: 'ACTIVE',
+  emp_image: '',
+
+  // Step 2: Work & Hierarchy
+  companyId: '',
+  branch_id: '',
+  department_id: '',
+  designation_id: '',
+  role_id: '',
+  tenant_role_id: '',
+  shift_id: '',
+  reporting_to_id: '',
+  joining_date: new Date().toISOString().split('T')[0],
+
+  // Step 3: Bank & Statutory
+  ctc: '600000',
+  basic_salary: '35000',
+  bank_name: '',
+  bank_acc_no: '',
+  ifsc_code: '',
+  pan_number: '',
+  uan_number: '',
+
+  // Step 4: Address & Emergency
+  address: '',
+  city: '',
+  state: '',
+  pincode: '',
+  emergency_contact_name: '',
+  emergency_contact_phone: '',
+  emergency_relation: 'SPOUSE',
+};
 
 function CreateEmployeeContent() {
   const router = useRouter();
@@ -39,6 +85,37 @@ function CreateEmployeeContent() {
 
   const [currentStep, setCurrentStep] = useState<number>(1);
 
+  // Registration Success Celebration Modal State (5-second auto-close)
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean;
+    empName: string;
+    empCode: string;
+    email: string;
+    tempPass?: string;
+    countdown: number;
+  } | null>(null);
+
+  // Auto-close countdown timer effect
+  useEffect(() => {
+    if (!successModal?.isOpen) return;
+    if (successModal.countdown <= 0) {
+      router.push('/dashboard/employees');
+      return;
+    }
+    const timer = setInterval(() => {
+      setSuccessModal(prev => {
+        if (!prev) return null;
+        if (prev.countdown <= 1) {
+          clearInterval(timer);
+          router.push('/dashboard/employees');
+          return { ...prev, countdown: 0 };
+        }
+        return { ...prev, countdown: prev.countdown - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [successModal?.isOpen, successModal?.countdown, router]);
+
   const [companies, setCompanies] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -56,50 +133,7 @@ function CreateEmployeeContent() {
   const [bulkResults, setBulkResults] = useState<{ row: number; emp_id_code: string; status: string; keycloak_status?: string; message: string }[] | null>(null);
 
   // Single Form State
-  const [empForm, setEmpForm] = useState({
-    // Step 1: Personal
-    emp_id_code: '',
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    gender: 'MALE',
-    dob: '',
-    blood_group: 'O_POSITIVE',
-    marital_status: 'SINGLE',
-    employment_type: 'FULL_TIME',
-    status: 'ACTIVE',
-    emp_image: '',
-
-    // Step 2: Work & Hierarchy
-    companyId: '',
-    branch_id: '',
-    department_id: '',
-    designation_id: '',
-    role_id: '',
-    tenant_role_id: '',
-    shift_id: '',
-    reporting_to_id: '',
-    joining_date: new Date().toISOString().split('T')[0],
-
-    // Step 3: Bank & Statutory
-    ctc: '600000',
-    basic_salary: '35000',
-    bank_name: '',
-    bank_acc_no: '',
-    ifsc_code: '',
-    pan_number: '',
-    uan_number: '',
-
-    // Step 4: Address & Emergency
-    address: '',
-    city: '',
-    state: '',
-    pincode: '',
-    emergency_contact_name: '',
-    emergency_contact_phone: '',
-    emergency_relation: 'SPOUSE',
-  });
+  const [empForm, setEmpForm] = useState(INITIAL_EMP_FORM);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -337,6 +371,19 @@ function CreateEmployeeContent() {
       return empEmail === cleanEmail || personalEmail === cleanEmail;
     }) || null;
   }, [empForm.email, serverDuplicateEmail, safeEmployees]);
+
+  // Searchable Reporting Head Options (All Employees in Company)
+  const reportingHeadOptions = useMemo(() => {
+    return [
+      { value: '', label: '-- None (Direct to Company / Top Level) --' },
+      ...safeEmployees
+        .filter(e => e.status === 'ACTIVE' || !e.status)
+        .map(emp => ({
+          value: emp.id,
+          label: `${emp.first_name || ''} ${emp.last_name || ''} ${emp.emp_id_code ? `[${emp.emp_id_code}]` : ''}`.trim()
+        }))
+    ];
+  }, [safeEmployees]);
 
   // Quick Add modal states for Branch, Department, Designation, Shift
   const [quickAddModal, setQuickAddModal] = useState<'branch' | 'department' | 'designation' | 'shift' | null>(null);
@@ -674,12 +721,19 @@ function CreateEmployeeContent() {
 
       const data = await res.json();
       if (res.ok) {
-        let msg = 'Employee profile registered successfully!';
-        if (data.keycloakCreated) {
-          msg += ` Keycloak user registered. Temp Password: ${data.keycloakTempPassword}`;
-        }
-        showToast(msg, 'success', 6000);
-        router.push('/dashboard/employees');
+        const registeredName = `${empForm.first_name} ${empForm.last_name}`.trim();
+        const registeredCode = empForm.emp_id_code || data.employee?.emp_id_code || '';
+        const registeredEmail = empForm.email || '';
+        const tempPass = data.keycloakTempPassword || '';
+
+        setSuccessModal({
+          isOpen: true,
+          empName: registeredName,
+          empCode: registeredCode,
+          email: registeredEmail,
+          tempPass: tempPass,
+          countdown: 5,
+        });
       } else {
         showToast(data.error || 'Failed to create employee profile', 'error');
       }
@@ -1176,6 +1230,19 @@ function CreateEmployeeContent() {
                         <option value="INTERN">Internship</option>
                       </select>
                     </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                        <span>Reporting Head / Manager</span>
+                        <span className="text-[10px] font-medium text-slate-400">Optional</span>
+                      </label>
+                      <SearchableSelect
+                        options={reportingHeadOptions}
+                        value={empForm.reporting_to_id}
+                        onChange={(val) => setEmpForm({ ...empForm, reporting_to_id: val })}
+                        placeholder="-- Search & Select Reporting Head --"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1623,9 +1690,19 @@ function CreateEmployeeContent() {
                 <button
                   type="submit"
                   disabled={isSaving || !!duplicateEmp || !!duplicateEmailEmp}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer border-0 disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 cursor-pointer border-0 disabled:opacity-50 flex items-center gap-2 transition-all duration-200 hover:scale-[1.02] active:scale-95"
                 >
-                  {isSaving ? 'Creating...' : '✨ Submit Profile'}
+                  {isSaving ? (
+                    <>
+                      <span className="animate-spin text-sm">⏳</span>
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🚀</span>
+                      <span>Submit</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>
@@ -2005,6 +2082,104 @@ function CreateEmployeeContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 🌟 CELEBRATORY EMPLOYEE REGISTRATION SUCCESS MODAL POPUP */}
+      {typeof document !== 'undefined' && successModal?.isOpen && createPortal(
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-emerald-500/40 shadow-2xl max-w-lg w-full p-6 sm:p-8 text-center space-y-5 relative overflow-hidden animate-scaleUp">
+            {/* Top decorative gradient glow */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-400 via-teal-500 to-indigo-500" />
+
+            {/* Floating Celebration Badges */}
+            <div className="flex justify-center items-center relative pt-2">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white flex items-center justify-center text-4xl shadow-xl shadow-emerald-500/30 ring-8 ring-emerald-50 dark:ring-emerald-950/40 animate-bounce">
+                🎉
+              </div>
+              <span className="absolute -top-1 -right-2 text-2xl animate-spin">✨</span>
+              <span className="absolute -bottom-1 -left-2 text-2xl">🌟</span>
+            </div>
+
+            {/* Personalized Salutation & Success Message */}
+            <div className="space-y-2">
+              <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-extrabold text-[11px] uppercase tracking-wider border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Registration Successful
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">
+                Dear <span className="text-emerald-600 dark:text-emerald-400 underline decoration-wavy">{successModal.empName}</span>,
+              </h2>
+              <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 leading-relaxed">
+                You are registered successfully in our HRMS ecosystem!
+              </p>
+            </div>
+
+            {/* Profile Credentials Quick Summary Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 text-left space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Employee Code:</span>
+                <span className="font-mono font-black text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                  {successModal.empCode || 'Auto-generated'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Email:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[220px]">
+                  {successModal.email}
+                </span>
+              </div>
+              {successModal.tempPass && (
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60 dark:border-slate-800">
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">Temp Password:</span>
+                  <span className="font-mono font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-900">
+                    {successModal.tempPass}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 5-Second Countdown Timer Progress Bar */}
+            <div className="space-y-1.5 pt-1">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-200/50 dark:border-slate-700/50 shadow-inner">
+                <div 
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full transition-all duration-1000 ease-linear rounded-full shadow-sm"
+                  style={{ width: `${(successModal.countdown / 5) * 100}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                <Clock className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+                <span>Redirecting in <strong className="text-emerald-600 dark:text-emerald-400 font-mono text-xs">{successModal.countdown}</strong> seconds...</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSuccessModal(null);
+                  router.push('/dashboard/employees');
+                }}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-lg shadow-emerald-600/25 transition-all cursor-pointer border-0 flex items-center justify-center gap-2"
+              >
+                <span>View Employees</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSuccessModal(null);
+                  setCurrentStep(1);
+                  setEmpForm(INITIAL_EMP_FORM);
+                }}
+                className="py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer border-0 flex items-center justify-center gap-1.5"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>+ Register Another</span>
+              </button>
+            </div>
           </div>
         </div>,
         document.body
