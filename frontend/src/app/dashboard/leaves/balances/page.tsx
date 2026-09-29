@@ -40,15 +40,15 @@ export default function LeaveBalancesPage() {
   const isSuperAdmin = isSuperAdminPerm;
 
   // Permissions
-  const canView = isSuperAdmin || hasPermission('leaves_balances_view') || hasPermission('view_leave_balances') || hasPermission('leaves_view');
-  const canCreate = isSuperAdmin || hasPermission('leaves_balances_create') || hasPermission('create_leave_balances') || hasPermission('leaves_create') || hasPermission('leaves_balances_edit');
-  const canEdit = isSuperAdmin || hasPermission('leaves_balances_edit') || hasPermission('edit_leave_balances') || hasPermission('manage_leave_balances') || hasPermission('leaves_edit');
-  const canDelete = isSuperAdmin || hasPermission('leaves_balances_delete') || hasPermission('delete_leave_balances') || hasPermission('leaves_delete');
+  const canView = isSuperAdmin || hasPermission('leave_balances_view') || hasPermission('leaves_balances_view') || hasPermission('leaves_view');
+  const canCreate = isSuperAdmin || hasPermission('leave_balances_create') || hasPermission('leaves_balances_create') || hasPermission('leaves_create') || hasPermission('leave_balances_edit');
+  const canEdit = isSuperAdmin || hasPermission('leave_balances_edit') || hasPermission('leaves_balances_edit') || hasPermission('leaves_edit');
+  const canDelete = isSuperAdmin || hasPermission('leave_balances_delete') || hasPermission('leaves_balances_delete') || hasPermission('leaves_delete');
 
   // Scopes
-  const viewScopePerm = getPermissionScope('leaves_balances_view') || getPermissionScope('view_leave_balances') || (isSuperAdmin ? 'ALL' : 'SELF');
-  const editScopePerm = getPermissionScope('leaves_balances_edit') || getPermissionScope('edit_leave_balances') || (isSuperAdmin ? 'ALL' : 'SELF');
-  const deleteScopePerm = getPermissionScope('leaves_balances_delete') || getPermissionScope('delete_leave_balances') || (isSuperAdmin ? 'ALL' : 'SELF');
+  const viewScopePerm = getPermissionScope('leave_balances_view') || getPermissionScope('leaves_balances_view') || (isSuperAdmin ? 'ALL' : 'SELF');
+  const editScopePerm = getPermissionScope('leave_balances_edit') || getPermissionScope('leaves_balances_edit') || (isSuperAdmin ? 'ALL' : 'SELF');
+  const deleteScopePerm = getPermissionScope('leave_balances_delete') || getPermissionScope('leaves_balances_delete') || (isSuperAdmin ? 'ALL' : 'SELF');
 
   const canSeeExtendedTab = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(viewScopePerm);
   const canEditExtended = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(editScopePerm);

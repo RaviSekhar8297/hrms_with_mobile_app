@@ -13,9 +13,9 @@ export default function WorkBridgeWorkflowsPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
-  const canCreate = isSuperAdmin || hasPermission('create_workflows') || hasPermission('create');
-  const canEdit = isSuperAdmin || hasPermission('edit_workflows') || hasPermission('edit');
-  const canDelete = isSuperAdmin || hasPermission('delete_workflows') || hasPermission('delete');
+  const canCreate = isSuperAdmin || hasPermission('workflows_create');
+  const canEdit = isSuperAdmin || hasPermission('workflows_edit');
+  const canDelete = isSuperAdmin || hasPermission('workflows_delete');
 
   const activeCompanyId = globalCompanyId;
 

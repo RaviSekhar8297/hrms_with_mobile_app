@@ -27,9 +27,9 @@ export default function WorkBridgeLabelsPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
-  const canCreate = isSuperAdmin || hasPermission('create_labels') || hasPermission('create');
-  const canEdit = isSuperAdmin || hasPermission('edit_labels') || hasPermission('edit');
-  const canDelete = isSuperAdmin || hasPermission('delete_labels') || hasPermission('delete');
+  const canCreate = isSuperAdmin || hasPermission('task_labels_create') || hasPermission('labels_create');
+  const canEdit = isSuperAdmin || hasPermission('task_labels_edit') || hasPermission('labels_edit');
+  const canDelete = isSuperAdmin || hasPermission('task_labels_delete') || hasPermission('labels_delete');
 
   const activeCompanyId = globalCompanyId;
 

@@ -15,7 +15,7 @@ export default function WorkBridgeTimesheetsPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
-  const canApprove = isSuperAdmin || hasPermission('approve_timesheets') || hasPermission('edit');
+  const canApprove = isSuperAdmin || hasPermission('timesheets_edit') || hasPermission('timesheets_approve');
 
   const activeCompanyId = globalCompanyId;
 

@@ -13,10 +13,10 @@ export default function LeaveTypesAndLogsPage() {
   const { showToast, companyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
-  const canView = isSuperAdmin || hasPermission('leaves_view') || hasPermission('view_leave_types') || hasPermission('leaves_types_view');
-  const canCreate = isSuperAdmin || hasPermission('leaves_create') || hasPermission('create_leave_types') || hasPermission('leaves_types_create');
-  const canEdit = isSuperAdmin || hasPermission('leaves_edit') || hasPermission('edit_leave_types') || hasPermission('leaves_types_edit');
-  const canDelete = isSuperAdmin || hasPermission('leaves_delete') || hasPermission('delete_leave_types') || hasPermission('leaves_types_delete');
+  const canView = isSuperAdmin || hasPermission('leave_types_view') || hasPermission('leaves_view');
+  const canCreate = isSuperAdmin || hasPermission('leave_types_create') || hasPermission('leaves_create');
+  const canEdit = isSuperAdmin || hasPermission('leave_types_edit') || hasPermission('leaves_edit');
+  const canDelete = isSuperAdmin || hasPermission('leave_types_delete') || hasPermission('leaves_delete');
 
   const [activeTab, setActiveTab] = useState<'types' | 'transactions'>('types');
   const [isLoading, setIsLoading] = useState(false);

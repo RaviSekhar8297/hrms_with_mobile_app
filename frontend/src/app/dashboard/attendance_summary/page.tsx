@@ -77,7 +77,7 @@ export default function AttendanceSummaryPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin') || isSuperAdminPerm;
-  const canUploadCsv = isSuperAdmin || hasPermission('create_attendance_raw_punches');
+  const canUploadCsv = isSuperAdmin || hasPermission('attendance_raw_punches_create');
 
   const [punchUploadOpen, setPunchUploadOpen] = useState(false);
   const [punchCsvFile, setPunchCsvFile] = useState<File | null>(null);

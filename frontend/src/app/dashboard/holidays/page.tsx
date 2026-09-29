@@ -46,11 +46,11 @@ export default function HolidaysPage() {
   const isSuperAdmin = isSuperAdminPerm || roles.includes('SuperAdmin') || roles.includes('superadmin');
 
   // 🛡️ Standardized tablename_action Permissions
-  const canView = isSuperAdmin || hasPermission('holidays_view') || hasPermission('view_holidays') || hasPermission('view_holiday_masters');
-  const canCreate = isSuperAdmin || hasPermission('holidays_create') || hasPermission('create_holidays') || hasPermission('create_holiday_masters');
-  const canEdit = isSuperAdmin || hasPermission('holidays_edit') || hasPermission('edit_holidays') || hasPermission('edit_holiday_masters');
-  const canDelete = isSuperAdmin || hasPermission('holidays_delete') || hasPermission('delete_holidays') || hasPermission('delete_holiday_masters');
-  const canManageMatrix = isSuperAdmin || hasPermission('holidays_matrix_edit') || canEdit;
+  const canView = isSuperAdmin || hasPermission('holiday_masters_view') || hasPermission('holidays_view');
+  const canCreate = isSuperAdmin || hasPermission('holiday_masters_create') || hasPermission('holidays_create');
+  const canEdit = isSuperAdmin || hasPermission('holiday_masters_edit') || hasPermission('holidays_edit');
+  const canDelete = isSuperAdmin || hasPermission('holiday_masters_delete') || hasPermission('holidays_delete');
+  const canManageMatrix = isSuperAdmin || hasPermission('holiday_masters_edit') || canEdit;
 
   // Holidays state
   const [holidays, setHolidays] = useState<any[]>([]);

@@ -30,7 +30,7 @@ export default function CreateProjectPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
-  const canCreate = isSuperAdmin || hasPermission('create_projects') || hasPermission('create');
+  const canCreate = isSuperAdmin || hasPermission('projects_create');
   const activeCompanyId = globalCompanyId;
 
   const [employees, setEmployees] = useState<any[]>([]);

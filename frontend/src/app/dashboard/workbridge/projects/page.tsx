@@ -31,9 +31,9 @@ export default function WorkBridgeProjectsPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, isSuperAdmin } = usePermissions();
 
-  const canCreate = isSuperAdmin || hasPermission('create_projects') || hasPermission('create');
-  const canEdit = isSuperAdmin || hasPermission('edit_projects') || hasPermission('update_projects') || hasPermission('edit');
-  const canDelete = isSuperAdmin || hasPermission('delete_projects') || hasPermission('delete');
+  const canCreate = isSuperAdmin || hasPermission('projects_create');
+  const canEdit = isSuperAdmin || hasPermission('projects_edit');
+  const canDelete = isSuperAdmin || hasPermission('projects_delete');
 
   const activeCompanyId = globalCompanyId;
 

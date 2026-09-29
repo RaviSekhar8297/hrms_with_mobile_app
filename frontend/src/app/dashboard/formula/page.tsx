@@ -112,13 +112,13 @@ interface StatutoryWageComponent {
 
 // Tab definitions with permission keys
 const FORMULA_TABS = [
-  { id: 'slabs',           label: '1. Slabs',             permission: 'view_salary_slabs' },
-  { id: 'components',      label: '2. Components',        permission: 'view_salary_components' },
-  { id: 'calctypes',       label: '3. Calculation',       permission: 'view_salary_component_configurations' },
-  { id: 'configs',         label: '4. Configuration',     permission: 'view_salary_component_configurations' },
-  { id: 'statutory_rules', label: '5. Statutory',         permission: 'view_salary_component_configurations' },
-  { id: 'statutory_slabs', label: '6. Statutory Slabs',   permission: 'view_salary_component_configurations' },
-  { id: 'statutory_wages', label: '7. Wage Components',   permission: 'view_salary_component_configurations' },
+  { id: 'slabs',           label: '1. Slabs',             permission: 'salary_slabs_view' },
+  { id: 'components',      label: '2. Components',        permission: 'salary_components_view' },
+  { id: 'calctypes',       label: '3. Calculation',       permission: 'salary_component_configurations_view' },
+  { id: 'configs',         label: '4. Configuration',     permission: 'salary_component_configurations_view' },
+  { id: 'statutory_rules', label: '5. Statutory',         permission: 'salary_component_configurations_view' },
+  { id: 'statutory_slabs', label: '6. Statutory Slabs',   permission: 'salary_component_configurations_view' },
+  { id: 'statutory_wages', label: '7. Wage Components',   permission: 'salary_component_configurations_view' },
 ] as const;
 
 type FormulaTabId = typeof FORMULA_TABS[number]['id'];
@@ -254,27 +254,27 @@ export default function PayrollFormulaEnginePage() {
   const visibleTabs = FORMULA_TABS.filter(t => isSuperAdmin || hasPermission(t.permission));
 
   const canCreateCurrentTab = isSuperAdmin || (
-    activeTab === 'slabs' ? hasPermission('create_salary_slabs') :
-    activeTab === 'components' ? hasPermission('create_salary_components') :
-    activeTab === 'calctypes' ? hasPermission('create_salary_component_configurations') :
-    activeTab === 'configs' ? hasPermission('create_salary_component_configurations') :
-    ['statutory_rules', 'statutory_slabs', 'statutory_wages'].includes(activeTab) ? (hasPermission('create_salary_component_configurations') || isSuperAdmin) : false
+    activeTab === 'slabs' ? hasPermission('salary_slabs_create') :
+    activeTab === 'components' ? hasPermission('salary_components_create') :
+    activeTab === 'calctypes' ? hasPermission('salary_component_configurations_create') :
+    activeTab === 'configs' ? hasPermission('salary_component_configurations_create') :
+    ['statutory_rules', 'statutory_slabs', 'statutory_wages'].includes(activeTab) ? (hasPermission('salary_component_configurations_create') || isSuperAdmin) : false
   );
 
   const canEditCurrentTab = isSuperAdmin || (
-    activeTab === 'slabs' ? hasPermission('edit_salary_slabs') :
-    activeTab === 'components' ? hasPermission('edit_salary_components') :
-    activeTab === 'calctypes' ? hasPermission('edit_salary_component_configurations') :
-    activeTab === 'configs' ? hasPermission('edit_salary_component_configurations') :
-    ['statutory_rules', 'statutory_slabs', 'statutory_wages'].includes(activeTab) ? (hasPermission('edit_salary_component_configurations') || isSuperAdmin) : false
+    activeTab === 'slabs' ? hasPermission('salary_slabs_edit') :
+    activeTab === 'components' ? hasPermission('salary_components_edit') :
+    activeTab === 'calctypes' ? hasPermission('salary_component_configurations_edit') :
+    activeTab === 'configs' ? hasPermission('salary_component_configurations_edit') :
+    ['statutory_rules', 'statutory_slabs', 'statutory_wages'].includes(activeTab) ? (hasPermission('salary_component_configurations_edit') || isSuperAdmin) : false
   );
 
   const canDeleteCurrentTab = isSuperAdmin || (
-    activeTab === 'slabs' ? hasPermission('delete_salary_slabs') :
-    activeTab === 'components' ? hasPermission('delete_salary_components') :
-    activeTab === 'calctypes' ? hasPermission('delete_salary_component_configurations') :
-    activeTab === 'configs' ? hasPermission('delete_salary_component_configurations') :
-    ['statutory_rules', 'statutory_slabs', 'statutory_wages'].includes(activeTab) ? (hasPermission('delete_salary_component_configurations') || isSuperAdmin) : false
+    activeTab === 'slabs' ? hasPermission('salary_slabs_delete') :
+    activeTab === 'components' ? hasPermission('salary_components_delete') :
+    activeTab === 'calctypes' ? hasPermission('salary_component_configurations_delete') :
+    activeTab === 'configs' ? hasPermission('salary_component_configurations_delete') :
+    ['statutory_rules', 'statutory_slabs', 'statutory_wages'].includes(activeTab) ? (hasPermission('salary_component_configurations_delete') || isSuperAdmin) : false
   );
 
   // Auto-correct activeTab if it's not visible

@@ -199,7 +199,7 @@ export default function EmployeesPage() {
   };
 
   const canEditEmployee = (emp: Employee) => {
-    if (!hasPermission('edit_employees')) return false;
+    if (!hasPermission('employees_edit')) return false;
     if (isSuperAdmin) return true;
 
     const scope = getPermissionScope('edit_employees');
@@ -229,7 +229,7 @@ export default function EmployeesPage() {
   };
 
   const canDeleteEmployee = (emp: Employee) => {
-    if (!hasPermission('delete_employees')) return false;
+    if (!hasPermission('employees_delete')) return false;
     if (isSuperAdmin) return true;
 
     const scope = getPermissionScope('delete_employees');
@@ -853,7 +853,7 @@ export default function EmployeesPage() {
           email={email}
           hideUserBadge={true}
         >
-          {hasPermission('create_employees') && (
+          {hasPermission('employees_create') && (
             <div className="flex items-center gap-2">
               {/* Bulk Upload Button - Navigates to Onboarding Hub in Bulk Mode */}
               <Link

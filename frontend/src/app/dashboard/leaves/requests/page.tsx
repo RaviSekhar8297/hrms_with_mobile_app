@@ -15,10 +15,10 @@ export default function LeaveRequestsPage() {
   const isSuperAdmin = isSuperAdminPerm;
 
   // Permissions (Standard VCED: View, Create, Edit, Delete)
-  const canView = isSuperAdmin || hasPermission('leaves_requests_view') || hasPermission('view_leave_requests') || hasPermission('leaves_view');
-  const canCreate = isSuperAdmin || hasPermission('leaves_requests_create') || hasPermission('create_leave_requests') || hasPermission('leaves_create');
-  const canEdit = isSuperAdmin || hasPermission('leaves_requests_edit') || hasPermission('edit_leave_requests') || hasPermission('leaves_edit');
-  const canDelete = isSuperAdmin || hasPermission('leaves_requests_delete') || hasPermission('delete_leave_requests') || hasPermission('leaves_delete');
+  const canView = isSuperAdmin || hasPermission('leave_requests_view') || hasPermission('leaves_requests_view') || hasPermission('leaves_view');
+  const canCreate = isSuperAdmin || hasPermission('leave_requests_create') || hasPermission('leaves_requests_create') || hasPermission('leaves_create');
+  const canEdit = isSuperAdmin || hasPermission('leave_requests_edit') || hasPermission('leaves_requests_edit') || hasPermission('leaves_edit');
+  const canDelete = isSuperAdmin || hasPermission('leave_requests_delete') || hasPermission('leaves_requests_delete') || hasPermission('leaves_delete');
   const canApprove = canEdit;
   const canReject = canEdit;
 

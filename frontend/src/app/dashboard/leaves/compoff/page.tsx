@@ -37,15 +37,15 @@ export default function CompOffClaimsPage() {
   const isSuperAdmin = isSuperAdminPerm || roles.includes('SuperAdmin') || roles.includes('superadmin');
   
   // 🛡️ Standardized tablename_action Permissions
-  const canView = isSuperAdmin || hasPermission('leaves_compoff_view') || hasPermission('view_comp_off_requests');
-  const canCreate = isSuperAdmin || hasPermission('leaves_compoff_create') || hasPermission('create_comp_off_requests');
-  const canEdit = isSuperAdmin || hasPermission('leaves_compoff_edit') || hasPermission('edit_comp_off_requests');
-  const canDelete = isSuperAdmin || hasPermission('leaves_compoff_delete') || hasPermission('delete_comp_off_requests');
+  const canView = isSuperAdmin || hasPermission('comp_off_requests_view') || hasPermission('leaves_compoff_view');
+  const canCreate = isSuperAdmin || hasPermission('comp_off_requests_create') || hasPermission('leaves_compoff_create');
+  const canEdit = isSuperAdmin || hasPermission('comp_off_requests_edit') || hasPermission('leaves_compoff_edit');
+  const canDelete = isSuperAdmin || hasPermission('comp_off_requests_delete') || hasPermission('leaves_compoff_delete');
 
   // 🌐 Data Scopes
-  const viewScope_perm = getPermissionScope('leaves_compoff_view') || getPermissionScope('view_comp_off_requests') || 'SELF';
-  const editScope_perm = getPermissionScope('leaves_compoff_edit') || getPermissionScope('edit_comp_off_requests') || 'SELF';
-  const deleteScope_perm = getPermissionScope('leaves_compoff_delete') || getPermissionScope('delete_comp_off_requests') || 'SELF';
+  const viewScope_perm = getPermissionScope('comp_off_requests_view') || getPermissionScope('leaves_compoff_view') || 'SELF';
+  const editScope_perm = getPermissionScope('comp_off_requests_edit') || getPermissionScope('leaves_compoff_edit') || 'SELF';
+  const deleteScope_perm = getPermissionScope('comp_off_requests_delete') || getPermissionScope('leaves_compoff_delete') || 'SELF';
 
   // Can see the extended All/Team Requests tab
   const canSeeTeamTab = isSuperAdmin || ['TEAM', 'REPORTING', 'DEPARTMENT', 'ALL'].includes(viewScope_perm);
