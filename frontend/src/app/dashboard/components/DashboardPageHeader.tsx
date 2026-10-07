@@ -47,7 +47,7 @@ export default function DashboardPageHeader({
   return (
     <div className="space-y-4 w-full">
       {/* 🚀 HEADER DETAILS CARD */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center rounded-2xl border border-slate-200/60 dark:border-slate-800/80 border-l-4 border-l-[#07518a] bg-card py-3 px-4 sm:px-5 shadow-xs gap-3 transition-all duration-200">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center rounded-xl border border-slate-200/60 dark:border-slate-800/80 border-l-4 border-l-[#07518a] bg-card py-3 px-4 sm:px-5 shadow-xs gap-3 transition-all duration-200">
         <div className="text-left">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 md:text-xl tracking-tight uppercase">{title}</h2>

@@ -7,6 +7,7 @@ import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import SlideDrawer from '../../components/SlideDrawer';
 import { Eye, EyeOff, Radio, Save } from 'lucide-react';
+import PageLoader from '@/components/ui/PageLoader';
 
 export default function AttendanceRulesPage() {
   const { showToast, companyId: globalCompanyId, setCompanyId: setGlobalCompanyId } = useDashboard();
@@ -371,9 +372,8 @@ export default function AttendanceRulesPage() {
           </p>
         </div>
       ) : isLoading ? (
-        <div className="bg-white dark:bg-slate-900 p-16 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col items-center justify-center space-y-3 my-4">
-          <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Attendance Rules & Policy Flags...</p>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs my-4">
+          <PageLoader message="Loading Attendance Rules & Policy Flags..." />
         </div>
       ) : (
         <form onSubmit={handleSaveRules} className="space-y-6">

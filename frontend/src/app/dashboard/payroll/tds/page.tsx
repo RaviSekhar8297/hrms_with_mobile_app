@@ -244,7 +244,7 @@ export default function TDSCalculatorPage() {
     <div className="w-full space-y-6 pb-24 text-left animate-fadeIn font-sans">
       
       {/* SLEEK TOP HEADER */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/90 dark:border-slate-800 border-l-4 border-l-[#07518a] p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logUserAction = void 0;
+exports.clearEmployeeCache = exports.logUserAction = void 0;
 exports.enqueueActivityLog = enqueueActivityLog;
 exports.resolveCompanyId = resolveCompanyId;
 const express_1 = __importDefault(require("express"));
@@ -253,7 +253,8 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
        FROM hrms.employees 
        WHERE LOWER(email) = LOWER($1) 
           OR LOWER(emp_id_code) = LOWER($1) 
-          OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)`, [username]);
+          OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)
+       LIMIT 1`, [username]);
         if (empCheck.rows.length > 0) {
             const empStatus = empCheck.rows[0].status;
             dbIsTempPassword = empCheck.rows[0].is_temporary_password === true;
@@ -317,7 +318,7 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
                 try {
                     const empQuery = await (0, db_1.query)(`SELECT company_id, role_id, is_temporary_password 
              FROM hrms.employees 
-             WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)) AND status = 'ACTIVE'`, [email]);
+             WHERE LOWER(email) = LOWER($1) AND status = 'ACTIVE'`, [email]);
                     if (empQuery.rows.length > 0) {
                         companyId = empQuery.rows[0].company_id;
                         isTemporaryPassword = empQuery.rows[0].is_temporary_password === true;
@@ -353,7 +354,7 @@ app.post('/api/v1/auth/login', loginRateLimiter, async (req, res) => {
                 catch (dbQueryErr) {
                     console.error('Error querying employee details in login:', dbQueryErr);
                     // Fallback if is_temporary_password column is not present or query fails
-                    const fallbackQuery = await (0, db_1.query)('SELECT company_id, role_id FROM hrms.employees WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)) AND status = \'ACTIVE\'', [email]);
+                    const fallbackQuery = await (0, db_1.query)('SELECT company_id, role_id FROM hrms.employees WHERE LOWER(email) = LOWER($1) AND status = \'ACTIVE\'', [email]);
                     if (fallbackQuery.rows.length > 0) {
                         companyId = fallbackQuery.rows[0].company_id;
                     }
@@ -403,7 +404,9 @@ app.get('/api/v1/auth/user-permissions', auth_1.authenticateToken, async (req, r
         const rawUser = req.user;
         const userIdentifier = (rawUser?.email || rawUser?.preferred_username || rawUser?.username || '').trim();
         const empRes = await (0, db_1.query)(`SELECT role_id FROM hrms.employees 
-       WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1)) 
+       WHERE (LOWER(email) = LOWER($1) 
+          OR LOWER(emp_id_code) = LOWER($1) 
+          OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)) 
          AND status = 'ACTIVE' 
        LIMIT 1`, [userIdentifier]);
         if (empRes.rows.length === 0 || !empRes.rows[0].role_id) {
@@ -549,15 +552,13 @@ app.get('/api/v1/auth/welcome-profile', async (req, res) => {
        LEFT JOIN hrms.companies c ON e.company_id = c.id
        WHERE e.id::text = $1
           OR LOWER(TRIM(e.email)) = LOWER($1) 
-          OR LOWER(TRIM(e.emp_id_code)) = LOWER($1)
           OR LOWER(SPLIT_PART(e.email, '@', 1)) = LOWER($2)
           OR LOWER(e.email) LIKE LOWER($3)
        ORDER BY 
           CASE
             WHEN e.id::text = $1 THEN 1
-            WHEN LOWER(TRIM(e.emp_id_code)) = LOWER($1) THEN 2
-            WHEN LOWER(TRIM(e.email)) = LOWER($1) THEN 3
-            ELSE 4
+            WHEN LOWER(TRIM(e.email)) = LOWER($1) THEN 2
+            ELSE 3
           END, e.created_at DESC
        LIMIT 1`, [cleanUser, userPrefix, `%${userPrefix}%`]);
         if (empRes.rows.length === 0) {
@@ -761,9 +762,7 @@ app.post('/api/v1/auth/reset-temporary-password', async (req, res) => {
         }
         // 2. Find exact employee record ID from hrms.employees table
         const empFind = await (0, db_1.query)(`SELECT id, email FROM hrms.employees 
-       WHERE LOWER(email) = LOWER($1) 
-          OR LOWER(emp_id_code) = LOWER($1) 
-          OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)`, [username]);
+       WHERE LOWER(email) = LOWER($1)`, [username]);
         if (empFind.rows.length === 0) {
             return res.status(404).json({ error: 'Employee account not found in database.' });
         }
@@ -1244,7 +1243,7 @@ app.post('/api/v1/companies', auth_1.authenticateToken, auth_1.requireSuperAdmin
  *       200:
  *         description: List of tenant companies
  */
-app.get('/api/v1/companies', auth_1.authenticateToken, async (req, res) => {
+app.get('/api/v1/companies', auth_1.authenticateToken, (0, auth_1.requirePermission)('companies_view'), async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     try {
         if (isSuperAdmin) {
@@ -1300,7 +1299,7 @@ app.get('/api/v1/companies', auth_1.authenticateToken, async (req, res) => {
  *       404:
  *         description: Company not found
  */
-app.put('/api/v1/companies/:id', auth_1.authenticateToken, async (req, res) => {
+app.put('/api/v1/companies/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('companies_edit'), async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     if (!isSuperAdmin && req.user?.companyId !== id) {
@@ -1372,28 +1371,72 @@ app.delete('/api/v1/companies/:id', auth_1.authenticateToken, auth_1.requireSupe
         return res.status(500).json({ error: 'Internal server database error. Ensure no dependent items exist.' });
     }
 });
+const employeeListCache = new Map();
+const EMPLOYEE_CACHE_TTL_MS = 60 * 1000; // 60 seconds In-Memory Cache
+const clearEmployeeCache = (companyId) => {
+    if (!companyId || companyId === 'all') {
+        employeeListCache.clear();
+    }
+    else {
+        for (const key of employeeListCache.keys()) {
+            if (key.includes(`:${companyId}:`) || key.startsWith(`emp_list:${companyId}:`) || key.startsWith(`emp_list:all:`)) {
+                employeeListCache.delete(key);
+            }
+        }
+    }
+};
+exports.clearEmployeeCache = clearEmployeeCache;
 /**
- * 👥 GET EMPLOYEES (Multi-Tenant)
+ * 👥 GET EMPLOYEES (Multi-Tenant, Paginated, Lightweight, In-Memory Cached)
  */
 app.get('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyIdRaw = (req.query.companyId && req.query.companyId !== 'all') ? req.query.companyId : req.user?.companyId;
     const companyId = (companyIdRaw === 'all' || companyIdRaw === 'undefined' || companyIdRaw === 'null' || !companyIdRaw) ? null : companyIdRaw;
+    // Pagination query parameters
+    const pageParam = parseInt(req.query.page, 10);
+    const pageSizeParam = parseInt(req.query.pageSize, 10) || parseInt(req.query.limit, 10);
+    const isAllRequested = req.query.pageSize === 'all' || req.query.limit === 'all' || req.query.all === 'true';
+    const page = !isNaN(pageParam) && pageParam > 0 ? pageParam : 1;
+    const pageSize = !isNaN(pageSizeParam) && pageSizeParam > 0 ? Math.min(pageSizeParam, 500) : (isAllRequested ? null : 25);
+    const offset = pageSize ? (page - 1) * pageSize : 0;
+    // Search query parameter
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    const targetModule = req.query.module || 'employees';
+    // ⚡ Check In-Memory Buffer Cache first for instant sub-5ms response
+    const userIdentifier = req.user?.employeeId || req.user?.email || 'anon';
+    const cacheKey = `emp_list:${companyId || 'all'}:${userIdentifier}:${search}:${page}:${pageSize || 'all'}:${targetModule}`;
+    const cached = employeeListCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < EMPLOYEE_CACHE_TTL_MS)) {
+        res.setHeader('X-Cache-Status', 'HIT');
+        return res.json(cached.data);
+    }
     if (!companyId) {
         if (isSuperAdmin) {
             try {
-                const result = await (0, db_1.query)(`SELECT e.id, e.company_id, e.emp_id_code, e.first_name, e.last_name, e.email, e.phone, e.status, e.joining_date,
+                let whereClause = '';
+                const queryParams = [];
+                if (search) {
+                    queryParams.push(`%${search}%`);
+                    whereClause = `WHERE (e.first_name ILIKE $1 OR e.last_name ILIKE $1 OR e.emp_id_code ILIKE $1 OR e.email ILIKE $1 OR e.phone ILIKE $1)`;
+                }
+                let limitOffsetClause = '';
+                if (pageSize) {
+                    const limitIdx = queryParams.length + 1;
+                    const offsetIdx = queryParams.length + 2;
+                    queryParams.push(pageSize, offset);
+                    limitOffsetClause = `LIMIT $${limitIdx} OFFSET $${offsetIdx}`;
+                }
+                const result = await (0, db_1.query)(`SELECT e.id, e.company_id, e.emp_id_code, e.first_name, e.last_name, e.email, e.phone, e.emp_image, e.status, e.joining_date,
                     e.branch_id, b.name as branch_name,
                     e.department_id, d.name as department_name,
                     e.designation_id, des.name as designation_name,
                     e.role_id, r.name as role_name,
                     es.shift_id, sm.shift_name as shift_name,
                     e.dob, e.gender, e.marital_status, e.blood_group, e.personal_email,
-                    e.reporting_to_id, m.first_name as manager_first_name, m.last_name as manager_last_name,
+                    e.reporting_to_id, m.first_name as manager_first_name, m.last_name as manager_last_name, m.emp_id_code as manager_emp_code,
                     e.employment_type, e.probation_period_months, e.confirmation_date, e.exit_date, e.resignation_date,
-                    e.pan_number, e.aadhar_number, e.esi_number, e.uan_number, e.bank_information,
-                    e.current_address, e.permanent_address, e.emergency_contacts, e.education, e.experience, e.skills,
-                    e.emp_image
+                    COUNT(*) OVER() AS full_count
              FROM hrms.employees e
              LEFT JOIN hrms.branches b ON e.branch_id = b.id
              LEFT JOIN hrms.departments d ON e.department_id = d.id
@@ -1406,11 +1449,39 @@ app.get('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
                ORDER BY effective_from DESC LIMIT 1
              ) es ON true
              LEFT JOIN hrms.shift_masters sm ON es.shift_id = sm.id
-             ORDER BY e.emp_id_code ASC`);
-                return res.json({
-                    count: result.rows.length,
-                    employees: result.rows,
+             ${whereClause}
+             ORDER BY COALESCE(NULLIF(regexp_replace(e.emp_id_code, '\\D', '', 'g'), '')::bigint, 999999999) ASC, e.emp_id_code ASC
+             ${limitOffsetClause}`, queryParams);
+                const total = result.rows.length > 0 ? parseInt(result.rows[0].full_count, 10) : 0;
+                const cleanEmployees = result.rows.map(r => {
+                    const { full_count, ...rest } = r;
+                    return rest;
                 });
+                const responsePayload = {
+                    count: total,
+                    total,
+                    page,
+                    pageSize: pageSize || total,
+                    pageCount: cleanEmployees.length,
+                    totalPages: pageSize ? Math.ceil(total / pageSize) : 1,
+                    employees: cleanEmployees,
+                };
+                // ⚡ Store in Memory Cache
+                employeeListCache.set(cacheKey, {
+                    timestamp: Date.now(),
+                    data: responsePayload
+                });
+                // Evict old entries if cache grows
+                if (employeeListCache.size > 200) {
+                    const now = Date.now();
+                    for (const [k, v] of employeeListCache.entries()) {
+                        if (now - v.timestamp > EMPLOYEE_CACHE_TTL_MS) {
+                            employeeListCache.delete(k);
+                        }
+                    }
+                }
+                res.setHeader('X-Cache-Status', 'MISS');
+                return res.json(responsePayload);
             }
             catch (err) {
                 console.error('Error fetching all employees:', err);
@@ -1420,7 +1491,6 @@ app.get('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Company ID could not be identified' });
     }
     try {
-        const targetModule = req.query.module || 'employees';
         const scopeCtx = await (0, auth_1.getEmployeeDataScope)(req, targetModule, 'employees_view');
         const scopeCond = (0, auth_1.buildDataScopeCondition)(scopeCtx, 'e', 'id', 2);
         let whereClause = `WHERE e.company_id = $1`;
@@ -1429,18 +1499,28 @@ app.get('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
             whereClause += ` AND ${scopeCond.whereSql}`;
             queryParams.push(...scopeCond.params);
         }
-        const result = await (0, db_1.query)(`SELECT e.id, e.company_id, e.emp_id_code, e.first_name, e.last_name, e.email, e.phone, e.status, e.joining_date,
+        if (search) {
+            const searchIdx = queryParams.length + 1;
+            whereClause += ` AND (e.first_name ILIKE $${searchIdx} OR e.last_name ILIKE $${searchIdx} OR e.emp_id_code ILIKE $${searchIdx} OR e.email ILIKE $${searchIdx} OR e.phone ILIKE $${searchIdx})`;
+            queryParams.push(`%${search}%`);
+        }
+        let limitOffsetClause = '';
+        if (pageSize) {
+            const limitIdx = queryParams.length + 1;
+            const offsetIdx = queryParams.length + 2;
+            queryParams.push(pageSize, offset);
+            limitOffsetClause = `LIMIT $${limitIdx} OFFSET $${offsetIdx}`;
+        }
+        const result = await (0, db_1.query)(`SELECT e.id, e.company_id, e.emp_id_code, e.first_name, e.last_name, e.email, e.phone, e.emp_image, e.status, e.joining_date,
                 e.branch_id, b.name as branch_name,
                 e.department_id, d.name as department_name,
                 e.designation_id, des.name as designation_name,
                 e.role_id, r.name as role_name,
                 es.shift_id, sm.shift_name as shift_name,
                 e.dob, e.gender, e.marital_status, e.blood_group, e.personal_email,
-                e.reporting_to_id, m.first_name as manager_first_name, m.last_name as manager_last_name,
+                e.reporting_to_id, m.first_name as manager_first_name, m.last_name as manager_last_name, m.emp_id_code as manager_emp_code,
                 e.employment_type, e.probation_period_months, e.confirmation_date, e.exit_date, e.resignation_date,
-                e.pan_number, e.aadhar_number, e.esi_number, e.uan_number, e.bank_information,
-                e.current_address, e.permanent_address, e.emergency_contacts, e.education, e.experience, e.skills,
-                e.emp_image
+                COUNT(*) OVER() AS full_count
          FROM hrms.employees e
          LEFT JOIN hrms.branches b ON e.branch_id = b.id
          LEFT JOIN hrms.departments d ON e.department_id = d.id
@@ -1454,11 +1534,38 @@ app.get('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
          ) es ON true
          LEFT JOIN hrms.shift_masters sm ON es.shift_id = sm.id
          ${whereClause}
-         ORDER BY e.emp_id_code ASC`, queryParams);
-        return res.json({
-            count: result.rows.length,
-            employees: result.rows,
+         ORDER BY COALESCE(NULLIF(regexp_replace(e.emp_id_code, '\\D', '', 'g'), '')::bigint, 999999999) ASC, e.emp_id_code ASC
+         ${limitOffsetClause}`, queryParams);
+        const total = result.rows.length > 0 ? parseInt(result.rows[0].full_count, 10) : 0;
+        const cleanEmployees = result.rows.map(r => {
+            const { full_count, ...rest } = r;
+            return rest;
         });
+        const responsePayload = {
+            count: total,
+            total,
+            page,
+            pageSize: pageSize || total,
+            pageCount: cleanEmployees.length,
+            totalPages: pageSize ? Math.ceil(total / pageSize) : 1,
+            employees: cleanEmployees,
+        };
+        // ⚡ Store in Memory Cache
+        employeeListCache.set(cacheKey, {
+            timestamp: Date.now(),
+            data: responsePayload
+        });
+        // Evict old entries if cache grows
+        if (employeeListCache.size > 200) {
+            const now = Date.now();
+            for (const [k, v] of employeeListCache.entries()) {
+                if (now - v.timestamp > EMPLOYEE_CACHE_TTL_MS) {
+                    employeeListCache.delete(k);
+                }
+            }
+        }
+        res.setHeader('X-Cache-Status', 'MISS');
+        return res.json(responsePayload);
     }
     catch (err) {
         console.error('Error fetching employees:', err);
@@ -1518,7 +1625,8 @@ app.get('/api/v1/employees/me', auth_1.authenticateToken, async (req, res) => {
               c.name as company_name,
               m.first_name as manager_first_name,
               m.last_name as manager_last_name,
-              m.emp_id_code as manager_emp_code
+              m.emp_id_code as manager_emp_code,
+              m.emp_image as manager_emp_image
        FROM hrms.employees e
        LEFT JOIN hrms.branches b ON e.branch_id = b.id
        LEFT JOIN hrms.departments d ON e.department_id = d.id
@@ -1613,6 +1721,7 @@ app.get('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
               m.first_name as manager_first_name,
               m.last_name as manager_last_name,
               m.emp_id_code as manager_emp_code,
+              m.emp_image as manager_emp_image,
               COALESCE(e.shift_id, es.shift_id) as shift_id,
               sm.shift_name as shift_name
        FROM hrms.employees e
@@ -1688,7 +1797,7 @@ async function createKeycloakUser(email, firstName, lastName, tempPassword) {
         return { success: false, error: err.message || err };
     }
 }
-app.post('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
+app.post('/api/v1/employees', auth_1.authenticateToken, (0, auth_1.requirePermission)('employees_create'), async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
     const { emp_id_code, first_name, last_name, email, phone, branch_id, department_id, designation_id, role_id, joining_date, status, shift_id, dob, gender, marital_status, blood_group, personal_email, reporting_to_id, employment_type, probation_period_months, confirmation_date, exit_date, resignation_date, bank_information, pan_number, aadhar_number, esi_number, uan_number, current_address, permanent_address, emergency_contacts, education, experience, skills, emp_image } = req.body;
@@ -1826,6 +1935,7 @@ app.post('/api/v1/employees', auth_1.authenticateToken, async (req, res) => {
         const keycloakResult = await createKeycloakUser(email, first_name, last_name, tempPassword);
         const decodedTokenEmail = req.user?.email || 'unknown';
         enqueueActivityLog(companyId, decodedTokenEmail, 'EMPLOYEE_CREATE', 'employee', JSON.stringify({ emp_id_code, email, keycloakCreated: keycloakResult.success }), (req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''), req.headers['user-agent'] || '');
+        (0, exports.clearEmployeeCache)(companyId);
         return res.status(201).json({
             message: 'Employee registered successfully',
             employee: newEmployee,
@@ -2132,6 +2242,7 @@ const handleBulkEmployeeUpload = async (req, res) => {
         const errorCount = results.filter(r => r.status === 'error').length;
         const keycloakFailCount = results.filter(r => r.status === 'success' && r.keycloak_status === 'failed').length;
         enqueueActivityLog(companyId, req.user?.email || 'unknown', 'EMPLOYEE_BULK_IMPORT', 'employee', JSON.stringify({ total: employees.length, success: successCount, errors: errorCount }), (req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''), req.headers['user-agent'] || '');
+        (0, exports.clearEmployeeCache)(companyId);
         return res.status(207).json({
             message: `Bulk import complete. ${successCount} DB records saved (${keycloakFailCount} Keycloak account${keycloakFailCount !== 1 ? 's' : ''} failed), ${errorCount} rows skipped.`,
             successCount,
@@ -2148,7 +2259,7 @@ const handleBulkEmployeeUpload = async (req, res) => {
 app.post('/api/v1/employees/bulk', auth_1.authenticateToken, bulkUploadMulter.single('file'), handleBulkEmployeeUpload);
 app.post('/api/v1/employees/upload', auth_1.authenticateToken, bulkUploadMulter.single('file'), handleBulkEmployeeUpload);
 app.post('/api/v1/employees/bulk-upload', auth_1.authenticateToken, bulkUploadMulter.single('file'), handleBulkEmployeeUpload);
-app.put('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
+app.put('/api/v1/employees/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('employees_edit'), async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     let companyId = req.body.companyId || req.body.company_id || req.query.companyId || (isSuperAdmin ? null : req.user?.companyId);
@@ -2449,6 +2560,7 @@ app.put('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
         }
         const decodedTokenEmail = req.user?.email || 'unknown';
         enqueueActivityLog(companyId, decodedTokenEmail, 'EMPLOYEE_UPDATE', 'employee', JSON.stringify({ emp_id_code, email }), (req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''), req.headers['user-agent'] || '');
+        (0, exports.clearEmployeeCache)(companyId);
         return res.json({ message: `Employee updated successfully${keycloakUpdateStatus}`, employee: updatedEmployee });
     }
     catch (err) {
@@ -2462,7 +2574,7 @@ app.put('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.delete('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) => {
+app.delete('/api/v1/employees/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('employees_delete'), async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = req.user?.companyId;
@@ -2489,6 +2601,7 @@ app.delete('/api/v1/employees/:id', auth_1.authenticateToken, async (req, res) =
         const { emp_id_code, email } = result.rows[0];
         const decodedTokenEmail = req.user?.email || 'unknown';
         enqueueActivityLog(targetCompanyId || null, decodedTokenEmail, 'EMPLOYEE_DELETE', 'employee', JSON.stringify({ emp_id_code, email }), (req.headers['x-forwarded-for'] || req.socket.remoteAddress || ''), req.headers['user-agent'] || '');
+        (0, exports.clearEmployeeCache)(targetCompanyId);
         return res.json({ message: 'Employee profile deleted successfully.' });
     }
     catch (err) {
@@ -2602,7 +2715,7 @@ app.delete('/api/v1/employees/:id/documents/:docIndex', auth_1.authenticateToken
 /**
  * 📍 BRANCHES CRUD API
  */
-app.get('/api/v1/branches', auth_1.authenticateToken, async (req, res) => {
+app.get('/api/v1/branches', auth_1.authenticateToken, (0, auth_1.requirePermission)('branches_view'), async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.query.companyId : req.user?.companyId;
     if (!companyId || companyId === 'all' || companyId === '') {
@@ -2630,7 +2743,7 @@ app.get('/api/v1/branches', auth_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.post('/api/v1/branches', auth_1.authenticateToken, (0, auth_1.requirePermission)('create_branches'), async (req, res) => {
+app.post('/api/v1/branches', auth_1.authenticateToken, (0, auth_1.requirePermission)('branches_create'), async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
     const { name, address } = req.body;
@@ -2643,6 +2756,9 @@ app.post('/api/v1/branches', auth_1.authenticateToken, (0, auth_1.requirePermiss
     }
     if (cleanName.length > 50) {
         return res.status(400).json({ error: 'Branch name cannot exceed 50 characters' });
+    }
+    if (address && String(address).length > 100) {
+        return res.status(400).json({ error: 'Branch address cannot exceed 100 characters' });
     }
     try {
         const dupCheck = await (0, db_1.query)('SELECT id FROM hrms.branches WHERE company_id = $1 AND LOWER(TRIM(name)) = LOWER($2)', [companyId, cleanName]);
@@ -2660,7 +2776,7 @@ app.post('/api/v1/branches', auth_1.authenticateToken, (0, auth_1.requirePermiss
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.put('/api/v1/branches/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('edit_branches'), async (req, res) => {
+app.put('/api/v1/branches/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('branches_edit'), async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = req.user?.companyId;
@@ -2671,6 +2787,9 @@ app.put('/api/v1/branches/:id', auth_1.authenticateToken, (0, auth_1.requirePerm
     }
     if (cleanName.length > 50) {
         return res.status(400).json({ error: 'Branch name cannot exceed 50 characters' });
+    }
+    if (address && String(address).length > 100) {
+        return res.status(400).json({ error: 'Branch address cannot exceed 100 characters' });
     }
     try {
         const branchCheck = await (0, db_1.query)('SELECT company_id FROM hrms.branches WHERE id = $1', [id]);
@@ -2701,7 +2820,7 @@ app.put('/api/v1/branches/:id', auth_1.authenticateToken, (0, auth_1.requirePerm
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.delete('/api/v1/branches/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('delete_branches'), async (req, res) => {
+app.delete('/api/v1/branches/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('branches_delete'), async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = req.user?.companyId;
@@ -2732,7 +2851,7 @@ app.delete('/api/v1/branches/:id', auth_1.authenticateToken, (0, auth_1.requireP
 /**
  * 📁 DEPARTMENTS CRUD API
  */
-app.get('/api/v1/departments', auth_1.authenticateToken, async (req, res) => {
+app.get('/api/v1/departments', auth_1.authenticateToken, (0, auth_1.requirePermission)('departments_view'), async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.query.companyId : req.user?.companyId;
     const { branchId } = req.query;
@@ -2772,7 +2891,7 @@ app.get('/api/v1/departments', auth_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.post('/api/v1/departments', auth_1.authenticateToken, (0, auth_1.requirePermission)('create_departments'), async (req, res) => {
+app.post('/api/v1/departments', auth_1.authenticateToken, (0, auth_1.requirePermission)('departments_create'), async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
     const { branch_id, name, description } = req.body;
@@ -2809,7 +2928,7 @@ app.post('/api/v1/departments', auth_1.authenticateToken, (0, auth_1.requirePerm
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.put('/api/v1/departments/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('edit_departments'), async (req, res) => {
+app.put('/api/v1/departments/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('departments_edit'), async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
@@ -2860,7 +2979,7 @@ app.put('/api/v1/departments/:id', auth_1.authenticateToken, (0, auth_1.requireP
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.delete('/api/v1/departments/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('delete_departments'), async (req, res) => {
+app.delete('/api/v1/departments/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('departments_delete'), async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = req.user?.companyId;
@@ -2891,7 +3010,7 @@ app.delete('/api/v1/departments/:id', auth_1.authenticateToken, (0, auth_1.requi
 /**
  * 🏷️ DESIGNATIONS CRUD API
  */
-app.get('/api/v1/designations', auth_1.authenticateToken, async (req, res) => {
+app.get('/api/v1/designations', auth_1.authenticateToken, (0, auth_1.requirePermission)('designations_view'), async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.query.companyId : req.user?.companyId;
     const { branchId, departmentId } = req.query;
@@ -2955,7 +3074,7 @@ app.get('/api/v1/designations', auth_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.post('/api/v1/designations', auth_1.authenticateToken, (0, auth_1.requirePermission)('create_designations'), async (req, res) => {
+app.post('/api/v1/designations', auth_1.authenticateToken, (0, auth_1.requirePermission)('designations_create'), async (req, res) => {
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
     const { branch_id, department_id, name, description } = req.body;
@@ -2996,7 +3115,7 @@ app.post('/api/v1/designations', auth_1.authenticateToken, (0, auth_1.requirePer
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.put('/api/v1/designations/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('edit_designations'), async (req, res) => {
+app.put('/api/v1/designations/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('designations_edit'), async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
@@ -3051,7 +3170,7 @@ app.put('/api/v1/designations/:id', auth_1.authenticateToken, (0, auth_1.require
         return res.status(500).json({ error: 'Internal server database error' });
     }
 });
-app.delete('/api/v1/designations/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('delete_designations'), async (req, res) => {
+app.delete('/api/v1/designations/:id', auth_1.authenticateToken, (0, auth_1.requirePermission)('designations_delete'), async (req, res) => {
     const { id } = req.params;
     const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
     const companyId = req.user?.companyId;
@@ -4490,7 +4609,7 @@ app.post('/api/v1/attendance/live-location', auth_1.authenticateToken, async (re
         const email = req.user?.email;
         const empRes = await (0, db_1.query)(`SELECT id, company_id FROM hrms.employees WHERE email = $1 LIMIT 1`, [email]);
         if (empRes.rows.length === 0) {
-            return res.status(404).json({ error: 'Employee profile not found' });
+            return res.status(200).json({ success: false, recorded: false, message: 'Employee profile not found' });
         }
         const emp = empRes.rows[0];
         const cid = companyId || emp.company_id;
@@ -4502,9 +4621,10 @@ app.post('/api/v1/attendance/live-location', auth_1.authenticateToken, async (re
         const lastPunch = punchCheck.rows[0];
         const isPunchedIn = lastPunch && String(lastPunch.direction).toUpperCase() === 'IN';
         if (!isPunchedIn) {
-            return res.status(400).json({
-                success: false,
-                error: 'Location tracking is only recorded when employee is Punched IN'
+            return res.status(200).json({
+                success: true,
+                recorded: false,
+                message: 'Location tracking is only recorded when employee is Punched IN'
             });
         }
         const insertRes = await (0, db_1.query)(`INSERT INTO hrms.attendance_location_tracking 
@@ -4513,6 +4633,7 @@ app.post('/api/v1/attendance/live-location', auth_1.authenticateToken, async (re
        RETURNING *`, [cid, emp.id, Number(latitude), Number(longitude), location_name || null]);
         return res.status(201).json({
             success: true,
+            recorded: true,
             message: 'Location tracked successfully',
             location: insertRes.rows[0]
         });
@@ -4695,6 +4816,9 @@ app.get('/api/v1/attendance/summary', auth_1.authenticateToken, async (req, res)
         if (endDate) {
             whereClauses.push(`asum.attendance_date <= $${paramIdx++}`);
             params.push(endDate);
+        }
+        if (!startDate && !endDate && !employeeId) {
+            whereClauses.push(`asum.attendance_date >= (CURRENT_DATE - INTERVAL '35 days')::date`);
         }
         if (employeeId) {
             whereClauses.push(`asum.employee_id = $${paramIdx++}`);
@@ -4931,7 +5055,7 @@ app.get(['/api/v1/attendance/punches', '/api/v1/attendance/raw-punches'], auth_1
         let queryParams = [];
         let idx = 1;
         if (companyId && companyId !== 'all') {
-            whereClauses.push(`rp.company_id::text = $${idx++}`);
+            whereClauses.push(`rp.company_id = $${idx++}`);
             queryParams.push(companyId);
         }
         if (startDate) {
@@ -4961,8 +5085,8 @@ app.get(['/api/v1/attendance/punches', '/api/v1/attendance/raw-punches'], auth_1
                         COALESCE(e.first_name, '') as first_name, COALESCE(e.last_name, '') as last_name, e.emp_id_code,
                         c.name as company_name
                  FROM hrms.attendance_raw_punches rp
-                 LEFT JOIN hrms.employees e ON rp.employee_id::text = e.id::text
-                 LEFT JOIN hrms.companies c ON rp.company_id::text = c.id::text
+                 LEFT JOIN hrms.employees e ON rp.employee_id = e.id
+                 LEFT JOIN hrms.companies c ON rp.company_id = c.id
                  ${whereStr}
                  ORDER BY rp.punch_time DESC
                  LIMIT 500`;
@@ -6236,8 +6360,10 @@ app.post('/api/v1/attendance/regularizations', auth_1.authenticateToken, async (
 });
 app.post('/api/v1/attendance/regularizations/:id/action', auth_1.authenticateToken, async (req, res) => {
     const { id } = req.params;
-    const isSuperAdmin = req.user && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'));
-    const companyId = isSuperAdmin ? req.body.companyId : req.user?.companyId;
+    const isSuperAdmin = req.user && ((Array.isArray(req.user.roles) && (req.user.roles.includes('SuperAdmin') || req.user.roles.includes('superadmin'))) ||
+        req.user.role === 'SuperAdmin' || req.user.role === 'superadmin' ||
+        req.user.isSuperAdmin === true);
+    const companyId = isSuperAdmin ? (req.body.companyId || req.body.company_id || req.user?.companyId) : req.user?.companyId;
     const { action, remarks } = req.body;
     if (!action || !['APPROVED', 'REJECTED'].includes(action)) {
         return res.status(400).json({ error: 'Invalid action, must be APPROVED or REJECTED' });
@@ -6249,50 +6375,76 @@ app.post('/api/v1/attendance/regularizations/:id/action', auth_1.authenticateTok
         if (reqQuery.rows.length === 0)
             return res.status(404).json({ error: 'Regularization request not found' });
         const request = reqQuery.rows[0];
-        if (!isSuperAdmin && request.company_id !== companyId) {
+        if (!isSuperAdmin && companyId && request.company_id && request.company_id !== companyId) {
             return res.status(403).json({ error: 'Access denied' });
         }
-        const userEmail = req.user?.email;
         let approverId = null;
+        const userEmail = (req.user?.email || '').trim();
         if (userEmail) {
-            const appRes = await (0, db_1.query)('SELECT id FROM hrms.employees WHERE email = $1 LIMIT 1', [userEmail]);
-            if (appRes.rows.length > 0)
+            const appRes = await (0, db_1.query)(`SELECT id FROM hrms.employees 
+         WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1)) 
+         LIMIT 1`, [userEmail]);
+            if (appRes.rows.length > 0) {
                 approverId = appRes.rows[0].id;
+            }
+        }
+        if (!approverId && req.user?.employeeId) {
+            const empChk = await (0, db_1.query)('SELECT id FROM hrms.employees WHERE id = $1 LIMIT 1', [req.user.employeeId]);
+            if (empChk.rows.length > 0) {
+                approverId = empChk.rows[0].id;
+            }
         }
         const updateRes = await (0, db_1.query)(`UPDATE hrms.attendance_regularizations
        SET status = $1, approved_by = $2, approved_at = NOW(), remarks = $3
        WHERE id = $4 RETURNING *`, [action, approverId, remarks || null, id]);
-        (0, exports.logUserAction)(req, `${action}_REGULARIZATION`, 'Attendance Regularizations', `${action === 'APPROVED' ? 'Approved' : 'Rejected'} attendance regularization request for date ${request.attendance_date}`);
+        try {
+            (0, exports.logUserAction)(req, `${action}_REGULARIZATION`, 'Attendance Regularizations', `${action === 'APPROVED' ? 'Approved' : 'Rejected'} attendance regularization request for date ${request.attendance_date}`);
+        }
+        catch (logErr) {
+            console.warn('Audit log error:', logErr);
+        }
         if (action === 'APPROVED') {
             const reqIn = request.requested_in;
             const reqOut = request.requested_out;
-            const reqDate = new Date(request.attendance_date).toISOString().split('T')[0];
+            const rawDate = request.attendance_date;
+            const reqDate = typeof rawDate === 'string' ? rawDate.split('T')[0] : new Date(rawDate).toISOString().split('T')[0];
             const firstInTs = reqIn ? `${reqDate}T${reqIn}+05:30` : null;
             const lastOutTs = reqOut ? `${reqDate}T${reqOut}+05:30` : null;
             let workedMinutes = 0;
             if (firstInTs && lastOutTs) {
                 workedMinutes = Math.round((new Date(lastOutTs).getTime() - new Date(firstInTs).getTime()) / (1000 * 60));
+                if (isNaN(workedMinutes) || workedMinutes < 0)
+                    workedMinutes = 0;
             }
             let status = 'PRESENT';
-            if (workedMinutes < 240)
-                status = 'ABSENT';
-            else if (workedMinutes < 480)
-                status = 'HALF_DAY';
+            if (workedMinutes > 0) {
+                if (workedMinutes < 240)
+                    status = 'ABSENT';
+                else if (workedMinutes < 480)
+                    status = 'HALF_DAY';
+            }
             let shiftId = null;
-            const shiftRes = await (0, db_1.query)(`SELECT shift_id FROM hrms.employee_shifts 
-         WHERE employee_id = $1 AND effective_from <= $2::date 
-         ORDER BY effective_from DESC LIMIT 1`, [request.employee_id, reqDate]);
-            if (shiftRes.rows.length > 0) {
-                shiftId = shiftRes.rows[0].shift_id;
+            try {
+                const shiftRes = await (0, db_1.query)(`SELECT shift_id FROM hrms.employee_shifts 
+           WHERE employee_id = $1 AND effective_from <= $2::date 
+           ORDER BY effective_from DESC LIMIT 1`, [request.employee_id, reqDate]);
+                if (shiftRes.rows.length > 0) {
+                    shiftId = shiftRes.rows[0].shift_id;
+                }
+            }
+            catch (shiftErr) {
+                console.warn('Error fetching shift:', shiftErr);
             }
             await (0, db_1.query)(`INSERT INTO hrms.attendance_summary (company_id, employee_id, attendance_date, shift_id, first_in, last_out, status, worked_minutes, is_regularized, regularized_by, processed_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, NOW())
-         ON CONFLICT (company_id, employee_id, attendance_date)
+         ON CONFLICT (employee_id, attendance_date)
          DO UPDATE SET 
-           first_in = EXCLUDED.first_in,
-           last_out = EXCLUDED.last_out,
+           company_id = EXCLUDED.company_id,
+           shift_id = COALESCE(EXCLUDED.shift_id, hrms.attendance_summary.shift_id),
+           first_in = COALESCE(EXCLUDED.first_in, hrms.attendance_summary.first_in),
+           last_out = COALESCE(EXCLUDED.last_out, hrms.attendance_summary.last_out),
            status = EXCLUDED.status,
-           worked_minutes = EXCLUDED.worked_minutes,
+           worked_minutes = GREATEST(EXCLUDED.worked_minutes, COALESCE(hrms.attendance_summary.worked_minutes, 0)),
            is_regularized = true,
            regularized_by = EXCLUDED.regularized_by,
            processed_at = NOW()`, [request.company_id, request.employee_id, reqDate, shiftId, firstInTs, lastOutTs, status, workedMinutes, approverId]);
@@ -6316,12 +6468,17 @@ app.post('/api/v1/attendance/regularizations/:id/action', auth_1.authenticateTok
         catch (notifErr) {
             console.error('[RegularizationActionNotif] Error dispatching notification:', notifErr);
         }
-        (0, exports.logUserAction)(req, `REGULARIZATION_${action}`, 'Attendance Regularizations', `${action} regularization request ID ${id}`);
+        try {
+            (0, exports.logUserAction)(req, `REGULARIZATION_${action}`, 'Attendance Regularizations', `${action} regularization request ID ${id}`);
+        }
+        catch (logErr) {
+            console.warn('Audit log error:', logErr);
+        }
         return res.json({ message: `Regularization request ${action.toLowerCase()} successfully`, regularization: updateRes.rows[0] });
     }
     catch (err) {
         console.error('Error processing regularization action:', err);
-        return res.status(500).json({ error: 'Internal server database error' });
+        return res.status(500).json({ error: err?.message || 'Internal server database error' });
     }
 });
 app.put('/api/v1/attendance/regularizations/:id', auth_1.authenticateToken, async (req, res) => {

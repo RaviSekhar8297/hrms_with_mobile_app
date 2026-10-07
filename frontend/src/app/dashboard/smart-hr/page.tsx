@@ -5,6 +5,7 @@ import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
+import PageLoader from '@/components/ui/PageLoader';
 import { 
   Calendar, 
   Clock, 
@@ -641,9 +642,8 @@ export default function SmartHRPage() {
       {activeTab === 'schedules' && (
         <div className="space-y-4">
           {isLoading ? (
-            <div className="p-16 text-center space-y-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Schedules...</p>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <PageLoader message="Loading Schedules..." />
             </div>
           ) : schedules.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 rounded-2xl">

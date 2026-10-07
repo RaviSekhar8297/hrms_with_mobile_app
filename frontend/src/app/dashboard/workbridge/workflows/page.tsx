@@ -7,6 +7,7 @@ import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import SearchableSelect from '../../components/SearchableSelect';
+import PageLoader from '@/components/ui/PageLoader';
 import { Plus, Edit2, Trash2, ArrowRight, Layers, Palette, Save, CheckCircle2, CircleDashed, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
 
 export default function WorkBridgeWorkflowsPage() {
@@ -330,10 +331,7 @@ export default function WorkBridgeWorkflowsPage() {
 
         {/* 100% Identical Grid Layout + Connecting Arrow Badges */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-16 space-y-3">
-            <div className="w-7 h-7 rounded-full border-3 border-blue-600 border-t-transparent animate-spin" />
-            <span className="text-xs font-semibold text-slate-500">Loading Pipeline Stages...</span>
-          </div>
+          <PageLoader message="Loading Pipeline Stages..." />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 md:gap-4 items-stretch">
             {stages.map((stage, idx) => (

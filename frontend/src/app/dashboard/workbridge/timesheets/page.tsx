@@ -8,6 +8,7 @@ import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import SearchableSelect from '../../components/SearchableSelect';
+import PageLoader from '@/components/ui/PageLoader';
 import { Clock, Calendar, CheckCircle2, XCircle, Send, Plus, Filter, User, FolderKanban, Briefcase } from 'lucide-react';
 
 export default function WorkBridgeTimesheetsPage() {
@@ -251,10 +252,7 @@ export default function WorkBridgeTimesheetsPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-3">
-            <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin" />
-            <span className="text-xs font-semibold text-slate-500">Loading Timesheets...</span>
-          </div>
+          <PageLoader message="Loading Timesheets..." />
         ) : timesheets.length === 0 ? (
           <div className="bg-slate-50/50 border border-slate-200/80 rounded-2xl p-12 text-center max-w-md mx-auto my-6">
             <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-500">

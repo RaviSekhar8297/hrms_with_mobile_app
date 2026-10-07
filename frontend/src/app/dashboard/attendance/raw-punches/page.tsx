@@ -12,6 +12,7 @@ import { Upload, Pencil, Trash2, Camera, CameraOff, MapPin, Clock, CheckCircle2,
 import ModernPagination from '../../components/ModernPagination';
 import { DatePickerSimple } from '@/components/ui/custom-controls';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import PageLoader from '@/components/ui/PageLoader';
 
 export default function RawPunchLogsPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
@@ -179,8 +180,7 @@ export default function RawPunchLogsPage() {
     if (selectedMapPunch.latitude && selectedMapPunch.longitude) {
       setIsGeocoding(true);
       fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${selectedMapPunch.latitude}&lon=${selectedMapPunch.longitude}&zoom=18&addressdetails=1`,
-        { headers: { 'User-Agent': 'Brihaspathi-HRMS/1.0' } }
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${selectedMapPunch.latitude}&lon=${selectedMapPunch.longitude}&zoom=18&addressdetails=1`
       )
         .then((res) => res.json())
         .then((geoData) => {
@@ -452,7 +452,7 @@ export default function RawPunchLogsPage() {
                   className="h-9 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer border-0"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  <span>Upload CSV</span>
+                  <span>Upload</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent>Upload Raw Biometric CSV Punch File</TooltipContent>
@@ -496,11 +496,8 @@ export default function RawPunchLogsPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {isLoading ? (
                 <tr>
-                  <td colSpan={(canEdit || canDelete) ? 8 : 7} className="py-16 text-center">
-                    <div className="p-16 text-center space-y-3">
-                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Raw Punch Logs...</p>
-                    </div>
+                  <td colSpan={(canEdit || canDelete) ? 8 : 7} className="py-8 text-center">
+                    <PageLoader message="Loading Raw Punch Logs..." />
                   </td>
                 </tr>
               ) : filteredPunches.length === 0 ? (
@@ -701,62 +698,7 @@ export default function RawPunchLogsPage() {
               </div>
             </div>
 
-            {/* Verification Live Selfie / Photo Preview Card */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Camera className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <span>Attendance Verification Selfie</span>
-                </label>
-                {editingPunch.image_url ? (
-                  <span className="inline-flex items-center gap-1 text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200/60">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                    Verified Photo
-                  </span>
-                ) : (
-                  <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                    No Photo
-                  </span>
-                )}
-              </div>
 
-              {editingPunch.image_url ? (
-                <div className="relative rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-700 bg-slate-950 shadow-md group">
-                  <img
-                    src={editingPunch.image_url}
-                    alt="Attendance Selfie"
-                    className="w-full h-64 object-cover object-center"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent flex items-center justify-between">
-                    <div className="text-white">
-                      <p className="text-[11px] font-bold">Captured Live Selfie</p>
-                      <p className="text-[9.5px] text-slate-300">Recorded on mobile check-in</p>
-                    </div>
-                    <a
-                      href={editingPunch.image_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold backdrop-blur-xs transition-colors"
-                    >
-                      <span>Full View</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-2xl p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850/30 text-center flex flex-col items-center justify-center gap-2">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
-                    <CameraOff className="w-5 h-5 text-slate-400" />
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300">No Image Recorded</h5>
-                    <p className="text-[11px] text-slate-400 font-medium max-w-xs mt-0.5">
-                      No live selfie was captured for this punch event.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Editable Form Fields */}
             <div className="space-y-4 pt-1">
@@ -981,6 +923,44 @@ export default function RawPunchLogsPage() {
                   </p>
                 )}
               </div>
+
+              {/* 📸 Captured Verification Selfie in GPS Modal */}
+              {selectedMapPunch.image_url && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      <span>Captured Verification Selfie</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200/60">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                      Verified Photo
+                    </span>
+                  </div>
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-700 bg-slate-950 shadow-md group">
+                    <img
+                      src={selectedMapPunch.image_url}
+                      alt="Attendance Selfie"
+                      className="w-full h-56 object-cover object-center"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent flex items-center justify-between">
+                      <div className="text-white">
+                        <p className="text-[11px] font-bold">Captured Live Selfie</p>
+                        <p className="text-[9.5px] text-slate-300">Recorded on mobile check-in</p>
+                      </div>
+                      <a
+                        href={selectedMapPunch.image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold backdrop-blur-xs transition-colors"
+                      >
+                        <span>Full View</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {selectedMapPunch.latitude && selectedMapPunch.longitude ? (
                 <div className="space-y-2">

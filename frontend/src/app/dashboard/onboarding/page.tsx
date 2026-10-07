@@ -7,6 +7,7 @@ import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { getHeaders } from '../utils/api';
+import PageLoader from '@/components/ui/PageLoader';
 
 type Tab = 'pipeline' | 'completed';
 
@@ -330,6 +331,9 @@ export default function OnboardingDashboard() {
               placeholder="Search candidate, role, email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#07518a] font-medium"
             />
             <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -355,9 +359,8 @@ export default function OnboardingDashboard() {
       {/* 📋 CANDIDATES LIST / CARDS */}
       <div className="space-y-3">
         {loading ? (
-          <div className="p-12 flex flex-col items-center justify-center gap-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-full border-4 border-[#07518a] border-t-transparent animate-spin" />
-            <span className="text-xs font-medium text-slate-400">Loading onboarding records...</span>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <PageLoader message="Loading onboarding records..." />
           </div>
         ) : filteredRecords.length === 0 ? (
           <div className="p-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
@@ -459,7 +462,7 @@ export default function OnboardingDashboard() {
         onClose={() => setIsInviteModalOpen(false)}
         title="Direct Candidate Invite"
       >
-        <form onSubmit={handleDirectInviteSubmit} className="space-y-4 p-4">
+        <form onSubmit={handleDirectInviteSubmit} className="space-y-4 p-4" autoComplete="off">
           <div>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
               Full Name *
@@ -470,6 +473,9 @@ export default function OnboardingDashboard() {
               placeholder="e.g. Kiran Kumar"
               value={inviteForm.full_name}
               onChange={(e) => setInviteForm({ ...inviteForm, full_name: e.target.value })}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-[#07518a]"
             />
           </div>
@@ -485,6 +491,9 @@ export default function OnboardingDashboard() {
                 placeholder="kiran@gmail.com"
                 value={inviteForm.email}
                 onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-[#07518a]"
               />
             </div>
@@ -497,6 +506,9 @@ export default function OnboardingDashboard() {
                 placeholder="9848012345"
                 value={inviteForm.phone}
                 onChange={(e) => setInviteForm({ ...inviteForm, phone: e.target.value })}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-[#07518a]"
               />
             </div>
@@ -512,6 +524,9 @@ export default function OnboardingDashboard() {
                 placeholder="e.g. Software Engineer"
                 value={inviteForm.job_title}
                 onChange={(e) => setInviteForm({ ...inviteForm, job_title: e.target.value })}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-[#07518a]"
               />
             </div>
@@ -523,6 +538,7 @@ export default function OnboardingDashboard() {
                 type="date"
                 value={inviteForm.target_joining_date}
                 onChange={(e) => setInviteForm({ ...inviteForm, target_joining_date: e.target.value })}
+                autoComplete="off"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-[#07518a]"
               />
             </div>

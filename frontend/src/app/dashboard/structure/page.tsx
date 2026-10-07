@@ -6,6 +6,8 @@ import DashboardPageHeader from '../components/DashboardPageHeader';
 import { useDashboard } from '../components/DashboardContext';
 import { getHeaders, getUrl } from '../utils/api';
 import ModernPagination from '../components/ModernPagination';
+import PageLoader from '@/components/ui/PageLoader';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface Company {
   id: string;
@@ -193,7 +195,7 @@ export default function PayrollStructurePage() {
     try {
       const cid = companyId;
       const [empRes, sandboxRes] = await Promise.all([
-        fetch(getUrl('/api/v1/employees', cid), { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/employees?pageSize=500', cid), { headers: getHeaders() }),
         fetch(getUrl('/api/v1/payroll/sandbox-data', cid), { headers: getHeaders() })
       ]);
       if (empRes.ok) {
@@ -289,8 +291,7 @@ export default function PayrollStructurePage() {
     if (storedPermissions) setUserPermissions(JSON.parse(storedPermissions));
     if (storedEmail) setEmail(storedEmail);
 
-    fetchSalaryStructures();
-    fetchEmployeesAndFormulaData();
+    Promise.all([fetchSalaryStructures(), fetchEmployeesAndFormulaData()]);
   }, [companyId]);
 
   useEffect(() => {
@@ -782,6 +783,25 @@ export default function PayrollStructurePage() {
     }
   };
 
+  // Memoized employee status lookup to prevent render loop overhead
+  const employeeStatusMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    employeesList.forEach((emp: any) => {
+      const isInactive = 
+        String(emp.status || '').toUpperCase() === 'INACTIVE' ||
+        String(emp.status || '').toUpperCase() === 'TERMINATED' ||
+        String(emp.status || '').toUpperCase() === 'RESIGNED' ||
+        emp.is_active === false ||
+        emp.is_active === 0;
+      
+      if (emp.emp_id_code) map.set(String(emp.emp_id_code).trim().toLowerCase(), isInactive);
+      if (emp.emp_id) map.set(String(emp.emp_id).trim().toLowerCase(), isInactive);
+      if (emp.empId) map.set(String(emp.empId).trim().toLowerCase(), isInactive);
+      if (emp.id) map.set(String(emp.id).trim().toLowerCase(), isInactive);
+    });
+    return map;
+  }, [employeesList]);
+
   // Year filter options (current year only)
   const currentYearNum = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYearNum));
@@ -889,23 +909,7 @@ export default function PayrollStructurePage() {
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="structure-page-container font-['DM_Sans',sans-serif] space-y-3.5 animate-fadeIn w-full text-left">
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet" />
-      <style dangerouslySetInnerHTML={{__html: `
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
-        .structure-page-container,
-        .structure-page-container td,
-        .structure-page-container th,
-        .structure-page-container button,
-        .structure-page-container input,
-        .structure-page-container select,
-        .structure-page-container label,
-        .structure-page-container span,
-        .structure-page-container div,
-        .structure-page-container p {
-          font-family: 'DM Sans', sans-serif !important;
-        }
-      `}} />
+    <div style={{ fontFamily: "'Poppins', 'Inter', sans-serif" }} className="structure-page-container space-y-3.5 animate-fadeIn w-full text-left">
 
       <DashboardPageHeader
         title="Salary Structure Database"
@@ -996,12 +1000,7 @@ export default function PayrollStructurePage() {
       {/* Table Container displaying ALL COLUMNS */}
       <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center">
-            <div className="flex flex-col items-center justify-center gap-2.5">
-              <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading master salary structure records...</span>
-            </div>
-          </div>
+          <PageLoader message="Loading master salary structure records..." />
         ) : filteredStructures.length === 0 ? (
           /* NO RECORDS FOUND EMPTY STATE */
           <div className="py-16 text-center space-y-4">
@@ -1075,27 +1074,15 @@ export default function PayrollStructurePage() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs font-medium">
                 {paginatedStructures.map((s) => {
-                  const empRecord = employeesList.find((emp: any) => {
-                    const code = String(emp.emp_id_code || emp.emp_id || emp.empId || '').trim().toLowerCase();
-                    const idStr = String(emp.id || '').trim().toLowerCase();
-                    const targetCode = String(s.empId || '').trim().toLowerCase();
-                    const targetUuid = String(s.employeeId || s.empUuid || '').trim().toLowerCase();
-                    return (code && code === targetCode) || (idStr && idStr === targetUuid);
-                  });
-
-                  const isEmpInactive = empRecord ? (
-                    String(empRecord.status || '').toUpperCase() === 'INACTIVE' ||
-                    String(empRecord.status || '').toUpperCase() === 'TERMINATED' ||
-                    String(empRecord.status || '').toUpperCase() === 'RESIGNED' ||
-                    empRecord.is_active === false ||
-                    empRecord.is_active === 0
-                  ) : false;
+                  const isEmpInactive = employeeStatusMap.get(String(s.empId).trim().toLowerCase()) ?? 
+                                        employeeStatusMap.get(String(s.employeeId || s.empUuid).trim().toLowerCase()) ?? 
+                                        false;
 
                   const isInactive = !s.isStructureActive || isEmpInactive;
                   const displayStatus = isEmpInactive ? 'Inactive' : (s.isStructureActive ? 'Active' : 'Inactive');
 
                   return (
-                  <tr key={s.id || s.empId} className={`transition-colors ${isInactive ? 'bg-slate-50/60 dark:bg-slate-900/40 opacity-75' : 'hover:bg-indigo-50/30 dark:hover:bg-slate-800/50'}`}>
+                  <tr key={s.id || s.empId} className={`transition-colors ${isInactive ? 'bg-slate-50/60 dark:bg-slate-900/40 opacity-75' : 'hover:bg-blue-50/30 dark:hover:bg-slate-800/50'}`}>
                     {/* STICKY ACTIONS COLUMN */}
                     {canPerformActions && (
                       <td className="py-2.5 px-3.5 sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-[95px] min-w-[95px]">
@@ -1139,13 +1126,26 @@ export default function PayrollStructurePage() {
                       </td>
                     )}
 
-                    {/* STICKY EMPLOYEE COLUMN (Name on Top, Emp ID Underneath) */}
-                    <td className={`py-2.5 px-3.5 sticky z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 min-w-[180px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>
+                    {/* STICKY EMPLOYEE COLUMN (Name on Top with Tooltip if >20 chars, Emp ID Underneath) */}
+                    <td className={`py-2.5 px-3.5 sticky z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 min-w-[190px] ${canPerformActions ? 'left-[95px]' : 'left-0'}`}>
                       <div className="flex flex-col text-left">
-                        <span className={`font-bold uppercase tracking-tight text-xs ${isInactive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
-                          {s.name}
-                        </span>
-                        <span className={`font-mono text-[10.5px] font-extrabold ${isInactive ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-[#07518a] dark:text-[#38bdf8]'}`}>
+                        {s.name && s.name.length > 20 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className={`font-bold uppercase tracking-tight text-xs cursor-pointer inline-block ${isInactive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                                {s.name.slice(0, 20)}...
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs text-xs font-bold bg-slate-900 text-white dark:bg-slate-800 border border-slate-700 shadow-xl">
+                              {s.name}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className={`font-bold uppercase tracking-tight text-xs ${isInactive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}>
+                            {s.name}
+                          </span>
+                        )}
+                        <span className={`text-[10.5px] font-extrabold ${isInactive ? 'text-rose-600 dark:text-rose-400 font-black' : 'text-[#07518a] dark:text-[#38bdf8]'}`}>
                           {s.empId}
                         </span>
                       </div>
@@ -1266,7 +1266,16 @@ export default function PayrollStructurePage() {
                     <td className="py-2.5 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300">{s.variablePayPercentage}%</td>
                     <td className="py-2.5 px-3.5 text-center font-semibold text-slate-700 dark:text-slate-300">{s.salaryYear}</td>
                     <td className="py-2.5 px-3.5 font-medium text-slate-600 dark:text-slate-400">{s.effectiveFromDate || '-'}</td>
-                    <td className="py-2.5 px-3.5 font-medium text-slate-600 dark:text-slate-400">{s.effectiveToDate || 'NULL (Ongoing)'}</td>
+                    <td className="py-2.5 px-3.5 font-medium">
+                      {s.effectiveToDate ? (
+                        <span className="text-slate-600 dark:text-slate-400">{s.effectiveToDate}</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 text-[10px] font-extrabold tracking-wide uppercase">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Ongoing
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2.5 px-3.5">
                       <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 text-[10px] font-extrabold">
                         {s.taxRegime}

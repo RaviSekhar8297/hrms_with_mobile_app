@@ -8,6 +8,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import SlideDrawer from '../../components/SlideDrawer';
 import { Lock, Unlock, Plus, Search, ShieldCheck, AlertTriangle, Calendar, Info, RefreshCw, UserCheck, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface AttendanceLock {
   id: string;
@@ -315,9 +316,8 @@ export default function AttendanceLocksPage() {
 
           {/* CARD GRID LAYOUT (REPLACING TABLE AS REQUESTED) */}
           {isLoading ? (
-            <div className="bg-white dark:bg-slate-900 p-16 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-3">
-              <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Attendance Month Locks...</p>
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+              <PageLoader message="Loading Attendance Month Locks..." />
             </div>
           ) : filteredLocks.length === 0 ? (
             <div className="bg-white dark:bg-slate-900 p-12 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-2xs">

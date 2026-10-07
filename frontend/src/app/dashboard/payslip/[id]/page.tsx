@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders } from '../../utils/api';
 import { useDashboard } from '../../components/DashboardContext';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface PayslipItem {
   id: string;
@@ -296,9 +297,8 @@ export default function DedicatedPayslipStatementPage() {
 
   if (loading || !payslip) {
     return (
-      <div style={{ fontFamily: activeFontFamily }} className="p-16 text-center text-slate-400 font-bold flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-        <span>Loading compensation profile & payslip details...</span>
+      <div style={{ fontFamily: activeFontFamily }} className="min-h-[50vh] flex items-center justify-center">
+        <PageLoader message="Loading compensation profile & payslip details..." />
       </div>
     );
   }

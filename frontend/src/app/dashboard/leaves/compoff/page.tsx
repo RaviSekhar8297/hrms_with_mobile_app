@@ -10,6 +10,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import ModernPagination from '../../components/ModernPagination';
 import { DatePickerSimple } from '@/components/ui/custom-controls';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import PageLoader from '@/components/ui/PageLoader';
 import { 
   AlertTriangle, 
   Search, 
@@ -525,10 +526,7 @@ export default function CompOffClaimsPage() {
       {/* 📜 COMP-OFF TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="p-16 text-center space-y-3">
-            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Comp-Off Claims...</p>
-          </div>
+          <PageLoader message="Loading Comp-Off Claims..." />
         ) : paginated.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-4xl mb-3 text-slate-300 dark:text-slate-600">📂</div>

@@ -8,6 +8,7 @@ import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { Edit3, Trash2 } from 'lucide-react';
 import { usePermissions } from '../hooks/usePermissions';
+import PageLoader from '@/components/ui/PageLoader';
 
 export default function LeaveTypesAndLogsPage() {
   const { showToast, companyId } = useDashboard();
@@ -78,9 +79,7 @@ export default function LeaveTypesAndLogsPage() {
 
   useEffect(() => {
     if (canView) {
-      fetchLeaveTypes();
-      fetchTransactionLogs();
-      fetchEmployees();
+      Promise.all([fetchLeaveTypes(), fetchTransactionLogs(), fetchEmployees()]);
     }
   }, [companyId, canView]);
 
@@ -122,18 +121,18 @@ export default function LeaveTypesAndLogsPage() {
   const fetchTransactionLogs = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(getUrl('/api/v1/leave-requests', cid), {
+      const res = await fetch(`/api/v1/leave-transaction-logs?companyId=${cid}`, {
         headers: getHeaders()
       });
       const data = await res.json();
-      if (res.ok) setTransactionLogs(data.transactions || []);
+      if (res.ok) setTransactionLogs(data.logs || []);
     } catch (e) {}
   };
 
   const fetchEmployees = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`/api/v1/employees?companyId=${cid}`, {
+      const res = await fetch(`/api/v1/employees?companyId=${cid}&pageSize=500`, {
         headers: getHeaders()
       });
       const data = await res.json();
@@ -358,9 +357,8 @@ export default function LeaveTypesAndLogsPage() {
       {activeTab === 'types' && (
         <div>
           {isLoading ? (
-            <div className="p-16 text-center space-y-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Leave Types...</p>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <PageLoader message="Loading Leave Types..." className="py-16" />
             </div>
           ) : leaveTypes.length === 0 ? (
             <div className="p-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">

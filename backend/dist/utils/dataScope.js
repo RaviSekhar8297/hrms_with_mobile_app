@@ -27,7 +27,7 @@ async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
             departmentId: null,
             companyId: req.user?.companyId || null,
             roleId: null,
-            dataScope: 'SELF',
+            dataScope: 'NONE',
             isSuperAdmin: false,
         };
     }
@@ -39,7 +39,7 @@ async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
        LEFT JOIN hrms.roles r ON e.role_id = r.id
        WHERE (
          ($1::uuid IS NOT NULL AND e.id = $1::uuid)
-         OR (LOWER(e.email) = LOWER($2) OR LOWER(e.emp_id_code) = LOWER($2))
+         OR LOWER(e.email) = LOWER($2)
        ) AND e.status = 'ACTIVE' 
        LIMIT 1`, [userEmpId, userEmail]);
         if (empRes.rows.length === 0) {
@@ -49,12 +49,12 @@ async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
                 departmentId: null,
                 companyId: req.user?.companyId || null,
                 roleId: null,
-                dataScope: 'SELF',
+                dataScope: 'NONE',
                 isSuperAdmin: false,
             };
         }
         const emp = empRes.rows[0];
-        let dataScope = 'ALL';
+        let dataScope = 'SELF';
         if (emp.role_id) {
             let permSql = `
         SELECT rp.data_scope, p.name 
@@ -70,12 +70,12 @@ async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
                 if (parts.length === 2) {
                     altPerm = `${parts[1]}_${parts[0]}`;
                 }
-                permSql += ` AND (p.id::text = $2 OR LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($3) OR LOWER(p.name) = LOWER($2 || '_summary') OR LOWER(p.name) = LOWER($2 || '_view') OR LOWER(p.name) = LOWER('view_' || $2))`;
+                permSql += ` AND (p.id::text = $2 OR LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($3) OR LOWER(p.name) = LOWER($2 || '_summary') OR LOWER(p.name) = LOWER($2 || '_view') OR LOWER(p.name) = LOWER('view_' || $2) OR p.name = '*')`;
                 permParams.push(cleanPerm, altPerm);
             }
             else if (moduleName) {
                 const cleanMod = moduleName.toLowerCase().trim();
-                permSql += ` AND (LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_view') OR LOWER(p.name) = LOWER('view_' || $2) OR LOWER(p.module) = LOWER($2) OR LOWER(p.name) LIKE LOWER($3))`;
+                permSql += ` AND (LOWER(p.name) = LOWER($2) OR LOWER(p.name) = LOWER($2 || '_view') OR LOWER(p.name) = LOWER('view_' || $2) OR LOWER(p.module) = LOWER($2) OR LOWER(p.name) LIKE LOWER($3) OR p.name = '*')`;
                 permParams.push(cleanMod, `%${cleanMod}%`);
             }
             permSql += ` ORDER BY 
@@ -85,8 +85,11 @@ async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
           ELSE 3 
         END ASC LIMIT 1`;
             const permRes = await (0, db_1.query)(permSql, permParams);
-            if (permRes.rows.length > 0 && permRes.rows[0].data_scope) {
-                const scopeVal = String(permRes.rows[0].data_scope).toUpperCase().trim();
+            if (permRes.rows.length === 0) {
+                dataScope = 'NONE';
+            }
+            else {
+                const scopeVal = String(permRes.rows[0].data_scope || '').toUpperCase().trim();
                 if (['SELF', 'S'].includes(scopeVal))
                     dataScope = 'SELF';
                 else if (['REPORTING', 'TEAM', 'T'].includes(scopeVal))
@@ -97,7 +100,14 @@ async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
                     dataScope = 'BRANCH';
                 else if (['ALL', 'A'].includes(scopeVal))
                     dataScope = 'ALL';
+                else if (['NONE', 'N'].includes(scopeVal))
+                    dataScope = 'NONE';
+                else
+                    dataScope = 'SELF';
             }
+        }
+        else {
+            dataScope = 'NONE';
         }
         return {
             employeeId: emp.id,
@@ -117,7 +127,7 @@ async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
             departmentId: null,
             companyId: req.user?.companyId || null,
             roleId: null,
-            dataScope: 'SELF',
+            dataScope: 'NONE',
             isSuperAdmin: false,
         };
     }
@@ -128,6 +138,9 @@ async function getEmployeeDataScope(req, moduleName, permissionNameOrId) {
 function buildDataScopeCondition(scopeCtx, tableAlias = 'e', empIdCol = 'id', startingParamIdx = 1) {
     if (scopeCtx.isSuperAdmin || scopeCtx.dataScope === 'ALL') {
         return { whereSql: '', params: [], nextParamIdx: startingParamIdx };
+    }
+    if (scopeCtx.dataScope === 'NONE') {
+        return { whereSql: '1=0', params: [], nextParamIdx: startingParamIdx };
     }
     const cleanAlias = tableAlias ? tableAlias.replace(/\.$/, '') : '';
     const empCol = cleanAlias ? `${cleanAlias}.${empIdCol}` : empIdCol;

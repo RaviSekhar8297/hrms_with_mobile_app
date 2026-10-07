@@ -6,6 +6,7 @@ import DashboardPageHeader from '../../../components/DashboardPageHeader';
 import { getHeaders, API_BASE } from '../../../utils/api';
 import { useDashboard } from '../../../components/DashboardContext';
 import { usePermissions } from '../../../hooks/usePermissions';
+import PageLoader from '@/components/ui/PageLoader';
 import {
   ArrowLeft,
   CheckSquare,
@@ -283,9 +284,8 @@ export default function WorkBridgeTaskDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-3 min-h-[400px]">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-        <span className="text-xs font-semibold text-slate-500">Loading Task Details...</span>
+      <div className="py-20">
+        <PageLoader message="Loading Task Details..." />
       </div>
     );
   }

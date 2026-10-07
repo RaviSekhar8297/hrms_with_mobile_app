@@ -32,6 +32,7 @@ import { Header } from './components/Header';
 import LiveLocationTracker from './components/LiveLocationTracker';
 import { Sidebar, SidebarGroup, SidebarItem } from './components/Sidebar';
 import { FloatingAiWidget } from './components/FloatingAiWidget';
+import PageLoader from '@/components/ui/PageLoader';
 const getLucideIcon = (tab: string, fallback: React.ReactNode) => {
   switch (tab) {
     case 'overview': return <LayoutDashboard className="w-5 h-5" />;
@@ -375,15 +376,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   if (!authorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Verifying session security...</p>
-        </div>
+        <PageLoader message="Verifying session security..." />
       </div>
     );
   }
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const isAdminOrSuperAdmin = isSuperAdmin || roles.some((r) => r.toLowerCase().includes('admin'));
 
   // Helper to check dynamic role-based permissions strictly following tablename_action
   const hasPermission = (permissionName?: string) => {
@@ -564,16 +563,20 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </svg>
           ),
         },
-        {
-          tab: 'roles',
-          label: 'Roles & Access',
-          permission: 'roles_view',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m-2 4a2 2 0 012-2m-2 4a2 2 0 11-4 0M9 9a2 2 0 00-2 2m2 4a2 2 0 00-2-2m2 4a2 2 0 11-4 0M9 12H5m0 0l-2-2m2 2l-2 2m14-2a6 6 0 11-12 0 6 6 0 0112 0z" />
-            </svg>
-          ),
-        },
+        ...(isAdminOrSuperAdmin
+          ? [
+            {
+              tab: 'roles',
+              label: 'Roles & Access',
+              permission: 'roles_view',
+              icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m-2 4a2 2 0 012-2m-2 4a2 2 0 11-4 0M9 9a2 2 0 00-2 2m2 4a2 2 0 00-2-2m2 4a2 2 0 11-4 0M9 12H5m0 0l-2-2m2 2l-2 2m14-2a6 6 0 11-12 0 6 6 0 0112 0z" />
+                </svg>
+              ),
+            },
+          ]
+          : []),
       ],
     },
     {
@@ -1169,7 +1172,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         />
 
         {/* 🚀 MAIN BODY AREA */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative no-scrollbar rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-gradient-to-br from-slate-50 via-indigo-50/20 to-slate-100/90 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 shadow-sm">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 relative no-scrollbar rounded-xl border border-slate-200/90 dark:border-slate-800/80 bg-gradient-to-br from-slate-50 via-indigo-50/20 to-slate-100/90 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 shadow-sm">
           {bodyLoading ? (
             <div className="w-full h-full flex flex-col gap-6 animate-fadeIn p-2">
               <div className="h-9 w-1/4 rounded-xl shimmer-loading" />
@@ -1199,7 +1202,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           <div className="relative group">
             {/* Animated Ambient Pulsing Aura Glow (Desktop dock) */}
             <div className="hidden sm:block absolute -inset-1 rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 blur-md opacity-75 group-hover:opacity-100 transition-all duration-500 animate-pulse" />
-            
+
             <button
               onMouseDown={handleMouseDown}
               onTouchStart={handleTouchStart}
@@ -1209,7 +1212,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             >
               {/* Shimmer Light Beam Effect (Desktop only) */}
               <span className="hidden sm:block absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-              
+
               {/* Unique Animated Launcher Icon Badge */}
               <div className="relative flex items-center justify-center w-11 h-11 sm:w-7 sm:h-7 rounded-2xl sm:rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/30 sm:shadow-md group-hover:rotate-12 transition-transform duration-300 border border-white/20 sm:border-0">
                 <svg className="w-5 h-5 sm:w-4 sm:h-4 group-hover:scale-110 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1292,8 +1295,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => setLauncherMode('orbital')}
                     className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${launcherMode === 'orbital'
-                        ? 'bg-indigo-600 text-white shadow-xs font-bold'
-                        : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                      : 'text-slate-500 hover:text-slate-800'
                       }`}
                   >
                     <span>🌌 Orbital</span>
@@ -1301,8 +1304,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={() => setLauncherMode('grid')}
                     className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${launcherMode === 'grid'
-                        ? 'bg-indigo-600 text-white shadow-xs font-bold'
-                        : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                      : 'text-slate-500 hover:text-slate-800'
                       }`}
                   >
                     <span>📱 Grid</span>
@@ -1437,8 +1440,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                         href={`/dashboard/${item.tab}`}
                         onClick={() => setMoreAppsOpen(false)}
                         className={`group flex flex-col items-center text-center p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer ${currentTab === item.tab
-                            ? 'bg-indigo-50 border-indigo-400 text-indigo-700 shadow-xs'
-                            : 'border-slate-200 bg-slate-50/70 hover:border-indigo-300 hover:bg-white text-slate-800'
+                          ? 'bg-indigo-50 border-indigo-400 text-indigo-700 shadow-xs'
+                          : 'border-slate-200 bg-slate-50/70 hover:border-indigo-300 hover:bg-white text-slate-800'
                           }`}
                       >
                         <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center text-xl mb-1.5 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-2xs">
@@ -1505,8 +1508,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           setSettingsOpen(false);
                         }}
                         className={`py-2.5 px-3.5 rounded-xl border text-xs font-extrabold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${layout === 'sidebar'
-                            ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500'
+                          ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500'
                           }`}
                       >
                         <span className="text-base">🗂️</span>
@@ -1518,8 +1521,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           setSettingsOpen(false);
                         }}
                         className={`py-2.5 px-3.5 rounded-xl border text-xs font-extrabold transition-all cursor-pointer flex flex-col items-center gap-1.5 ${layout === 'bottom-dock'
-                            ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500'
+                          ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500'
                           }`}
                       >
                         <span className="text-base">⚓</span>
@@ -1543,8 +1546,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           setSettingsOpen(false);
                         }}
                         className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${theme === 'slate-dark'
-                            ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                          ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
                           }`}
                       >
                         <div className="h-5 w-10 rounded bg-[#0b0f19] mb-2 border border-slate-700 shadow-xs" />
@@ -1560,8 +1563,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           setSettingsOpen(false);
                         }}
                         className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all cursor-pointer ${theme === 'nordic-light'
-                            ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                          ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
                           }`}
                       >
                         <div className="h-5 w-10 rounded bg-[#f8fafc] mb-2 border border-slate-300 shadow-xs" />
@@ -1590,8 +1593,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                             setSettingsOpen(false);
                           }}
                           className={`w-full py-2.5 px-3.5 rounded-xl border text-left text-xs font-extrabold transition-all cursor-pointer flex justify-between items-center ${font === f
-                              ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
-                              : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                            ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20'
+                            : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                             }`}
                         >
                           <span style={{ fontFamily: f }}>{f}</span>
@@ -1629,35 +1632,32 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[99999999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-sans transition-all duration-300">
         {toasts.map((toast) => (
           <div key={toast.id} className="pointer-events-auto animate-toast">
-            <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-2xl transition-all border-2 ${
-              toast.type === 'error'
+            <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-2xl transition-all border-2 ${toast.type === 'error'
                 ? 'border-rose-500 shadow-rose-500/20'
                 : toast.type === 'info'
-                ? 'border-blue-500 shadow-blue-500/20'
-                : 'border-emerald-500 shadow-emerald-500/20'
-            }`}>
+                  ? 'border-blue-500 shadow-blue-500/20'
+                  : 'border-emerald-500 shadow-emerald-500/20'
+              }`}>
               <div className="flex items-center gap-3">
                 <span
-                  className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border text-sm font-black ${
-                    toast.type === 'error'
+                  className={`flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border text-sm font-black ${toast.type === 'error'
                       ? 'bg-rose-50 dark:bg-rose-950/80 border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400'
                       : toast.type === 'info'
-                      ? 'bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400'
-                      : 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400'
-                  }`}
+                        ? 'bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400'
+                        : 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400'
+                    }`}
                 >
                   {toast.type === 'error' ? '✕' : toast.type === 'info' ? 'ℹ' : '✓'}
                 </span>
                 <div>
                   <p className="text-xs font-bold leading-snug text-slate-900 dark:text-slate-100">{toast.message}</p>
                   <span
-                    className={`text-[9.5px] font-extrabold uppercase tracking-wider block mt-0.5 ${
-                      toast.type === 'error'
+                    className={`text-[9.5px] font-extrabold uppercase tracking-wider block mt-0.5 ${toast.type === 'error'
                         ? 'text-rose-600 dark:text-rose-400'
                         : toast.type === 'info'
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-emerald-600 dark:text-emerald-400'
-                    }`}
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-emerald-600 dark:text-emerald-400'
+                      }`}
                   >
                     {toast.type}
                   </span>

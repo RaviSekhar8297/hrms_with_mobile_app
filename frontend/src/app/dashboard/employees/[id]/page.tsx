@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../../utils/api';
@@ -8,6 +9,8 @@ import { useDashboard } from '../../components/DashboardContext';
 import SearchableSelect from '../../components/SearchableSelect';
 import Link from 'next/link';
 import { DatePickerSimple } from '@/components/ui/custom-controls';
+import PageLoader from '@/components/ui/PageLoader';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface Company {
   id: string;
@@ -164,6 +167,12 @@ export default function DedicatedEmployeeEditPage() {
   // Database Salary Engine Slabs & Component Configurations
   const [engineSlabs, setEngineSlabs] = useState<any[]>([]);
   const [engineConfigs, setEngineConfigs] = useState<any[]>([]);
+
+  // Quick Add Designation State
+  const [isAddDesignationOpen, setIsAddDesignationOpen] = useState(false);
+  const [newDesignationName, setNewDesignationName] = useState('');
+  const [newDesignationDesc, setNewDesignationDesc] = useState('');
+  const [isSubmittingDesignation, setIsSubmittingDesignation] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -691,6 +700,14 @@ export default function DedicatedEmployeeEditPage() {
       showToast('ℹ️ No changes detected to save.', 'info');
       return;
     }
+    if (!formData.first_name || !/^[A-Za-z\s]+$/.test(formData.first_name.trim())) {
+      showToast('⚠️ First Name must contain only letters and spaces.', 'error');
+      return;
+    }
+    if (formData.last_name && !/^[A-Za-z\s]+$/.test(formData.last_name.trim())) {
+      showToast('⚠️ Last Name must contain only letters and spaces.', 'error');
+      return;
+    }
     if (formData.password && formData.password.trim() !== '') {
       if (formData.password !== confirmPassword) {
         showToast('New Password and Confirm Password do not match!', 'error');
@@ -932,8 +949,67 @@ export default function DedicatedEmployeeEditPage() {
   const totalDeductions = (formData.pf_deduction || 0) + (formData.esi_deduction || 0) + (formData.professional_tax || 0);
   const calculatedNet = (formData.monthly_salary || 0) - totalDeductions;
 
+  // Selected Branch & Dept references for Quick Designation Creation
+  const selectedBranch = branches.find(b => b.id === formData.branch_id);
+  const selectedDept = departments.find(d => d.id === formData.department_id);
+  const canAddDesignation = !!formData.branch_id && !!formData.department_id;
+
+  const handleCreateQuickDesignation = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanName = newDesignationName.trim();
+    if (!cleanName) {
+      showToast('Please enter a designation title', 'error');
+      return;
+    }
+    if (!formData.branch_id || !formData.department_id) {
+      showToast('Please select Branch and Department first', 'error');
+      return;
+    }
+
+    const activeCompanyId = targetCompId || companyId || (companies.length > 0 ? companies[0].id : null);
+    if (!activeCompanyId || activeCompanyId === 'all') {
+      showToast('Please select a company first', 'error');
+      return;
+    }
+
+    setIsSubmittingDesignation(true);
+    try {
+      const payload = {
+        companyId: activeCompanyId,
+        branch_id: formData.branch_id,
+        department_id: formData.department_id,
+        name: cleanName,
+        description: newDesignationDesc.trim() || ''
+      };
+
+      const res = await fetch(getUrl('/api/v1/designations', activeCompanyId), {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (res.ok && data.designation) {
+        showToast('Designation created successfully!', 'success');
+        const createdDes: Designation = data.designation;
+        setDesignations(prev => [...prev, createdDes]);
+        setFormData(prev => ({ ...prev, designation_id: createdDes.id }));
+        setNewDesignationName('');
+        setNewDesignationDesc('');
+        setIsAddDesignationOpen(false);
+      } else {
+        showToast(data.error || 'Failed to create designation', 'error');
+      }
+    } catch (err) {
+      console.error('Error creating quick designation:', err);
+      showToast('Error creating designation', 'error');
+    } finally {
+      setIsSubmittingDesignation(false);
+    }
+  };
+
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-sans space-y-6 animate-fadeIn w-full pb-24 text-left">
+    <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-dmsans space-y-6 animate-fadeIn w-full pb-24 text-left">
       
       {/* Header Bar */}
       <DashboardPageHeader
@@ -957,12 +1033,11 @@ export default function DedicatedEmployeeEditPage() {
       </DashboardPageHeader>
 
       {loading ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-16 shadow-xs text-center space-y-3">
-          <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Employee Profile Data...</p>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-8 shadow-xs">
+          <PageLoader message="Loading Employee Profile Data..." />
         </div>
       ) : (
-        <form onSubmit={handleSave} className="space-y-6">
+        <form onSubmit={handleSave} autoComplete="off" autoCorrect="off" spellCheck={false} className="space-y-6">
           
           {/* Executive Overview Header Card */}
           <div className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 transition-all">
@@ -1026,20 +1101,6 @@ export default function DedicatedEmployeeEditPage() {
                   }`}>
                     {formData.status}
                   </span>
-
-                  {/* ⚡ 1-Click Status Quick Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, status: prev.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }))}
-                    className={`px-3 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-2xs border ${
-                      formData.status === 'ACTIVE'
-                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500 hover:text-white'
-                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500 hover:text-white'
-                    }`}
-                    title="Click to toggle status (Remember to Save Changes)"
-                  >
-                    {formData.status === 'ACTIVE' ? '🚫 Set Inactive' : '✅ Set Active'}
-                  </button>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-slate-500 dark:text-slate-400 font-semibold">
@@ -1071,32 +1132,6 @@ export default function DedicatedEmployeeEditPage() {
                 </div>
               </div>
             </div>
-
-            {/* Save Action Button */}
-            <div className="flex items-center gap-3 w-full md:w-auto z-10 shrink-0">
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full md:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 text-white text-xs font-black shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-75 disabled:cursor-not-allowed"
-              >
-                {saving ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <span>Saving Changes...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                    <span>Save Profile Changes</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
 
           {/* 🌟 PREMIUM SEGMENTED PILL TABS BAR */}
@@ -1105,7 +1140,7 @@ export default function DedicatedEmployeeEditPage() {
               { id: 'PERSONAL', label: 'Personal', icon: '👤', color: 'from-blue-600 via-indigo-600 to-blue-700' },
               { id: 'WORK', label: 'Organization', icon: '🏢', color: 'from-indigo-600 via-purple-600 to-indigo-700' },
               { id: 'STATUS', label: 'Status', icon: '🚦', color: 'from-emerald-600 via-teal-600 to-emerald-700' },
-              { id: 'BANK', label: 'Bank & Payout', icon: '🏦', color: 'from-cyan-600 via-blue-600 to-cyan-700' },
+              { id: 'BANK', label: 'Banking', icon: '🏦', color: 'from-cyan-600 via-blue-600 to-cyan-700' },
               { id: 'SALARY', label: 'Salary', icon: '💵', color: 'from-teal-600 via-emerald-600 to-teal-700' },
               { id: 'EMERGENCY', label: 'Contacts', icon: '🚨', color: 'from-rose-600 via-red-600 to-rose-700' },
               { id: 'EDUCATION', label: 'Education', icon: '🎓', color: 'from-purple-600 via-violet-600 to-purple-700' },
@@ -1256,15 +1291,22 @@ export default function DedicatedEmployeeEditPage() {
                 </div>
 
                 {/* 🎯 EXIT DATE & QUICK INACTIVE ACTION BUTTON */}
-                <div className="p-4 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/30 dark:bg-rose-950/20 shadow-xs space-y-2 md:col-span-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <label className="block text-[10px] font-black text-rose-700 dark:text-rose-300 uppercase tracking-widest">
-                      Exit / Relieving Date & Status Action
-                    </label>
+                <div className="p-3.5 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/30 dark:bg-rose-950/20 shadow-xs space-y-2 md:col-span-2">
+                  <label className="block text-[10px] font-black text-rose-700 dark:text-rose-300 uppercase tracking-widest">
+                    Exit / Relieving Date & Status Action
+                  </label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="w-full sm:w-64 max-w-xs">
+                      <DatePickerSimple
+                        value={formData.exit_date}
+                        onChange={val => setFormData({ ...formData, exit_date: val })}
+                        placeholder="Select exit date"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, status: prev.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }))}
-                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-md border ${
+                      className={`h-[40px] px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-md border inline-flex items-center justify-center shrink-0 ${
                         formData.status === 'ACTIVE'
                           ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-600 shadow-rose-600/20'
                           : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-emerald-600/20'
@@ -1273,11 +1315,6 @@ export default function DedicatedEmployeeEditPage() {
                       {formData.status === 'ACTIVE' ? '🚫 Set Status to INACTIVE' : '✅ Set Status to ACTIVE'}
                     </button>
                   </div>
-                  <DatePickerSimple
-                    value={formData.exit_date}
-                    onChange={val => setFormData({ ...formData, exit_date: val })}
-                    placeholder="Select exit date"
-                  />
                   <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-semibold">
                     Select last working day and click the button above to set status to INACTIVE. (Remember to click &quot;Save Profile Changes&quot;).
                   </p>
@@ -1311,6 +1348,9 @@ export default function DedicatedEmployeeEditPage() {
                     <input
                       type="text"
                       required
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={formData.emp_id_code}
                       onChange={e => setFormData({ ...formData, emp_id_code: e.target.value })}
                       className="w-full bg-transparent px-3 py-2 text-xs text-slate-800 dark:text-slate-200 font-mono font-bold outline-none border-none"
@@ -1325,8 +1365,11 @@ export default function DedicatedEmployeeEditPage() {
                   <input
                     type="text"
                     required
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={formData.first_name}
-                    onChange={e => setFormData({ ...formData, first_name: e.target.value })}
+                    onChange={e => setFormData({ ...formData, first_name: e.target.value.replace(/[^A-Za-z\s]/g, '') })}
                     className={inputStyle}
                   />
                 </div>
@@ -1338,8 +1381,11 @@ export default function DedicatedEmployeeEditPage() {
                   <input
                     type="text"
                     required
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={formData.last_name}
-                    onChange={e => setFormData({ ...formData, last_name: e.target.value })}
+                    onChange={e => setFormData({ ...formData, last_name: e.target.value.replace(/[^A-Za-z\s]/g, '') })}
                     className={inputStyle}
                   />
                 </div>
@@ -1351,6 +1397,9 @@ export default function DedicatedEmployeeEditPage() {
                   <input
                     type="email"
                     required
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={formData.email}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     className={inputStyle}
@@ -1363,6 +1412,9 @@ export default function DedicatedEmployeeEditPage() {
                   </label>
                   <input
                     type="text"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={formData.phone}
                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
                     className={inputStyle}
@@ -1375,6 +1427,9 @@ export default function DedicatedEmployeeEditPage() {
                   </label>
                   <input
                     type="email"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={formData.personal_email}
                     onChange={e => setFormData({ ...formData, personal_email: e.target.value })}
                     className={inputStyle}
@@ -1461,6 +1516,9 @@ export default function DedicatedEmployeeEditPage() {
                   </label>
                   <textarea
                     rows={3}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={formData.current_address}
                     onChange={e => setFormData({ ...formData, current_address: e.target.value })}
                     className={inputStyle}
@@ -1474,6 +1532,9 @@ export default function DedicatedEmployeeEditPage() {
                   </label>
                   <textarea
                     rows={3}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={formData.permanent_address}
                     onChange={e => setFormData({ ...formData, permanent_address: e.target.value })}
                     className={inputStyle}
@@ -1488,7 +1549,7 @@ export default function DedicatedEmployeeEditPage() {
                   <div className="flex items-center gap-2.5">
                     <span className="text-xl">🔐</span>
                     <div>
-                      <h4 className="text-xs font-black uppercase tracking-wider text-indigo-950 dark:text-indigo-200 font-outfit">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-indigo-950 dark:text-indigo-200 font-dmsans">
                         Account Password Reset & Login Credentials
                       </h4>
                       <p className="text-[11px] font-medium text-slate-600 dark:text-slate-400 mt-0.5">
@@ -1506,6 +1567,9 @@ export default function DedicatedEmployeeEditPage() {
                     <div className="relative flex items-center">
                       <input
                         type={showPassword ? 'text' : 'password'}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={formData.password}
                         onChange={e => setFormData({ ...formData, password: e.target.value })}
                         className={`${inputStyle} pr-10`}
@@ -1514,10 +1578,19 @@ export default function DedicatedEmployeeEditPage() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors text-xs font-extrabold cursor-pointer"
+                        className="absolute right-3 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                         title={showPassword ? 'Hide Password' : 'Show Password'}
                       >
-                        {showPassword ? '👁️ Hide' : '🙈 Show'}
+                        {showPassword ? (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1529,6 +1602,9 @@ export default function DedicatedEmployeeEditPage() {
                     <div className="relative flex items-center">
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={confirmPassword}
                         onChange={e => setConfirmPassword(e.target.value)}
                         className={`${inputStyle} pr-10 ${
@@ -1539,10 +1615,19 @@ export default function DedicatedEmployeeEditPage() {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors text-xs font-extrabold cursor-pointer"
+                        className="absolute right-3 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                         title={showConfirmPassword ? 'Hide Password' : 'Show Password'}
                       >
-                        {showConfirmPassword ? '👁️ Hide' : '🙈 Show'}
+                        {showConfirmPassword ? (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                     {confirmPassword && formData.password !== confirmPassword && (
@@ -1614,9 +1699,34 @@ export default function DedicatedEmployeeEditPage() {
                 </div>
 
                 <div className="p-3.5 rounded-xl border border-blue-500/40 dark:border-blue-500/40 bg-blue-50/10 dark:bg-blue-950/10 shadow-sm space-y-1.5">
-                  <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
-                    Designation / Title
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[9.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                      Designation / Title
+                    </label>
+                    {canAddDesignation ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddDesignationOpen(true)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#07518a] hover:bg-[#064270] text-white text-[10px] font-extrabold transition-all shadow-2xs active:scale-95 cursor-pointer"
+                        title="Add new designation for this branch & department"
+                      >
+                        <span className="text-xs font-bold leading-none">+</span>
+                        <span>New</span>
+                      </button>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-800 text-slate-400 text-[10px] font-bold cursor-not-allowed opacity-75">
+                            <span className="text-xs font-bold leading-none">+</span>
+                            <span>New</span>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-[10px] font-bold py-1 px-2.5 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl rounded-xl z-50">
+                          Select Branch & Department first
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                   <SearchableSelect
                     options={designationOptions}
                     value={formData.designation_id}
@@ -1738,6 +1848,9 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={formData.bank_name}
                       onChange={e => setFormData({ ...formData, bank_name: e.target.value })}
                       placeholder="e.g. HDFC Bank, SBI, ICICI"
@@ -1751,6 +1864,9 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={formData.account_number}
                       onChange={e => setFormData({ ...formData, account_number: e.target.value })}
                       placeholder="Enter bank account number..."
@@ -1764,6 +1880,9 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={formData.ifsc_code}
                       onChange={e => setFormData({ ...formData, ifsc_code: e.target.value.toUpperCase() })}
                       placeholder="HDFC0001234"
@@ -1777,6 +1896,9 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={formData.bank_branch}
                       onChange={e => setFormData({ ...formData, bank_branch: e.target.value })}
                       placeholder="e.g. Jubilee Hills, Hyderabad"
@@ -1799,6 +1921,9 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={formData.pan_number}
                       onChange={e => setFormData({ ...formData, pan_number: e.target.value.toUpperCase() })}
                       placeholder="ABCDE1234F"
@@ -1812,6 +1937,9 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={formData.aadhar_number}
                       onChange={e => setFormData({ ...formData, aadhar_number: e.target.value })}
                       placeholder="1234 5678 9012"
@@ -1825,9 +1953,13 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={formData.uan_number}
-                      onChange={e => setFormData({ ...formData, uan_number: e.target.value })}
+                      onChange={e => setFormData({ ...formData, uan_number: e.target.value.replace(/\D/g, '') })}
                       placeholder="100123456789"
+                      maxLength={12}
                       className={inputStyle}
                     />
                   </div>
@@ -1838,6 +1970,9 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <input
                       type="text"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={formData.esi_number}
                       onChange={e => setFormData({ ...formData, esi_number: e.target.value })}
                       placeholder="310012345678"
@@ -2049,6 +2184,9 @@ export default function DedicatedEmployeeEditPage() {
                       <input
                         type="number"
                         min="0"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={formData.retention_bonus}
                         onChange={e => setFormData({ ...formData, retention_bonus: Number(e.target.value) || 0 })}
                         className={inputStyle}
@@ -2065,6 +2203,9 @@ export default function DedicatedEmployeeEditPage() {
                       <input
                         type="number"
                         min="0"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={formData.variable_pay}
                         onChange={e => setFormData({ ...formData, variable_pay: Number(e.target.value) || 0 })}
                         className={inputStyle}
@@ -2103,6 +2244,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.basic_salary || 0}
                             onChange={e => setFormData({ ...formData, basic_salary: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-slate-800 dark:text-slate-200 bg-transparent outline-none"
@@ -2121,6 +2265,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.hra || 0}
                             onChange={e => setFormData({ ...formData, hra: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-slate-800 dark:text-slate-200 bg-transparent outline-none"
@@ -2139,6 +2286,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.conveyance || 0}
                             onChange={e => setFormData({ ...formData, conveyance: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-slate-800 dark:text-slate-200 bg-transparent outline-none"
@@ -2157,6 +2307,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.medical_allowance || 0}
                             onChange={e => setFormData({ ...formData, medical_allowance: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-slate-800 dark:text-slate-200 bg-transparent outline-none"
@@ -2175,6 +2328,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.special_allowance || 0}
                             onChange={e => setFormData({ ...formData, special_allowance: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-slate-800 dark:text-slate-200 bg-transparent outline-none"
@@ -2215,6 +2371,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.employer_pf || 0}
                             onChange={e => setFormData({ ...formData, employer_pf: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-blue-600 dark:text-blue-400 bg-transparent outline-none"
@@ -2233,6 +2392,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.employer_esi || 0}
                             onChange={e => setFormData({ ...formData, employer_esi: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-blue-600 dark:text-blue-400 bg-transparent outline-none"
@@ -2251,6 +2413,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.gratuity || 0}
                             onChange={e => setFormData({ ...formData, gratuity: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-blue-600 dark:text-blue-400 bg-transparent outline-none"
@@ -2291,6 +2456,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.pf_deduction || 0}
                             onChange={e => setFormData({ ...formData, pf_deduction: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-rose-600 dark:text-rose-400 bg-transparent outline-none"
@@ -2309,6 +2477,9 @@ export default function DedicatedEmployeeEditPage() {
                           </div>
                           <input
                             type="number"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={formData.esi_deduction || 0}
                             onChange={e => setFormData({ ...formData, esi_deduction: Number(e.target.value) || 0 })}
                             className="w-24 px-2 py-1.5 text-right font-mono text-xs font-extrabold text-rose-600 dark:text-rose-400 bg-transparent outline-none"
@@ -2433,11 +2604,14 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="e.g. Ramesh Kumar"
                         value={contact.name || ''}
                         onChange={e => {
                           const updated = [...(formData.emergency_contacts || [])];
-                          updated[index] = { ...updated[index], name: e.target.value };
+                          updated[index] = { ...updated[index], name: e.target.value.replace(/[^A-Za-z\s]/g, '') };
                           setFormData({ ...formData, emergency_contacts: updated });
                         }}
                         className={inputStyle}
@@ -2474,6 +2648,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="e.g. +91 9876543210"
                         value={contact.phone || ''}
                         onChange={e => {
@@ -2491,6 +2668,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="Optional alternate phone"
                         value={contact.alt_phone || ''}
                         onChange={e => {
@@ -2508,6 +2688,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="Residential address of emergency contact"
                         value={contact.address || ''}
                         onChange={e => {
@@ -2571,6 +2754,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="e.g. B.Tech / MBA / B.Sc / Class XII"
                         value={edu.degree || ''}
                         onChange={e => {
@@ -2588,6 +2774,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="e.g. Computer Science / HR / Finance"
                         value={edu.field_of_study || ''}
                         onChange={e => {
@@ -2605,6 +2794,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="e.g. JNTU Hyderabad / Osmania University"
                         value={edu.institution || ''}
                         onChange={e => {
@@ -2622,6 +2814,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="e.g. 2022"
                         value={edu.passing_year || ''}
                         onChange={e => {
@@ -2639,6 +2834,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="e.g. 82.5% or 8.5 CGPA"
                         value={edu.percentage || ''}
                         onChange={e => {
@@ -2702,6 +2900,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="e.g. Infosys Ltd"
                         value={exp.company_name || ''}
                         onChange={e => {
@@ -2719,6 +2920,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="e.g. Senior Software Engineer"
                         value={exp.designation || ''}
                         onChange={e => {
@@ -2736,6 +2940,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="date"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={exp.start_date ? exp.start_date.split('T')[0] : ''}
                         onChange={e => {
                           const updated = [...(formData.experience || [])];
@@ -2752,6 +2959,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="date"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={exp.end_date ? exp.end_date.split('T')[0] : ''}
                         onChange={e => {
                           const updated = [...(formData.experience || [])];
@@ -2768,6 +2978,9 @@ export default function DedicatedEmployeeEditPage() {
                       </label>
                       <input
                         type="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         placeholder="Brief summary of duties and responsibilities"
                         value={exp.responsibilities || ''}
                         onChange={e => {
@@ -2798,6 +3011,9 @@ export default function DedicatedEmployeeEditPage() {
                   </label>
                   <input
                     type="text"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     placeholder="e.g. JavaScript, React, Node.js, PostgreSQL, Project Management, HR Analytics"
                     value={formData.skills || ''}
                     onChange={e => setFormData({ ...formData, skills: e.target.value })}
@@ -2815,6 +3031,9 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <textarea
                       rows={3}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       placeholder="e.g. AWS Certified Solutions Architect, PMP Certification, Scrum Master (2023)"
                       value={formData.certifications || ''}
                       onChange={e => setFormData({ ...formData, certifications: e.target.value })}
@@ -2828,6 +3047,9 @@ export default function DedicatedEmployeeEditPage() {
                     </label>
                     <textarea
                       rows={3}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                       placeholder="e.g. English (Fluent), Telugu (Native), Hindi (Professional)"
                       value={formData.languages_known || ''}
                       onChange={e => setFormData({ ...formData, languages_known: e.target.value })}
@@ -2880,6 +3102,113 @@ export default function DedicatedEmployeeEditPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* 🚀 QUICK ADD DESIGNATION MODAL */}
+      {isAddDesignationOpen && createPortal(
+        <div
+          className="fixed inset-0 z-[1000002] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn font-sans"
+          onClick={() => !isSubmittingDesignation && setIsAddDesignationOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-w-md w-full relative space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#07518a]/10 text-[#07518a] dark:text-sky-400 flex items-center justify-center font-bold text-sm">
+                  +
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase text-slate-850 dark:text-white tracking-wider">
+                    Add New Designation
+                  </h4>
+                  <p className="text-[10px] font-semibold text-slate-400">
+                    Quickly create designation in selected department
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isSubmittingDesignation && setIsAddDesignationOpen(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleCreateQuickDesignation} className="p-5 space-y-4">
+              {/* Hierarchy Context Info Badges */}
+              <div className="p-3 rounded-2xl bg-blue-50/40 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-900/40 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between text-[10.5px]">
+                  <span className="font-bold text-slate-500 dark:text-slate-400">Branch:</span>
+                  <span className="font-black text-slate-800 dark:text-slate-200">
+                    {selectedBranch?.name || 'Selected Branch'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10.5px]">
+                  <span className="font-bold text-slate-500 dark:text-slate-400">Department:</span>
+                  <span className="font-black text-[#07518a] dark:text-sky-400">
+                    {selectedDept?.name || 'Selected Department'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Designation Name Input */}
+              <div className="space-y-1.5 text-left">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Designation Title <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={newDesignationName}
+                  onChange={e => setNewDesignationName(e.target.value)}
+                  placeholder="e.g. Senior Software Engineer"
+                  maxLength={50}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-[#07518a]/20 focus:border-[#07518a]"
+                  required
+                />
+              </div>
+
+              {/* Description Input */}
+              <div className="space-y-1.5 text-left">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Description <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  value={newDesignationDesc}
+                  onChange={e => setNewDesignationDesc(e.target.value)}
+                  placeholder="Brief responsibilities or notes..."
+                  rows={2}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-medium text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-[#07518a]/20 focus:border-[#07518a]"
+                />
+              </div>
+
+              {/* Footer Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  disabled={isSubmittingDesignation}
+                  onClick={() => setIsAddDesignationOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingDesignation || !newDesignationName.trim()}
+                  className="px-5 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-black transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmittingDesignation ? 'Saving...' : 'Create & Select'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

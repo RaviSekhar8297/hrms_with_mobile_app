@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import DashboardPageHeader from '../../components/DashboardPageHeader';
 import { useDashboard } from '../../components/DashboardContext';
 import { getHeaders, getUrl } from '../../utils/api';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -793,11 +794,8 @@ export default function EditSalaryStructurePage() {
       )}
 
       {loading ? (
-        <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800">
-          <div className="flex flex-col items-center justify-center gap-2.5">
-            <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading salary structure configuration...</span>
-          </div>
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800">
+          <PageLoader message="Loading salary structure configuration..." />
         </div>
       ) : entryTab === 'bulk' ? (
         /* BULK UPLOAD TAB VIEW */

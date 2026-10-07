@@ -13,6 +13,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import AttendanceSubHeader from '../components/AttendanceSubHeader';
 import { Download, FileSpreadsheet, Calendar, Upload } from 'lucide-react';
 import { getDeviceIdentifier, getDeviceModel } from '../utils/deviceUtils';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -677,8 +678,8 @@ export default function AttendancePage() {
     try {
       const cid = activeCompanyId || localStorage.getItem('companyId');
       const url = cid && cid !== 'all'
-        ? `/api/v1/employees?companyId=${cid}&module=attendance`
-        : '/api/v1/employees?module=attendance';
+        ? `/api/v1/employees?companyId=${cid}&module=attendance&pageSize=500`
+        : '/api/v1/employees?module=attendance&pageSize=500';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -1539,11 +1540,8 @@ export default function AttendancePage() {
             {/* Days Grid Container */}
             <div className="w-full relative min-h-[380px]">
               {isLogsLoading && (
-                <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-xs flex flex-col items-center justify-center p-8 transition-all">
-                  <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="mt-2.5 text-xs font-bold text-slate-600">
-                    Loading Attendance Logs...
-                  </span>
+                <div className="absolute inset-0 z-20 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xs flex items-center justify-center p-8 rounded-xl transition-all">
+                  <PageLoader message="Loading Attendance Logs..." />
                 </div>
               )}
 

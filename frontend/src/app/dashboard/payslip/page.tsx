@@ -7,6 +7,7 @@ import SlideDrawer from '../components/SlideDrawer';
 import { getHeaders, getUrl } from '../utils/api';
 import { useDashboard } from '../components/DashboardContext';
 import ModernPagination from '../components/ModernPagination';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface PayslipRecord {
   id: string;
@@ -139,8 +140,7 @@ export default function PayslipPage() {
   };
 
   useEffect(() => {
-    fetchCompanies();
-    fetchLivePayslips();
+    Promise.all([fetchCompanies(), fetchLivePayslips()]);
   }, [companyId]);
 
   const handleCompanyChange = (id: string) => {
@@ -374,11 +374,8 @@ export default function PayslipPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2.5">
-                      <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading live payslips from database...</span>
-                    </div>
+                  <td colSpan={12} className="py-8 text-center">
+                    <PageLoader message="Loading live payslips from database..." />
                   </td>
                 </tr>
               ) : paginatedPayslips.length === 0 ? (

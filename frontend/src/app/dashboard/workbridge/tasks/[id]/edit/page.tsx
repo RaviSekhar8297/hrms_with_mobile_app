@@ -7,6 +7,7 @@ import { getHeaders, API_BASE } from '../../../../utils/api';
 import { useDashboard } from '../../../../components/DashboardContext';
 import { usePermissions } from '../../../../hooks/usePermissions';
 import SearchableSelect from '../../../../components/SearchableSelect';
+import PageLoader from '@/components/ui/PageLoader';
 import {
   ArrowLeft,
   Save,
@@ -393,9 +394,8 @@ export default function EditTaskPage({ params }: { params: Promise<{ id: string 
 
   if (isLoadingTask) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] py-20">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-        <p className="text-xs font-bold text-slate-500 mt-3">Loading task data...</p>
+      <div className="py-20">
+        <PageLoader message="Loading Task Details..." />
       </div>
     );
   }

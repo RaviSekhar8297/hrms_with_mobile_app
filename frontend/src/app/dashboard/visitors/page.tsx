@@ -78,7 +78,7 @@ export default function VisitorManagement() {
 
       {/* TOOLBAR CARD (TABS + CREATE BUTTON) */}
       <div className="flex-shrink-0 px-8 pb-6">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 border-l-4 border-l-[#07518a] rounded-xl p-2 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
           
           {/* TABS */}
           <div className="flex overflow-x-auto no-scrollbar gap-1">

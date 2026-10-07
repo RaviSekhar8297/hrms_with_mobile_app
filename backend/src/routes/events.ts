@@ -138,6 +138,7 @@ router.get('/today', async (req: AuthenticatedRequest, res: Response): Promise<a
        JOIN hrms.employees emp ON emp.id = ee.employee_id
        LEFT JOIN hrms.designations desg ON desg.id = emp.designation_id
        WHERE ($1 = 'all' OR ee.company_id::text = $1)
+         AND emp.status = 'ACTIVE'
          AND (
            TO_CHAR(ee.event_date, 'YYYY-MM-DD') = $3
            OR TO_CHAR(emp.joining_date, 'MM-DD') = $4

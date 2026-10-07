@@ -7,6 +7,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { getHeaders, API_BASE } from '../utils/api';
 import ModernPagination from '../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import PageLoader from '@/components/ui/PageLoader';
 import { 
   Search, 
   RefreshCw, 
@@ -361,10 +362,7 @@ export default function SummaryCountPage() {
       {/* 📊 SUMMARY TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="p-12 flex flex-col items-center justify-center gap-3">
-            <div className="w-8 h-8 rounded-full border-4 border-[#07518a] border-t-transparent animate-spin" />
-            <span className="text-xs font-medium text-slate-400">Loading attendance summaries...</span>
-          </div>
+          <PageLoader message="Loading attendance summaries..." />
         ) : paginatedRecords.length === 0 ? (
           <div className="p-12 text-center">
             <div className="text-4xl mb-3 text-slate-300 dark:text-slate-600">📊</div>

@@ -7,6 +7,7 @@ import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import { getHeaders } from '../utils/api';
 import { usePermissions } from '../hooks/usePermissions';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -978,29 +979,27 @@ export default function PayrollFormulaEnginePage() {
             <span>⚠️</span> You don't have permission to access any Formula modules.
           </div>
         ) : (
-          <div className="border-b border-slate-200/60 dark:border-slate-800/80 pb-px">
-            <nav className="flex gap-1.5 overflow-x-auto no-scrollbar pt-1">
-              {visibleTabs.map(tab => {
-                const isSelected = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setSearchQuery('');
-                      setCurrentPage(1);
-                    }}
-                    className={`py-2 px-3.5 rounded-xl text-xs font-semibold tracking-normal transition-all duration-200 cursor-pointer flex-shrink-0 border-0 ${
-                      isSelected
-                        ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/20'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </nav>
+          <div className="p-1.5 bg-slate-100/80 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 inline-flex flex-wrap gap-1.5 max-w-full">
+            {visibleTabs.map(tab => {
+              const isSelected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setSearchQuery('');
+                    setCurrentPage(1);
+                  }}
+                  className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex-shrink-0 border flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-[#07518a] text-white border-[#07518a] shadow-sm shadow-[#07518a]/20'
+                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -1119,11 +1118,8 @@ export default function PayrollFormulaEnginePage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="p-12 text-center">
-                      <div className="flex flex-col items-center justify-center gap-2.5">
-                        <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading salary engine data...</span>
-                      </div>
+                    <td colSpan={10} className="p-8 text-center">
+                      <PageLoader message="Loading salary engine data..." />
                     </td>
                   </tr>
                 ) : paginatedConfigs.length === 0 ? (

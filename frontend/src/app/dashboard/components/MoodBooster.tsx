@@ -877,12 +877,12 @@ export default function MoodBooster({ userName }: MoodBoosterProps) {
       <button
         onClick={handleOpen}
         type="button"
-        className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-blue-500/10 via-amber-500/10 to-indigo-500/10 dark:from-blue-950/40 dark:via-amber-950/40 dark:to-indigo-950/40 border border-[#07518a]/30 dark:border-[#07518a]/50 hover:border-[#07518a] text-[#07518a] dark:text-[#38bdf8] font-extrabold text-xs shadow-2xs hover:shadow-md hover:scale-105 transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 shrink-0"
-        title="2-Minute Fun Break & Dynamic Puzzle Lounge"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500/10 via-amber-500/10 to-indigo-500/10 dark:from-blue-950/40 dark:via-amber-950/40 dark:to-indigo-950/40 border border-[#07518a]/30 dark:border-[#07518a]/50 hover:border-[#07518a] text-[#07518a] dark:text-[#38bdf8] font-extrabold text-xs shadow-2xs hover:shadow-md hover:scale-105 transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 shrink-0"
+        title="Relax & Mind Refresh Lounge"
       >
         <span className="text-sm animate-bounce">🧩</span>
         <span className="hidden sm:inline font-black tracking-tight bg-gradient-to-r from-[#07518a] to-blue-600 dark:from-[#38bdf8] dark:to-blue-400 bg-clip-text text-transparent">
-          2-Min Break
+          Relax
         </span>
       </button>
 

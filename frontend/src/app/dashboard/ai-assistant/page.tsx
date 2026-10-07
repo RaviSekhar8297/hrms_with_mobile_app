@@ -24,8 +24,9 @@ export default function AiAssistantPage() {
     {
       id: '1',
       sender: 'ai',
-      text: 'Namaste! Welcome to your **100% Free Lifetime HR AI Console**.\n\nI am configured to run locally or via free tier open-source inference models. How can I assist you with HR operations today?',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      text: 'Namaste! Welcome to your **HR AI Assistant**.\n\nHow can I assist you with HR operations today?',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      suggestedActions: ['Policy', 'Attendance', 'Leaves', 'Shift Timings']
     }
   ]);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -84,10 +85,15 @@ export default function AiAssistantPage() {
   const [parsedData, setParsedData] = useState<any>(null);
 
   const handleParseResume = async () => {
+    if (!selectedFile) {
+      showToast?.('Please choose a PDF or DOC resume file first.', 'info');
+      return;
+    }
+    setParsedData(null);
     setParseLoading(true);
     try {
       const formData = new FormData();
-      if (selectedFile) formData.append('resume', selectedFile);
+      formData.append('resume', selectedFile);
       formData.append('targetRole', targetRole);
 
       const res = await fetch('/ai-assistant-api/parse-resume', {
@@ -97,7 +103,7 @@ export default function AiAssistantPage() {
       const result = await res.json();
       if (res.ok && result.data) {
         setParsedData(result.data);
-        showToast?.('Resume parsed successfully with 100% Free Local AI!', 'success');
+        showToast?.('Resume parsed and candidate profile extracted successfully!', 'success');
       } else {
         throw new Error(result.error || 'Resume parsing failed');
       }
@@ -285,7 +291,7 @@ export default function AiAssistantPage() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Upload Candidate Resume</h3>
-              <p className="text-xs text-slate-500">Supports PDF, DOCX formats. Extracted automatically using open-source AI.</p>
+              <p className="text-xs text-slate-500">Supports PDF, DOC, DOCX formats. Extracted automatically using AI.</p>
             </div>
 
             <div>
@@ -300,15 +306,17 @@ export default function AiAssistantPage() {
             </div>
 
             {/* Drag & Drop File Zone */}
-            <div className="border-2 border-dashed border-indigo-300 dark:border-indigo-800/80 bg-indigo-50/30 dark:bg-indigo-950/20 rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                📄
+            <div className={`border-2 border-dashed ${selectedFile ? 'border-emerald-400 bg-emerald-50/20 dark:bg-emerald-950/20' : 'border-indigo-300 dark:border-indigo-800/80 bg-indigo-50/30 dark:bg-indigo-950/20'} rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-3 transition-colors`}>
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl">
+                {selectedFile ? '📄' : '📁'}
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
                   {selectedFile ? selectedFile.name : 'Click or Drop candidate resume PDF here'}
                 </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Maximum file size: 10 MB</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB • Ready to submit` : 'Maximum file size: 10 MB'}
+                </p>
               </div>
               <input
                 type="file"
@@ -321,73 +329,167 @@ export default function AiAssistantPage() {
                 htmlFor="resume-upload-input"
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
               >
-                Select Resume File
+                {selectedFile ? 'Change Resume File' : 'Select Resume File'}
               </label>
             </div>
 
             <button
               onClick={handleParseResume}
               disabled={parseLoading}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl font-bold text-xs transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl font-bold text-xs transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              {parseLoading ? 'Extracting Resume Data with AI...' : 'Parse Resume & Screen Match'}
+              {parseLoading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span>Extracting & Screening Candidate Profile...</span>
+                </>
+              ) : (
+                <>
+                  <span>⚡ Parse Resume & Screen Match</span>
+                </>
+              )}
             </button>
           </div>
 
           {/* Parsed Result Display */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3">
-              AI Candidate Match Profile
-            </h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-4 relative overflow-hidden flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>AI Candidate Match Profile</span>
+                  {parsedData && (
+                    <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+                      Parsed Live
+                    </span>
+                  )}
+                </h3>
+              </div>
 
-            {parsedData ? (
-              <div className="space-y-4 animate-in fade-in">
-                <div className="flex items-center justify-between p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl">
+              {/* 🔄 INSIDE AI LOADER STATE */}
+              {parseLoading ? (
+                <div className="py-10 flex flex-col items-center justify-center text-center space-y-5 animate-in fade-in">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border-2 border-indigo-500 flex items-center justify-center text-indigo-600 dark:text-indigo-400 animate-pulse">
+                      <svg className="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                    </div>
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-indigo-500 animate-ping" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                      AI Resume Scanner in Progress
+                    </h4>
+                    <p className="text-xs text-slate-500 max-w-xs">
+                      Extracting candidate Contact Info (Name, Email, Mobile), Skill Tags & Match Score...
+                    </p>
+                  </div>
+
+                  {/* Simulated Shimmer Skeleton */}
+                  <div className="w-full space-y-2.5 pt-2">
+                    <div className="h-10 bg-slate-100 dark:bg-slate-800/60 rounded-xl animate-pulse w-full" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="h-14 bg-slate-100 dark:bg-slate-800/60 rounded-xl animate-pulse" />
+                      <div className="h-14 bg-slate-100 dark:bg-slate-800/60 rounded-xl animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              ) : parsedData ? (
+                <div className="space-y-4 animate-in fade-in">
+                  {/* Candidate Contact & Header Banner */}
+                  <div className="p-4 bg-gradient-to-br from-indigo-50/80 via-purple-50/50 to-blue-50/80 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-blue-950/40 border border-indigo-100 dark:border-indigo-900/60 rounded-2xl space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md">
+                          {parsedData.candidateName ? parsedData.candidateName.charAt(0).toUpperCase() : 'C'}
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Candidate Name</span>
+                          <h4 className="font-extrabold text-base text-slate-900 dark:text-white leading-tight">
+                            {parsedData.candidateName}
+                          </h4>
+                          <p className="text-xs text-slate-500 font-medium">Applied for: {parsedData.targetRole}</p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 shadow-xs">
+                        <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">{parsedData.matchScore}</span>
+                        <p className="text-[9px] font-black text-slate-500 uppercase">Match Score</p>
+                      </div>
+                    </div>
+
+                    {/* Explicit Contact Details Cards: Email & Phone/Mobile */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-indigo-100/80 dark:border-indigo-900/40">
+                      <div className="flex items-center gap-2 p-2 bg-white/90 dark:bg-slate-900/90 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                        <span className="text-sm">✉️</span>
+                        <div className="overflow-hidden">
+                          <span className="text-[10px] text-slate-400 font-bold block uppercase">Email Address</span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block" title={parsedData.email}>
+                            {parsedData.email}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 p-2 bg-white/90 dark:bg-slate-900/90 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                        <span className="text-sm">📱</span>
+                        <div className="overflow-hidden">
+                          <span className="text-[10px] text-slate-400 font-bold block uppercase">Mobile / Phone</span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block" title={parsedData.phone || parsedData.mobile}>
+                            {parsedData.phone || parsedData.mobile}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Experience & Verdict */}
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-slate-400 font-bold block text-[10px] uppercase">Experience</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{parsedData.experienceYears}</span>
+                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-slate-400 font-bold block text-[10px] uppercase">AI Verdict</span>
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400">{parsedData.recommendedVerdict}</span>
+                    </div>
+                  </div>
+
+                  {/* Extracted Skills */}
                   <div>
-                    <h4 className="font-bold text-sm text-emerald-900 dark:text-emerald-200">{parsedData.candidateName}</h4>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-400">{parsedData.email} • {parsedData.phone}</p>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">Extracted Skill Tags</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {parsedData.extractedSkills.map((skill: string, i: number) => (
+                        <span key={i} className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg text-xs font-semibold">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{parsedData.matchScore}</span>
-                    <p className="text-[10px] font-bold text-emerald-700 uppercase">Match Score</p>
+
+                  {/* AI Summary */}
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">AI Executive Summary</span>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700 leading-relaxed">
+                      {parsedData.summary}
+                    </p>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <span className="text-slate-400 font-semibold block text-[10px] uppercase">Experience</span>
-                    <span className="font-bold text-slate-900 dark:text-white">{parsedData.experienceYears}</span>
+              ) : (
+                <div className="h-64 flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl">
+                    📄
                   </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <span className="text-slate-400 font-semibold block text-[10px] uppercase">Verdict</span>
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400">{parsedData.recommendedVerdict}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1.5">Extracted Skill Tags</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {parsedData.extractedSkills.map((skill: string, i: number) => (
-                      <span key={i} className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg text-xs font-semibold">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">AI Executive Summary</span>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 leading-relaxed">
-                    {parsedData.summary}
+                  <p className="text-xs font-medium text-slate-500 max-w-xs">
+                    Upload a candidate resume PDF/DOC on the left and click submit to view extracted profile & contact details here.
                   </p>
                 </div>
-              </div>
-            ) : (
-              <div className="h-64 flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
-                <span className="text-4xl">📄</span>
-                <p className="text-xs font-medium">Upload a candidate resume on the left to view parsed AI breakdown here.</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

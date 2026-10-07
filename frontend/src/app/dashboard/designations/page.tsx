@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
@@ -9,6 +10,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { usePermissions } from '../hooks/usePermissions';
 import ModernPagination from '../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -66,6 +68,7 @@ export default function DesignationsPage() {
 
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(16);
 
@@ -73,6 +76,7 @@ export default function DesignationsPage() {
   const [editMode, setEditMode] = useState(false);
   const [selectedDesignationId, setSelectedDesignationId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [deletingDesignation, setDeletingDesignation] = useState<Designation | null>(null);
 
   // Form states
@@ -84,11 +88,13 @@ export default function DesignationsPage() {
   const canEdit = isSuperAdmin || hasPermission('designations_edit');
   const canDelete = isSuperAdmin || hasPermission('designations_delete');
 
-  const filteredDesignations = designations.filter(ds =>
-    ds.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ds.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (ds.department_name && ds.department_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredDesignations = designations.filter(ds => {
+    const matchesSearch = ds.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (ds.description && ds.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (ds.department_name && ds.department_name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesDept = selectedDeptFilter === 'ALL' || ds.department_id === selectedDeptFilter;
+    return matchesSearch && matchesDept;
+  });
 
   const totalItems = filteredDesignations.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
@@ -98,7 +104,7 @@ export default function DesignationsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [companyId, searchTerm, pageSize]);
+  }, [companyId, searchTerm, pageSize, selectedDeptFilter]);
 
   useEffect(() => {
     const storedRoles = localStorage.getItem('roles');
@@ -137,15 +143,15 @@ export default function DesignationsPage() {
 
   const fetchBranchesAndDepartments = async () => {
     try {
-      const resB = await fetch(getUrl('/api/v1/branches', companyId), { headers: getHeaders() });
-      const dataB = await resB.json();
+      const [resB, resD] = await Promise.all([
+        fetch(getUrl('/api/v1/branches', companyId), { headers: getHeaders() }),
+        fetch(getUrl('/api/v1/departments', companyId), { headers: getHeaders() })
+      ]);
+      const [dataB, dataD] = await Promise.all([resB.json(), resD.json()]);
       if (resB.ok) {
         setBranches(dataB.branches || []);
         if (!isSuperAdmin) setDrawerBranches(dataB.branches || []);
       }
-
-      const resD = await fetch(getUrl('/api/v1/departments', companyId), { headers: getHeaders() });
-      const dataD = await resD.json();
       if (resD.ok) {
         setDepartments(dataD.departments || []);
         if (!isSuperAdmin) setDrawerDepartments(dataD.departments || []);
@@ -164,20 +170,12 @@ export default function DesignationsPage() {
   };
 
   useEffect(() => {
-    if (isSuperAdmin) {
-      fetchCompanies();
-    }
-    fetchBranchesAndDepartments();
-    fetchDesignations();
+    Promise.all([
+      isSuperAdmin ? fetchCompanies() : Promise.resolve(),
+      fetchBranchesAndDepartments(),
+      fetchDesignations()
+    ]);
   }, [companyId, isSuperAdmin]);
-
-  useEffect(() => {
-    if (!deletingDesignation) return;
-    const timer = setTimeout(() => {
-      setDeletingDesignation(null);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [deletingDesignation]);
 
   // Cascading handler when company selection changes in drawer
   const handleDrawerCompanyChange = async (targetCompanyId: string) => {
@@ -222,6 +220,11 @@ export default function DesignationsPage() {
       return;
     }
 
+    if (desigForm.description && desigForm.description.trim().length > 150) {
+      showToast('Description cannot exceed 150 characters', 'error');
+      return;
+    }
+
     // Duplicate check within department/company
     const cleanName = desigForm.name.trim().toLowerCase();
     const isDuplicate = designations.some(d => 
@@ -246,8 +249,8 @@ export default function DesignationsPage() {
         method,
         headers: getHeaders(),
         body: JSON.stringify({
-          name: desigForm.name,
-          description: desigForm.description,
+          name: desigForm.name.trim(),
+          description: desigForm.description.trim(),
           branch_id: desigForm.branch_id,
           department_id: desigForm.department_id,
           companyId: targetCompanyId,
@@ -277,7 +280,7 @@ export default function DesignationsPage() {
     setSelectedDesignationId(ds.id);
     setDesigForm({
       name: ds.name,
-      description: ds.description,
+      description: ds.description || '',
       branch_id: ds.branch_id,
       department_id: ds.department_id,
       companyId: ds.company_id || '',
@@ -298,6 +301,7 @@ export default function DesignationsPage() {
   };
 
   const executeDeleteDesignation = async (id: string) => {
+    setIsDeleting(true);
     try {
       const res = await fetch(`/api/v1/designations/${id}`, {
         method: 'DELETE',
@@ -306,12 +310,15 @@ export default function DesignationsPage() {
       const data = await res.json();
       if (res.ok) {
         showToast('Designation deleted successfully!', 'success');
+        setDeletingDesignation(null);
         fetchDesignations();
       } else {
         showToast(data.error || 'Failed to delete designation', 'error');
       }
     } catch (err) {
       showToast('Failed to delete designation', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -355,7 +362,7 @@ export default function DesignationsPage() {
 
   if (roles.length > 0 && !canView) {
     return (
-      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn">
+      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn font-dmsans">
         <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-3xl">
           🔒
         </div>
@@ -368,7 +375,7 @@ export default function DesignationsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn font-dmsans">
       <div className="w-full">
         <DashboardPageHeader
           title="Job Designations Builder"
@@ -384,165 +391,69 @@ export default function DesignationsPage() {
         />
       </div>
 
-      {/* Slide Drawer for creation/editing */}
-      <SlideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} title={editMode ? "Modify Designation" : "Create Designation"}>
-        <form onSubmit={handleSaveDesignation} className="space-y-5 text-left">
-          
-          {isSuperAdmin && (
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-                1. Select Company
-              </label>
-              <SearchableSelect
-                placeholder="Select Company Context"
-                options={companies.map(c => ({ value: c.id, label: c.name }))}
-                value={desigForm.companyId}
-                onChange={val => handleDrawerCompanyChange(val)}
-                disabled={editMode}
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              2. Office Branch
-            </label>
-            <SearchableSelect
-              placeholder="Select Office Branch"
-              options={drawerBranches.map(b => ({ value: b.id, label: b.name }))}
-              value={desigForm.branch_id}
-              onChange={val => setDesigForm({ ...desigForm, branch_id: val, department_id: '' })}
-              disabled={isSuperAdmin && !desigForm.companyId}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              3. Associated Department
-            </label>
-            <SearchableSelect
-              placeholder="Select Department"
-              options={drawerDepartments.filter(d => d.branch_id === desigForm.branch_id).map(d => ({ value: d.id, label: d.name }))}
-              value={desigForm.department_id}
-              onChange={val => setDesigForm({ ...desigForm, department_id: val })}
-              disabled={!desigForm.branch_id}
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                Designation Title *
-              </label>
-              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                {desigForm.name.length}/50
-              </span>
-            </div>
-            <input
-              type="text"
-              placeholder="e.g. Lead Software Engineer"
-              maxLength={50}
-              value={desigForm.name}
-              onChange={e => setDesigForm({ ...desigForm, name: e.target.value.slice(0, 50) })}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-450 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-              Description <span className="text-slate-400 lowercase text-[10px] font-normal">(optional)</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Full-stack tech owner"
-              value={desigForm.description}
-              onChange={e => setDesigForm({ ...desigForm, description: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-450 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-            />
-          </div>
-
-          {editMode && (
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">
-                Status
-              </label>
-              <select
-                value={desigForm.status}
-                onChange={e => setDesigForm({ ...desigForm, status: e.target.value })}
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 transition-all duration-200"
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
-            </div>
-          )}
-
-          <button 
-            type="submit" 
-            disabled={isSaving}
-            className="w-full py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-xs font-bold text-white shadow-md shadow-[#07518a]/20 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isSaving && (
-              <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+      {/* Main Listing Container */}
+      <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/80 bg-card p-6 shadow-sm space-y-6">
+        
+        {/* Search & Action Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div className="relative w-full sm:max-w-xs">
+            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-            )}
-            {isSaving ? (editMode ? 'Saving changes...' : 'Creating...') : (editMode ? 'Save Designation changes' : 'Create Designation')}
-          </button>
-        </form>
-      </SlideDrawer>
-
-      {/* Grid List View */}
-      <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-card p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5 border-b border-slate-100 dark:border-slate-800 pb-3.5">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-250">
-              Designations list
-            </h3>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
-              {filteredDesignations.length} Total
             </span>
+            <input
+              type="text"
+              placeholder="Search designations..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a] focus:bg-card focus:ring-2 focus:ring-[#07518a]/20 transition-all duration-200 font-medium font-dmsans"
+            />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {/* Search Input */}
-            <div className="relative flex-1 sm:w-64">
-              <i className="fa-solid fa-magnifying-glass text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 text-xs pointer-events-none"></i>
-              <input
-                type="text"
-                placeholder="Search designation..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-search pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 transition-all"
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            <div className="w-full sm:w-60">
+              <SearchableSelect
+                placeholder="All Departments"
+                value={selectedDeptFilter}
+                onChange={(val) => setSelectedDeptFilter(val)}
+                options={[
+                  { value: 'ALL', label: 'All Departments' },
+                  ...departments.map((dept) => ({
+                    value: dept.id,
+                    label: dept.branch_name ? `${dept.name} (${dept.branch_name})` : dept.name
+                  }))
+                ]}
               />
             </div>
 
-            {/* ADD DESIGNATION BUTTON IN CONTROLS ROW */}
             {canCreate && (
               <button
                 onClick={openAddDrawer}
-                className="px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-extrabold shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:shadow-[#07518a]/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0 font-dmsans"
               >
-                <i className="fa-solid fa-plus text-xs"></i>
-                <span>Add Designation</span>
+                <span className="flex h-4 w-4 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors flex-shrink-0">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                </span>
+                <span className="tracking-wide font-bold">+ Create Designation</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* CARD FORMAT GRID VIEW */}
+        {/* Card Grid View */}
         {loading ? (
-          <div className="p-16 text-center space-y-3">
-            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Designations...</p>
-          </div>
+          <PageLoader message="Loading Designations..." />
         ) : paginatedDesignations.length === 0 ? (
-          <div className="py-16 text-center text-slate-400 dark:text-slate-500">
-            <i className="fa-solid fa-folder-open text-4xl mb-3 block text-slate-300 dark:text-slate-600"></i>
-            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">
-              {searchTerm ? 'No matching designations found.' : 'No designations registered yet.'}
-            </h4>
+          <div className="py-16 text-center text-slate-400 dark:text-slate-500 font-bold tracking-wide border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+            <div className="flex flex-col items-center gap-2">
+              <svg className="w-9 h-9 text-slate-300 dark:text-slate-700" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              <span>{searchTerm || selectedDeptFilter !== 'ALL' ? 'No matching designations found.' : 'No designations registered yet.'}</span>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -552,14 +463,14 @@ export default function DesignationsPage() {
                 <div
                   key={ds.id}
                   style={{ boxShadow: 'rgba(14, 30, 37, 0.12) 0px 2px 4px 0px, rgba(14, 30, 37, 0.32) 0px 2px 16px 0px' }}
-                  className="group relative rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-card p-5 hover:border-purple-300 dark:hover:border-purple-800/60 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden space-y-4"
+                  className="group relative rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-card p-5 hover:border-[#07518a]/50 dark:hover:border-[#07518a]/60 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden space-y-4"
                 >
-                  <div>
-                    {/* Header: Light Color Icon + Status Pill */}
-                    <div className="flex items-center justify-between gap-2 mb-3.5">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 dark:from-purple-950/60 dark:via-indigo-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-lg shrink-0 border border-purple-100 dark:border-purple-900/40 shadow-xs group-hover:scale-110 transition-transform duration-300">
-                        <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  <div className="space-y-3">
+                    {/* Header: Icon + Status Pill */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#07518a] to-[#0d6db8] text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-md shadow-[#07518a]/20 group-hover:scale-105 transition-transform duration-300">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21c-2.676 0-5.216-.584-7.499-1.632z" />
                         </svg>
                       </div>
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex-shrink-0 ${
@@ -572,30 +483,49 @@ export default function DesignationsPage() {
                       </span>
                     </div>
 
-                    {/* Designation Title */}
-                    <h4 className="text-base font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors tracking-tight line-clamp-1" title={ds.name}>
-                      {ds.name}
-                    </h4>
-
-                    {/* Department Badge */}
-                    <div className="flex items-center gap-1.5 mt-1.5 mb-2">
-                      <svg className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.72m12 0a5.971 5.971 0 00-.941-3.197M6 18.72a5.971 5.971 0 01.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 005.058 2.772m-10.116 0A9.094 9.094 0 012.25 15.52a3 3 0 014.682-2.72m0 0c.148.274.321.533.516.776M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                      </svg>
-                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate">
-                        {ds.department_name || 'Department N/A'}
+                    {/* Designation Title with Tooltip */}
+                    <div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-[#07518a] dark:group-hover:text-[#3894db] transition-colors tracking-tight line-clamp-1 cursor-default">
+                            {ds.name}
+                          </h4>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <span className="font-semibold">{ds.name}</span>
+                        </TooltipContent>
+                      </Tooltip>
+                      <span className="text-[9.5px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest font-dmsans">
+                        Designation
                       </span>
                     </div>
 
+                    {/* Department Badge with Tooltip */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="p-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 flex items-center gap-2 cursor-default">
+                          <svg className="w-3.5 h-3.5 text-[#07518a] dark:text-[#3894db] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.72m12 0a5.971 5.971 0 00-.941-3.197M6 18.72a5.971 5.971 0 01.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 005.058 2.772m-10.116 0A9.094 9.094 0 012.25 15.52a3 3 0 014.682-2.72m0 0c.148.274.321.533.516.776M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                          </svg>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">
+                            {ds.department_name || 'Department N/A'}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <span>Department: {ds.department_name || 'N/A'}</span>
+                      </TooltipContent>
+                    </Tooltip>
+
                     {/* Description */}
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                      {ds.description || 'No designation description provided.'}
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed min-h-[32px]">
+                      {ds.description || <span className="text-slate-400 italic">No designation description provided.</span>}
                     </p>
                   </div>
 
                   {/* Actions Footer */}
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 mt-auto">
-                    <div className="flex flex-col text-[10px] font-bold font-mono">
+                    <div className="flex flex-col text-[10px] font-bold font-dmsans">
                       <span className="text-[8.5px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest">Created At</span>
                       <span className="text-slate-600 dark:text-slate-300 font-bold">
                         {formatDateTime(ds.created_at || (ds as any).createdAt)}
@@ -607,7 +537,7 @@ export default function DesignationsPage() {
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => handleEditClick(ds)}
-                              className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60 hover:bg-gradient-to-r hover:from-blue-600 hover:to-indigo-600 hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-blue-500/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/edit"
+                              className="h-8 w-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#07518a] dark:text-[#3894db] border border-blue-200/80 dark:border-blue-800/60 hover:bg-[#07518a] hover:text-white hover:border-transparent shadow-xs hover:shadow-md hover:shadow-[#07518a]/25 active:scale-95 transition-all duration-200 cursor-pointer flex items-center justify-center group/edit"
                             >
                               <svg className="w-4 h-4 transition-transform group-hover/edit:scale-110" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 20.089a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
@@ -657,13 +587,128 @@ export default function DesignationsPage() {
         )}
       </div>
 
-      {/* 🗑️ DELETION CONFIRMATION INTERACTIVE TOAST OVERLAY */}
-      {deletingDesignation && (
-        <>
-          <div className="fixed inset-0 z-[90] bg-black/25 backdrop-blur-[2px]" onClick={() => setDeletingDesignation(null)} />
-          <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[100] w-[310px] animate-slideIn">
-            <div className="rounded-2xl border border-slate-200 dark:border-red-900/40 bg-white dark:bg-[#1c1624] shadow-2xl shadow-black/40 overflow-hidden">
-              <div className="h-1 w-full bg-gradient-to-r from-rose-600 to-red-400" />
+      {/* Slide Drawer for creation/editing */}
+      <SlideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} title={editMode ? "Modify Designation" : "Create Designation"}>
+        <form onSubmit={handleSaveDesignation} className="space-y-5 text-left font-dmsans">
+          
+          {isSuperAdmin && (
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 font-dmsans">
+                1. Select Company
+              </label>
+              <SearchableSelect
+                placeholder="Select Company Context"
+                options={companies.map(c => ({ value: c.id, label: c.name }))}
+                value={desigForm.companyId}
+                onChange={val => handleDrawerCompanyChange(val)}
+                disabled={editMode}
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 font-dmsans">
+              2. Office Branch *
+            </label>
+            <SearchableSelect
+              placeholder="Select Office Branch"
+              options={drawerBranches.map(b => ({ value: b.id, label: b.name }))}
+              value={desigForm.branch_id}
+              onChange={val => setDesigForm({ ...desigForm, branch_id: val, department_id: '' })}
+              disabled={isSuperAdmin && !desigForm.companyId}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 font-dmsans">
+              3. Associated Department *
+            </label>
+            <SearchableSelect
+              placeholder="Select Department"
+              options={drawerDepartments.filter(d => d.branch_id === desigForm.branch_id).map(d => ({ value: d.id, label: d.name }))}
+              value={desigForm.department_id}
+              onChange={val => setDesigForm({ ...desigForm, department_id: val })}
+              disabled={!desigForm.branch_id}
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest font-dmsans">
+                Designation Title *
+              </label>
+              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 font-dmsans">
+                {desigForm.name.length}/50
+              </span>
+            </div>
+            <input
+              type="text"
+              placeholder="e.g. Lead Software Engineer"
+              maxLength={50}
+              value={desigForm.name}
+              onChange={e => setDesigForm({ ...desigForm, name: e.target.value.slice(0, 50) })}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-[#07518a] focus:bg-card focus:ring-2 focus:ring-[#07518a]/20 transition-all duration-200 font-medium font-dmsans"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest font-dmsans">
+                Description <span className="text-slate-400 lowercase text-[10px] font-normal">(optional)</span>
+              </label>
+              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 font-dmsans">
+                {desigForm.description.length}/150
+              </span>
+            </div>
+            <input
+              type="text"
+              placeholder="e.g. Full-stack tech owner (max 150 characters)"
+              maxLength={150}
+              value={desigForm.description}
+              onChange={e => setDesigForm({ ...desigForm, description: e.target.value.slice(0, 150) })}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-[#07518a] focus:bg-card focus:ring-2 focus:ring-[#07518a]/20 transition-all duration-200 font-medium font-dmsans"
+            />
+          </div>
+
+          {editMode && (
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 font-dmsans">
+                Status
+              </label>
+              <select
+                value={desigForm.status}
+                onChange={e => setDesigForm({ ...desigForm, status: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-[#07518a] focus:bg-card focus:ring-2 focus:ring-[#07518a]/20 transition-all duration-200 font-bold font-dmsans"
+              >
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="INACTIVE">INACTIVE</option>
+              </select>
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            disabled={isSaving}
+            className="w-full py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-xs font-bold text-white shadow-md shadow-[#07518a]/20 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-dmsans"
+          >
+            {isSaving && (
+              <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            )}
+            {isSaving ? (editMode ? 'Saving changes...' : 'Creating...') : (editMode ? 'Save Designation changes' : 'Create Designation')}
+          </button>
+        </form>
+      </SlideDrawer>
+
+      {/* 🗑️ DELETION CONFIRMATION DIALOG (Full-screen Body Portal) */}
+      {typeof document !== 'undefined' && deletingDesignation && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 font-dmsans">
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm animate-fadeIn" onClick={() => !isDeleting && setDeletingDesignation(null)} />
+          <div className="relative z-10 w-full max-w-[360px] animate-scaleUp">
+            <div className="rounded-2xl border border-slate-200 dark:border-rose-900/40 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
+              <div className="h-1.5 w-full bg-gradient-to-r from-rose-600 to-red-400" />
               <div className="p-5">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="h-10 w-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 flex items-center justify-center flex-shrink-0">
@@ -679,7 +724,7 @@ export default function DesignationsPage() {
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">This action cannot be undone</p>
                   </div>
                 </div>
-                <div className="mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
+                <div className="mb-5 p-3.5 rounded-xl bg-rose-50/70 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
                   <p className="text-[12px] text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
                     Delete designation{' '}
                     <span className="font-black text-rose-600 dark:text-rose-400">&ldquo;{deletingDesignation.name}&rdquo;</span>?
@@ -690,15 +735,31 @@ export default function DesignationsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => { executeDeleteDesignation(deletingDesignation.id); setDeletingDesignation(null); }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-[0.97] text-white text-[11px] font-bold cursor-pointer shadow-md shadow-rose-600/25 transition-all"
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => executeDeleteDesignation(deletingDesignation.id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-[0.97] text-white text-[11px] font-bold cursor-pointer shadow-md shadow-rose-600/25 transition-all border-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
-                    Yes, Delete
+                    {isDeleting ? (
+                      <>
+                        <svg className="animate-spin h-3 w-3 text-white" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+                        Yes, Delete
+                      </>
+                    )}
                   </button>
                   <button
+                    type="button"
+                    disabled={isDeleting}
                     onClick={() => setDeletingDesignation(null)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-650 dark:text-slate-330 text-[11px] font-bold cursor-pointer border border-slate-200 dark:border-slate-700 transition-all"
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold cursor-pointer border border-slate-200 dark:border-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
@@ -706,7 +767,8 @@ export default function DesignationsPage() {
               </div>
             </div>
           </div>
-        </>
+        </div>,
+        document.body
       )}
     </div>
   );

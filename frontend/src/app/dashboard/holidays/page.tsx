@@ -10,6 +10,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { Calendar, Building2, Plus, Search, Edit3, Trash2, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { DatePickerSimple } from '@/components/ui/custom-controls';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -147,8 +148,7 @@ export default function HolidaysPage() {
   }, [isSuperAdmin]);
 
   useEffect(() => {
-    fetchHolidays();
-    fetchBranches();
+    Promise.all([fetchHolidays(), fetchBranches()]);
   }, [companyId, roles]);
 
   const handleCompanyChange = (id: string) => {
@@ -385,19 +385,19 @@ export default function HolidaysPage() {
   }, [currentYear]);
 
   const MONTH_FILTERS = [
-    { key: 'ALL', label: 'All' },
-    { key: 'JAN', label: 'Jan' },
-    { key: 'FEB', label: 'Feb' },
-    { key: 'MAR', label: 'Mar' },
-    { key: 'APR', label: 'Apr' },
+    { key: 'ALL', label: 'All Months' },
+    { key: 'JAN', label: 'January' },
+    { key: 'FEB', label: 'February' },
+    { key: 'MAR', label: 'March' },
+    { key: 'APR', label: 'April' },
     { key: 'MAY', label: 'May' },
-    { key: 'JUN', label: 'Jun' },
-    { key: 'JUL', label: 'Jul' },
-    { key: 'AUG', label: 'Aug' },
-    { key: 'SEP', label: 'Sep' },
-    { key: 'OCT', label: 'Oct' },
-    { key: 'NOV', label: 'Nov' },
-    { key: 'DEC', label: 'Dec' },
+    { key: 'JUN', label: 'June' },
+    { key: 'JUL', label: 'July' },
+    { key: 'AUG', label: 'August' },
+    { key: 'SEP', label: 'September' },
+    { key: 'OCT', label: 'October' },
+    { key: 'NOV', label: 'November' },
+    { key: 'DEC', label: 'December' },
   ];
 
   const filteredHolidays = React.useMemo(() => {
@@ -575,10 +575,7 @@ export default function HolidaysPage() {
 
         {/* ALL HOLIDAYS DIRECT UNIFIED DISPLAY GRID */}
         {isLoading ? (
-          <div className="p-16 text-center space-y-3 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Holidays...</p>
-          </div>
+          <PageLoader message="Loading Holidays Calendar..." />
         ) : activeTab === 'list' ? (
           <div>
             {filteredHolidays.length === 0 ? (
@@ -591,99 +588,134 @@ export default function HolidaysPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredHolidays.map((h) => (
-                  <div
-                    key={h.id}
-                    className="group relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between"
-                  >
-                    <div className="p-4 space-y-3">
-                      <div className="flex justify-between items-start gap-2">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                          h.is_restricted
-                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60'
-                            : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60'
-                        }`}>
-                          {h.is_restricted ? 'Restricted (RH)' : 'General Holiday'}
-                        </span>
+                {filteredHolidays.map((h) => {
+                  const isRestricted = !!h.is_restricted;
+                  return (
+                    <div
+                      key={h.id}
+                      className={`group relative rounded-2xl border transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-md ${
+                        isRestricted
+                          ? 'border-amber-200/80 dark:border-amber-800/40 bg-gradient-to-b from-amber-500/[0.05] via-amber-500/[0.015] to-white dark:from-amber-950/30 dark:via-slate-900/60 dark:to-slate-900 hover:border-amber-300 dark:hover:border-amber-700/70 hover:shadow-amber-500/5'
+                          : 'border-emerald-200/80 dark:border-emerald-800/40 bg-gradient-to-b from-emerald-500/[0.05] via-emerald-500/[0.015] to-white dark:from-emerald-950/30 dark:via-slate-900/60 dark:to-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700/70 hover:shadow-emerald-500/5'
+                      }`}
+                    >
+                      <div className="p-4 space-y-3.5">
+                        {/* Badge and Day info Header */}
+                        <div className="flex justify-between items-center gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              isRestricted
+                                ? 'bg-amber-50/90 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/60'
+                                : 'bg-emerald-50/90 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isRestricted ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'
+                              }`}
+                            />
+                            {isRestricted ? 'Restricted (RH)' : 'General Holiday'}
+                          </span>
 
-                        {h.company_name && (
-                          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9.5px] font-bold truncate max-w-[120px] border border-slate-200/60 dark:border-slate-700/60" title={h.company_name}>
-                            🏢 {h.company_name}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex gap-3 items-center">
-                        {/* DATE BADGE */}
-                        <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center shrink-0 w-14 text-center">
-                          <span className={`text-[9.5px] font-black uppercase tracking-wider ${
-                            h.is_restricted ? 'text-amber-600 dark:text-amber-400' : 'text-[#07518a] dark:text-[#38bdf8]'
-                          }`}>
-                            {h.monthShort}
-                          </span>
-                          <span className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none my-0.5 font-mono">
-                            {h.dayNum}
-                          </span>
-                          <span className="text-[9px] font-bold text-slate-400">
-                            {h.year}
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                              isRestricted
+                                ? 'text-amber-700 dark:text-amber-300 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/50 dark:border-amber-800/30'
+                                : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/50 dark:border-emerald-800/30'
+                            }`}
+                          >
+                            {h.dayName}
                           </span>
                         </div>
 
-                        {/* HOLIDAY DETAILS */}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 truncate" title={h.name}>
-                            {h.name}
-                          </h4>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-400 font-medium line-clamp-2 mt-0.5">
-                            {h.description || 'Official holiday observance.'}
-                          </p>
+                        {/* Main Date & Details Row */}
+                        <div className="flex gap-3.5 items-center">
+                          {/* CALENDAR DATE BLOCK */}
+                          <div
+                            className={`rounded-xl border bg-white dark:bg-slate-800/90 shadow-2xs overflow-hidden flex flex-col items-center justify-center shrink-0 min-w-[72px] text-center ${
+                              isRestricted
+                                ? 'border-amber-200/80 dark:border-amber-800/60'
+                                : 'border-emerald-200/80 dark:border-emerald-800/60'
+                            }`}
+                          >
+                            <div
+                              className={`w-full py-0.5 px-1 text-[9px] font-black uppercase tracking-wider text-center border-b truncate ${
+                                isRestricted
+                                  ? 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-100 dark:border-amber-900/50'
+                                  : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-900/50'
+                              }`}
+                            >
+                              {h.monthFull}
+                            </div>
+                            <div className="py-1 px-2 flex flex-col items-center justify-center">
+                              <span className="text-xl font-black text-slate-800 dark:text-slate-100 font-mono leading-none tracking-tight">
+                                {h.dayNum}
+                              </span>
+                              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 leading-none">
+                                {h.year}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* HOLIDAY DETAILS */}
+                          <div className="flex-1 min-w-0">
+                            <h4
+                              className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-[#07518a] dark:group-hover:text-sky-400 transition-colors truncate"
+                              title={h.name}
+                            >
+                              {h.name}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-2 mt-1 leading-relaxed">
+                              {h.description || 'Official company holiday observance.'}
+                            </p>
+                          </div>
                         </div>
                       </div>
+
+                      {/* CARD ACTIONS - CLEAN & DIRECT */}
+                      {(canEdit || canDelete) && (
+                        <div
+                          className={`px-4 py-2 border-t flex justify-end items-center gap-2 ${
+                            isRestricted
+                              ? 'bg-amber-500/[0.02] dark:bg-slate-900/50 border-amber-100/70 dark:border-slate-800/80'
+                              : 'bg-emerald-500/[0.02] dark:bg-slate-900/50 border-emerald-100/70 dark:border-slate-800/80'
+                          }`}
+                        >
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewHolidayForm({
+                                  id: String(h.id),
+                                  name: h.name,
+                                  holiday_date: h.formattedYMD || (h.holiday_date ? String(h.holiday_date).match(/^(\d{4}-\d{2}-\d{2})/)?.[1] || '' : ''),
+                                  description: h.description,
+                                  is_restricted: h.is_restricted,
+                                  company_id: h.company_id
+                                });
+                                setAddHolidayDrawerOpen(true);
+                              }}
+                              className="group/editbtn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-[#07518a] dark:text-sky-400 border border-[#07518a]/30 dark:border-sky-500/30 hover:!bg-[#07518a] hover:!border-[#07518a] hover:!text-white dark:hover:!bg-[#07518a] dark:hover:!text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-[#07518a] dark:text-sky-400 group-hover/editbtn:!text-white transition-colors" />
+                              <span className="text-[#07518a] dark:text-sky-400 group-hover/editbtn:!text-white transition-colors">Edit</span>
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteHoliday(h.id, h.name, h.company_id)}
+                              className="group/delbtn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60 hover:!bg-rose-600 hover:!border-rose-600 hover:!text-white dark:hover:!bg-rose-600 dark:hover:!text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 group-hover/delbtn:!text-white transition-colors" />
+                              <span className="text-rose-600 dark:text-rose-400 group-hover/delbtn:!text-white transition-colors">Delete</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-
-                    {/* CARD ACTIONS */}
-                    {(canEdit || canDelete) && (
-                      <div className="px-4 py-2.5 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex justify-end items-center gap-1.5">
-                        {canEdit && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => {
-                                  setNewHolidayForm({
-                                    id: String(h.id),
-                                    name: h.name,
-                                    holiday_date: h.formattedYMD || (h.holiday_date ? String(h.holiday_date).match(/^(\d{4}-\d{2}-\d{2})/)?.[1] || '' : ''),
-                                    description: h.description,
-                                    is_restricted: h.is_restricted,
-                                    company_id: h.company_id
-                                  });
-                                  setAddHolidayDrawerOpen(true);
-                                }}
-                                className="p-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-[#07518a] dark:hover:text-[#38bdf8] hover:border-[#07518a]/40 text-xs font-bold border border-slate-200 dark:border-slate-700 cursor-pointer transition-colors"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>Edit Holiday</TooltipContent>
-                          </Tooltip>
-                        )}
-                        {canDelete && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleDeleteHoliday(h.id, h.name, h.company_id)}
-                                className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-xs font-bold border border-rose-200/80 dark:border-rose-800/80 cursor-pointer transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete Holiday</TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -794,8 +826,8 @@ export default function HolidaysPage() {
                                 }`}
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
-                                  <div className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center shrink-0 font-mono text-[9px] font-bold text-slate-700 dark:text-slate-300">
-                                    {info.monthShort} {info.dayNum}
+                                  <div className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center shrink-0 font-mono text-[9.5px] font-bold text-slate-700 dark:text-slate-300">
+                                    {info.monthFull} {info.dayNum}
                                   </div>
                                   <div className="min-w-0">
                                     <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 truncate" title={h.name}>

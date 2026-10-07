@@ -8,6 +8,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { getDeviceModel } from '../../utils/deviceUtils';
 import ModernPagination from '../../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface DeviceItem {
   employee_id: string;
@@ -136,9 +137,7 @@ export default function DeviceBindingPage() {
   }, []);
 
   useEffect(() => {
-    fetchDevices();
-    fetchApiKeys();
-    fetchAccessBindings();
+    Promise.all([fetchDevices(), fetchApiKeys(), fetchAccessBindings()]);
   }, [activeCompanyId]);
 
   const fetchCompanies = async () => {
@@ -468,10 +467,7 @@ export default function DeviceBindingPage() {
           {/* Access Binding Table */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden shadow-xs">
             {loadingAccess ? (
-              <div className="p-16 text-center space-y-3">
-                <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Access Settings...</p>
-              </div>
+              <PageLoader message="Loading Access Settings..." />
             ) : (
               (() => {
                 const filtered = accessBindings.filter(b => {
@@ -772,10 +768,7 @@ export default function DeviceBindingPage() {
           {/* TABLE DATA */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden shadow-xs">
             {loading ? (
-              <div className="p-16 text-center space-y-3">
-                <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Mobile Device Bindings...</p>
-              </div>
+              <PageLoader message="Loading Mobile Device Bindings..." />
             ) : paginatedDevices.length === 0 ? (
               <div className="p-16 text-center text-xs text-slate-400 font-bold uppercase tracking-wider">
                 No matching employee device bindings found.
@@ -1004,10 +997,7 @@ export default function DeviceBindingPage() {
             </div>
 
             {loadingKeys ? (
-              <div className="p-16 text-center space-y-3">
-                <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Tenant API Keys...</p>
-              </div>
+              <PageLoader message="Loading Tenant API Keys..." />
             ) : apiKeys.length === 0 ? (
               <div className="p-16 text-center text-xs text-slate-400 font-bold uppercase tracking-wider">
                 No active device API keys generated yet. Click "Generate New Device API Key" above to create one.

@@ -8,6 +8,7 @@ import { useDashboard } from '../components/DashboardContext';
 import { getHeaders, API_BASE } from '../utils/api';
 import ModernPagination from '../components/ModernPagination';
 import { DatePickerSimple } from '@/components/ui/custom-controls';
+import PageLoader from '@/components/ui/PageLoader';
 import { 
   Calendar, 
   Search, 
@@ -461,16 +462,20 @@ export default function AttendanceSummaryPage() {
       <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-2xs space-y-4">
         
         {/* Controls Header */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <FileSpreadsheet size={16} className="text-indigo-500" />
-              <span>Attendance Summary Audit Table</span>
-            </h3>
-            <p className="text-[11px] text-slate-400">Detailed overview of employee attendance logs and timesheets</p>
-          </div>
-
+        <div className="flex flex-wrap items-center justify-between gap-2.5 w-full">
           <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+            {/* 🔍 Search Input (FIRST) */}
+            <div className="relative min-w-[200px] sm:w-56">
+              <Search size={14} className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search staff, code..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-2.5 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold outline-none focus:border-indigo-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-2xs"
+              />
+            </div>
+
             {/* From Date Filter */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-extrabold text-slate-600 dark:text-slate-300">From:</span>
@@ -516,19 +521,9 @@ export default function AttendanceSummaryPage() {
               <option value="HALF_DAY">Half Day</option>
               <option value="LATE">Late</option>
             </select>
+          </div>
 
-            {/* Search Input */}
-            <div className="relative flex-1 sm:w-48">
-              <Search size={14} className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search staff, code..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-2.5 py-1.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-bold outline-none focus:border-indigo-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 shadow-2xs"
-              />
-            </div>
-
+          <div className="flex items-center gap-2.5">
             {/* Upload Punches CSV Button */}
             {canUploadCsv && (
               <button
@@ -537,7 +532,7 @@ export default function AttendanceSummaryPage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
               >
                 <Upload size={16} />
-                <span>Upload CSV</span>
+                <span>Upload</span>
               </button>
             )}
 
@@ -574,11 +569,8 @@ export default function AttendanceSummaryPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white/50 dark:bg-slate-900/50 text-xs sm:text-sm font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center">
-                    <div className="p-16 text-center space-y-3">
-                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Attendance Summary Logs...</p>
-                    </div>
+                  <td colSpan={11} className="py-8 text-center">
+                    <PageLoader message="Loading Attendance Summary Logs..." />
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
@@ -608,27 +600,27 @@ export default function AttendanceSummaryPage() {
                           </span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 font-mono font-black text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                      <td className="py-3.5 px-4 font-black text-slate-800 dark:text-slate-200 whitespace-nowrap">
                         {formatDateDisplay(r.attendance_date || r.date)}
                       </td>
                       <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300 font-bold whitespace-nowrap">
                         {r.shift_name || 'General Shift'}
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
                         {shiftStartFormatted}
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center text-slate-800 dark:text-slate-200 font-bold whitespace-nowrap">
                         {shiftEndFormatted}
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-slate-700 dark:text-slate-300 text-xs whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center text-slate-700 dark:text-slate-300 text-xs whitespace-nowrap">
                         <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 font-bold border border-slate-200 dark:border-slate-700">
                           {graceInFormatted}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-slate-900 dark:text-slate-100 font-black whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center text-slate-900 dark:text-slate-100 font-black whitespace-nowrap">
                         {formatTimeOnly(r.first_in)}
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-slate-900 dark:text-slate-100 font-black whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center text-slate-900 dark:text-slate-100 font-black whitespace-nowrap">
                         {formatTimeOnly(r.last_out)}
                       </td>
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
@@ -644,10 +636,10 @@ export default function AttendanceSummaryPage() {
                           {derivedStatus}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-black text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-right font-black text-slate-900 dark:text-slate-100 whitespace-nowrap">
                         {r.worked_minutes ? (r.worked_minutes / 60).toFixed(1) + ' hrs' : '0.0 hrs'}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-black text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-right font-black text-rose-600 dark:text-rose-400 whitespace-nowrap">
                         {getDerivedLateMins(r)} mins
                       </td>
                     </tr>

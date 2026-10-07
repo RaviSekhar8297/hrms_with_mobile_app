@@ -15,31 +15,22 @@ export async function POST(req: NextRequest) {
     const queryLower = message.toLowerCase();
     let reply = '';
     let category = 'general';
-    let suggestedActions: string[] = [];
+    const suggestedActions: string[] = ['Policy', 'Attendance', 'Leaves', 'Shift Timings'];
 
-    if (queryLower.includes('leave') || queryLower.includes('casual') || queryLower.includes('sick')) {
-      category = 'leaves';
-      reply = `**Leave Policy Summary & Status:**\n- **Casual Leaves (CL):** 12 Days/Year (1 day/month accrued).\n- **Sick Leaves (SL):** 12 Days/Year.\n- **Earned Leaves (EL):** Encashed or carried forward at year-end.\n\n*Tip:* You can apply directly under **Dashboard -> Leaves** menu.`;
-      suggestedActions = ['Apply Leave', 'View Leave Balance', 'Leave Rules PDF'];
-    } else if (queryLower.includes('permission') || queryLower.includes('late') || queryLower.includes('early')) {
+    if (queryLower.includes('policy') || queryLower.includes('rule') || queryLower.includes('lunch') || queryLower.includes('start') || queryLower.includes('exit')) {
+      category = 'policy';
+      reply = `🏢 **Company Attendance Policy:**\n• **Starting Time:** 09:30 AM\n• **Exit Time:** 06:30 PM (18:30)\n• **Lunch Timings:** 01:15 PM to 02:00 PM (13:15 to 14:00)\n• **Grace Period:** 15 mins (up to 09:45 AM)\n• **Half-Day:** Minimum 4.5 working hours required.`;
+    } else if (queryLower.includes('attendance') || queryLower.includes('present') || queryLower.includes('working') || queryLower.includes('month') || queryLower.includes('holiday') || queryLower.includes('weekoff')) {
       category = 'attendance';
-      reply = `**Permission & Short Absence Rules:**\n- Employees get up to **2 Permissions per month** (Max 2 hours per permission).\n- Late arrivals over 15 mins require team manager approval.\n- You can track your permissions under **Dashboard -> Attendance -> Permissions**.`;
-      suggestedActions = ['Request Permission', 'View Attendance Log'];
-    } else if (queryLower.includes('payslip') || queryLower.includes('salary') || queryLower.includes('payroll') || queryLower.includes('tax')) {
-      category = 'payroll';
-      reply = `**Payroll & Payslip Guidelines:**\n- Salaries are disbursed on the 1st of every month.\n- Monthly payslips are generated under **Dashboard -> Payslip**.\n- Tax savings declarations can be uploaded under Payroll Settings.`;
-      suggestedActions = ['Download Latest Payslip', 'Salary Breakdown'];
-    } else if (queryLower.includes('shift') || queryLower.includes('timing') || queryLower.includes('hours')) {
+      reply = `📅 **This Month's Attendance Summary:**\n• **Total Working Days:** 26 Days\n• **Present Days:** 22 Days\n• **Leaves Taken:** 1 Day\n• **Company Holidays:** 1 Day\n• **Weekoffs:** 4 Days`;
+    } else if (queryLower.includes('leave') || queryLower.includes('sick') || queryLower.includes('casual') || queryLower.includes('balance')) {
+      category = 'leaves';
+      reply = `🌴 **Available Leave Balances:**\n• **Casual Leaves (CL):** 3 Available\n• **Sick Leaves (SL):** 3 Available\n• **Earned Leaves (EL):** 3 Available\n• **Total Available Leaves:** 9 Days`;
+    } else if (queryLower.includes('shift') || queryLower.includes('timing') || queryLower.includes('hour') || queryLower.includes('general')) {
       category = 'shifts';
-      reply = `**Shift Timings:**\n- **General Shift:** 09:30 AM - 06:30 PM (Mon - Fri)\n- **Flexi Shift:** Core hours 11:00 AM - 04:00 PM.\n- Overtime is logged automatically via biometric sync.`;
-      suggestedActions = ['View Shift Schedule', 'Swap Shift'];
-    } else if (queryLower.includes('resume') || queryLower.includes('candidate') || queryLower.includes('recruit') || queryLower.includes('hiring')) {
-      category = 'recruitment';
-      reply = `**Smart AI Candidate Screening:**\n- Upload candidate resumes (PDF/Doc) in the **Resume Parser** tab of this AI Console.\n- The AI automatically scores candidate match percentage, extracts skills, and highlights work experience.`;
-      suggestedActions = ['Open Resume Parser', 'View Open Positions'];
+      reply = `⏰ **Current Shift Details:**\n• **Assigned Shift:** General Shift\n• **Shift Timings:** 09:30 AM to 06:30 PM (18:30)\n• **Working Days:** Monday to Saturday (Alternate Weekoffs)`;
     } else {
-      reply = `Hello! I am your **100% Free Lifetime HR AI Agent**.\n\nI am currently powered by **${model}**.\n\nHow can I assist you today? You can ask me about:\n- **Leave balances & policy rules**\n- **Permissions & shift timings**\n- **Payslips & salary info**\n- **Resume screening & recruitment**`;
-      suggestedActions = ['Check Leave Balance', 'Permission Rules', 'Company Holidays', 'Smart Resume Parser'];
+      reply = `Namaste! 👋 I am your **HR AI Assistant**.\n\nPlease select any of the topics below for instant information:`;
     }
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
@@ -8,6 +9,7 @@ import { useDashboard } from '../components/DashboardContext';
 import { usePermissions } from '../hooks/usePermissions';
 import ModernPagination from '../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -63,7 +65,7 @@ export default function CompaniesPage() {
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
   const canView = isSuperAdmin || hasPermission('companies_view');
-  const canCreate = isSuperAdmin || hasPermission('companies_create');
+  const canCreate = isSuperAdmin;
   const canEdit = isSuperAdmin || hasPermission('companies_edit');
   const canDelete = isSuperAdmin || hasPermission('companies_delete');
 
@@ -287,7 +289,7 @@ export default function CompaniesPage() {
               placeholder="Search corporate tenants..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-search pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200"
+              className="w-full pl-9 pr-4 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200"
             />
           </div>
 
@@ -297,7 +299,7 @@ export default function CompaniesPage() {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:bg-card focus:ring-1 focus:ring-blue-100 cursor-pointer"
+                className="h-10 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:bg-card focus:ring-1 focus:ring-blue-100 cursor-pointer"
               >
                 <option value="ALL">Show All</option>
                 <option value="ACTIVE">ACTIVE</option>
@@ -309,14 +311,14 @@ export default function CompaniesPage() {
             {canCreate && (
               <button
                 onClick={openAddDrawer}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:shadow-[#07518a]/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
+                className="inline-flex items-center gap-2 px-4 h-10 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:shadow-[#07518a]/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
               >
                 <span className="flex h-4.5 w-4.5 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors flex-shrink-0">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
                 </span>
-                <span className="tracking-wide">Onboard Tenant</span>
+                <span className="tracking-wide">Create Tenant</span>
               </button>
             )}
           </div>
@@ -327,7 +329,7 @@ export default function CompaniesPage() {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest text-[9.5px] select-none">
-                <th className="py-3.5 px-3 w-36 text-center">Identity</th>
+                <th className="py-3.5 px-3 w-36 text-center">Logo</th>
                 <th className="py-3.5 px-4">Company Details</th>
                 <th className="py-3.5 px-4">Subdomain Access</th>
                 <th className="py-3.5 px-4">Connected Domain</th>
@@ -340,11 +342,8 @@ export default function CompaniesPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-850/60">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-16 text-center">
-                    <div className="space-y-3">
-                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Companies...</p>
-                    </div>
+                  <td colSpan={8} className="p-8 text-center">
+                    <PageLoader message="Loading Companies..." />
                   </td>
                 </tr>
               ) : paginatedCompanies.map(c => {
@@ -390,15 +389,32 @@ export default function CompaniesPage() {
                         )}
                         <div className="flex items-center gap-1.5">
                           <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">CODE:</span>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-mono font-extrabold text-[10.5px] border border-indigo-200/70 dark:border-indigo-900/50 uppercase tracking-wider">
-                            {c.company_code || c.subdomain?.toUpperCase() || 'COMP'}
-                          </span>
+                          {(() => {
+                            const rawCode = c.company_code || c.subdomain?.toUpperCase() || 'COMP';
+                            const displayCode = rawCode.length > 10 ? `${rawCode.slice(0, 10)}...` : rawCode;
+                            return rawCode.length > 10 ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-extrabold text-[10.5px] border border-indigo-200/70 dark:border-indigo-900/50 uppercase tracking-wider cursor-default">
+                                    {displayCode}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="font-bold text-xs">
+                                  {rawCode}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-extrabold text-[10.5px] border border-indigo-200/70 dark:border-indigo-900/50 uppercase tracking-wider">
+                                {displayCode}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     </td>
 
                     {/* Subdomain */}
-                    <td className="py-3.5 px-4 font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">
+                    <td className="py-3.5 px-4 font-bold text-blue-600 dark:text-blue-400 text-xs">
                       {c.subdomain && `${c.subdomain}.hrms.com`.length > 30 ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -407,7 +423,7 @@ export default function CompaniesPage() {
                               <span className="truncate">{`${c.subdomain}.hrms.com`.slice(0, 30)}...</span>
                             </div>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs font-mono font-bold text-xs">
+                          <TooltipContent side="top" className="max-w-xs font-bold text-xs">
                             {c.subdomain}.hrms.com
                           </TooltipContent>
                         </Tooltip>
@@ -422,14 +438,14 @@ export default function CompaniesPage() {
                     {/* Connected Domain */}
                     <td className="py-3.5 px-4">
                       {c.domain ? (
-                        <div className="inline-flex items-center gap-1.5 font-mono text-slate-700 dark:text-slate-300 font-bold border border-slate-200/80 dark:border-slate-800 px-2.5 py-1 rounded-xl bg-slate-50/50 dark:bg-slate-950/20 max-w-max">
+                        <div className="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-bold border border-slate-200/80 dark:border-slate-800 px-2.5 py-1 rounded-xl bg-slate-50/50 dark:bg-slate-950/20 max-w-max">
                           <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-.778.099-1.533.284-2.253m0 0L21 12" />
                           </svg>
                           <span>{c.domain}</span>
                         </div>
                       ) : (
-                        <span className="text-slate-400 dark:text-slate-600 font-medium italic select-none">No custom domain linked</span>
+                        <span className="text-slate-400 dark:text-slate-500 text-[11px] font-medium select-none">No Domain</span>
                       )}
                     </td>
 
@@ -454,7 +470,7 @@ export default function CompaniesPage() {
                     </td>
 
                     {/* Established Date */}
-                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300 font-mono font-medium text-xs">
+                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300 font-medium text-xs">
                       {c.established_date ? (
                         <span>{new Date(c.established_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                       ) : (
@@ -463,7 +479,7 @@ export default function CompaniesPage() {
                     </td>
 
                     {/* Created At */}
-                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-mono font-bold">
+                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-bold">
                       {new Date(c.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
 
@@ -539,7 +555,7 @@ export default function CompaniesPage() {
       </div>
 
       {/* Slide Drawer for Onboarding & Editing */}
-      <SlideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} title={editMode ? "Modify Tenant Company" : "Onboard New Tenant"}>
+      <SlideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} title={editMode ? "Modify Tenant Company" : "Create New Tenant"}>
         <form onSubmit={handleSaveCompany} className="space-y-5">
 
           <div>
@@ -569,7 +585,7 @@ export default function CompaniesPage() {
               type="text" placeholder="e.g. BTL, ACME"
               value={companyForm.company_code}
               onChange={e => setCompanyForm({ ...companyForm, company_code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '') })}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200 font-mono font-bold uppercase"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200 font-bold uppercase"
             />
           </div>
 
@@ -582,7 +598,7 @@ export default function CompaniesPage() {
                 type="text" placeholder="e.g. acme"
                 value={companyForm.subdomain}
                 onChange={e => setCompanyForm({ ...companyForm, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 pl-3.5 pr-24 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200 font-mono"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 pl-3.5 pr-24 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200"
               />
               <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider select-none bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                 .hrms.com
@@ -598,7 +614,7 @@ export default function CompaniesPage() {
               type="date"
               value={companyForm.established_date}
               onChange={e => setCompanyForm({ ...companyForm, established_date: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200 font-mono font-medium"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200 font-medium"
             />
           </div>
 
@@ -610,7 +626,7 @@ export default function CompaniesPage() {
               type="text" placeholder="e.g. acme.com"
               value={companyForm.domain}
               onChange={e => setCompanyForm({ ...companyForm, domain: e.target.value.toLowerCase().trim() })}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200 font-mono"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 focus:bg-card focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all duration-200"
             />
           </div>
 
@@ -736,7 +752,7 @@ export default function CompaniesPage() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                 </svg>
               )}
-              {isSaving ? (editMode ? "Saving Changes..." : "Registering...") : (editMode ? "Save Changes" : "Register Corporate Tenant")}
+              {isSaving ? (editMode ? "Saving Changes..." : "Creating...") : (editMode ? "Save Changes" : "Create Tenant")}
             </button>
 
             {!editMode && (
@@ -752,12 +768,12 @@ export default function CompaniesPage() {
         </form>
       </SlideDrawer>
 
-      {/* 🗑️ DELETION CONFIRMATION DIALOG */}
-      {deletingCompany && (
-        <>
-          <div className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-[2px]" onClick={() => setDeletingCompany(null)} />
-          <div className="fixed right-6 top-1/2 -translate-y-1/2 z-[100] w-[320px] animate-slideIn">
-            <div className="rounded-2xl border border-slate-200 dark:border-rose-900/40 bg-card shadow-2xl overflow-hidden">
+      {/* 🗑️ DELETION CONFIRMATION DIALOG (Full-screen Body Portal) */}
+      {typeof document !== 'undefined' && deletingCompany && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm animate-fadeIn" onClick={() => setDeletingCompany(null)} />
+          <div className="relative z-10 w-full max-w-[360px] animate-scaleUp">
+            <div className="rounded-2xl border border-slate-200 dark:border-rose-900/40 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
               <div className="h-1.5 w-full bg-gradient-to-r from-rose-600 to-red-400" />
               <div className="p-5">
                 <div className="flex items-center gap-3 mb-4">
@@ -785,13 +801,15 @@ export default function CompaniesPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => { executeDeleteCompany(deletingCompany.id); setDeletingCompany(null); }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-[0.97] text-white text-[11px] font-bold cursor-pointer shadow-md shadow-rose-600/25 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-[0.97] text-white text-[11px] font-bold cursor-pointer shadow-md shadow-rose-600/25 transition-all border-0"
                   >
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
                     Yes, Delete
                   </button>
                   <button
+                    type="button"
                     onClick={() => setDeletingCompany(null)}
                     className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold cursor-pointer border border-slate-200 dark:border-slate-700 transition-all"
                   >
@@ -801,7 +819,8 @@ export default function CompaniesPage() {
               </div>
             </div>
           </div>
-        </>
+        </div>,
+        document.body
       )}
 
     </div>

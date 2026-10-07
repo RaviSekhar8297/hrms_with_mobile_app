@@ -7,6 +7,7 @@ import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import CustomDatePicker from '../../components/CustomDatePicker';
+import PageLoader from '@/components/ui/PageLoader';
 
 export default function LeaveRequestsPage() {
   const { showToast, companyId } = useDashboard();
@@ -96,12 +97,14 @@ export default function LeaveRequestsPage() {
 
   useEffect(() => {
     if (canView) {
-      fetchEmployees();
-      fetchLeaveTypes();
-      fetchHolidays();
-      fetchWeekoffs();
-      fetchBalances();
-      fetchMyRequests();
+      Promise.all([
+        fetchEmployees(),
+        fetchLeaveTypes(),
+        fetchHolidays(),
+        fetchWeekoffs(),
+        fetchBalances(),
+        fetchMyRequests()
+      ]);
     }
   }, [companyId, canView]);
 
@@ -133,7 +136,7 @@ export default function LeaveRequestsPage() {
   const fetchEmployees = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`/api/v1/employees?companyId=${cid}`, { headers: getHeaders() });
+      const res = await fetch(`/api/v1/employees?companyId=${cid}&pageSize=500`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) setEmployees(data.employees || []);
     } catch (e) {
@@ -659,10 +662,7 @@ export default function LeaveRequestsPage() {
       {/* 📜 LEAVE REQUESTS TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="p-16 text-center space-y-3">
-            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Leave Requests...</p>
-          </div>
+          <PageLoader message="Loading Leave Requests..." className="py-16" />
         ) : filteredRequests.length === 0 ? (
           <div className="p-12 text-center">
             <span className="text-4xl block mb-2">🏖️</span>

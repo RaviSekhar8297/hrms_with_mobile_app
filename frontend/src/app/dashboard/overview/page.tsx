@@ -1977,6 +1977,7 @@ function EmployeeDashboard({
     
     return allEmps
       .filter(emp => {
+        if ((emp.status || 'ACTIVE').toUpperCase() !== 'ACTIVE') return false;
         if (!emp.dob) return false;
         const parts = emp.dob.split('T')[0].split('-');
         if (parts.length < 3) return false;
@@ -1998,6 +1999,7 @@ function EmployeeDashboard({
     
     return allEmps
       .filter(emp => {
+        if ((emp.status || 'ACTIVE').toUpperCase() !== 'ACTIVE') return false;
         if (!emp.joining_date) return false;
         const parts = emp.joining_date.split('T')[0].split('-');
         if (parts.length < 3) return false;

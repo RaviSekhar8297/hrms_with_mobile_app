@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useDashboard } from '../components/DashboardContext';
+import DashboardPageHeader from '../components/DashboardPageHeader';
 import SlideDrawer from '../components/SlideDrawer';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Mail, MessageSquare, Megaphone, Bell } from 'lucide-react';
 
 export default function GlobalConfigurationPage() {
   const { companyId: globalCompanyId } = useDashboard();
@@ -70,6 +71,18 @@ export default function GlobalConfigurationPage() {
   const canDeleteRules = isSuperAdmin || permissions.includes('delete_notification_configurations') || permissions.includes('*');
 
   const activeCompanyId = globalCompanyId || selectedCompanyId;
+
+  const handleCompanyChange = (id: string) => {
+    setSelectedCompanyId(id);
+  };
+
+  const CONFIG_TABS = [
+    { id: 'email', label: 'Email Gateway', icon: Mail, show: canViewEmail },
+    { id: 'whatsapp', label: 'WhatsApp Gateway', icon: MessageSquare, show: canViewWhatsapp },
+    { id: 'campaigns', label: 'Broadcast Campaigns', icon: Megaphone, show: canViewCampaigns },
+    { id: 'rules', label: 'Notification Rules', icon: Bell, show: canViewRules },
+  ] as const;
+  const visibleTabs = CONFIG_TABS.filter(t => t.show);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -499,125 +512,54 @@ export default function GlobalConfigurationPage() {
         </div>
       )}
 
-      {/* HERO BANNER & QUICK METRICS */}
-      <div className="relative rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-4 sm:p-5 md:p-6 shadow-xs overflow-hidden flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-5">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#07518a] via-blue-600 to-sky-500 opacity-90" />
-        
-        <div className="space-y-1 text-left">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8] bg-[#07518a]/10 dark:bg-[#07518a]/20 px-2 py-0.5 rounded-full border border-[#07518a]/20">
-              System Control Console
-            </span>
-            <span className="text-[9px] sm:text-[9.5px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">• Communications & Triggers</span>
-          </div>
-          <h2 className="text-sm sm:text-base md:text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-            Company Communication Configurations ⚙️
-          </h2>
-          <p className="text-[11.5px] sm:text-xs font-normal text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
-            Manage corporate Email SMTP gateways, Meta WhatsApp API keys, broadcast campaign templates, and automated candidate notification rules.
-          </p>
-        </div>
+      {/* 🚀 HEADER DETAILS CARD */}
+      <DashboardPageHeader
+        title="Company Communication Configurations"
+        actionMessage=""
+        actionError=""
+        companies={companies}
+        companyId={activeCompanyId || selectedCompanyId}
+        handleCompanyChange={handleCompanyChange}
+        isSuperAdmin={isSuperAdmin}
+        hideCompanySelect={!isSuperAdmin}
+        hideUserBadge={true}
+        noneLabel="All Companies"
+      />
 
-        {/* KPI COUNTERS */}
-        <div className="grid grid-cols-1 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
-          <div className="bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-3 py-2 rounded-xl text-left shadow-2xs transition-all hover:border-blue-300 dark:hover:border-blue-700">
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#07518a]"></div>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Email Gateway</span>
-            </div>
-            <div className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-0.5 flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${integrations.find(d => d.provider === 'SMTP')?.is_active ? 'bg-emerald-500 animate-pulse shadow-xs shadow-emerald-500/50' : 'bg-slate-400'}`} />
-              {integrations.find(d => d.provider === 'SMTP')?.is_active ? 'Active' : 'Not Configured'}
-            </div>
+      {/* Navigation Tabs Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {visibleTabs.length === 0 ? (
+          <div className="flex items-center gap-3 p-4 rounded-2xl border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 text-xs font-bold">
+            <span>⚠️</span> You don't have permission to view Configurations. Contact your administrator.
           </div>
-
-          <div className="bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-3 py-2 rounded-xl text-left shadow-2xs transition-all hover:border-emerald-300 dark:hover:border-emerald-700">
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Whatsap Gateway</span>
-            </div>
-            <div className="text-xs font-bold text-slate-700 dark:text-slate-200 mt-0.5 flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'bg-emerald-500 animate-pulse shadow-xs shadow-emerald-500/50' : 'bg-slate-400'}`} />
-              {integrations.find(d => d.provider === 'WHATSAPP')?.is_active ? 'Connected' : 'Offline'}
-            </div>
+        ) : (
+          <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center gap-1 font-sans overflow-x-auto no-scrollbar">
+            {visibleTabs.map(tab => {
+              const isActive = activeTab === tab.id;
+              const IconComponent = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 whitespace-nowrap border-0 ${
+                    isActive
+                      ? 'bg-[#07518a] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 font-semibold hover:text-[#07518a] dark:hover:text-[#38bdf8] hover:bg-white/60 dark:hover:bg-slate-700/60'
+                  }`}
+                >
+                  <IconComponent className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
-
-          <div className="bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 px-3 py-2 rounded-xl text-left shadow-2xs transition-all hover:border-indigo-300 dark:hover:border-indigo-700">
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Templates</span>
-            </div>
-            <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">
-              {campaigns.length} Configured
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* NAVIGATION TABS */}
-      <div className="flex overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 bg-white dark:bg-slate-900 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-        {canViewEmail && (
-          <button 
-            onClick={() => setActiveTab('email')} 
-            className={`flex items-center gap-2 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'email' 
-                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.01]' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            Email Gateway
-          </button>
-        )}
-        
-        {canViewWhatsapp && (
-          <button 
-            onClick={() => setActiveTab('whatsapp')} 
-            className={`flex items-center gap-2 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'whatsapp' 
-                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.01]' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            Whatsap Gateway
-          </button>
         )}
 
-        {canViewCampaigns && (
-          <button 
-            onClick={() => setActiveTab('campaigns')} 
-            className={`flex items-center gap-2 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'campaigns' 
-                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.01]' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.684A1.001 1.001 0 014.5 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.5c.4 0 .762.238.916.606l.02.048" />
-            </svg>
-            Broadcast Campaigns
-          </button>
-        )}
-
-        {canViewRules && (
-          <button 
-            onClick={() => setActiveTab('rules')} 
-            className={`flex items-center gap-2 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'rules' 
-                ? 'bg-[#07518a] text-white shadow-md shadow-[#07518a]/25 scale-[1.01]' 
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            Notification Rules
-          </button>
+        {isSuperAdmin && (
+          <span className="px-3.5 py-1.5 rounded-full bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[10.5px] font-black text-[#07518a] dark:text-[#38bdf8] uppercase tracking-widest flex items-center gap-2 shadow-2xs self-end sm:self-auto">
+            <span className="w-2 h-2 rounded-full bg-[#07518a] animate-pulse" />
+            {activeCompanyId && activeCompanyId !== 'all' ? 'Single Company Scope' : 'Master All-Companies Scope'}
+          </span>
         )}
       </div>
 

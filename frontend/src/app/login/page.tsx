@@ -84,6 +84,116 @@ function EdmBrihaspathiTitle({
   );
 }
 
+function ThreeDots({
+  visible = true,
+  height = "80",
+  width = "80",
+  color = "#4fa94d",
+  radius = "9",
+  ariaLabel = "three-dots-loading",
+  wrapperStyle = {},
+  wrapperClass = ""
+}: {
+  visible?: boolean;
+  height?: string | number;
+  width?: string | number;
+  color?: string;
+  radius?: string | number;
+  ariaLabel?: string;
+  wrapperStyle?: React.CSSProperties;
+  wrapperClass?: string;
+}) {
+  if (!visible) return null;
+  const r = Number(radius) || 9;
+  return (
+    <div
+      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', ...wrapperStyle }}
+      className={wrapperClass}
+      data-testid="three-dots-loading"
+      aria-label={ariaLabel}
+    >
+      <svg
+        width={width}
+        height={height}
+        viewBox="0 0 120 30"
+        xmlns="http://www.w3.org/2000/svg"
+        fill={color}
+      >
+        <circle cx="15" cy="15" r={r}>
+          <animate
+            attributeName="r"
+            from="9"
+            to="9"
+            begin="0s"
+            dur="0.8s"
+            values="9;15;9"
+            calcMode="linear"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="fill-opacity"
+            from="0.5"
+            to="0.5"
+            begin="0s"
+            dur="0.8s"
+            values=".5;1;.5"
+            calcMode="linear"
+            repeatCount="indefinite"
+          />
+        </circle>
+        <circle cx="60" cy="15" r={r} fillOpacity="0.3">
+          <animate
+            attributeName="r"
+            from="9"
+            to="9"
+            begin="0s"
+            dur="0.8s"
+            values="9;15;9"
+            keyTimes="0;0.2;1"
+            calcMode="linear"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="fill-opacity"
+            from="0.5"
+            to="0.5"
+            begin="0s"
+            dur="0.8s"
+            values=".5;1;.5"
+            keyTimes="0;0.2;1"
+            calcMode="linear"
+            repeatCount="indefinite"
+          />
+        </circle>
+        <circle cx="105" cy="15" r={r}>
+          <animate
+            attributeName="r"
+            from="9"
+            to="9"
+            begin="0s"
+            dur="0.8s"
+            values="9;15;9"
+            keyTimes="0;0.4;1"
+            calcMode="linear"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="fill-opacity"
+            from="0.5"
+            to="0.5"
+            begin="0s"
+            dur="0.8s"
+            values=".5;1;.5"
+            keyTimes="0;0.4;1"
+            calcMode="linear"
+            repeatCount="indefinite"
+          />
+        </circle>
+      </svg>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -299,16 +409,19 @@ export default function LoginPage() {
             {/* Login Form */}
             <form onSubmit={handleLogin} className="space-y-4">
               
-              {/* Field 1: Username / Email (Max 40 chars) */}
+              {/* Field 1: Work Email / Username */}
               <div className="relative flex items-center">
                 <input
                   id="username"
                   type="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
-                  maxLength={40}
-                  placeholder="Username or Email ID (max 40 chars)"
+                  maxLength={50}
+                  placeholder="Email or Username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value.slice(0, 40))}
+                  onChange={(e) => setUsername(e.target.value.slice(0, 50))}
                   className="w-full h-12 py-3 px-4 pr-11 rounded-xl bg-slate-100/90 border border-slate-300/80 text-slate-900 font-medium text-sm sm:text-base outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs sm:placeholder:text-sm shadow-inner"
                 />
                 <div className="absolute right-3.5 text-slate-400 pointer-events-none">
@@ -388,13 +501,19 @@ export default function LoginPage() {
               <button 
                 type="submit" 
                 disabled={loading} 
-                className="w-full h-12 py-3.5 px-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed uppercase tracking-wider mt-1"
+                className="w-full h-12 py-2 px-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-85 disabled:cursor-not-allowed uppercase tracking-wider mt-1 overflow-hidden"
               >
                 {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>SIGNING IN...</span>
-                  </div>
+                  <ThreeDots
+                    visible={true}
+                    height="20"
+                    width="42"
+                    color="#ffffff"
+                    radius="6"
+                    ariaLabel="three-dots-loading"
+                    wrapperStyle={{}}
+                    wrapperClass=""
+                  />
                 ) : (
                   <span>SIGN IN</span>
                 )}

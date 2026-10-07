@@ -1026,7 +1026,7 @@ function CreateEmployeeContent() {
           </div>
 
           {/* STEPPER CONTENT FORM */}
-          <form onSubmit={handleSubmit} noValidate className="space-y-5">
+          <form onSubmit={handleSubmit} noValidate autoComplete="off" autoCorrect="off" spellCheck={false} className="space-y-5">
             {/* STEP 1: PERSONAL DETAILS */}
             {currentStep === 1 && (
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs space-y-5 animate-fadeIn">

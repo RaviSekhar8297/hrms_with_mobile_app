@@ -4,13 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardPageHeader from '../components/DashboardPageHeader';
-import { getHeaders, getUrl } from '../utils/api';
+import { getHeaders, getUrl, API_BASE } from '../utils/api';
 import SlideDrawer from '../components/SlideDrawer';
 import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { usePermissions } from '../hooks/usePermissions';
 import ModernPagination from '../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -152,11 +153,13 @@ export default function EmployeesPage() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalEmployees, setTotalEmployees] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, branchFilter, pageSize]);
+  }, [searchQuery, statusFilter, branchFilter, pageSize, selectedCompanyId]);
 
   // Sorting states
   const [sortField, setSortField] = useState<string>('emp_id');
@@ -198,62 +201,14 @@ export default function EmployeesPage() {
     }
   };
 
-  const canEditEmployee = (emp: Employee) => {
-    if (!hasPermission('employees_edit')) return false;
+  const canEditEmployee = (_emp?: Employee) => {
     if (isSuperAdmin) return true;
-
-    const scope = getPermissionScope('edit_employees');
-    if (scope === 'ALL') return true;
-
-    const currentEmp = employees.find(e => 
-      (email && e.email?.toLowerCase() === email.toLowerCase()) ||
-      (typeof window !== 'undefined' && localStorage.getItem('userId') && e.id === localStorage.getItem('userId'))
-    );
-    const currentEmpId = currentEmp?.id;
-
-    if (scope === 'SELF') {
-      return Boolean((email && emp.email?.toLowerCase() === email.toLowerCase()) || (currentEmpId && emp.id === currentEmpId));
-    }
-
-    if (scope === 'REPORTING' || scope === 'TEAM') {
-      const isSelf = (email && emp.email?.toLowerCase() === email.toLowerCase()) || (currentEmpId && emp.id === currentEmpId);
-      const isDirectReport = currentEmpId && emp.reporting_to_id === currentEmpId;
-      return Boolean(isSelf || isDirectReport);
-    }
-
-    if (scope === 'DEPARTMENT') {
-      return Boolean(currentEmp?.department_id && emp.department_id === currentEmp.department_id);
-    }
-
-    return false;
+    return hasPermission('employees_edit');
   };
 
-  const canDeleteEmployee = (emp: Employee) => {
-    if (!hasPermission('employees_delete')) return false;
+  const canDeleteEmployee = (_emp?: Employee) => {
     if (isSuperAdmin) return true;
-
-    const scope = getPermissionScope('delete_employees');
-    if (scope === 'ALL') return true;
-
-    const currentEmp = employees.find(e => 
-      (email && e.email?.toLowerCase() === email.toLowerCase()) ||
-      (typeof window !== 'undefined' && localStorage.getItem('userId') && e.id === localStorage.getItem('userId'))
-    );
-    const currentEmpId = currentEmp?.id;
-
-    if (scope === 'SELF') {
-      return false; // Employees should never delete themselves
-    }
-
-    if (scope === 'REPORTING' || scope === 'TEAM') {
-      return Boolean(currentEmpId && emp.reporting_to_id === currentEmpId);
-    }
-
-    if (scope === 'DEPARTMENT') {
-      return Boolean(currentEmp?.department_id && emp.department_id === currentEmp.department_id);
-    }
-
-    return false;
+    return hasPermission('employees_delete');
   };
 
   const handleUpdateReportingTo = async (emp: Employee, newReportingToId: string) => {
@@ -400,13 +355,36 @@ export default function EmployeesPage() {
     setLoading(true);
     try {
       const cid = selectedCompanyId;
-      const res = await fetch(getUrl('/api/v1/employees', cid && cid !== 'all' ? cid : null), { 
+      const params = new URLSearchParams();
+      params.set('page', String(currentPage));
+      params.set('pageSize', String(pageSize));
+      if (cid && cid !== 'all') {
+        params.set('companyId', cid);
+      }
+      if (searchQuery && searchQuery.trim()) {
+        params.set('search', searchQuery.trim());
+      }
+      const res = await fetch(`${API_BASE}/api/v1/employees?${params.toString()}`, { 
         headers: getHeaders(),
         cache: 'no-store'
       });
       const data = await res.json();
-      if (res.ok) setEmployees(data.employees || []);
-    } catch (e) { console.error(e); }
+      if (res.ok) {
+        const fetchedTotal = data.total !== undefined ? Number(data.total) : (data.count !== undefined ? Number(data.count) : (data.employees?.length || 0));
+        setEmployees(data.employees || []);
+        setTotalEmployees(fetchedTotal);
+        setTotalPages(data.totalPages ? Number(data.totalPages) : (Math.ceil(fetchedTotal / pageSize) || 1));
+      } else {
+        setEmployees([]);
+        setTotalEmployees(0);
+        setTotalPages(1);
+      }
+    } catch (e) {
+      console.error('Error fetching employees:', e);
+      setEmployees([]);
+      setTotalEmployees(0);
+      setTotalPages(1);
+    }
     setLoading(false);
   };
 
@@ -414,8 +392,11 @@ export default function EmployeesPage() {
     if (isSuperAdmin) {
       fetchCompanies();
     }
-    fetchEmployees();
   }, [selectedCompanyId, isSuperAdmin]);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [selectedCompanyId, currentPage, pageSize, searchQuery]);
 
   // Fetch contextual branches, departments, designations, and roles cascadingly
   useEffect(() => {
@@ -757,73 +738,15 @@ export default function EmployeesPage() {
   const filteredRoles = (activeCompanyId && activeCompanyId !== 'all') ? tenantRoles.filter(r => r.company_id === activeCompanyId) : tenantRoles;
   const filteredShifts = (activeCompanyId && activeCompanyId !== 'all') ? shifts.filter(s => s.company_id === activeCompanyId) : shifts;
 
-  // Search & Filter computation
-  const filteredEmployees = employees.filter(emp => {
-    const fullName = `${emp.first_name} ${emp.last_name}`.toLowerCase();
-    const matchesSearch = 
-      fullName.includes(searchQuery.toLowerCase()) ||
-      emp.emp_id_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (emp.designation_name && emp.designation_name.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchesStatus = statusFilter === 'ALL' 
-      ? true 
-      : (statusFilter === 'INACTIVE' 
-          ? (emp.status === 'INACTIVE' || emp.status === 'TERMINATED' || emp.status === 'EXITED' || emp.status === 'RESIGNED')
-          : emp.status === statusFilter);
-    const matchesBranch = branchFilter === 'ALL' || emp.branch_id === branchFilter;
-    return matchesSearch && matchesStatus && matchesBranch;
-  });
-
-  // Sorting computation
-  const sortedEmployees = [...filteredEmployees].sort((a, b) => {
-    let fieldA: any = '';
-    let fieldB: any = '';
-
-    if (sortField === 'emp_id') {
-      const numA = parseInt((a.emp_id_code || '').replace(/\D/g, ''), 10);
-      const numB = parseInt((b.emp_id_code || '').replace(/\D/g, ''), 10);
-      if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
-        return sortOrder === 'asc' ? numA - numB : numB - numA;
-      }
-      fieldA = (a.emp_id_code || '').toLowerCase();
-      fieldB = (b.emp_id_code || '').toLowerCase();
-    } else if (sortField === 'name') {
-      fieldA = `${a.first_name} ${a.last_name}`.toLowerCase();
-      fieldB = `${b.first_name} ${b.last_name}`.toLowerCase();
-    } else if (sortField === 'manager') {
-      const managerA = employees.find(e => e.id === a.reporting_to_id);
-      const managerB = employees.find(e => e.id === b.reporting_to_id);
-      fieldA = managerA ? `${managerA.first_name} ${managerA.last_name}`.toLowerCase() : '';
-      fieldB = managerB ? `${managerB.first_name} ${managerB.last_name}`.toLowerCase() : '';
-    } else if (sortField === 'office') {
-      fieldA = (a.branch_name || '').toLowerCase();
-      fieldB = (b.branch_name || '').toLowerCase();
-    } else if (sortField === 'position') {
-      fieldA = (a.designation_name || '').toLowerCase();
-      fieldB = (b.designation_name || '').toLowerCase();
-    } else if (sortField === 'team') {
-      fieldA = (a.department_name || '').toLowerCase();
-      fieldB = (b.department_name || '').toLowerCase();
-    } else if (sortField === 'status') {
-      fieldA = (a.status || 'ACTIVE').toLowerCase();
-      fieldB = (b.status || 'ACTIVE').toLowerCase();
-    }
-
-    if (fieldA < fieldB) return sortOrder === 'asc' ? -1 : 1;
-    if (fieldA > fieldB) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  // Pagination calculation
-  const totalItems = sortedEmployees.length;
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalItems);
-  const paginatedEmployees = sortedEmployees.slice(startIndex, endIndex);
+  // Server-side pagination mapping
+  const filteredEmployees = employees;
+  const totalItems = totalEmployees || employees.length;
+  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + employees.length, totalItems);
+  const paginatedEmployees = employees;
 
   // Calculate statistics metrics
-  const totalEmployeesCount = employees.length;
+  const totalEmployeesCount = totalEmployees || employees.length;
   const activeEmployeesCount = employees.filter(e => e.status === 'ACTIVE' || !e.status).length;
   const suspendedEmployeesCount = employees.filter(e => e.status === 'SUSPENDED').length;
 
@@ -838,6 +761,33 @@ export default function EmployeesPage() {
   };
 
   const inputStyle = "w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 focus:bg-card focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder-slate-400";
+
+  if (!isSuperAdmin && !hasPermission('employees_view')) {
+    return (
+      <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-dmsans space-y-6 animate-fadeIn w-full relative">
+        <DashboardPageHeader
+          title="Employee Directory"
+          actionMessage=""
+          actionError=""
+          companies={companies}
+          companyId={selectedCompanyId}
+          handleCompanyChange={handleCompanyChange} 
+          isSuperAdmin={isSuperAdmin}
+          email={email}
+          hideUserBadge={true}
+        />
+        <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-center shadow-xs">
+          <div className="h-16 w-16 rounded-3xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-3xl mb-4">
+            🔒
+          </div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Access Restricted</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md">
+            You do not have the required <span className="font-semibold text-slate-700 dark:text-slate-200">employees_view</span> permission to view employee records.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif" }} className="font-dmsans space-y-6 animate-fadeIn w-full relative">
@@ -857,19 +807,19 @@ export default function EmployeesPage() {
         >
           {hasPermission('employees_create') && (
             <div className="flex items-center gap-2">
-              {/* Bulk Upload Button - Navigates to Onboarding Hub in Bulk Mode */}
+              {/* Upload Button - Navigates to Onboarding Hub in Bulk Mode */}
               <Link
                 href="/dashboard/employees/create?mode=bulk"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 hover:shadow-lg hover:shadow-emerald-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-[#07518a] dark:text-sky-400 border border-[#07518a]/30 dark:border-sky-500/30 text-xs font-bold shadow-xs hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white/20 group-hover:bg-white/30 transition-colors">
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#07518a]/10 dark:bg-sky-400/10 group-hover:bg-[#07518a]/20 transition-colors">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                   </svg>
                 </span>
-                <span className="tracking-wide">Bulk Upload</span>
+                <span className="tracking-wide">Upload</span>
               </Link>
-              {/* Add Employee Button */}
+              {/* Add Employee Button (+ Add) */}
               <Link
                 href="/dashboard/employees/create"
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold shadow-md shadow-[#07518a]/20 hover:shadow-lg hover:shadow-[#07518a]/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer group flex-shrink-0"
@@ -879,7 +829,7 @@ export default function EmployeesPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
                 </span>
-                <span className="tracking-wide">Add Employee</span>
+                <span className="tracking-wide">+ Add</span>
               </Link>
             </div>
           )}
@@ -889,26 +839,26 @@ export default function EmployeesPage() {
       {/* Executive Summary Stats Bar */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
         
-        {/* Card 1: Total Employees & Active Count */}
-        <div className="group relative rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
+        {/* Card 1: Total Employees & Active Count (Roles Theme: Primary Navy/Blue) */}
+        <div className="group relative rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] font-black uppercase tracking-wider text-[#07518a] dark:text-sky-400">
                 Total Employees
               </p>
               <div className="flex items-center gap-2.5 mt-1.5">
-                <h2 className="text-3xl font-black text-indigo-600 dark:text-indigo-400 tracking-tight font-mono">
-                  {filteredEmployees.length}
+                <h2 className="text-3xl font-black text-[#07518a] dark:text-sky-400 tracking-tight font-mono">
+                  {totalEmployeesCount}
                 </h2>
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/70 inline-flex items-center gap-1 shadow-2xs">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {filteredEmployees.filter(e => e.status === 'ACTIVE' || !e.status || e.status === 'active').length} Active
+                    {employees.filter(e => e.status === 'ACTIVE' || !e.status || e.status === 'active').length} Active (Page)
                   </span>
                 </div>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#07518a] dark:text-sky-300 border border-blue-100 dark:border-blue-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
               </svg>
@@ -916,23 +866,23 @@ export default function EmployeesPage() {
           </div>
         </div>
 
-        {/* Card 2: Total Branches */}
-        <div className="group relative rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
+        {/* Card 2: Total Branches (Roles Theme: Emerald Green) */}
+        <div className="group relative rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-teal-600 dark:text-teal-400">
+              <p className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                 Total Branches
               </p>
               <div className="flex items-baseline gap-2 mt-1.5">
-                <h2 className="text-3xl font-black text-teal-600 dark:text-teal-400 tracking-tight font-mono">
+                <h2 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight font-mono">
                   {branches.length || new Set(filteredEmployees.map(e => e.branch_name).filter(Boolean)).size || 1}
                 </h2>
-                <span className="text-[10px] font-extrabold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 px-2.5 py-0.5 rounded-full border border-teal-200 dark:border-teal-800/60">
+                <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60">
                   Offices
                 </span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-900/60 text-teal-600 dark:text-teal-300 border border-teal-100 dark:border-teal-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m-6-13.5h3m-3 3h3m-3 3h3m3-6h3m-3 3h3m-3 3h3M6.75 21v-3a1.5 1.5 0 011.5-1.5h3a1.5 1.5 0 011.5 1.5v3" />
               </svg>
@@ -940,8 +890,8 @@ export default function EmployeesPage() {
           </div>
         </div>
 
-        {/* Card 3: Total Departments */}
-        <div className="group relative rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
+        {/* Card 3: Total Departments (Roles Theme: Amber Gold) */}
+        <div className="group relative rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
@@ -956,7 +906,7 @@ export default function EmployeesPage() {
                 </span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 border border-amber-100 dark:border-amber-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 border border-amber-100 dark:border-amber-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6h1.5m-1.5 3h1.5m-1.5 3h1.5" />
               </svg>
@@ -964,23 +914,23 @@ export default function EmployeesPage() {
           </div>
         </div>
 
-        {/* Card 4: Total Designations */}
-        <div className="group relative rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
+        {/* Card 4: Total Designations (Roles Theme: Purple / Violet) */}
+        <div className="group relative rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
+              <p className="text-[11px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400">
                 Total Designations
               </p>
               <div className="flex items-baseline gap-2 mt-1.5">
-                <h2 className="text-3xl font-black text-rose-600 dark:text-rose-400 tracking-tight font-mono">
+                <h2 className="text-3xl font-black text-purple-600 dark:text-purple-400 tracking-tight font-mono">
                   {designations.length || new Set(filteredEmployees.map(e => e.designation_name).filter(Boolean)).size || 1}
                 </h2>
-                <span className="text-[10px] font-extrabold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-800/60">
+                <span className="text-[10px] font-extrabold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2.5 py-0.5 rounded-full border border-purple-200 dark:border-purple-800/60">
                   Roles
                 </span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 border border-rose-100 dark:border-rose-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/60 text-purple-600 dark:text-purple-300 border border-purple-100 dark:border-purple-800/60 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.504-1.125-1.125-1.125h-6.75a1.125 1.125 0 00-1.125 1.125v3.375m9 0h3m-15 0h-3m15 0a3 3 0 003-3V6.75A3 3 0 0018 3.75H6A3 3 0 003 6.75v9a3 3 0 003 3h12z" />
               </svg>
@@ -991,7 +941,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Main Listing Panel with Filter and Switcher */}
-      <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/80 bg-card p-6 shadow-sm space-y-6">
+      <div className="rounded-xl border border-slate-200/60 dark:border-slate-800/80 bg-card p-6 shadow-sm space-y-6">
         
         {/* Search, Filter & View Toggle Bar */}
         {/* Search & Filter Bar */}
@@ -1010,7 +960,7 @@ export default function EmployeesPage() {
                 placeholder="Search by name, email, employee code..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full h-[42px] !pl-10 !pr-9 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-slate-100 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 placeholder:text-slate-600 dark:placeholder:text-slate-300 placeholder:font-bold transition-all duration-200 shadow-2xs"
+                className="w-full h-[42px] !pl-10 !pr-9 rounded-lg border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-slate-100 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 placeholder:text-slate-600 dark:placeholder:text-slate-300 placeholder:font-bold transition-all duration-200 shadow-2xs"
               />
               {searchQuery && (
                 <button
@@ -1046,7 +996,7 @@ export default function EmployeesPage() {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="h-[42px] px-3.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black text-slate-900 dark:text-slate-100 outline-none cursor-pointer focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 shadow-2xs"
+              className="h-[42px] px-3.5 rounded-lg border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-black text-slate-900 dark:text-slate-100 outline-none cursor-pointer focus:border-blue-600 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 shadow-2xs"
             >
               <option value="ALL">All Status</option>
               <option value="ACTIVE">ACTIVE</option>
@@ -1059,10 +1009,7 @@ export default function EmployeesPage() {
 
         {/* Dynamic Layout Rendering */}
         {loading ? (
-          <div className="p-16 text-center space-y-3">
-            <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Employees...</p>
-          </div>
+          <PageLoader message="Loading Employees..." />
         ) : filteredEmployees.length === 0 ? (
           <div className="py-20 text-center text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider select-none border border-dashed border-slate-200/80 dark:border-slate-800 rounded-2xl bg-slate-50/20 dark:bg-slate-950/25">
             No employee profiles found matching the filter criteria.
@@ -1078,11 +1025,11 @@ export default function EmployeesPage() {
               return (
                 <div 
                   key={emp.id} 
-                  className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-[#07518a] dark:hover:border-[#07518a] transition-all duration-300 flex flex-col justify-between group overflow-hidden"
+                  className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-[#07518a] dark:hover:border-[#07518a] transition-all duration-300 flex flex-col justify-between group overflow-hidden"
                 >
                   <div>
                     {/* Top Image / Avatar Box */}
-                    <div className="relative w-full aspect-4/3 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 mb-4 border border-slate-100 dark:border-slate-800">
+                    <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 mb-4 border border-slate-100 dark:border-slate-800">
                       {emp.emp_image ? (
                         <img 
                           src={emp.emp_image} 
@@ -1130,7 +1077,7 @@ export default function EmployeesPage() {
                             ID: <span className="font-mono text-indigo-600 dark:text-indigo-400 font-extrabold">{formatEmpIdCode(emp.emp_id_code, emp.company_id)}</span>
                           </span>
                           {emp.role_name && (
-                            <span className="px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 text-[11px] font-bold border border-purple-200/50 dark:border-purple-800/50 truncate min-w-0" title={`Role: ${emp.role_name}`}>
+                            <span className="px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 text-[11px] font-bold border border-purple-200/50 dark:border-purple-800/50 truncate min-w-0">
                               Role: {emp.role_name}
                             </span>
                           )}

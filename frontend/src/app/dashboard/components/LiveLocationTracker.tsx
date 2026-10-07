@@ -32,34 +32,23 @@ export default function LiveLocationTracker() {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
             const { latitude, longitude } = position.coords;
-            let locationName: string | null = null;
+            if (!latitude || !longitude) return;
 
-            // Optional reverse geocoding via OpenStreetMap Nominatim API
             try {
-              const geoRes = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-                { headers: { 'User-Agent': 'Brihaspathi-HRMS/1.0' } }
-              );
-              if (geoRes.ok) {
-                const geoData = await geoRes.json();
-                locationName = geoData.display_name || null;
-              }
+              await fetch('/api/v1/attendance/live-location', {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                  latitude,
+                  longitude
+                })
+              });
             } catch (e) {
-              // Ignore geocoding errors silently
+              // Ignore background tracking errors silently
             }
-
-            await fetch('/api/v1/attendance/live-location', {
-              method: 'POST',
-              headers: getHeaders(),
-              body: JSON.stringify({
-                latitude,
-                longitude,
-                location_name: locationName
-              })
-            });
           },
-          (err) => {
-            // Geolocation error handled silently
+          () => {
+            // Geolocation permission/fetch error ignored silently
           },
           { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
         );

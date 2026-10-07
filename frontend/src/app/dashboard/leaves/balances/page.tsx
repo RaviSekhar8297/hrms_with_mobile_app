@@ -113,9 +113,7 @@ export default function LeaveBalancesPage() {
 
   useEffect(() => {
     if (canView) {
-      fetchBalances();
-      fetchLeaveTypes();
-      fetchEmployees();
+      Promise.all([fetchBalances(), fetchLeaveTypes(), fetchEmployees()]);
     }
   }, [companyId, selectedYear, canView]);
 
@@ -154,7 +152,7 @@ export default function LeaveBalancesPage() {
   const fetchEmployees = async () => {
     const cid = companyId || 'all';
     try {
-      const res = await fetch(`/api/v1/employees?companyId=${cid}`, {
+      const res = await fetch(`/api/v1/employees?companyId=${cid}&pageSize=500`, {
         headers: getHeaders()
       });
       const data = await res.json();

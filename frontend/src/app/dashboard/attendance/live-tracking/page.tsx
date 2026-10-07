@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import CustomDatePicker from '../../components/CustomDatePicker';
 import { generateRouteVideoClip } from './routeVideoGenerator';
+import PageLoader from '@/components/ui/PageLoader';
 
 const LeafletMapComponent = dynamic<any>(
   () => import('./LeafletMapComponent').then((mod) => mod.LeafletMapComponent || mod.default),
@@ -277,7 +278,7 @@ export default function LiveTrackingPage() {
   return (
     <div className="space-y-4 animate-fadeIn w-full font-sans">
       {/* 1. Top Header Card */}
-      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 border-l-4 border-l-[#07518a] shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#07518a]/10 text-[#07518a] dark:text-[#38bdf8] border border-[#07518a]/20 flex items-center justify-center font-black">
             <MapPin className="w-4.5 h-4.5 text-[#07518a] dark:text-[#38bdf8]" />
@@ -325,11 +326,8 @@ export default function LiveTrackingPage() {
 
       {/* Main Staff Cards Section */}
       {loading ? (
-        <div className="bg-white dark:bg-slate-900 p-16 text-center rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
-          <div className="w-10 h-10 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Loading Field Staff Location Logs...
-          </p>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+          <PageLoader message="Loading Field Staff Location Logs..." />
         </div>
       ) : filteredGroups.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 p-16 text-center rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">

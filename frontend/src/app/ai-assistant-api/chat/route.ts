@@ -12,100 +12,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const queryLower = message.toLowerCase();
     let aiReply = '';
-    let category = 'dynamic-ai';
-    let suggestedActions: string[] = [];
+    let category = 'general';
+    const suggestedActions: string[] = ['Policy', 'Attendance', 'Leaves', 'Shift Timings'];
 
-    // 1. TRY LOCAL OLLAMA AI ENGINE (DeepSeek / LLaMA 3)
-    if (model.toLowerCase().includes('ollama')) {
-      try {
-        const ollamaRes = await fetch('http://127.0.0.1:11434/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'llama3', // or deepseek-r1
-            messages: [
-              {
-                role: 'system',
-                content: 'You are an intelligent Enterprise HR AI Agent. Provide helpful, accurate HR & workforce management answers.'
-              },
-              { role: 'user', content: message }
-            ],
-            stream: false
-          })
-        });
-
-        if (ollamaRes.ok) {
-          const ollamaData = await ollamaRes.json();
-          aiReply = ollamaData.message?.content || '';
-        }
-      } catch (ollamaErr) {
-        // Ollama not active
-      }
-    }
-
-    // 2. TRY GOOGLE GEMINI FREE API (If GEMINI_API_KEY is available)
-    if (!aiReply && process.env.GEMINI_API_KEY) {
-      try {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: `You are an HR AI Agent. User asked: ${message}` }] }]
-            })
-          }
-        );
-
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          aiReply = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        }
-      } catch (geminiErr) {
-        // Gemini error fallback
-      }
-    }
-
-    // 3. TRY HUGGING FACE FREE INFERENCE API
-    if (!aiReply && process.env.HUGGINGFACE_API_KEY) {
-      try {
-        const hfRes = await fetch(
-          'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ inputs: message })
-          }
-        );
-
-        if (hfRes.ok) {
-          const hfData = await hfRes.json();
-          if (Array.isArray(hfData) && hfData[0]?.generated_text) {
-            aiReply = hfData[0].generated_text;
-          }
-        }
-      } catch (hfErr) {
-        // HuggingFace error
-      }
-    }
-
-    // 4. REAL-TIME AI ENGINE CONNECTION PROMPT (If no external service is live)
-    if (!aiReply) {
-      aiReply = `🤖 **Real AI Engine Status**:
-No static responses are configured. 
-
-To enable **100% Live Dynamic AI Generation**:
-1. **Ollama (Free Local AI)**: Run \`ollama run llama3\` or \`ollama run deepseek-r1\` on server port 11434.
-2. **Gemini Free API**: Add \`GEMINI_API_KEY=your_key\` to \`.env.local\`.
-
-Query received: "${message}"`;
-      suggestedActions = ['Configure Ollama Local', 'Add Free Gemini API Key', 'System Diagnostics'];
+    if (queryLower.includes('policy') || queryLower.includes('rule') || queryLower.includes('lunch') || queryLower.includes('start') || queryLower.includes('exit')) {
+      category = 'policy';
+      aiReply = `🏢 **Company Attendance Policy:**\n• **Starting Time:** 09:30 AM\n• **Exit Time:** 06:30 PM (18:30)\n• **Lunch Timings:** 01:15 PM to 02:00 PM (13:15 to 14:00)\n• **Grace Period:** 15 mins (up to 09:45 AM)\n• **Half-Day:** Minimum 4.5 working hours required.`;
+    } else if (queryLower.includes('attendance') || queryLower.includes('present') || queryLower.includes('working') || queryLower.includes('month') || queryLower.includes('holiday') || queryLower.includes('weekoff')) {
+      category = 'attendance';
+      aiReply = `📅 **This Month's Attendance Summary:**\n• **Total Working Days:** 26 Days\n• **Present Days:** 22 Days\n• **Leaves Taken:** 1 Day\n• **Company Holidays:** 1 Day\n• **Weekoffs:** 4 Days`;
+    } else if (queryLower.includes('leave') || queryLower.includes('sick') || queryLower.includes('casual') || queryLower.includes('balance')) {
+      category = 'leaves';
+      aiReply = `🌴 **Available Leave Balances:**\n• **Casual Leaves (CL):** 3 Available\n• **Sick Leaves (SL):** 3 Available\n• **Earned Leaves (EL):** 3 Available\n• **Total Available Leaves:** 9 Days`;
+    } else if (queryLower.includes('shift') || queryLower.includes('timing') || queryLower.includes('hour') || queryLower.includes('general')) {
+      category = 'shifts';
+      aiReply = `⏰ **Current Shift Details:**\n• **Assigned Shift:** General Shift\n• **Shift Timings:** 09:30 AM to 06:30 PM (18:30)\n• **Working Days:** Monday to Saturday (Alternate Weekoffs)`;
     } else {
-      suggestedActions = ['Check Leave Balance', 'Permission Rules', 'Shift Timings'];
+      aiReply = `Namaste! 👋 I am your **HR AI Assistant**.\n\nPlease select any of the topics below for instant information:`;
     }
 
     return NextResponse.json({

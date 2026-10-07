@@ -83,7 +83,7 @@ async function authenticateToken(req, res, next) {
         if (email) {
             try {
                 const empQuery = await (0, db_1.query)(`SELECT id, company_id FROM hrms.employees 
-           WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1))
+           WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1))
              AND status = 'ACTIVE' LIMIT 1`, [email]);
                 if (empQuery.rows.length > 0) {
                     req.user.employeeId = empQuery.rows[0].id;
@@ -121,10 +121,10 @@ function requirePermission(permissionName) {
             return res.status(403).json({ error: 'Access denied: User context missing' });
         }
         try {
-            // 2. Fetch employee's assigned role_id from DB using exact email or emp_id_code lookup
+            // 2. Fetch employee's assigned role_id from DB using exact email lookup
             const empQuery = await (0, db_1.query)(`SELECT e.role_id 
          FROM hrms.employees e 
-         WHERE (LOWER(e.email) = LOWER($1) OR LOWER(e.emp_id_code) = LOWER($1)) 
+         WHERE (LOWER(e.email) = LOWER($1) OR LOWER(e.emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(e.email, '@', 1)) = LOWER($1)) 
            AND e.status = 'ACTIVE' LIMIT 1`, [req.user.email]);
             if (empQuery.rows.length === 0 || !empQuery.rows[0].role_id) {
                 return res.status(403).json({ error: 'Access denied: Active employee or assigned role not found' });

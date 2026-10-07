@@ -11,6 +11,7 @@ import ModernPagination from '../../components/ModernPagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import CustomDatePicker from '../../components/CustomDatePicker';
 import SearchableSelect from '../../components/SearchableSelect';
+import PageLoader from '@/components/ui/PageLoader';
 
 export default function AttendanceRegularizationPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
@@ -60,6 +61,9 @@ export default function AttendanceRegularizationPage() {
   const [deletingReqId, setDeletingReqId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Approve / Reject action loading state
+  const [actionLoading, setActionLoading] = useState<{ id: string; action: 'APPROVED' | 'REJECTED' } | null>(null);
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -108,8 +112,7 @@ export default function AttendanceRegularizationPage() {
 
   useEffect(() => {
     if (canView) {
-      fetchEmployees();
-      fetchRequests();
+      Promise.all([fetchEmployees(), fetchRequests()]);
     }
   }, [activeCompanyId, viewScope, canView]);
 
@@ -132,7 +135,7 @@ export default function AttendanceRegularizationPage() {
   const fetchEmployees = async () => {
     try {
       const cid = activeCompanyId || localStorage.getItem('companyId');
-      const url = cid && cid !== 'all' ? `${API_BASE}/api/v1/employees?company_id=${cid}` : `${API_BASE}/api/v1/employees`;
+      const url = cid && cid !== 'all' ? `${API_BASE}/api/v1/employees?company_id=${cid}&pageSize=500` : `${API_BASE}/api/v1/employees?pageSize=500`;
       const res = await fetch(url, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -384,6 +387,8 @@ export default function AttendanceRegularizationPage() {
   };
 
   const handleAction = async (id: string, action: 'APPROVED' | 'REJECTED') => {
+    if (actionLoading) return;
+    setActionLoading({ id, action });
     try {
       const res = await fetch(`${API_BASE}/api/v1/attendance/regularizations/${id}/action`, {
         method: 'POST',
@@ -403,6 +408,8 @@ export default function AttendanceRegularizationPage() {
     } catch (e) {
       console.error(e);
       showToast('Connection error while updating request', 'error');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -631,11 +638,8 @@ export default function AttendanceRegularizationPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-medium text-slate-700 dark:text-slate-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="p-16 text-center">
-                    <div className="space-y-3">
-                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Regularization Requests...</p>
-                    </div>
+                  <td colSpan={7} className="p-8 text-center">
+                    <PageLoader message="Loading Regularization Requests..." />
                   </td>
                 </tr>
               ) : paginatedRequests.length === 0 ? (
@@ -698,10 +702,21 @@ export default function AttendanceRegularizationPage() {
                       </td>
 
                       {/* Col 5: Reason */}
-                      <td className="py-3 px-4 max-w-[240px]">
-                        <p className="text-xs text-slate-600 dark:text-slate-300 truncate" title={req.reason}>
-                          {req.reason || 'No reason provided'}
-                        </p>
+                      <td className="py-3 px-4 max-w-[220px]">
+                        {req.reason ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="text-xs text-slate-600 dark:text-slate-300 truncate cursor-help">
+                                {req.reason}
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs text-xs p-2.5 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl rounded-xl border border-slate-800 dark:border-slate-200 z-50">
+                              <p className="font-semibold">{req.reason}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">No reason provided</span>
+                        )}
                       </td>
 
                       {/* Col 6: Status */}
@@ -727,9 +742,24 @@ export default function AttendanceRegularizationPage() {
                                 <TooltipTrigger asChild>
                                   <button
                                     onClick={() => handleAction(req.id, 'APPROVED')}
-                                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer border-0 flex items-center gap-1"
+                                    disabled={actionLoading !== null}
+                                    className={`px-2.5 py-1 rounded-lg text-white text-[11px] font-bold shadow-2xs transition-all border-0 flex items-center gap-1.5 ${
+                                      actionLoading?.id === req.id && actionLoading?.action === 'APPROVED'
+                                        ? 'bg-emerald-700 opacity-90 cursor-not-allowed'
+                                        : actionLoading !== null
+                                        ? 'bg-emerald-600/50 cursor-not-allowed opacity-50'
+                                        : 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
+                                    }`}
                                   >
-                                    <CheckCircle2 className="w-3 h-3" /> Approve
+                                    {actionLoading?.id === req.id && actionLoading?.action === 'APPROVED' ? (
+                                      <>
+                                        <Loader2 className="w-3 h-3 animate-spin" /> Approving...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle2 className="w-3 h-3" /> Approve
+                                      </>
+                                    )}
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent>Approve this regularization request</TooltipContent>
@@ -739,9 +769,24 @@ export default function AttendanceRegularizationPage() {
                                 <TooltipTrigger asChild>
                                   <button
                                     onClick={() => handleAction(req.id, 'REJECTED')}
-                                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer border-0 flex items-center gap-1"
+                                    disabled={actionLoading !== null}
+                                    className={`px-2.5 py-1 rounded-lg text-white text-[11px] font-bold shadow-2xs transition-all border-0 flex items-center gap-1.5 ${
+                                      actionLoading?.id === req.id && actionLoading?.action === 'REJECTED'
+                                        ? 'bg-rose-700 opacity-90 cursor-not-allowed'
+                                        : actionLoading !== null
+                                        ? 'bg-rose-600/50 cursor-not-allowed opacity-50'
+                                        : 'bg-rose-600 hover:bg-rose-700 cursor-pointer'
+                                    }`}
                                   >
-                                    <XCircle className="w-3 h-3" /> Reject
+                                    {actionLoading?.id === req.id && actionLoading?.action === 'REJECTED' ? (
+                                      <>
+                                        <Loader2 className="w-3 h-3 animate-spin" /> Rejecting...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <XCircle className="w-3 h-3" /> Reject
+                                      </>
+                                    )}
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent>Reject this regularization request</TooltipContent>

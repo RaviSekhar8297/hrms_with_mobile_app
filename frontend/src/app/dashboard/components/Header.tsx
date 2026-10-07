@@ -67,7 +67,7 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center h-[38px] px-3.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs cursor-default">
+          <div className="flex items-center h-[38px] px-3.5 rounded-lg bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs cursor-default">
             <span className="text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[320px]">
               {formatted}
             </span>
@@ -81,7 +81,7 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
   }
 
   return (
-    <div className="flex items-center h-[38px] px-2.5 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs">
+    <div className="flex items-center h-[38px] px-2.5 rounded-lg bg-[#07518a]/10 dark:bg-[#07518a]/20 border border-[#07518a]/30 text-[#07518a] dark:text-[#38bdf8] shadow-2xs">
       <select
         value={companyId || 'all'}
         onChange={(e) => {
@@ -91,7 +91,7 @@ function HeaderCompanySelector({ companyName, isSuperAdmin }: { companyName: str
         className="bg-transparent text-[11px] sm:text-[11.5px] font-extrabold tracking-wide uppercase text-[#07518a] dark:text-[#38bdf8] focus:outline-none cursor-pointer pr-0.5 py-0.5 truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[320px]"
       >
         <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold uppercase">
-          -- All Companies --
+          Select Company
         </option>
         {companies.map(c => (
           <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold uppercase" title={c.name}>
@@ -255,7 +255,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       style={{ fontFamily: '"Inter", "DM Sans", sans-serif' }}
-      className="flex h-16 flex-shrink-0 items-center justify-between rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm px-2.5 sm:px-4 md:px-6 transition-colors duration-200 z-20 w-full"
+      className="flex h-16 flex-shrink-0 items-center justify-between rounded-xl border border-slate-200/90 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm px-2.5 sm:px-4 md:px-6 transition-colors duration-200 z-20 w-full"
     >
       {/* 👈 Left Header Section: Mobile Menu + Company Badge + Live Clock */}
       <div className="flex items-center gap-3">
@@ -274,7 +274,7 @@ export const Header: React.FC<HeaderProps> = ({
         <HeaderCompanySelector companyName={companyName} isSuperAdmin={isSuperAdmin} />
 
         {/* Live Date & Clock Display Badge */}
-        <div className="hidden lg:flex items-center px-3.5 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/70 text-slate-700 dark:text-slate-200 select-none shadow-2xs">
+        <div className="hidden lg:flex items-center px-3.5 py-1.5 rounded-lg bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/70 text-slate-700 dark:text-slate-200 select-none shadow-2xs">
           <div className="flex flex-col text-left leading-tight">
             <span className="text-xs sm:text-sm font-black font-mono tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
               {currentTime ? currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : ''}
@@ -323,7 +323,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }
               }}
               placeholder="Search modules, pages, employees..."
-              className="w-full h-[38px] py-1.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-md text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-medium outline-none focus:border-[#07518a] focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-[#07518a]/15 transition-all duration-200 shadow-inner"
+              className="w-full h-[38px] py-1.5 rounded-lg border border-slate-200/90 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-md text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-medium outline-none focus:border-[#07518a] focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-[#07518a]/15 transition-all duration-200 shadow-inner"
             />
             <div className="absolute right-2.5 flex items-center gap-1">
               {searchQuery ? (
@@ -479,35 +479,18 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2 bg-slate-100/70 dark:bg-slate-800/40 hover:bg-slate-200/60 dark:hover:bg-slate-800/80 p-1 sm:pl-3.5 sm:pr-2 sm:py-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 select-none transition-all cursor-pointer shadow-xs shrink-0"
           >
             {/* 1. NAMES ON LEFT */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="hidden sm:flex flex-col text-right cursor-pointer">
-                  <span className="text-xs font-black tracking-tight leading-none text-[#07518a] dark:text-[#38bdf8] truncate max-w-[200px]">
-                    {((userFullName || (email ? email.split('@')[0] : 'ADMIN')).length > 30
-                      ? (userFullName || (email ? email.split('@')[0] : 'ADMIN')).slice(0, 30) + '...'
-                      : (userFullName || (email ? email.split('@')[0] : 'ADMIN'))).toUpperCase()}
-                  </span>
-                  <span className="text-[9px] font-black text-slate-950 dark:text-white tracking-wider uppercase mt-1 leading-none truncate max-w-[200px]">
-                    {((designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).length > 30
-                      ? (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).slice(0, 30) + '...'
-                      : (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE'))).toUpperCase()}
-                  </span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="p-2.5 space-y-1 text-left min-w-[190px] shadow-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-xl">
-                <div className="text-xs font-black text-slate-850 dark:text-white leading-tight">
-                  {userFullName || (email ? email.split('@')[0] : 'Admin User')}
-                </div>
-                <div className="text-[10.5px] font-bold text-[#07518a] dark:text-[#38bdf8]">
-                  {designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')}
-                </div>
-                {email && (
-                  <div className="text-[9.5px] font-semibold text-slate-400 dark:text-slate-500 font-mono break-all pt-0.5 border-t border-slate-100 dark:border-slate-800">
-                    {email}
-                  </div>
-                )}
-              </TooltipContent>
-            </Tooltip>
+            <div className="hidden sm:flex flex-col text-right cursor-pointer">
+              <span className="text-xs font-black tracking-tight leading-none text-[#07518a] dark:text-[#38bdf8] truncate max-w-[200px]">
+                {((userFullName || (email ? email.split('@')[0] : 'ADMIN')).length > 30
+                  ? (userFullName || (email ? email.split('@')[0] : 'ADMIN')).slice(0, 30) + '...'
+                  : (userFullName || (email ? email.split('@')[0] : 'ADMIN'))).toUpperCase()}
+              </span>
+              <span className="text-[9px] font-black text-slate-950 dark:text-white tracking-wider uppercase mt-1 leading-none truncate max-w-[200px]">
+                {((designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).length > 30
+                  ? (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE')).slice(0, 30) + '...'
+                  : (designation || (isSuperAdmin ? 'SUPER ADMIN' : 'EXECUTIVE'))).toUpperCase()}
+              </span>
+            </div>
 
             {/* 2. IMAGE / CAPITAL INITIAL BADGE ON RIGHT */}
             <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-[#07518a] text-white font-extrabold text-xs uppercase shadow-sm flex-shrink-0 overflow-hidden">

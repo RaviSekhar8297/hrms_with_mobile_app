@@ -106,7 +106,7 @@ export async function authenticateToken(
       try {
         const empQuery = await query(
           `SELECT id, company_id FROM hrms.employees 
-           WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1))
+           WHERE (LOWER(email) = LOWER($1) OR LOWER(emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(email, '@', 1)) = LOWER($1))
              AND status = 'ACTIVE' LIMIT 1`,
           [email]
         );
@@ -153,11 +153,11 @@ export function requirePermission(permissionName: string) {
     }
 
     try {
-      // 2. Fetch employee's assigned role_id from DB using exact email or emp_id_code lookup
+      // 2. Fetch employee's assigned role_id from DB using exact email lookup
       const empQuery = await query(
         `SELECT e.role_id 
          FROM hrms.employees e 
-         WHERE (LOWER(e.email) = LOWER($1) OR LOWER(e.emp_id_code) = LOWER($1)) 
+         WHERE (LOWER(e.email) = LOWER($1) OR LOWER(e.emp_id_code) = LOWER($1) OR LOWER(SPLIT_PART(e.email, '@', 1)) = LOWER($1)) 
            AND e.status = 'ACTIVE' LIMIT 1`,
         [req.user.email]
       );

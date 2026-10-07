@@ -10,6 +10,7 @@ import CustomDatePicker from '../components/CustomDatePicker';
 import ModernPagination from '../components/ModernPagination';
 import { usePermissions } from '../hooks/usePermissions';
 import { Loader2 } from 'lucide-react';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -220,8 +221,8 @@ export default function ShiftsPage() {
     if (!companyId && !isSuperAdmin) return;
     try {
       const url = companyId
-        ? `/api/v1/employees?companyId=${companyId}`
-        : '/api/v1/employees';
+        ? `/api/v1/employees?companyId=${companyId}&pageSize=500`
+        : '/api/v1/employees?pageSize=500';
       const res = await fetch(url, {
         headers: getHeaders()
       });
@@ -698,11 +699,8 @@ export default function ShiftsPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={!companyId ? 7 : 6} className="py-16 text-center">
-                        <div className="flex flex-col items-center justify-center gap-2.5">
-                          <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-                          <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading shift policies...</span>
-                        </div>
+                      <td colSpan={!companyId ? 7 : 6} className="py-12 text-center">
+                        <PageLoader message="Loading shift policies..." />
                       </td>
                     </tr>
                   ) : paginatedShifts.length === 0 ? (
@@ -854,11 +852,8 @@ export default function ShiftsPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={!companyId ? 8 : 7} className="py-16 text-center">
-                        <div className="flex flex-col items-center justify-center gap-2.5">
-                          <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-                          <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading employee shift assignments...</span>
-                        </div>
+                      <td colSpan={!companyId ? 8 : 7} className="py-12 text-center">
+                        <PageLoader message="Loading employee shift assignments..." />
                       </td>
                     </tr>
                   ) : paginatedEmployeeShifts.length === 0 ? (

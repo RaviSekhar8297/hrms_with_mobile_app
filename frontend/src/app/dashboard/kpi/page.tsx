@@ -103,7 +103,7 @@ export default function KPIDashboardPage() {
     <div style={{ fontFamily: '"DM Sans", sans-serif' }} className="min-h-full bg-[#f4f7fc] dark:bg-slate-950 px-6 sm:px-10 py-8 space-y-6">
       
       {/* PAGE HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 border-l-4 border-l-[#07518a] p-4 sm:p-5 rounded-xl shadow-xs">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-sm">
             📊

@@ -7,6 +7,7 @@ import SlideDrawer from '../../components/SlideDrawer';
 import { useDashboard } from '../../components/DashboardContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Tag, Plus, Edit2, Trash2, Palette, Search, Circle, Heart, Star, Shield, Layers } from 'lucide-react';
+import PageLoader from '@/components/ui/PageLoader';
 
 const DiamondIcon = ({ className = 'w-4 h-4', style }: { className?: string; style?: React.CSSProperties }) => (
   <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -265,10 +266,7 @@ export default function WorkBridgeLabelsPage() {
 
         {/* Labels Content Grid */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-3">
-            <div className="w-8 h-8 rounded-full border-3 border-blue-600 border-t-transparent animate-spin" />
-            <span className="text-xs font-semibold text-slate-500">Loading Master Labels...</span>
-          </div>
+          <PageLoader message="Loading Master Labels..." />
         ) : filteredLabels.length === 0 ? (
           <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-12 text-center max-w-md mx-auto my-6">
             <div className="w-12 h-12 bg-blue-50 dark:bg-blue-950/50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-blue-600 dark:text-blue-400">

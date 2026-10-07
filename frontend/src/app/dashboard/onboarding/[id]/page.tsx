@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useDashboard } from '../../components/DashboardContext';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface OnboardingRecord {
   id: string;
@@ -384,9 +385,8 @@ export default function CandidateOnboardingDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-16 text-center space-y-3">
-        <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Candidate Profile...</p>
+      <div className="p-8">
+        <PageLoader message="Loading Candidate Profile..." />
       </div>
     );
   }

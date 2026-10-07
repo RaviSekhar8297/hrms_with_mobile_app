@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useDashboard } from '../components/DashboardContext';
 import { getHeaders } from '../utils/api';
 import { usePermissions } from '../hooks/usePermissions';
 import ModernPagination from '../components/ModernPagination';
+import PageLoader from '@/components/ui/PageLoader';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import SlideDrawer from '../components/SlideDrawer';
+import { Clock, MapPin, Camera, ExternalLink, CheckCircle2, Smartphone, Building2, Radio, User, Calendar, X } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -15,7 +19,6 @@ interface Employee {
   last_name?: string;
   name?: string;
   email?: string;
-  profile_picture_url?: string;
   department_name?: string;
   department_id?: string;
   department?: string;
@@ -38,12 +41,10 @@ interface SummaryRecord {
   late_minutes?: number;
   first_in?: string;
   last_out?: string;
-}
-
-interface RawPunch {
-  id?: string;
-  employee_id: string;
-  punch_time: string;
+  shift_start_time?: string;
+  shift_grace_in?: number;
+  shift_min_half_day?: number;
+  shift_min_full_day?: number;
 }
 
 interface Holiday {
@@ -84,75 +85,75 @@ const YEARS = Array.from({ length: 11 }, (_, i) => 2020 + i);
 export default function AttendanceHistoryPage() {
   const { showToast, companyId: globalCompanyId } = useDashboard();
   const { hasPermission, getPermissionScope, isSuperAdmin } = usePermissions();
-  
-  // Tablename_action standard permissions
+
   const attendanceScope = getPermissionScope('attendance_history_view') || getPermissionScope('attendance_summary_view') || getPermissionScope('attendance_view');
   const isSelfScope = !isSuperAdmin && attendanceScope === 'SELF';
   const isTeamScope = !isSuperAdmin && (attendanceScope === 'TEAM' || attendanceScope === 'REPORTING');
   const isDeptScope = !isSuperAdmin && attendanceScope === 'DEPARTMENT';
 
   const canView = isSuperAdmin || hasPermission('attendance_history_view') || hasPermission('attendance_summary_view') || hasPermission('attendance_view');
-  const canEdit = isSuperAdmin || hasPermission('attendance_history_edit') || hasPermission('attendance_summary_edit');
-  const canDelete = isSuperAdmin || hasPermission('attendance_history_delete') || hasPermission('attendance_summary_delete');
-  
-  // Date State Initialization (Default to current month & year)
+
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
 
-  // View Controls State
-  const [viewMode, setViewMode] = useState<'icon' | 'name'>('icon');
   const [pageSize, setPageSize] = useState<number>(25);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Offcanvas Punch Drawer State
+  interface SelectedPunchDay {
+    employeeId: string;
+    empCode: string;
+    employeeName: string;
+    dateStr: string;
+    inTime: string;
+    outTime: string;
+    duration: string;
+    status: string;
+    isLate: boolean;
+  }
+  const [selectedPunchDay, setSelectedPunchDay] = useState<SelectedPunchDay | null>(null);
+  const [dayPunches, setDayPunches] = useState<any[]>([]);
+  const [loadingPunches, setLoadingPunches] = useState(false);
+  const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
 
   // Data State
   const [loading, setLoading] = useState<boolean>(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendanceSummaries, setAttendanceSummaries] = useState<SummaryRecord[]>([]);
-  const [rawPunches, setRawPunches] = useState<RawPunch[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [weekoffPolicy, setWeekoffPolicy] = useState<any>(null);
   const [attendancePolicy, setAttendancePolicy] = useState<any>(null);
 
-  // Time Formatter helper: converts UTC timestamps / 24h strings to clean 12h time (without date)
-  const formatPunchTime = (val: string | null | undefined): string => {
-    if (!val || val === '--:--' || val === '-' || val === 'null' || val === 'undefined') return '--:--';
+  // Time Formatter helper: converts UTC timestamps / 24h strings to clean 24h "HH:MM" (e.g. 09:43, 18:49, 00:00)
+  const format24hTime = (val: string | null | undefined): string => {
+    if (!val || val === '--:--' || val === '-' || val === 'null' || val === 'undefined') return '00:00';
     const str = String(val).trim();
-    if (!str) return '--:--';
+    if (!str) return '00:00';
 
-    // Check if ISO / datetime string (e.g. 2026-09-28T04:14:47.000Z or 2026-09-28 04:14:47)
-    if (str.includes('T') || str.includes('Z') || (str.includes('-') && str.includes(':'))) {
+    if (str.includes('T') || str.includes('Z')) {
       const d = new Date(str);
       if (!isNaN(d.getTime())) {
-        return d.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        });
+        const h = String(d.getHours()).padStart(2, '0');
+        const m = String(d.getMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
       }
     }
 
-    // Check if "HH:MM:SS" or "HH:MM"
-    const parts = str.split(':');
-    if (parts.length >= 2) {
-      let hours = parseInt(parts[0], 10);
-      const minutes = parseInt(parts[1], 10);
-      if (!isNaN(hours) && !isNaN(minutes)) {
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        const formattedMins = minutes < 10 ? `0${minutes}` : `${minutes}`;
-        const formattedHours = hours < 10 ? `0${hours}` : `${hours}`;
-        return `${formattedHours}:${formattedMins} ${ampm}`;
-      }
+    const parts = str.split(' ');
+    const timePart = parts.length >= 2 ? parts[1] : parts[0];
+    if (timePart && timePart.includes(':')) {
+      const pieces = timePart.split(':');
+      const h = String(parseInt(pieces[0], 10) || 0).padStart(2, '0');
+      const m = String(parseInt(pieces[1], 10) || 0).padStart(2, '0');
+      return `${h}:${m}`;
     }
-
-    return str;
+    return '00:00';
   };
 
-  // Helper to format worked duration cleanly into "HH:MM" (e.g. 08:02, 04:15, 00:00)
+  // Helper to format worked duration cleanly into "HH:MM" (e.g. 09:06, 09:46, 00:00)
   const formatDuration = (mins: number): string => {
     const safeMins = Math.max(0, Math.round(mins || 0));
     const h = Math.floor(safeMins / 60);
@@ -187,38 +188,40 @@ export default function AttendanceHistoryPage() {
       }
     }
 
-    // Month boundary strings (YYYY-MM-DD)
     const daysCount = new Date(selectedYear, selectedMonth, 0).getDate();
     const startOfMonthStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
     const endOfMonthStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(daysCount).padStart(2, '0')}`;
 
-    // Filter by Active employment timeline (Joining date & Exit date)
     return list.filter((emp) => {
-      // 1. Joining Date check: Employee must have joined on or before the end of the selected month
+      // 1. Joining Date check: Employee must have joined on or before the end of selected month
       const joining = emp.joining_date || emp.date_of_joining || (emp as any).created_at;
       if (joining) {
         const joiningDateStr = String(joining).split('T')[0];
-        if (joiningDateStr > endOfMonthStr) {
-          return false; // Employee joined in a future month
-        }
+        if (joiningDateStr > endOfMonthStr) return false;
       }
 
-      // 2. Exit Date check: If employee has exited, exit date must be in or after the start of this month
+      const statusUpper = String(emp.status || 'ACTIVE').toUpperCase().trim();
       const exit = emp.exit_date || emp.resignation_date || emp.relieving_date;
+
+      // 2. Active Employee: Include (unless they had an exit date before the start of this month)
+      if (statusUpper === 'ACTIVE' || statusUpper === 'PROBATION' || statusUpper === 'CONFIRMED' || statusUpper === 'EMPLOYED') {
+        if (exit) {
+          const exitDateStr = String(exit).split('T')[0];
+          if (exitDateStr < startOfMonthStr) return false;
+        }
+        return true;
+      }
+
+      // 3. Inactive Employee: Include ONLY if their exit date falls in or after the current selected month
       if (exit) {
         const exitDateStr = String(exit).split('T')[0];
-        if (exitDateStr < startOfMonthStr) {
-          return false; // Employee left prior to this month
-        }
-      } else {
-        const statusUpper = String(emp.status || '').toUpperCase();
-        if (statusUpper === 'INACTIVE' || statusUpper === 'TERMINATED' || statusUpper === 'RESIGNED') {
-          // If status is inactive without recorded exit date, exclude
-          return false;
+        if (exitDateStr >= startOfMonthStr) {
+          return true;
         }
       }
 
-      return true;
+      // Inactive employee without an exit date in current/future months -> exclude
+      return false;
     });
   }, [employees, isSuperAdmin, attendanceScope, isSelfScope, isTeamScope, isDeptScope, currentEmp, selectedMonth, selectedYear]);
 
@@ -261,7 +264,7 @@ export default function AttendanceHistoryPage() {
     return true;
   };
 
-  // Step 2: loadAllAttendanceHistoryData (Concurrent 7 API calls)
+  // Fast optimized data loader (Runs 6 essential queries in parallel)
   const loadAllAttendanceHistoryData = async () => {
     setLoading(true);
     try {
@@ -274,59 +277,45 @@ export default function AttendanceHistoryPage() {
 
       const headers = getHeaders();
 
-      const [empRes, summaryRes, punchesRes, holidayRes, leaveRes, weekoffRes, policyRes] = await Promise.allSettled([
-        fetch(`/api/v1/employees?limit=500${companyParam}`, { headers }),
+      const [empRes, summaryRes, holidayRes, leaveRes, weekoffRes, policyRes] = await Promise.allSettled([
+        fetch(`/api/v1/employees?pageSize=500${companyParam}`, { headers }),
         fetch(`/api/v1/attendance/summary?startDate=${startDayStr}&endDate=${endDayStr}${companyParam}`, { headers }),
-        fetch(`/api/v1/attendance/raw-punches?startDate=${startDayStr}&endDate=${endDayStr}${companyParam}`, { headers }),
         fetch(`/api/v1/holidays?year=${selectedYear}${companyParam}`, { headers }),
         fetch(`/api/v1/leave-requests?startDate=${startDayStr}&endDate=${endDayStr}${companyParam}`, { headers }),
         fetch(`/api/v1/weekoffs?${companyParam.replace(/^&/, '')}`, { headers }),
         fetch(`/api/v1/attendance/policies?${companyParam.replace(/^&/, '')}`, { headers }),
       ]);
 
-      // Parse Employees
       if (empRes.status === 'fulfilled' && empRes.value.ok) {
         const empData = await empRes.value.json();
         const list = empData.employees || empData.records || empData.data || (Array.isArray(empData) ? empData : []);
         setEmployees(list);
       }
 
-      // Parse Summary Records
       if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
         const sumData = await summaryRes.value.json();
         const list = sumData.attendanceSummary || sumData.records || sumData.summary || sumData.data || (Array.isArray(sumData) ? sumData : []);
         setAttendanceSummaries(list);
       }
 
-      // Parse Raw Punches
-      if (punchesRes.status === 'fulfilled' && punchesRes.value.ok) {
-        const pData = await punchesRes.value.json();
-        const list = pData.punches || pData.records || pData.data || (Array.isArray(pData) ? pData : []);
-        setRawPunches(list);
-      }
-
-      // Parse Holidays
       if (holidayRes.status === 'fulfilled' && holidayRes.value.ok) {
         const hData = await holidayRes.value.json();
         const list = hData.holidays || hData.records || hData.data || (Array.isArray(hData) ? hData : []);
         setHolidays(list);
       }
 
-      // Parse Leave Requests
       if (leaveRes.status === 'fulfilled' && leaveRes.value.ok) {
         const lData = await leaveRes.value.json();
         const list = lData.leaveRequests || lData.requests || lData.data || (Array.isArray(lData) ? lData : []);
         setLeaveRequests(list);
       }
 
-      // Parse Week-off Policy
       if (weekoffRes.status === 'fulfilled' && weekoffRes.value.ok) {
         const wData = await weekoffRes.value.json();
         const policyObj = wData.weekoff || wData.policy || (Array.isArray(wData.weekoffs) ? wData.weekoffs[0] : null);
         setWeekoffPolicy(policyObj || null);
       }
 
-      // Parse Attendance Policy (Working hours & overtime cutoff rules)
       if (policyRes.status === 'fulfilled' && policyRes.value.ok) {
         const polData = await policyRes.value.json();
         const polObj = polData.policy || (Array.isArray(polData.policies) ? polData.policies[0] : null) || (Array.isArray(polData) ? polData[0] : null);
@@ -344,6 +333,71 @@ export default function AttendanceHistoryPage() {
     loadAllAttendanceHistoryData();
   }, [selectedMonth, selectedYear, globalCompanyId]);
 
+  // Load Day Raw Punches for Offcanvas Drawer
+  useEffect(() => {
+    if (!selectedPunchDay) {
+      setDayPunches([]);
+      return;
+    }
+
+    const fetchDayPunches = async () => {
+      setLoadingPunches(true);
+      try {
+        const cid = globalCompanyId || localStorage.getItem('companyId');
+        let url = `/api/v1/attendance/raw-punches?employee_id=${encodeURIComponent(selectedPunchDay.employeeId)}&start_date=${selectedPunchDay.dateStr}&end_date=${selectedPunchDay.dateStr}`;
+        if (cid && cid !== 'all') {
+          url += `&company_id=${cid}`;
+        }
+
+        const res = await fetch(url, { headers: getHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          const rawList = Array.isArray(data) ? data : (data.punches || data.data || []);
+          
+          // Strict client-side filter to guarantee ONLY this employee and this date
+          const targetEmpId = String(selectedPunchDay.employeeId || '').toLowerCase().trim();
+          const targetEmpCode = String(selectedPunchDay.empCode || '').toLowerCase().trim();
+          const targetDate = String(selectedPunchDay.dateStr || '').trim();
+
+          const list = rawList.filter((p: any) => {
+            const pEmpId = String(p.employee_id || '').toLowerCase().trim();
+            const pEmpCode = String(p.emp_id_code || '').toLowerCase().trim();
+            const matchesEmp = (pEmpId && (pEmpId === targetEmpId || pEmpId === targetEmpCode)) ||
+                              (pEmpCode && (pEmpCode === targetEmpCode || pEmpCode === targetEmpId)) ||
+                              (!pEmpId && !pEmpCode);
+            
+            // Check date match
+            let pDate = '';
+            if (p.punch_time) {
+              pDate = String(p.punch_time).split('T')[0].split(' ')[0];
+            } else if (p.created_at) {
+              pDate = String(p.created_at).split('T')[0].split(' ')[0];
+            }
+
+            const matchesDate = !pDate || pDate === targetDate;
+            return matchesEmp && matchesDate;
+          });
+
+          list.sort((a: any, b: any) => {
+            const tA = new Date(a.punch_time || a.created_at || '').getTime() || 0;
+            const tB = new Date(b.punch_time || b.created_at || '').getTime() || 0;
+            return tA - tB;
+          });
+          setDayPunches(list);
+        } else {
+          setDayPunches([]);
+        }
+      } catch (e) {
+        console.error('Error fetching day raw punches:', e);
+        setDayPunches([]);
+      } finally {
+        setLoadingPunches(false);
+      }
+    };
+
+    fetchDayPunches();
+  }, [selectedPunchDay, globalCompanyId]);
+
   // Days list in selected month
   const daysInMonth = useMemo(() => {
     const count = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -352,18 +406,10 @@ export default function AttendanceHistoryPage() {
       const dateObj = new Date(selectedYear, selectedMonth - 1, dayNum);
       const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
       const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-      const dayOfWeek = dateObj.getDay(); // 0 = Sun, 6 = Sat
+      const dayOfWeek = dateObj.getDay();
       return { dayNum, dayName, dateStr, dayOfWeek, dateObj };
     });
   }, [selectedMonth, selectedYear]);
-
-  // Check 2nd and 4th Saturday helper
-  const isSecondOrFourthSaturday = (dateObj: Date) => {
-    if (dateObj.getDay() !== 6) return false;
-    const dayOfMonth = dateObj.getDate();
-    const weekIndex = Math.ceil(dayOfMonth / 7);
-    return weekIndex === 2 || weekIndex === 4;
-  };
 
   // Maps for efficient O(1) lookup per employee & date
   const summariesMap = useMemo(() => {
@@ -374,15 +420,6 @@ export default function AttendanceHistoryPage() {
     });
     return map;
   }, [attendanceSummaries]);
-
-  const rawPunchesSet = useMemo(() => {
-    const set = new Set<string>();
-    rawPunches.forEach((p) => {
-      const cleanDate = String(p.punch_time).split('T')[0];
-      set.add(`${p.employee_id}_${cleanDate}`);
-    });
-    return set;
-  }, [rawPunches]);
 
   const holidaySet = useMemo(() => {
     const map = new Map<string, string>();
@@ -399,7 +436,7 @@ export default function AttendanceHistoryPage() {
       if (String(l.status).toUpperCase() === 'APPROVED') {
         const start = new Date(l.start_date);
         const end = new Date(l.end_date);
-        const typeCode = (l.leave_type_code || l.leave_type || 'L').toUpperCase();
+        const typeCode = (l.leave_type_code || l.leave_type || 'CL').toUpperCase();
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           map.set(`${l.employee_id}_${dStr}`, typeCode);
@@ -409,83 +446,75 @@ export default function AttendanceHistoryPage() {
     return map;
   }, [leaveRequests]);
 
-  // Step 3: Matrix Calculation per Employee per Day (Strictly adheres to DB Policy min_full_day_hours & min_half_day_hours)
-  const getDayStatus = (empId: string, day: { dayNum: number; dayName: string; dateStr: string; dayOfWeek: number; dateObj: Date }) => {
+  // Core Matrix Calculation per Employee per Day (Provides exact IN-TIME, OUT-TIME, DURATION, STATUS matching image)
+  const getDayAttendanceRecord = (empId: string, day: { dayNum: number; dayName: string; dateStr: string; dayOfWeek: number; dateObj: Date }) => {
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const isFuture = day.dateStr > todayStr;
 
     // 1. Holiday Check
     if (holidaySet.has(day.dateStr)) {
-      return { code: 'H', label: holidaySet.get(day.dateStr) || 'Holiday', type: 'HOLIDAY' };
+      return {
+        inTime: '00:00',
+        outTime: '00:00',
+        duration: '00:00',
+        status: 'Holiday',
+        type: 'HOLIDAY',
+        isHoliday: true,
+        isLate: false
+      };
     }
 
-    // 2. Week Off Check (100% Dynamic from DB Policy)
+    // 2. Week Off Check
     if (isDynamicWeekoff(day.dateObj)) {
-      return { code: 'WO', label: 'Week Off', type: 'WEEKOFF' };
+      return {
+        inTime: '00:00',
+        outTime: '00:00',
+        duration: '00:00',
+        status: 'WO',
+        type: 'WEEKOFF',
+        isWeekoff: true,
+        isLate: false
+      };
     }
 
     // 3. Leave Check
     const leaveCode = leavesMap.get(`${empId}_${day.dateStr}`);
     if (leaveCode) {
-      return { code: leaveCode, label: `Leave (${leaveCode})`, type: 'LEAVE' };
+      return {
+        inTime: '00:00',
+        outTime: '00:00',
+        duration: '00:00',
+        status: `${leaveCode}*`,
+        type: 'LEAVE',
+        isLeave: true,
+        isLate: false
+      };
     }
 
-    // 4. Policy Working Hours Cutoffs (Dynamic from /dashboard/attendance/rules)
+    // 4. Future Date Check
+    if (isFuture) {
+      return {
+        inTime: '00:00',
+        outTime: '00:00',
+        duration: '00:00',
+        status: '-',
+        type: 'FUTURE',
+        isLate: false
+      };
+    }
+
+    // 5. Attendance Summary Check
+    const summary = summariesMap.get(`${empId}_${day.dateStr}`);
     const fullDayHours = attendancePolicy?.full_day_min_hours ? Number(attendancePolicy.full_day_min_hours) : 8;
     const halfDayHours = attendancePolicy?.half_day_min_hours ? Number(attendancePolicy.half_day_min_hours) : 4;
     const minFullDayMins = fullDayHours * 60;
     const minHalfDayMins = halfDayHours * 60;
-
-    const isToday = day.dateStr === todayStr;
-
-    // 5. Attendance Summary Check
-    const summary = summariesMap.get(`${empId}_${day.dateStr}`);
-    const hasPunch = rawPunchesSet.has(`${empId}_${day.dateStr}`);
 
     if (summary) {
       const statusUpper = (summary.status || '').toUpperCase();
       let workedMins = summary.worked_minutes || 0;
       let lateMins = summary.late_minutes || 0;
 
-      // Calculate late minutes if not preset in summary
-      if (!lateMins && summary.first_in && summary.first_in !== '--:--') {
-        const startTime = (summary as any).shift_start_time || '09:30:00';
-        const graceIn = typeof (summary as any).shift_grace_in === 'number' 
-          ? (summary as any).shift_grace_in 
-          : (attendancePolicy?.grace_period_mins ? Number(attendancePolicy.grace_period_mins) : 15);
-        
-        let ph = -1, pm = -1;
-        const rawStr = String(summary.first_in).trim();
-        if (rawStr.includes('T') || rawStr.includes('Z')) {
-          const d = new Date(rawStr);
-          if (!isNaN(d.getTime())) {
-            const ist = new Date(d.getTime() + 5.5 * 3600 * 1000);
-            ph = ist.getUTCHours();
-            pm = ist.getUTCMinutes();
-          }
-        } else {
-          const str = rawStr.replace('T', ' ');
-          const parts = str.split(' ');
-          const timePart = parts.length >= 2 ? parts[1] : parts[0];
-          if (timePart && timePart.includes(':')) {
-            const pieces = timePart.split(':');
-            ph = parseInt(pieces[0], 10);
-            pm = parseInt(pieces[1], 10);
-          }
-        }
-
-        if (ph >= 0 && pm >= 0) {
-          const [sh, sm] = startTime.split(':').map(Number);
-          const punchMins = ph * 60 + pm;
-          const shiftStartMins = (sh || 0) * 60 + (sm || 0);
-          const graceDeadlineMins = shiftStartMins + graceIn;
-          if (punchMins > graceDeadlineMins) {
-            lateMins = punchMins - shiftStartMins;
-          }
-        }
-      }
-
-      // If worked_minutes is 0/missing but first_in and last_out exist and differ, calculate worked duration
       if (!workedMins && summary.first_in && summary.last_out && summary.first_in !== '--:--' && summary.last_out !== '--:--' && summary.first_in !== summary.last_out) {
         const inD = new Date(summary.first_in.includes('T') ? summary.first_in : `2000-01-01T${summary.first_in}`);
         const outD = new Date(summary.last_out.includes('T') ? summary.last_out : `2000-01-01T${summary.last_out}`);
@@ -494,62 +523,60 @@ export default function AttendanceHistoryPage() {
         }
       }
 
+      const isLate = lateMins > 0;
+      const inTimeStr = format24hTime(summary.first_in);
+      const outTimeStr = format24hTime(summary.last_out);
+      const durationStr = formatDuration(workedMins);
+
       if (statusUpper === 'LEAVE') {
-        return { code: 'L', label: 'Leave', type: 'LEAVE', summary };
+        return { inTime: '00:00', outTime: '00:00', duration: '00:00', status: 'CL*', type: 'LEAVE', isLeave: true, isLate: false };
       }
 
-      // If worked minutes reach Full Day cutoff (e.g. >= 8 hrs)
       if (workedMins >= minFullDayMins) {
-        if (lateMins > 0) {
-          return { code: 'L', label: `Late (${lateMins}m) (${formatDuration(workedMins)})`, type: 'LATE', summary };
-        }
-        return { code: 'P', label: `Present (${formatDuration(workedMins)})`, type: 'PRESENT', summary };
+        return {
+          inTime: inTimeStr,
+          isLate,
+          outTime: outTimeStr,
+          duration: durationStr,
+          status: 'P',
+          type: 'PRESENT'
+        };
       }
 
-      // If worked minutes qualify for Half Day (e.g. >= 4 hrs and < 8 hrs)
       if (workedMins >= minHalfDayMins) {
-        if (lateMins > 0) {
-          return { code: 'L', label: `Late (${lateMins}m) (${formatDuration(workedMins)})`, type: 'LATE', summary };
-        }
-        return { code: 'Hd', label: `Half Day (${formatDuration(workedMins)})`, type: 'HALFDAY', summary };
+        return {
+          inTime: inTimeStr,
+          isLate,
+          outTime: outTimeStr,
+          duration: durationStr,
+          status: 'H/D',
+          type: 'HALFDAY'
+        };
       }
 
-      // If today and employee has punched in, shift is in progress
-      if (isToday && summary.first_in && summary.first_in !== '--:--') {
-        if (lateMins > 0) {
-          return { code: 'L', label: `Late (${lateMins}m) (In Progress)`, type: 'LATE', summary };
-        }
-        return { code: 'P', label: 'Present (In Progress)', type: 'PRESENT', summary };
+      if (summary.first_in && summary.first_in !== '--:--') {
+        return {
+          inTime: inTimeStr,
+          isLate,
+          outTime: outTimeStr,
+          duration: durationStr,
+          status: day.dateStr === todayStr ? 'P' : 'LOP',
+          type: day.dateStr === todayStr ? 'PRESENT' : 'LOP'
+        };
       }
-
-      // For past days with insufficient hours (< half day cutoff e.g. < 4 hours), classify as Absent
-      return { 
-        code: 'A', 
-        label: summary.first_in && summary.first_in !== '--:--' 
-          ? `Absent (${formatDuration(workedMins)})` 
-          : 'Absent', 
-        type: 'ABSENT', 
-        summary 
-      };
     }
 
-    if (hasPunch) {
-      if (isToday) {
-        return { code: 'P', label: 'Present (In Progress)', type: 'PRESENT' };
-      }
-      return { code: 'A', label: 'Absent (00:00)', type: 'ABSENT' };
-    }
-
-    // Future date
-    if (isFuture) {
-      return { code: '·', label: 'Upcoming', type: 'FUTURE' };
-    }
-
-    // Past working day without punch = Absent
-    return { code: 'A', label: 'Absent', type: 'ABSENT' };
+    return {
+      inTime: '00:00',
+      outTime: '00:00',
+      duration: '00:00',
+      status: 'LOP',
+      type: 'LOP',
+      isLate: false
+    };
   };
 
-  // Step 4: Filtering & Pagination
+  // Filtering & Pagination
   const filteredEmployees = useMemo(() => {
     return scopedEmployees.filter((emp) => {
       const fullName = `${emp.first_name || ''} ${emp.last_name || ''} ${emp.name || ''}`.toLowerCase();
@@ -567,12 +594,11 @@ export default function AttendanceHistoryPage() {
     return filteredEmployees.slice(start, start + pageSize);
   }, [filteredEmployees, currentPage, pageSize]);
 
-  // Handle page change reset when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, pageSize, selectedMonth, selectedYear]);
 
-  // Step 5: Export CSV / Excel
+  // Export Excel (.xls with True ColSpan & RowSpan)
   const handleExportCSV = () => {
     if (scopedEmployees.length === 0) {
       showToast('No employee data available to export', 'error');
@@ -580,56 +606,75 @@ export default function AttendanceHistoryPage() {
     }
 
     const monthLabel = MONTHS.find((m) => m.value === selectedMonth)?.label || 'Month';
-    const dayHeaders = daysInMonth.map((d) => `"${d.dayNum} ${d.dayName}"`).join(',');
+    
+    // HTML / XML Table for True Excel format with ColSpan and RowSpan
+    let tableHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Attendance History</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+        <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+        <style>
+          table { border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+          th { background-color: #07518A; color: #FFFFFF; font-weight: bold; text-align: center; border: 1px solid #002B49; padding: 6px 8px; }
+          .subth { background-color: #064270; color: #FFFFFF; font-weight: bold; text-align: center; border: 1px solid #002B49; padding: 4px 6px; font-size: 10pt; }
+          td { border: 1px solid #D1D5DB; text-align: center; padding: 4px 6px; }
+          .name-col { text-align: left; font-weight: bold; padding: 6px 10px; background-color: #F8FAFC; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2" class="name-col" style="background-color: #07518A; color: #FFFFFF; text-align: left;">EMPLOYEE NAME & ID</th>
+    `;
 
-    let csvContent = `EMPLOYEE CODE,EMPLOYEE NAME,DEPARTMENT,${dayHeaders},TOTAL PRESENT,TOTAL ABSENT,TOTAL LEAVES,TOTAL WO,TOTAL HOLIDAYS\n`;
-
-    scopedEmployees.forEach((emp) => {
-      const code = emp.emp_id_code || emp.emp_code || '';
-      const name = `${emp.first_name || ''} ${emp.last_name || ''} ${emp.name || ''}`.trim();
-      const dept = emp.department_name || emp.department || '';
-
-      let countP = 0, countA = 0, countL = 0, countWO = 0, countH = 0;
-
-      const dayStatuses = daysInMonth.map((day) => {
-        const st = getDayStatus(emp.id, day);
-        if (st.type === 'PRESENT' || st.type === 'LATE' || st.type === 'HALFDAY') countP++;
-        else if (st.type === 'ABSENT') countA++;
-        else if (st.type === 'LEAVE') countL++;
-        else if (st.type === 'WEEKOFF') countWO++;
-        else if (st.type === 'HOLIDAY') countH++;
-        return `"${st.code}"`;
-      });
-
-      csvContent += `"${code}","${name}","${dept}",${dayStatuses.join(',')},${countP},${countA},${countL},${countWO},${countH}\n`;
+    daysInMonth.forEach((day) => {
+      tableHtml += `<th colspan="4" style="background-color: #07518A; color: #FFFFFF; text-align: center;">${day.dateStr}</th>`;
     });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    tableHtml += `</tr><tr>`;
+
+    daysInMonth.forEach(() => {
+      tableHtml += `
+        <th class="subth">IN</th>
+        <th class="subth">OUT</th>
+        <th class="subth">DURATION</th>
+        <th class="subth">STATUS</th>
+      `;
+    });
+
+    tableHtml += `</tr></thead><tbody>`;
+
+    scopedEmployees.forEach((emp) => {
+      const code = emp.emp_id_code || emp.emp_code || emp.id.slice(0, 7);
+      const name = `${emp.first_name || ''} ${emp.last_name || ''} ${emp.name || ''}`.trim().toUpperCase();
+
+      tableHtml += `<tr><td class="name-col">${name} (${code})</td>`;
+      daysInMonth.forEach((day) => {
+        const rec = getDayAttendanceRecord(emp.id, day);
+        tableHtml += `
+          <td>${rec.inTime}${rec.isLate ? '*' : ''}</td>
+          <td>${rec.outTime}</td>
+          <td>${rec.duration}</td>
+          <td style="font-weight: bold;">${rec.status}</td>
+        `;
+      });
+      tableHtml += `</tr>`;
+    });
+
+    tableHtml += `</tbody></table></body></html>`;
+
+    const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Attendance_History_${monthLabel}_${selectedYear}.csv`);
+    link.setAttribute('download', `Attendance_History_${monthLabel}_${selectedYear}.xls`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     showToast('Exported Attendance History successfully!', 'success');
   };
 
-  // Avatar Initial Color Generator
-  const getAvatarGradient = (str: string) => {
-    const gradients = [
-      'from-purple-600 to-indigo-600',
-      'from-blue-600 to-cyan-600',
-      'from-pink-600 to-rose-600',
-      'from-amber-500 to-orange-600',
-      'from-emerald-600 to-teal-600',
-      'from-violet-600 to-purple-600',
-    ];
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    const index = Math.abs(hash) % gradients.length;
-    return gradients[index];
-  };
   if (!canView) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs mt-6 font-sans">
@@ -647,13 +692,13 @@ export default function AttendanceHistoryPage() {
   return (
     <div className="space-y-4 animate-fadeIn w-full font-sans">
       {/* Main Page Title Banner */}
-      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 border-l-4 border-l-[#07518a] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-lg md:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
             ATTENDANCE ENGINE – HISTORY
           </h1>
           <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
-            Monthly day-by-day attendance status grid for {scopedEmployees.length} active employee{scopedEmployees.length === 1 ? '' : 's'}
+            Monthly day-by-day attendance history grid for {scopedEmployees.length} active employee{scopedEmployees.length === 1 ? '' : 's'}
           </p>
         </div>
 
@@ -664,12 +709,31 @@ export default function AttendanceHistoryPage() {
         )}
       </div>
 
-      {/* Controls & Filter Bar */}
+      {/* Controls & Filter Bar: Search first, Month, Year, then Export */}
       <div className="bg-white dark:bg-slate-900 p-3 sm:p-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        {/* Left Controls: Month, Year */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+        {/* Left Controls: Search Box FIRST, then Month, Year */}
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          {/* 🔍 Search Box (At the Starting) */}
+          <div className="relative min-w-[220px]">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search employee..."
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 pl-9 pr-3 py-1.5 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#07518a]/20 focus:border-[#07518a]"
+            />
+            <svg
+              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
           {/* Month Selector */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-xs font-semibold">
             <span className="text-slate-600 dark:text-slate-400">Month:</span>
             <select
               value={selectedMonth}
@@ -698,28 +762,8 @@ export default function AttendanceHistoryPage() {
           </select>
         </div>
 
-        {/* Right Controls: Search, Export, View Toggle */}
-        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
-          {/* Search Box */}
-          <div className="relative min-w-[220px]">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search employee..."
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 pl-9 pr-3 py-1.5 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#07518a]/20 focus:border-[#07518a]"
-            />
-            <svg
-              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-
-          {/* Export Excel Button */}
+        {/* Right Controls: Export Excel Button */}
+        <div className="flex items-center gap-3">
           <button
             onClick={handleExportCSV}
             className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer"
@@ -729,42 +773,13 @@ export default function AttendanceHistoryPage() {
             </svg>
             <span>Export Excel</span>
           </button>
-
-          {/* Icon / Name View Toggle */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-            <button
-              onClick={() => setViewMode('icon')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'icon'
-                  ? 'bg-[#07518a] text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Icon
-            </button>
-            <button
-              onClick={() => setViewMode('name')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'name'
-                  ? 'bg-[#07518a] text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Name
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Grid Matrix Table with Inner Scroll */}
+      {/* Detailed Grid Matrix Table with Double Header */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="p-16 text-center">
-            <div className="flex flex-col items-center justify-center gap-2.5">
-              <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading Attendance Matrix History...</span>
-            </div>
-          </div>
+          <PageLoader message="Loading Attendance Matrix History..." />
         ) : paginatedEmployees.length === 0 ? (
           <div className="p-16 text-center space-y-2">
             <span className="text-4xl">📂</span>
@@ -772,158 +787,167 @@ export default function AttendanceHistoryPage() {
             <p className="text-xs text-slate-500">Try adjusting your search criteria, month, or employment timeline filter.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto overflow-y-auto max-h-[620px] max-w-full relative scrollbar-thin">
+          <div className="overflow-x-auto overflow-y-auto max-h-[640px] max-w-full relative scrollbar-thin">
             <table className="w-full border-collapse text-left text-xs">
-              <thead className="sticky top-0 z-30 bg-slate-50/95 dark:bg-slate-850/95 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 shadow-2xs">
-                <tr className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
-                  {/* Sticky Employee Column Header */}
-                  <th className="p-3.5 sticky left-0 top-0 z-40 bg-slate-50 dark:bg-slate-850 border-r border-b border-slate-200 dark:border-slate-700 min-w-[200px] shadow-xs">
-                    EMPLOYEE
+              <thead className="sticky top-0 z-30 shadow-xs">
+                {/* Top Row: NAME and Day Date (YYYY-MM-DD) */}
+                <tr className="bg-[#07518a] text-white text-xs font-black uppercase tracking-wider" style={{ color: '#ffffff' }}>
+                  <th rowSpan={2} style={{ color: '#ffffff' }} className="p-3 sticky left-0 top-0 z-50 bg-[#07518a] !text-white text-white min-w-[210px] max-w-[210px] shadow-xs text-left pl-4 border-r border-b border-blue-900/80 font-black text-xs tracking-wider">
+                    EMPLOYEE NAME & ID
                   </th>
+                  {daysInMonth.map((day) => (
+                    <th
+                      key={day.dayNum}
+                      colSpan={4}
+                      style={{ color: '#ffffff' }}
+                      className="py-2.5 px-3 sticky top-0 z-30 bg-[#07518a] !text-white text-white text-center border-r border-b border-blue-900/80 font-black tracking-wide text-xs md:text-[13px]"
+                    >
+                      {day.dateStr}
+                    </th>
+                  ))}
+                </tr>
 
-                  {/* Day Headers (1 to 30/31) */}
-                  {daysInMonth.map((day) => {
-                    const isWeekend = day.dayOfWeek === 0 || isSecondOrFourthSaturday(day.dateObj);
-                    return (
-                      <th
-                        key={day.dayNum}
-                        className={`p-2 text-center border-r border-b border-slate-200/60 dark:border-slate-800 min-w-[38px] ${
-                          isWeekend ? 'bg-orange-50/60 dark:bg-orange-950/30' : ''
-                        }`}
-                      >
-                        <div className="text-xs font-black text-slate-800 dark:text-slate-200">{day.dayNum}</div>
-                        <div className={`text-[9px] font-extrabold ${isWeekend ? 'text-orange-500 dark:text-orange-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                          {day.dayName}
-                        </div>
-                      </th>
-                    );
-                  })}
+                {/* Sub Row: IN, OUT, DURATION, STATUS with larger font size */}
+                <tr className="bg-[#064270] text-white text-[11px] font-black uppercase tracking-wider" style={{ color: '#ffffff' }}>
+                  {daysInMonth.map((day) => (
+                    <React.Fragment key={`sub-${day.dayNum}`}>
+                      <th style={{ color: '#ffffff' }} className="py-2.5 px-1.5 sticky top-[38px] z-30 bg-[#064270] !text-white text-white text-center min-w-[55px] border-r border-b border-blue-900/80 font-black text-[11px]">IN</th>
+                      <th style={{ color: '#ffffff' }} className="py-2.5 px-1.5 sticky top-[38px] z-30 bg-[#064270] !text-white text-white text-center min-w-[55px] border-r border-b border-blue-900/80 font-black text-[11px]">OUT</th>
+                      <th style={{ color: '#ffffff' }} className="py-2.5 px-1.5 sticky top-[38px] z-30 bg-[#064270] !text-white text-white text-center min-w-[65px] border-r border-b border-blue-900/80 font-black text-[11px]">DURATION</th>
+                      <th style={{ color: '#ffffff' }} className="py-2.5 px-1.5 sticky top-[38px] z-30 bg-[#064270] !text-white text-white text-center min-w-[60px] border-r border-b border-blue-900/80 font-black text-[11px]">STATUS</th>
+                    </React.Fragment>
+                  ))}
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800/80 text-xs">
                 {paginatedEmployees.map((emp) => {
                   const cleanFirstName = (emp.first_name || '').trim();
                   const cleanLastName = (emp.last_name || '').trim();
                   const rawCombined = [cleanFirstName, cleanLastName].filter(Boolean).join(' ');
                   const fullEmpName = rawCombined || (emp.name || '').trim() || 'Employee';
-                  const displayEmpName = fullEmpName.length > 20 ? `${fullEmpName.slice(0, 20)}...` : fullEmpName;
-                  const empCode = emp.emp_id_code || emp.emp_code || emp.id.slice(0, 6);
-                  const initial = fullEmpName.charAt(0).toUpperCase();
+                  const empCode = emp.emp_id_code || emp.emp_code || emp.id.slice(0, 7);
+                  const displayName = fullEmpName.length > 20 ? `${fullEmpName.slice(0, 20)}...` : fullEmpName;
 
                   return (
                     <tr
                       key={emp.id}
-                      className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                      className="hover:bg-blue-50/20 dark:hover:bg-slate-800/40 transition-colors"
                     >
-                      {/* Sticky Employee Column */}
-                      <td className="p-3 sticky left-0 z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 min-w-[200px] shadow-xs">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-8 h-8 rounded-full bg-gradient-to-tr ${getAvatarGradient(
-                              emp.id
-                            )} text-white font-black flex items-center justify-center text-xs shadow-xs shrink-0`}
-                          >
-                            {initial}
-                          </div>
-                          <div className="truncate">
-                            <div 
-                              className="font-extrabold text-slate-900 dark:text-white uppercase tracking-tight truncate text-[11px] cursor-help"
-                              title={fullEmpName}
-                            >
-                              {displayEmpName}
+                      {/* Sticky Employee Name with ID underneath & Tooltip */}
+                      <td className="p-2.5 sticky left-0 z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 min-w-[210px] max-w-[210px] shadow-xs text-left">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="cursor-help text-left">
+                              <div className="font-extrabold text-slate-900 dark:text-white uppercase tracking-tight text-[11.5px] leading-snug">
+                                {displayName}
+                              </div>
+                              <div className="text-[10px] font-bold text-[#07518a] dark:text-sky-400 mt-0.5 tracking-wide">
+                                ID: {empCode}
+                              </div>
                             </div>
-                            <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
-                              {empCode}
-                            </div>
-                          </div>
-                        </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs p-2 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl rounded-xl z-50 max-w-xs text-left font-bold">
+                            <p>{fullEmpName}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </td>
 
-                      {/* Day Matrix Cells with Tooltip Component */}
+                      {/* Day Matrix 4 Columns per Day */}
                       {daysInMonth.map((day) => {
-                        const status = getDayStatus(emp.id, day);
-                        const isWeekend = day.dayOfWeek === 0 || isSecondOrFourthSaturday(day.dateObj);
+                        const rec = getDayAttendanceRecord(emp.id, day);
+                        const isGreenTime = rec.isHoliday || rec.isLeave;
+                        const isGreenStatus = rec.isHoliday || rec.isLeave || rec.isWeekoff;
+
+                        const handleOpenDrawer = () => {
+                          setSelectedPunchDay({
+                            employeeId: emp.id,
+                            empCode,
+                            employeeName: fullEmpName,
+                            dateStr: day.dateStr,
+                            inTime: rec.inTime,
+                            outTime: rec.outTime,
+                            duration: rec.duration,
+                            status: rec.status,
+                            isLate: rec.isLate
+                          });
+                        };
 
                         return (
-                          <td
-                            key={day.dayNum}
-                            className={`p-2 text-center border-r border-slate-100 dark:border-slate-800/60 transition-colors ${
-                              isWeekend ? 'bg-orange-50/20 dark:bg-orange-950/10' : ''
-                            }`}
-                          >
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center justify-center cursor-default min-h-[24px]">
-                                  {viewMode === 'icon' ? (
-                                    // Icon View Mode
-                                    <>
-                                      {status.type === 'HOLIDAY' && (
-                                        <span className="text-purple-600 text-sm animate-pulse">★</span>
-                                      )}
-                                      {status.type === 'WEEKOFF' && (
-                                        <span className="text-emerald-500 text-sm">🌴</span>
-                                      )}
-                                      {status.type === 'PRESENT' && (
-                                        <span className="text-emerald-600 font-black text-sm">✓</span>
-                                      )}
-                                      {status.type === 'HALFDAY' && (
-                                        <span className="text-sky-600 font-bold text-xs">✓/✕</span>
-                                      )}
-                                      {status.type === 'LATE' && (
-                                        <span className="bg-amber-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black shadow-2xs">
-                                          !
-                                        </span>
-                                      )}
-                                      {status.type === 'ABSENT' && (
-                                        <span className="text-rose-600 font-bold text-xs">✕</span>
-                                      )}
-                                      {status.type === 'LEAVE' && (
-                                        <span className="px-1 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-[9px] font-black rounded border border-purple-200 dark:border-purple-800">
-                                          {status.code}
-                                        </span>
-                                      )}
-                                      {status.type === 'FUTURE' && (
-                                        <span className="text-slate-300 dark:text-slate-700 font-bold">·</span>
-                                      )}
-                                    </>
-                                  ) : (
-                                    // Text/Name View Mode
-                                    <span
-                                      className={`px-1.5 py-0.5 rounded text-[10px] font-black tracking-tighter ${
-                                        status.type === 'PRESENT'
-                                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                          : status.type === 'ABSENT'
-                                          ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
-                                          : status.type === 'WEEKOFF'
-                                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                                          : status.type === 'HOLIDAY'
-                                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-                                          : status.type === 'LEAVE'
-                                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300'
-                                          : status.type === 'LATE'
-                                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                                          : status.type === 'HALFDAY'
-                                          ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300'
-                                          : 'text-slate-300 dark:text-slate-700 font-semibold'
-                                      }`}
-                                    >
-                                      {status.code}
-                                    </span>
-                                  )}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="text-center font-sans text-xs p-2.5 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl rounded-xl border border-slate-800 dark:border-slate-200 z-50">
-                                <div className="font-bold text-[11px]">{day.dateStr} ({day.dayName})</div>
-                                <div className="text-[10px] opacity-90 font-semibold">{status.label}</div>
-                                {status.summary?.first_in && (
-                                  <div className="text-[9.5px] mt-1 opacity-90 font-mono tracking-tight font-semibold bg-slate-800/80 dark:bg-slate-200/80 px-2 py-0.5 rounded">
-                                    In: {formatPunchTime(status.summary.first_in)} | Out: {formatPunchTime(status.summary.last_out)}
-                                  </div>
-                                )}
-                              </TooltipContent>
-                            </Tooltip>
-                          </td>
+                          <React.Fragment key={day.dayNum}>
+                            {/* IN */}
+                            <td className="p-0 text-center text-[11px] border-r border-slate-100 dark:border-slate-800/60">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={handleOpenDrawer}
+                                    className={`w-full h-full py-2 px-1.5 text-center cursor-pointer hover:bg-blue-100/70 dark:hover:bg-blue-900/50 hover:font-bold transition-all border-0 bg-transparent flex items-center justify-center gap-0.5 ${
+                                      isGreenTime ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-800 dark:text-slate-200 font-medium'
+                                    }`}
+                                  >
+                                    <span>{rec.inTime}</span>
+                                    {rec.isLate && <span className="text-red-600 font-bold ml-0.5">*</span>}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-[10px] font-bold py-1 px-2.5 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl rounded-xl z-50">
+                                  Click to view all raw punches
+                                </TooltipContent>
+                              </Tooltip>
+                            </td>
+
+                            {/* OUT */}
+                            <td className="p-0 text-center text-[11px] border-r border-slate-100 dark:border-slate-800/60">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={handleOpenDrawer}
+                                    className={`w-full h-full py-2 px-1.5 text-center cursor-pointer hover:bg-blue-100/70 dark:hover:bg-blue-900/50 hover:font-bold transition-all border-0 bg-transparent flex items-center justify-center gap-0.5 ${
+                                      isGreenTime ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-800 dark:text-slate-200 font-medium'
+                                    }`}
+                                  >
+                                    <span>{rec.outTime}</span>
+                                    {rec.outTime !== '00:00' && rec.isLate && <span className="text-red-600 font-bold ml-0.5">*</span>}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-[10px] font-bold py-1 px-2.5 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl rounded-xl z-50">
+                                  Click to view all raw punches
+                                </TooltipContent>
+                              </Tooltip>
+                            </td>
+
+                            {/* DURATION */}
+                            <td className="p-0 text-center text-[11px] border-r border-slate-100 dark:border-slate-800/60">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={handleOpenDrawer}
+                                    className={`w-full h-full py-2 px-1.5 text-center cursor-pointer hover:bg-blue-100/70 dark:hover:bg-blue-900/50 hover:font-bold transition-all border-0 bg-transparent flex items-center justify-center ${
+                                      isGreenTime ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-800 dark:text-slate-200 font-medium'
+                                    }`}
+                                  >
+                                    <span>{rec.duration}</span>
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-[10px] font-bold py-1 px-2.5 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl rounded-xl z-50">
+                                  Click to view all raw punches
+                                </TooltipContent>
+                              </Tooltip>
+                            </td>
+
+                            {/* STATUS */}
+                            <td className={`py-2 px-1.5 text-center font-bold text-[11px] border-r border-slate-200/80 dark:border-slate-800 ${
+                              isGreenStatus
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : rec.status === 'LOP'
+                                ? 'text-slate-800 dark:text-slate-200'
+                                : 'text-slate-800 dark:text-slate-200'
+                            }`}>
+                              {rec.status}
+                            </td>
+                          </React.Fragment>
                         );
                       })}
                     </tr>
@@ -953,68 +977,280 @@ export default function AttendanceHistoryPage() {
         )}
       </div>
 
-      {/* 📌 Legend Note Bar Moved Cleanly to the Bottom */}
-      <div className="bg-white dark:bg-slate-900 px-4 py-3 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-        <span className="text-slate-900 dark:text-white font-black tracking-wider uppercase text-[10.5px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700">
-          STATUS LEGEND
-        </span>
-        
-        {/* Holiday (H) */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-purple-600 text-sm">★</span>
-          <span>➜ Holiday (H)</span>
-        </div>
+      {/* 🚀 OFFCANVAS SLIDE DRAWER FOR DAILY PUNCH LOGS */}
+      <SlideDrawer
+        isOpen={!!selectedPunchDay}
+        onClose={() => setSelectedPunchDay(null)}
+        title={selectedPunchDay ? `Punch Logs: ${selectedPunchDay.dateStr}` : 'Punch Logs'}
+        width="max-w-[560px]"
+      >
+        {selectedPunchDay && (
+          <div className="space-y-4 font-sans text-xs">
+            {/* Employee & Date Summary Banner */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#07518a]/10 dark:bg-[#07518a]/30 text-[#07518a] dark:text-blue-400 flex items-center justify-center font-black text-sm">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-slate-900 dark:text-white">
+                      {selectedPunchDay.employeeName}
+                    </h4>
+                    <p className="text-[10.5px] font-bold text-slate-400">
+                      ID: {selectedPunchDay.empCode}
+                    </p>
+                  </div>
+                </div>
 
-        <span className="text-slate-300 dark:text-slate-700">|</span>
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                  selectedPunchDay.status === 'P' || selectedPunchDay.status === 'Present'
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200/70'
+                    : selectedPunchDay.status === 'Holiday' || selectedPunchDay.status === 'WO'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200/70'
+                    : 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200/70'
+                }`}>
+                  {selectedPunchDay.status}
+                </span>
+              </div>
 
-        {/* Day Off (WO) */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-emerald-500 text-sm">🌴</span>
-          <span>➜ Day Off (WO)</span>
-        </div>
+              {/* Day Metrics Quick Bar */}
+              <div className="grid grid-cols-4 gap-2 pt-2 border-t border-slate-100 dark:border-slate-700 text-center">
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">IN Time</span>
+                  <span className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                    {selectedPunchDay.inTime}
+                    {selectedPunchDay.isLate && <span className="text-red-500 ml-0.5">*</span>}
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">OUT Time</span>
+                  <span className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                    {selectedPunchDay.outTime}
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Duration</span>
+                  <span className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                    {selectedPunchDay.duration}
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Punches</span>
+                  <span className="text-[11px] font-black text-[#07518a] dark:text-sky-400">
+                    {dayPunches.length} Logs
+                  </span>
+                </div>
+              </div>
+            </div>
 
-        <span className="text-slate-300 dark:text-slate-700">|</span>
+            {/* List of Raw Punches Recorded for the Day */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Punch Timeline ({dayPunches.length})
+                </span>
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  {selectedPunchDay.dateStr}
+                </span>
+              </div>
 
-        {/* Present (P) */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-emerald-600 font-bold">✓</span>
-          <span>➜ Present (≥{attendancePolicy?.full_day_min_hours ? Number(attendancePolicy.full_day_min_hours) : 8}h) (P)</span>
-        </div>
+              {loadingPunches ? (
+                <div className="p-8">
+                  <PageLoader message="Fetching day punch records..." />
+                </div>
+              ) : dayPunches.length === 0 ? (
+                <div className="p-8 text-center bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700 space-y-2">
+                  <span className="text-3xl block">📋</span>
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No Raw Punches Recorded</p>
+                  <p className="text-[10.5px] text-slate-400 max-w-xs mx-auto">
+                    No biometric device or mobile GPS punches found for this employee on {selectedPunchDay.dateStr}.
+                  </p>
+                </div>
+              ) : (
+                dayPunches.map((punch, idx) => {
+                  const direction = (punch.direction || punch.punch_direction || 'IN').toUpperCase();
+                  const isMobile = (punch.source || '').toUpperCase().includes('MOBILE') || (punch.image_url && String(punch.image_url).trim() !== '') || (punch.latitude && punch.longitude);
+                  
+                  let formattedPunchTime = punch.punch_time || punch.created_at || '-';
+                  try {
+                    let iso = String(punch.punch_time || punch.created_at || '').trim();
+                    if (!iso.includes('T') && iso.includes(' ')) iso = iso.replace(' ', 'T');
+                    const d = new Date(iso);
+                    if (!isNaN(d.getTime())) {
+                      formattedPunchTime = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                    }
+                  } catch (e) {
+                    // ignore
+                  }
 
-        <span className="text-slate-300 dark:text-slate-700">|</span>
+                  return (
+                    <div
+                      key={punch.id || idx}
+                      className="p-3.5 bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-2xs space-y-2.5 transition-all hover:border-[#07518a]/40"
+                    >
+                      {/* Top Bar: Punch #, Direction badge, Time */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center text-[10px] font-black">
+                            #{idx + 1}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                            direction === 'IN'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300'
+                              : 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300'
+                          }`}>
+                            {direction} Punch
+                          </span>
+                        </div>
 
-        {/* Half Day (Hd) */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-sky-600 font-bold">✓ / ✕</span>
-          <span>➜ Half Day ({attendancePolicy?.half_day_min_hours ? Number(attendancePolicy.half_day_min_hours) : 4}h–{attendancePolicy?.full_day_min_hours ? Number(attendancePolicy.full_day_min_hours) : 8}h) (Hd)</span>
-        </div>
+                        <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 text-xs">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{formattedPunchTime}</span>
+                        </div>
+                      </div>
 
-        <span className="text-slate-300 dark:text-slate-700">|</span>
+                      {/* Middle Details: Device Punch vs Mobile Punch with Location & Image */}
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-700/80 text-xs space-y-2">
+                        {isMobile ? (
+                          /* Mobile / GPS Punch */
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60">
+                                <Smartphone className="w-3 h-3" />
+                                <span>Mobile App Punch</span>
+                              </span>
+                              {punch.device_model && (
+                                <span className="text-[10.5px] text-slate-500 font-medium">
+                                  {punch.device_model}
+                                </span>
+                              )}
+                            </div>
 
-        {/* Late (L) */}
-        <div className="flex items-center gap-1.5">
-          <span className="bg-amber-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black">!</span>
-          <span>➜ Late (L)</span>
-        </div>
+                            {/* Location / GPS info */}
+                            {(punch.location_name || (punch.latitude && punch.longitude)) && (
+                              <div className="flex items-start gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800">
+                                <MapPin className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                <div className="flex-1 text-[11px]">
+                                  {punch.location_name && punch.location_name !== 'IN' && punch.location_name !== 'OUT' && (
+                                    <p className="font-bold text-slate-800 dark:text-slate-200">
+                                      {punch.location_name}
+                                    </p>
+                                  )}
+                                  {punch.latitude && punch.longitude && (
+                                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                                      <span className="text-[10px] text-slate-400 font-mono">
+                                        GPS: {punch.latitude}, {punch.longitude}
+                                      </span>
+                                      <a
+                                        href={`https://www.google.com/maps?q=${punch.latitude},${punch.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 underline"
+                                      >
+                                        <span>View Map</span>
+                                        <ExternalLink className="w-2.5 h-2.5" />
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
 
-        <span className="text-slate-300 dark:text-slate-700">|</span>
+                            {/* Verification Selfie Image Preview */}
+                            {punch.image_url && (
+                              <div className="pt-1">
+                                <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                  Captured Punch Selfie
+                                </span>
+                                <div
+                                  onClick={() => setSelectedImagePreview(punch.image_url)}
+                                  className="relative w-28 h-28 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 cursor-pointer group shadow-2xs"
+                                  title="Click to zoom selfie"
+                                >
+                                  <img
+                                    src={punch.image_url}
+                                    alt="Punch Selfie"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  />
+                                  <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[10px] font-bold">
+                                    <Camera className="w-4 h-4 mr-1" /> Zoom
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          /* Biometric Device Punch */
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                                <Radio className="w-3 h-3" />
+                                <span>Biometric Device Punch</span>
+                              </span>
+                            </div>
 
-        {/* Absent (Ab) */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-rose-600 font-bold">✕</span>
-          <span>➜ Absent (&lt;{attendancePolicy?.half_day_min_hours ? Number(attendancePolicy.half_day_min_hours) : 4}h) (Ab)</span>
-        </div>
+                            <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                              <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase block">Machine ID / Terminal</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200">
+                                  {punch.device_id || punch.device_model || 'Biometric Machine'}
+                                </span>
+                              </div>
+                              <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase block">IP Address</span>
+                                <span className="font-medium text-slate-600 dark:text-slate-400 font-mono text-[10.5px]">
+                                  {punch.ip_address || '-'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+      </SlideDrawer>
 
-        <span className="text-slate-300 dark:text-slate-700">|</span>
-
-        {/* Leave Types */}
-        <div className="flex items-center gap-1.5">
-          <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-[10px] font-black rounded-md border border-purple-200 dark:border-purple-800">
-            CL/SL
-          </span>
-          <span>➜ Leave Types</span>
-        </div>
-      </div>
+      {/* 📸 FULL SIZE SELFIE PREVIEW MODAL */}
+      {selectedImagePreview && createPortal(
+        <div
+          className="fixed inset-0 z-[1000001] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn"
+          onClick={() => setSelectedImagePreview(null)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-w-md w-full relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <h4 className="text-xs font-black uppercase text-slate-850 dark:text-white">
+                  Punch Selfie Verification
+                </h4>
+              </div>
+              <button
+                onClick={() => setSelectedImagePreview(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-3 bg-slate-950 flex items-center justify-center">
+              <img
+                src={selectedImagePreview}
+                alt="Punch Verification Selfie"
+                className="w-full max-h-[70vh] object-contain rounded-2xl"
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { AlertTriangle, Search, CheckCircle2, XCircle, Trash2, Edit2, Clock } from 'lucide-react';
 import CustomDatePicker from '../../components/CustomDatePicker';
 import SearchableSelect from '../../components/SearchableSelect';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Employee {
   id: string;
@@ -158,7 +159,7 @@ export default function AttendancePermissionsPage() {
     const cid = activeCompanyId;
     if (!cid) return;
     try {
-      const url = cid && cid !== 'all' ? `${API_BASE}/api/v1/employees?company_id=${cid}` : `${API_BASE}/api/v1/employees`;
+      const url = cid && cid !== 'all' ? `${API_BASE}/api/v1/employees?company_id=${cid}&pageSize=500` : `${API_BASE}/api/v1/employees?pageSize=500`;
       const res = await fetch(url, { headers: getHeaders() });
       if (res.ok) {
         const data = await res.json();
@@ -223,8 +224,7 @@ export default function AttendancePermissionsPage() {
 
   useEffect(() => {
     if (canView && activeCompanyId) {
-      fetchEmployees();
-      fetchPolicy();
+      Promise.all([fetchEmployees(), fetchPolicy()]);
     }
   }, [activeCompanyId, email, canView]);
 
@@ -694,11 +694,8 @@ export default function AttendancePermissionsPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center">
-                    <div className="p-16 text-center space-y-3">
-                      <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Permission Requests...</p>
-                    </div>
+                  <td colSpan={10} className="py-8 text-center">
+                    <PageLoader message="Loading Permission Requests..." />
                   </td>
                 </tr>
               ) : filteredRequests.length === 0 ? (

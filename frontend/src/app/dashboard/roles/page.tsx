@@ -8,6 +8,7 @@ import { useDashboard } from '../components/DashboardContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../../../components/ui/tooltip';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -76,6 +77,7 @@ export default function RolesPage() {
   const [openScopeMenu, setOpenScopeMenu] = useState<string | null>(null);
 
   const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const isAdminOrSuperAdmin = isSuperAdmin || roles.some(r => r.toLowerCase().includes('admin'));
 
   const getModuleCategory = (moduleName: string) => {
     const name = moduleName.toLowerCase();
@@ -291,20 +293,36 @@ export default function RolesPage() {
   const togglePermissionAutoSave = async (roleId: string, permId: string) => {
     if (savingRoleId !== null) return;
     const currentList = rolePermissionsState[roleId] || [];
-    let newList;
+    const currentScopes = { ...(roleScopesState[roleId] || {}) };
+    let newList: string[];
 
     const targetPerm = permissions.find(p => p.id === permId);
-    const isViewAction = targetPerm?.name.startsWith('view_');
+    const isViewAction = targetPerm?.name.endsWith('_view') || getActionType(targetPerm?.name || '') === 'VIEW';
 
     if (currentList.includes(permId)) {
       if (isViewAction && targetPerm) {
+        // If revoking view, automatically revoke all actions (create, edit, delete, etc.) for this module
         const modulePermIds = permissions.filter(p => p.module === targetPerm.module).map(p => p.id);
         newList = currentList.filter(id => !modulePermIds.includes(id));
       } else {
         newList = currentList.filter(id => id !== permId);
       }
     } else {
-      newList = [...currentList, permId];
+      // If granting action, ensure view is also granted
+      if (!isViewAction && targetPerm) {
+        const viewPerm = permissions.find(p => p.module === targetPerm.module && (p.name.endsWith('_view') || getActionType(p.name) === 'VIEW'));
+        if (viewPerm && !currentList.includes(viewPerm.id)) {
+          newList = [...currentList, viewPerm.id, permId];
+          if (!currentScopes[viewPerm.id]) currentScopes[viewPerm.id] = 'SELF';
+        } else {
+          newList = [...currentList, permId];
+        }
+      } else {
+        newList = [...currentList, permId];
+      }
+      if (!currentScopes[permId]) {
+        currentScopes[permId] = 'SELF';
+      }
     }
 
     // Optimistic UI Update
@@ -312,10 +330,13 @@ export default function RolesPage() {
       ...prev,
       [roleId]: newList
     }));
+    setRoleScopesState(prev => ({
+      ...prev,
+      [roleId]: currentScopes
+    }));
 
     try {
       setSavingRoleId(roleId);
-      const currentScopes = roleScopesState[roleId] || {};
       const res = await fetch(`/api/v1/roles/${roleId}/permissions`, {
         method: 'POST',
         headers: getHeaders(),
@@ -323,7 +344,6 @@ export default function RolesPage() {
       });
       if (res.ok) {
         showToast('Permission settings saved successfully!', 'success');
-        // Silent update to fetch latest roles permission count
         const refreshRes = await fetch(getUrl('/api/v1/roles', companyId), { headers: getHeaders() });
         const refreshData = await refreshRes.json();
         if (refreshRes.ok) {
@@ -331,7 +351,6 @@ export default function RolesPage() {
         }
       } else {
         showToast('Failed to synchronize permission changes', 'error');
-        // Rollback on API error
         setRolePermissionsState(prev => ({ ...prev, [roleId]: currentList }));
       }
     } catch (err) {
@@ -349,25 +368,10 @@ export default function RolesPage() {
     if (idsToUpdate.length === 0) return;
 
     const currentPermIds = rolePermissionsState[roleId] || [];
-    let updatedPermIds: string[];
-
-    if (scope === 'NONE') {
-      // Revoke permission(s)
-      updatedPermIds = currentPermIds.filter(id => !idsToUpdate.includes(id));
-    } else {
-      // Grant permission(s) if not already active
-      updatedPermIds = Array.from(new Set([...currentPermIds, ...idsToUpdate]));
-    }
-
     const newScopes = { ...currentScopes };
     idsToUpdate.forEach(id => {
       newScopes[id] = scope;
     });
-
-    setRolePermissionsState(prev => ({
-      ...prev,
-      [roleId]: updatedPermIds
-    }));
 
     setRoleScopesState(prev => ({
       ...prev,
@@ -379,10 +383,10 @@ export default function RolesPage() {
       const res = await fetch(`/api/v1/roles/${roleId}/permissions`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ permissionIds: updatedPermIds, permissionScopes: newScopes, companyId })
+        body: JSON.stringify({ permissionIds: currentPermIds, permissionScopes: newScopes, companyId })
       });
       if (res.ok) {
-        showToast(scope === 'NONE' ? 'Permission set to None (Revoked)' : `Data Scope set to ${scope}`, 'success');
+        showToast(`Data Scope set to ${scope}`, 'success');
         const refreshRes = await fetch(getUrl('/api/v1/roles', companyId), { headers: getHeaders() });
         const refreshData = await refreshRes.json();
         if (refreshRes.ok) {
@@ -390,12 +394,10 @@ export default function RolesPage() {
         }
       } else {
         showToast('Failed to update data scope', 'error');
-        setRolePermissionsState(prev => ({ ...prev, [roleId]: currentPermIds }));
         setRoleScopesState(prev => ({ ...prev, [roleId]: currentScopes }));
       }
     } catch (err) {
       showToast('Connection error updating scope', 'error');
-      setRolePermissionsState(prev => ({ ...prev, [roleId]: currentPermIds }));
       setRoleScopesState(prev => ({ ...prev, [roleId]: currentScopes }));
     } finally {
       setSavingRoleId(null);
@@ -403,10 +405,10 @@ export default function RolesPage() {
   };
 
   const getActionWeight = (name: string) => {
-    if (name.startsWith('view_') || name.endsWith('_view')) return 1;
-    if (name.startsWith('create_') || name.endsWith('_create')) return 2;
-    if (name.startsWith('edit_') || name.endsWith('_edit')) return 3;
-    if (name.startsWith('delete_') || name.endsWith('_delete')) return 4;
+    if (name.endsWith('_view')) return 1;
+    if (name.endsWith('_create')) return 2;
+    if (name.endsWith('_edit') || name.endsWith('_update')) return 3;
+    if (name.endsWith('_delete')) return 4;
     return 5;
   };
 
@@ -471,15 +473,15 @@ export default function RolesPage() {
     }
   };
 
-  const SCOPE_CYCLE = ['ALL', 'SELF', 'REPORTING', 'DEPARTMENT', 'NONE'];
+  const SCOPE_CYCLE = ['SELF', 'REPORTING', 'DEPARTMENT', 'ALL'];
   const getNextScope = (currentScope: string) => {
     const idx = SCOPE_CYCLE.indexOf(currentScope);
     return idx === -1 || idx === SCOPE_CYCLE.length - 1 ? SCOPE_CYCLE[0] : SCOPE_CYCLE[idx + 1];
   };
 
   const getScopeBadge = (scope: string, isGranted: boolean = true) => {
-    if (!isGranted || scope === 'NONE') {
-      return { letter: 'N', color: 'bg-rose-500/20 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-500/40', label: 'None — No access' };
+    if (!isGranted) {
+      return { letter: '-', color: 'bg-slate-200/60 text-slate-400 dark:bg-slate-800 dark:text-slate-600', label: 'Revoked — No access' };
     }
     switch (scope) {
       case 'SELF': return { letter: 'S', color: 'bg-amber-500 text-white dark:bg-amber-500 dark:text-white', label: 'Self — Own records only' };
@@ -492,12 +494,12 @@ export default function RolesPage() {
   };
 
   const getActionType = (name: string) => {
-    if (name.startsWith('view_') || name.endsWith('_view')) return 'VIEW';
-    if (name.startsWith('create_') || name.endsWith('_create')) return 'CREATE';
-    if (name.startsWith('edit_') || name.endsWith('_edit')) return 'EDIT';
-    if (name.startsWith('delete_') || name.endsWith('_delete')) return 'DELETE';
-    if (name.startsWith('manage_') || name.endsWith('_manage')) return 'MANAGE';
-    if (name.startsWith('calculate_') || name.endsWith('_calculate')) return 'CALCULATE';
+    if (name.endsWith('_view')) return 'VIEW';
+    if (name.endsWith('_create')) return 'CREATE';
+    if (name.endsWith('_edit') || name.endsWith('_update')) return 'EDIT';
+    if (name.endsWith('_delete')) return 'DELETE';
+    if (name.endsWith('_manage')) return 'MANAGE';
+    if (name.endsWith('_calculate')) return 'CALCULATE';
     return 'ACCESS';
   };
 
@@ -514,10 +516,24 @@ export default function RolesPage() {
     ...companies.map(c => ({ value: c.id, label: c.name }))
   ];
 
-  const inputStyle = "w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-purple-500 focus:bg-card focus:ring-4 focus:ring-purple-500/10 transition-all duration-200 placeholder-slate-400";
+  const inputStyle = "w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40 px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-purple-500 focus:bg-card focus:ring-4 focus:ring-purple-500/10 transition-all duration-200 placeholder-slate-400 font-dmsans";
+
+  if (roles.length > 0 && !isAdminOrSuperAdmin) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 animate-fadeIn font-dmsans">
+        <div className="h-16 w-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-3xl">
+          🔒
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Access Restricted</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-xs mt-1.5 max-w-sm">
+          The Roles & Access Policies console is restricted exclusively to Company Administrators and Super Administrators.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8 animate-fadeIn w-full pb-32 font-sidebar">
+    <div className="space-y-8 animate-fadeIn w-full pb-32 font-dmsans">
 
       {/* Header Panel */}
       <div className="w-full">
@@ -563,12 +579,6 @@ export default function RolesPage() {
                 </Tooltip>
               </div>
               <div className="flex items-center gap-1.5 text-[9px] font-black tracking-wider uppercase bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 font-sans">
-                <Tooltip>
-                  <TooltipTrigger>
-                    <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold cursor-help">N = None</span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">N = None: No access</TooltipContent>
-                </Tooltip>
                 <Tooltip>
                   <TooltipTrigger>
                     <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold cursor-help">S = Self</span>
@@ -656,9 +666,8 @@ export default function RolesPage() {
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-20 shadow-xl flex flex-col items-center justify-center gap-2.5 text-center animate-fadeIn min-h-[420px]">
-          <div className="w-7 h-7 border-3 border-[#07518a] border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold uppercase tracking-wider text-[#07518a] dark:text-[#38bdf8]">Loading Role Access Policies...</span>
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-8 shadow-xs">
+          <PageLoader message="Loading Role Access Policies..." />
         </div>
       ) : viewMode === 'matrix' ? (
         /* ⚡ SUPABASE-STYLE ROLE PERMISSION MATRIX TABLE */
@@ -758,10 +767,10 @@ export default function RolesPage() {
                     const modulePerms = permissions.filter(p => p.module === moduleName);
                     const category = getModuleCategory(moduleName);
 
-                    const viewPerm = modulePerms.find(p => p.name.startsWith('view_') || p.name.endsWith('_view'));
-                    const createPerm = modulePerms.find(p => p.name.startsWith('create_') || p.name.endsWith('_create'));
-                    const editPerm = modulePerms.find(p => p.name.startsWith('edit_') || p.name.endsWith('_edit') || p.name.startsWith('update_') || p.name.startsWith('calculate_'));
-                    const deletePerm = modulePerms.find(p => p.name.startsWith('delete_') || p.name.endsWith('_delete'));
+                    const viewPerm = modulePerms.find(p => p.name.endsWith('_view'));
+                    const createPerm = modulePerms.find(p => p.name.endsWith('_create'));
+                    const editPerm = modulePerms.find(p => p.name.endsWith('_edit') || p.name.endsWith('_update') || p.name.endsWith('_calculate'));
+                    const deletePerm = modulePerms.find(p => p.name.endsWith('_delete'));
 
                     return (
                       <tr key={moduleName} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/60 transition-colors">
@@ -931,19 +940,19 @@ export default function RolesPage() {
                                       );
                                     }
                                     const isPermActive = rolePermIds.includes(item.perm.id);
-                                    const permScope = isPermActive ? (roleScopesState[role.id]?.[item.perm.id] || 'ALL') : 'NONE';
+                                    const permScope = roleScopesState[role.id]?.[item.perm.id] || 'SELF';
                                     const badge = getScopeBadge(permScope, isPermActive);
                                     const nextScope = getNextScope(permScope);
-                                    const nextBadge = getScopeBadge(nextScope, nextScope !== 'NONE');
+                                    const nextBadge = getScopeBadge(nextScope, true);
 
                                     return (
                                       <Tooltip key={i}>
                                         <TooltipTrigger>
                                           <button
                                             type="button"
-                                            disabled={savingRoleId !== null}
-                                            onClick={() => handleScopeChange(role.id, item.perm!.id, nextScope)}
-                                            className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center cursor-pointer shadow-2xs hover:scale-110 active:scale-95 ${badge.color}`}
+                                            disabled={savingRoleId !== null || !isPermActive}
+                                            onClick={() => isPermActive && handleScopeChange(role.id, item.perm!.id, nextScope)}
+                                            className={`w-6.5 h-6.5 rounded-lg text-[10px] font-black font-sans transition-all flex items-center justify-center shadow-2xs ${badge.color} ${!isPermActive ? 'opacity-35 cursor-not-allowed' : 'cursor-pointer hover:scale-110 active:scale-95'}`}
                                           >
                                             {badge.letter}
                                           </button>
@@ -952,12 +961,20 @@ export default function RolesPage() {
                                           <div className="font-bold text-[11px]">
                                             {item.action} Scope — {moduleName}
                                           </div>
-                                          <div className="text-[10px] opacity-80 mt-0.5">
-                                            Current: {badge.letter} ({badge.label.split('(')[0].trim()})
-                                          </div>
-                                          <div className="text-[10px] text-indigo-300 dark:text-indigo-600 mt-0.5">
-                                            Next: {nextBadge.letter} ({nextBadge.label.split('(')[0].trim()})
-                                          </div>
+                                          {isPermActive ? (
+                                            <>
+                                              <div className="text-[10px] opacity-80 mt-0.5">
+                                                Current: {badge.letter} ({badge.label.split('—')[0].trim()})
+                                              </div>
+                                              <div className="text-[10px] text-indigo-300 dark:text-indigo-600 mt-0.5">
+                                                Next: {nextBadge.letter} ({nextBadge.label.split('—')[0].trim()})
+                                              </div>
+                                            </>
+                                          ) : (
+                                            <div className="text-[10px] text-slate-400 mt-0.5">
+                                              Permission inactive. Enable {item.action} to configure scope.
+                                            </div>
+                                          )}
                                         </TooltipContent>
                                       </Tooltip>
                                     );
@@ -1292,13 +1309,13 @@ export default function RolesPage() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
                             {(() => {
-                              const viewPermission = modulePermissions.find(p => p.name.startsWith('view_'));
+                              const viewPermission = modulePermissions.find(p => p.name.endsWith('_view'));
                               const isViewChecked = viewPermission ? activeRolePermissions.includes(viewPermission.id) : true;
 
                               return modulePermissions.map(p => {
                                 const isChecked = activeRolePermissions.includes(p.id);
                                 const action = getActionType(p.name);
-                                const isViewAction = p.name.startsWith('view_');
+                                const isViewAction = p.name.endsWith('_view');
                                 const isToggleDisabled = savingRoleId !== null || (!isViewAction && !isViewChecked);
 
                                 let actionCardTheme = {
@@ -1353,7 +1370,7 @@ export default function RolesPage() {
                                       {p.name === 'companies_create' ? (
                                         <Tooltip>
                                           <TooltipTrigger>
-                                            <span className="relative inline-flex h-5 w-9 flex-shrink-0 cursor-not-allowed rounded-full border border-transparent bg-slate-200 dark:bg-slate-850 opacity-40">
+                                            <span className="relative inline-flex h-5 w-9 flex-shrink-0 cursor-not-allowed rounded-full border border-transparent bg-slate-200 dark:bg-slate-855 opacity-40">
                                               <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 translate-x-0" />
                                             </span>
                                           </TooltipTrigger>
@@ -1405,30 +1422,29 @@ export default function RolesPage() {
                                       </span>
                                       <div className="inline-flex items-center gap-1">
                                         {[
-                                          { key: 'NONE', letter: 'N', color: 'bg-rose-500 text-white', label: 'None — No access (revoked)' },
                                           { key: 'SELF', letter: 'S', color: 'bg-amber-500 text-white', label: 'Self — Own records only' },
                                           { key: 'REPORTING', letter: 'T', color: 'bg-emerald-500 text-white', label: 'Team — Reporting team records' },
                                           { key: 'DEPARTMENT', letter: 'D', color: 'bg-purple-500 text-white', label: 'Dept — Department records' },
                                           { key: 'ALL', letter: 'A', color: 'bg-indigo-600 text-white', label: 'All — Company-wide access' }
                                         ].map(sc => {
-                                          const currentScope = isChecked ? ((selectedRoleId && roleScopesState[selectedRoleId]?.[p.id]) || 'ALL') : 'NONE';
-                                          const isSelected = currentScope === sc.key;
+                                          const currentScope = (selectedRoleId && roleScopesState[selectedRoleId]?.[p.id]) || 'SELF';
+                                          const isSelected = isChecked && currentScope === sc.key;
                                           return (
                                             <Tooltip key={sc.key}>
                                               <TooltipTrigger>
                                                 <button
                                                   type="button"
-                                                  disabled={savingRoleId !== null || (p.name === 'companies_create' && sc.key !== 'NONE')}
+                                                  disabled={savingRoleId !== null || !isChecked || (p.name === 'companies_create')}
                                                   onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (selectedRoleId) {
+                                                    if (selectedRoleId && isChecked) {
                                                       handleScopeChange(selectedRoleId, p.id, sc.key);
                                                     }
                                                   }}
-                                                  className={`w-6 h-6 rounded-md text-[10px] font-black transition-all flex items-center justify-center cursor-pointer ${isSelected
+                                                  className={`w-6 h-6 rounded-md text-[10px] font-black transition-all flex items-center justify-center ${isSelected
                                                     ? `${sc.color} shadow-xs scale-105 ring-1 ring-white/20`
                                                     : 'bg-slate-200/70 text-slate-500 dark:bg-slate-850 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700'
-                                                    } ${(savingRoleId !== null || (p.name === 'companies_create' && sc.key !== 'NONE')) ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                                    } ${(savingRoleId !== null || !isChecked || (p.name === 'companies_create')) ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
                                                 >
                                                   {sc.letter}
                                                 </button>
@@ -1466,7 +1482,7 @@ export default function RolesPage() {
 
       {/* Slide Drawer to Create a Role */}
       <SlideDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} title="Create System Role">
-        <form onSubmit={handleCreateRole} className="space-y-5 text-left">
+        <form onSubmit={handleCreateRole} className="space-y-5 text-left font-dmsans" autoComplete="off">
           {isSuperAdmin && (
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold text-slate-550 dark:text-slate-400 uppercase tracking-widest mb-1.5">Target Company Context *</label>
@@ -1485,6 +1501,9 @@ export default function RolesPage() {
             </label>
             <input
               type="text" placeholder="e.g. HRManager"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               value={roleForm.name}
               onChange={e => setRoleForm({ ...roleForm, name: e.target.value })}
               className={inputStyle}
@@ -1497,6 +1516,9 @@ export default function RolesPage() {
             </label>
             <input
               type="text" placeholder="e.g. Manages departments & approvals"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               value={roleForm.description}
               onChange={e => setRoleForm({ ...roleForm, description: e.target.value })}
               className={inputStyle}
@@ -1521,13 +1543,16 @@ export default function RolesPage() {
 
       {/* Slide Drawer to Edit Role */}
       <SlideDrawer isOpen={editRoleDrawerOpen} onClose={() => setEditRoleDrawerOpen(false)} title="Edit Access Role">
-        <form onSubmit={handleUpdateRole} className="space-y-5 text-left">
+        <form onSubmit={handleUpdateRole} className="space-y-5 text-left font-dmsans" autoComplete="off">
           <div className="space-y-1.5">
             <label className="block text-[10px] font-bold text-slate-555 dark:text-slate-400 uppercase tracking-widest">
               Role Name Identifier *
             </label>
             <input
               type="text" placeholder="e.g. Management"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               value={editRoleForm.name}
               onChange={e => setEditRoleForm({ ...editRoleForm, name: e.target.value })}
               className={inputStyle}
@@ -1540,6 +1565,9 @@ export default function RolesPage() {
             </label>
             <input
               type="text" placeholder="e.g. Manages organization operations"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               value={editRoleForm.description}
               onChange={e => setEditRoleForm({ ...editRoleForm, description: e.target.value })}
               className={inputStyle}

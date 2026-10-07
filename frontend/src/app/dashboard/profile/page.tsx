@@ -5,12 +5,14 @@ import { createPortal } from 'react-dom';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
 import { useDashboard } from '../components/DashboardContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { 
   User, Mail, Phone, Calendar, MapPin, CreditCard, ShieldCheck, Building2, 
   Layers, Briefcase, GraduationCap, Zap, Landmark, Lock, Heart, FileText, 
   CheckCircle2, Edit3, Eye, EyeOff, Plus, Trash2, Award, FileSpreadsheet, Globe, KeyRound, Sparkles, Pin, Printer, QrCode
 } from 'lucide-react';
 import { DatePickerSimple } from '@/components/ui/custom-controls';
+import PageLoader from '@/components/ui/PageLoader';
 
 interface Company {
   id: string;
@@ -85,10 +87,16 @@ interface Employee {
   education?: string | EducationEntry[];
   experience?: string | ExperienceEntry[];
   emp_image?: string;
+  reporting_to_id?: string;
+  manager_first_name?: string;
+  manager_last_name?: string;
+  manager_emp_code?: string;
+  manager_emp_image?: string;
 }
 
 export default function ProfilePage() {
   const { showToast: defaultShowToast } = useDashboard();
+  const { isSuperAdmin: isSuperAdminPerm, hasPermission } = usePermissions();
   const [email, setEmail] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -113,12 +121,12 @@ export default function ProfilePage() {
       const storedRoles = localStorage.getItem('roles');
       if (stored) {
         const perms = JSON.parse(stored);
-        const roles = JSON.parse(storedRoles || '[]');
-        const isSuper = roles.map((r: string) => r.toLowerCase()).includes('superadmin');
+        const rList = JSON.parse(storedRoles || '[]');
+        const isSuper = rList.map((r: string) => r.toLowerCase()).includes('superadmin');
         if (isSuper || perms.includes('*')) {
           setCanEditProfile(true);
         } else {
-          const hasEdit = perms.some((p: string) => p.includes('edit_employees') || p.includes('edit_profile') || p.includes('edit'));
+          const hasEdit = perms.some((p: string) => p.includes('employees_edit') || p.includes('edit_employees') || p.includes('employee_edit') || p.includes('edit_profile'));
           setCanEditProfile(hasEdit);
         }
       }
@@ -232,7 +240,8 @@ export default function ProfilePage() {
   const isPasswordValid = hasCapital && hasSmall && hasNumber && hasSpecial && isLengthValid;
   const isSaveEnabled = isPasswordValid && newPasswordInput === confirmPasswordInput;
 
-  const isSuperAdmin = roles.includes('SuperAdmin') || roles.includes('superadmin');
+  const isSuperAdmin = roles.some(r => r.toLowerCase() === 'superadmin') || isSuperAdminPerm;
+  const canEdit = isSuperAdmin || hasPermission('employees_edit') || hasPermission('edit_employees') || hasPermission('edit_profile') || canEditProfile;
 
   // Helper trigger for custom animated toast notifications
   const triggerCustomToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -496,7 +505,7 @@ export default function ProfilePage() {
       }
     }
 
-    // 2. Work Email validation: if entered, valid email and length <= 30 chars
+    // 2. Work Email & Personal Email validation
     const emailToValidate = workEmail || myProfile.email;
     if (emailToValidate && emailToValidate.trim() !== '') {
       if (emailToValidate.length > 30) {
@@ -509,6 +518,22 @@ export default function ProfilePage() {
       }
     }
 
+    if (personalEmail && personalEmail.trim() !== '') {
+      if (personalEmail.length > 50) {
+        triggerCustomToast('⚠️ Personal Email must be below 50 characters.', 'error');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail.trim())) {
+        triggerCustomToast('⚠️ Please enter a valid Personal Email address.', 'error');
+        return;
+      }
+      const finalWork = (workEmail || myProfile.email || '').trim().toLowerCase();
+      if (finalWork && personalEmail.trim().toLowerCase() === finalWork) {
+        triggerCustomToast('⚠️ Work Email and Personal Email must be different.', 'error');
+        return;
+      }
+    }
+
     // 3. First Name & Last Name validation: if entered, letters only & length <= 25 chars
     if (firstName && firstName.trim() !== '') {
       if (firstName.length > 25) {
@@ -516,7 +541,7 @@ export default function ProfilePage() {
         return;
       }
       if (!/^[A-Za-z\s]+$/.test(firstName.trim())) {
-        triggerCustomToast('⚠️ First Name must contain letters only.', 'error');
+        triggerCustomToast('⚠️ First Name must contain letters and spaces only.', 'error');
         return;
       }
     }
@@ -527,7 +552,7 @@ export default function ProfilePage() {
         return;
       }
       if (!/^[A-Za-z\s]+$/.test(lastName.trim())) {
-        triggerCustomToast('⚠️ Last Name must contain letters only.', 'error');
+        triggerCustomToast('⚠️ Last Name must contain letters and spaces only.', 'error');
         return;
       }
     }
@@ -593,7 +618,7 @@ export default function ProfilePage() {
       }
     }
 
-    // 8. ESI & UAN validation: if entered, exactly 10 digits each
+    // 8. ESI & UAN validation: ESI 10 digits, UAN exactly 12 digits
     if (esiNumber && esiNumber.trim() !== '') {
       const cleanEsi = esiNumber.replace(/\s+/g, '');
       if (!/^\d{10}$/.test(cleanEsi)) {
@@ -604,8 +629,8 @@ export default function ProfilePage() {
 
     if (uanNumber && uanNumber.trim() !== '') {
       const cleanUan = uanNumber.replace(/\s+/g, '');
-      if (!/^\d{10}$/.test(cleanUan)) {
-        triggerCustomToast('⚠️ UAN Number must be exactly 10 digits.', 'error');
+      if (!/^\d{12}$/.test(cleanUan)) {
+        triggerCustomToast('⚠️ UAN Number must be exactly 12 digits.', 'error');
         return;
       }
     }
@@ -794,13 +819,13 @@ export default function ProfilePage() {
 
   const maskValue = (val: string | undefined | null, reveal: boolean) => {
     if (!val || val.trim() === '') return renderValueBadge(val);
-    if (reveal) return <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100">{val}</span>;
+    if (reveal) return <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{val}</span>;
     const cleaned = val.replace(/\s/g, '');
-    if (cleaned.length <= 4) return <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100">••••</span>;
+    if (cleaned.length <= 4) return <span className="text-xs font-bold text-slate-800 dark:text-slate-100 tracking-wider">••••</span>;
     const maskedPart = '•'.repeat(cleaned.length - 4);
     const visiblePart = cleaned.slice(-4);
     const formattedMask = (maskedPart + visiblePart).replace(/(.{4})/g, '$1 ').trim();
-    return <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100">{formattedMask}</span>;
+    return <span className="text-xs font-bold text-slate-800 dark:text-slate-100 tracking-wider">{formattedMask}</span>;
   };
 
   const getFieldTheme = (label: string) => {
@@ -814,13 +839,35 @@ export default function ProfilePage() {
     return 'bg-gradient-to-br from-indigo-500 to-sky-600 text-white shadow-md shadow-indigo-500/20';
   };
 
-  const renderFieldBlock = (label: string, value: string | undefined | null) => {
+  const renderFieldBlock = (label: string, value: string | undefined | null, avatarImg?: string) => {
+    const isReportingHead = label.toLowerCase().includes('reporting head');
     const icon = getFieldIcon(label);
     const themeClass = getFieldTheme(label);
+
+    let avatarNode = icon;
+    if (isReportingHead) {
+      const managerName = (value && value !== 'Not Assigned' && value !== 'None') ? value : '';
+      const fallbackLetter = managerName ? managerName.charAt(0).toUpperCase() : 'M';
+      if (avatarImg && avatarImg.trim() !== '') {
+        avatarNode = (
+          <img
+            src={avatarImg}
+            alt={managerName || 'Reporting Head'}
+            className="w-full h-full object-cover rounded-2xl"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = 'none';
+            }}
+          />
+        );
+      } else if (managerName) {
+        avatarNode = <span className="text-sm font-black text-white">{fallbackLetter}</span>;
+      }
+    }
+
     return (
       <div className="group flex items-center gap-3.5 p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-2xs hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-400/50 hover:-translate-y-0.5 transition-all duration-300">
-        <div className={`h-10 w-10 rounded-2xl ${themeClass} flex items-center justify-center text-sm font-semibold shrink-0 group-hover:scale-110 transition-transform duration-300`}>
-          {icon}
+        <div className={`h-10 w-10 rounded-2xl ${themeClass} overflow-hidden flex items-center justify-center text-sm font-semibold shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+          {avatarNode}
         </div>
         <div className="flex-1 min-w-0 text-left">
           <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
@@ -896,9 +943,8 @@ export default function ProfilePage() {
 
 
       {loading ? (
-        <div className="p-16 text-center space-y-3">
-          <div className="w-8 h-8 border-4 border-[#07518a] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading Profile Details...</p>
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-xs">
+          <PageLoader message="Loading Profile Details..." />
         </div>
       ) : (
         <div className="w-full space-y-6">
@@ -915,15 +961,7 @@ export default function ProfilePage() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/20 to-transparent" />
 
-            <div className="p-6 sm:p-8 relative z-10 space-y-6">
-              
-              {/* Cover Top Inspiration */}
-              <div className="flex items-center justify-end border-b border-white/10 pb-4">
-                <span className="text-xs font-bold text-sky-100/90 italic drop-shadow-md hidden sm:inline-block">
-                  "An employee's experience is the sum of all interactions."
-                </span>
-              </div>
-
+            <div className="p-5 sm:p-6 relative z-10">
               {/* Profile Info & Action Bar */}
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 
@@ -934,7 +972,7 @@ export default function ProfilePage() {
                   <label className="relative group shrink-0 transition-all duration-500 hover:scale-105 cursor-pointer" title="Click photo to change">
                     <div className="absolute -inset-1.5 rounded-[2.2rem] bg-gradient-to-r from-sky-400 via-indigo-400 to-pink-500 opacity-80 blur-md group-hover:opacity-100 group-hover:blur-lg transition-all duration-500" />
                     
-                    <div className="h-32 w-32 sm:h-36 sm:w-36 rounded-[2.2rem] bg-gradient-to-br from-[#07518a] via-blue-700 to-indigo-900 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-2xl relative font-outfit overflow-hidden border-4 border-white group-hover:border-sky-300 transition-all duration-500">
+                    <div className="h-32 w-32 sm:h-36 sm:w-36 rounded-[2.2rem] bg-gradient-to-br from-[#07518a] via-blue-700 to-indigo-900 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-2xl relative overflow-hidden border-4 border-white group-hover:border-sky-300 transition-all duration-500">
                       {(empImage || myProfile?.emp_image) && !imgLoadError ? (
                         <img 
                           src={empImage || myProfile?.emp_image} 
@@ -978,7 +1016,7 @@ export default function ProfilePage() {
                   {/* Name & Headline - PURE CRISP WHITE */}
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                      <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-outfit drop-shadow-md">
+                      <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight drop-shadow-md">
                         {firstName ? `${firstName} ${lastName}` : email.split('@')[0]}
                       </h1>
                       <span className="text-sky-300 font-bold text-lg" title="Verified Employee">✓</span>
@@ -1063,7 +1101,7 @@ export default function ProfilePage() {
                 }`}
               >
                 <Building2 className="w-4 h-4" />
-                <span>Work & Organization</span>
+                <span>Organization</span>
                 {activeTab === 'work' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
               </button>
 
@@ -1105,7 +1143,7 @@ export default function ProfilePage() {
                 }`}
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Compliance & Banking</span>
+                <span>Banking</span>
                 {activeTab === 'compliance' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
               </button>
 
@@ -1119,14 +1157,14 @@ export default function ProfilePage() {
                 }`}
               >
                 <Lock className="w-4 h-4" />
-                <span>Security & Account</span>
+                <span>Security</span>
                 {activeTab === 'security' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
               </button>
             </div>
 
             {/* Right Side: ICON-ONLY Edit Button at the end of the tabs bar */}
             <div className="shrink-0 flex items-center gap-2 pr-1">
-              {!isEditing && canEditProfile ? (
+              {!isEditing && canEdit ? (
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
@@ -1170,728 +1208,663 @@ export default function ProfilePage() {
 
           </div>
 
-          {/* MAIN SOCIAL MEDIA FEED GRID */}
+          {/* MAIN TAB CONTENT - FULL WIDTH 3-COLUMNS GRID ACROSS EVERY TAB */}
           <form onSubmit={handleSaveChanges} className="w-full space-y-6">
             
-            <div className="grid gap-6 lg:grid-cols-3 items-start">
-              
-              {/* LEFT SIDEBAR (1 col): SOCIAL MEDIA STATS & QUICK INFO CARD */}
-              <div className={`${activeTab === 'overview' ? 'block' : 'hidden'} lg:block lg:col-span-1 space-y-6 text-left`}>
-                
-                <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full space-y-5">
-                  <div className="h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 absolute top-0 inset-x-0" />
-                  
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3.5">
+            {/* 1️⃣ TAB 1: OVERVIEW & PERSONAL INFO */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6 animate-fadeIn">
+
+                {/* Personal Information Card - 3 fields per row */}
+                <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-visible group w-full z-10">
+                  <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 absolute top-0 inset-x-0 rounded-t-3xl" />
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
                     <div className="flex items-center gap-2">
-                      <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                        <Pin className="w-4 h-4" />
-                      </span>
-                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Quick Summary</h3>
-                    </div>
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-[10px] font-extrabold uppercase tracking-wider">
-                      Verified
-                    </span>
-                  </div>
-
-                  <div className="space-y-3 text-xs font-medium">
-                    <div className="group/item flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 hover:border-indigo-400/50 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300">
-                      <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20 group-hover/item:scale-110 transition-transform">
-                        <Mail className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Work Email</span>
-                        {isEditing ? (
-                          <input
-                            type="email"
-                            value={workEmail || email}
-                            onChange={e => setWorkEmail(e.target.value)}
-                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
-                          />
-                        ) : (
-                          <span className="font-bold text-slate-800 dark:text-slate-100 truncate block select-all">{workEmail || email}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="group/item flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 hover:border-sky-400/50 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300">
-                      <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-sky-500/20 group-hover/item:scale-110 transition-transform">
-                        <Phone className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Primary Phone</span>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            maxLength={10}
-                            value={phone}
-                            onChange={e => setPhone(e.target.value.replace(/\s+/g, ''))}
-                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-indigo-500"
-                          />
-                        ) : (
-                          <span className="font-bold text-slate-800 dark:text-slate-100 block">{phone || 'Not Provided'}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="group/item flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 hover:border-emerald-400/50 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300">
-                      <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20 group-hover/item:scale-110 transition-transform">
-                        <Building2 className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Office Location</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-100 block">{myProfile?.branch_name || 'Not Specified'}</span>
-                      </div>
-                    </div>
-
-                    <div className="group/item flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 hover:border-purple-400/50 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300">
-                      <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/20 group-hover/item:scale-110 transition-transform">
-                        <Briefcase className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[9.5px] font-extrabold uppercase text-slate-400 tracking-wider block mb-0.5">Department & Designation</span>
-                        <span className="font-bold text-slate-800 dark:text-slate-100 block">
-                          {myProfile?.department_name ? `${myProfile.department_name} • ${myProfile?.designation_name || 'Member'}` : (myProfile?.designation_name || 'Not Specified')}
-                        </span>
-                      </div>
+                      <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">👤</span>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">Personal Information</h3>
                     </div>
                   </div>
+                  
+                  {isEditing ? (
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      <div>
+                        <label className="profile-custom-form-label">First Name</label>
+                        <input type="text" maxLength={25} required value={firstName} onChange={(e) => setFirstName(e.target.value.replace(/[^A-Za-z\s]/g, ''))} className="premium-input" />
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">Last Name</label>
+                        <input type="text" maxLength={25} required value={lastName} onChange={(e) => setLastName(e.target.value.replace(/[^A-Za-z\s]/g, ''))} className="premium-input" />
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">Official Work Email</label>
+                        <input type="email" maxLength={30} value={workEmail} onChange={(e) => setWorkEmail(e.target.value)} className="premium-input" />
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">Primary Phone Number</label>
+                        <input type="text" maxLength={10} placeholder="e.g. 9876543210" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\s+/g, ''))} className="premium-input" />
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">Personal Email</label>
+                        <input type="email" value={personalEmail} onChange={(e) => setPersonalEmail(e.target.value)} className="premium-input" />
+                      </div>
+                      <div className="relative z-30">
+                        <label className="profile-custom-form-label">Date of Birth</label>
+                        <DatePickerSimple
+                          value={dob}
+                          onChange={(val) => setDob(val)}
+                          maxDate={new Date()}
+                          placeholder="Select date of birth"
+                        />
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">Gender</label>
+                        <select value={gender} onChange={(e) => setGender(e.target.value)} className="premium-input">
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">Marital Status</label>
+                        <select value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} className="premium-input">
+                          <option value="">Select Status</option>
+                          <option value="Single">Single</option>
+                          <option value="Married">Married</option>
+                          <option value="Divorced">Divorced</option>
+                          <option value="Widowed">Widowed</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">Blood Group</label>
+                        <input type="text" value={bloodGroup} placeholder="e.g. O+" onChange={(e) => setBloodGroup(e.target.value)} className="premium-input" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {renderFieldBlock("First Name", firstName)}
+                      {renderFieldBlock("Last Name", lastName)}
+                      {renderFieldBlock("Official Work Email", email)}
+                      {renderFieldBlock("Phone Number", phone)}
+                      {renderFieldBlock("Personal Email", personalEmail)}
+                      {renderFieldBlock("Date of Birth", dob)}
+                      {renderFieldBlock("Gender", gender)}
+                      {renderFieldBlock("Marital Status", maritalStatus)}
+                      {renderFieldBlock("Blood Group", bloodGroup)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Residential Address Card - 3 fields per row */}
+                <div className="rounded-3xl border border-emerald-100 dark:border-emerald-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                  <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 absolute top-0 inset-x-0" />
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-sm font-semibold">📍</span>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">Residential Address</h3>
+                    </div>
+                  </div>
+                  {isEditing ? (
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="sm:col-span-1 lg:col-span-1">
+                        <label className="profile-custom-form-label">Current Residential Address</label>
+                        <textarea rows={3} value={currentAddress} onChange={(e) => setCurrentAddress(e.target.value)} className="premium-input resize-none" />
+                      </div>
+                      <div className="sm:col-span-1 lg:col-span-2">
+                        <label className="profile-custom-form-label">Permanent Address</label>
+                        <textarea rows={3} value={permanentAddress} onChange={(e) => setPermanentAddress(e.target.value)} className="premium-input resize-none" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {renderFieldBlock("Current Residential Address", currentAddress)}
+                      <div className="sm:col-span-1 lg:col-span-2">
+                        {renderFieldBlock("Permanent Address", permanentAddress)}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
               </div>
+            )}
 
-              {/* RIGHT MAIN SOCIAL FEED (2 cols): TAB CONTENT CARDS */}
-              <div className="lg:col-span-2 space-y-6 text-left">
-                
-                {/* 1️⃣ TAB 1: OVERVIEW & PERSONAL INFO */}
-                {activeTab === 'overview' && (
-                  <div className="space-y-6">
-                    
-                    {/* Personal Information Card */}
-                    <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-visible group w-full z-10">
-                      <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 absolute top-0 inset-x-0 rounded-t-3xl" />
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">👤</span>
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Personal Information</h3>
-                        </div>
-                      </div>
-                      
-                      {isEditing ? (
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div>
-                            <label className="profile-custom-form-label">First Name</label>
-                            <input type="text" maxLength={25} required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="premium-input" />
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">Last Name</label>
-                            <input type="text" maxLength={25} required value={lastName} onChange={(e) => setLastName(e.target.value)} className="premium-input" />
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">Official Work Email</label>
-                            <input type="email" maxLength={30} value={workEmail} onChange={(e) => setWorkEmail(e.target.value)} className="premium-input" />
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">Primary Phone Number</label>
-                            <input type="text" maxLength={10} placeholder="e.g. 9876543210" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\s+/g, ''))} className="premium-input" />
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">Personal Email</label>
-                            <input type="email" value={personalEmail} onChange={(e) => setPersonalEmail(e.target.value)} className="premium-input" />
-                          </div>
-                          <div className="relative z-30">
-                            <label className="profile-custom-form-label">Date of Birth</label>
-                            <DatePickerSimple
-                              value={dob}
-                              onChange={(val) => setDob(val)}
-                              maxDate={new Date()}
-                              placeholder="Select date of birth"
-                            />
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">Gender</label>
-                            <select value={gender} onChange={(e) => setGender(e.target.value)} className="premium-input">
-                              <option value="">Select Gender</option>
-                              <option value="Male">Male</option>
-                              <option value="Female">Female</option>
-                              <option value="Other">Other</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">Marital Status</label>
-                            <select value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} className="premium-input">
-                              <option value="">Select Status</option>
-                              <option value="Single">Single</option>
-                              <option value="Married">Married</option>
-                              <option value="Divorced">Divorced</option>
-                              <option value="Widowed">Widowed</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">Blood Group</label>
-                            <input type="text" value={bloodGroup} placeholder="e.g. O+" onChange={(e) => setBloodGroup(e.target.value)} className="premium-input" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {renderFieldBlock("First Name", firstName)}
-                          {renderFieldBlock("Last Name", lastName)}
-                          <div className="col-span-full">
-                            {renderFieldBlock("Official Work Email", email)}
-                          </div>
-                          {renderFieldBlock("Phone Number", phone)}
-                          {renderFieldBlock("Personal Email", personalEmail)}
-                          {renderFieldBlock("Date of Birth", dob)}
-                          {renderFieldBlock("Gender", gender)}
-                          {renderFieldBlock("Marital Status", maritalStatus)}
-                          {renderFieldBlock("Blood Group", bloodGroup)}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Residential Address Card */}
-                    <div className="rounded-3xl border border-emerald-100 dark:border-emerald-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 absolute top-0 inset-x-0" />
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-sm font-semibold">📍</span>
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Residential Address</h3>
-                        </div>
-                      </div>
-                      {isEditing ? (
-                        <div className="grid gap-5 sm:grid-cols-2">
-                          <div>
-                            <label className="profile-custom-form-label">Current Residential Address</label>
-                            <textarea rows={3} value={currentAddress} onChange={(e) => setCurrentAddress(e.target.value)} className="premium-input resize-none" />
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">Permanent Address</label>
-                            <textarea rows={3} value={permanentAddress} onChange={(e) => setPermanentAddress(e.target.value)} className="premium-input resize-none" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {renderFieldBlock("Current Residential Address", currentAddress)}
-                          {renderFieldBlock("Permanent Address", permanentAddress)}
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-                )}
-
-                {/* 2️⃣ TAB 2: WORK & ORGANIZATION */}
-                {activeTab === 'work' && (
-                  <div className="space-y-6">
-                    <div className="rounded-3xl border border-sky-100 dark:border-sky-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 absolute top-0 inset-x-0" />
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 text-sm font-semibold">🏢</span>
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Organization & Employment Info</h3>
-                        </div>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {renderFieldBlock("Assigned Office Branch", myProfile?.branch_name)}
-                        {renderFieldBlock("Primary Department", myProfile?.department_name)}
-                        {renderFieldBlock("Job Designation", myProfile?.designation_name)}
-                        {renderFieldBlock("Employment Type", employmentType || 'Full-Time Regular')}
-                        {renderFieldBlock("Date of Joining", myProfile?.joining_date ? new Date(myProfile.joining_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Pending')}
-                        {renderFieldBlock("System Access Role", isSuperAdmin ? 'SuperAdmin' : (myProfile?.role_name || 'Employee'))}
-                      </div>
+            {/* 2️⃣ TAB 2: ORGANIZATION */}
+            {activeTab === 'work' && (
+              <div className="space-y-6 animate-fadeIn">
+                <div className="rounded-3xl border border-sky-100 dark:border-sky-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                  <div className="h-1 bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 absolute top-0 inset-x-0" />
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 text-sm font-semibold">🏢</span>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">Organization & Employment Info</h3>
                     </div>
                   </div>
-                )}
+                  <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                    {renderFieldBlock("Official Work Email", workEmail || myProfile?.email || email)}
+                    {renderFieldBlock("Primary Phone", phone || myProfile?.phone)}
+                    {renderFieldBlock("Job Designation", myProfile?.designation_name)}
+                    {renderFieldBlock("Assigned Office Branch", myProfile?.branch_name)}
+                    {renderFieldBlock("Primary Department", myProfile?.department_name)}
+                    {renderFieldBlock("Employment Type", employmentType || 'Full-Time Regular')}
+                    {renderFieldBlock("Date of Joining", myProfile?.joining_date ? new Date(myProfile.joining_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Pending')}
+                    {renderFieldBlock("System Access Role", isSuperAdmin ? 'SuperAdmin' : (myProfile?.role_name || 'Employee'))}
+                    {renderFieldBlock(
+                      "Reporting Head",
+                      (myProfile?.manager_first_name || myProfile?.manager_last_name)
+                        ? `${`${myProfile?.manager_first_name || ''} ${myProfile?.manager_last_name || ''}`.trim()}${myProfile?.manager_emp_code ? ` (${myProfile.manager_emp_code})` : ''}`
+                        : (myProfile?.reporting_to_id ? 'Assigned' : 'Not Assigned'),
+                      myProfile?.manager_emp_image
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
-                {/* 🎓 TAB 3: EDUCATION & QUALIFICATIONS */}
-                {activeTab === 'education' && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div className="rounded-3xl border border-purple-100 dark:border-purple-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500 absolute top-0 inset-x-0" />
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 text-sm font-semibold">🎓</span>
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Education & Academic Qualifications</h3>
-                        </div>
-                      </div>
+            {/* 🎓 TAB 3: EDUCATION & QUALIFICATIONS */}
+            {activeTab === 'education' && (
+              <div className="space-y-6 animate-fadeIn">
+                <div className="rounded-3xl border border-purple-100 dark:border-purple-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                  <div className="h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500 absolute top-0 inset-x-0" />
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 text-sm font-semibold">🎓</span>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">Education & Academic Qualifications</h3>
+                    </div>
+                  </div>
 
-                      {isEditing ? (
-                        <div className="space-y-4">
-                          {educationList.map((edu, index) => (
-                            <div key={index} className="grid gap-4 sm:grid-cols-2 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 relative">
-                              <button
-                                type="button"
-                                onClick={() => setEducationList(educationList.filter((_, i) => i !== index))}
-                                className="absolute top-3 right-3 text-rose-600 hover:text-rose-700 text-xs font-bold cursor-pointer"
-                              >
-                                Remove
-                              </button>
-                              <div>
-                                <label className="profile-custom-form-label">Degree / Qualification</label>
-                                <input type="text" required value={edu.degree} onChange={(e) => { const list = [...educationList]; list[index].degree = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. B.Tech Computer Science" />
-                              </div>
-                              <div>
-                                <label className="profile-custom-form-label">University / Institution</label>
-                                <input type="text" required value={edu.institution} onChange={(e) => { const list = [...educationList]; list[index].institution = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. JNTU / Andhra University" />
-                              </div>
-                              <div>
-                                <label className="profile-custom-form-label">Year of Passing</label>
-                                <input type="text" value={edu.year || edu.passing_year || ''} onChange={(e) => { const list = [...educationList]; list[index].year = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. 2020" />
-                              </div>
-                              <div>
-                                <label className="profile-custom-form-label">Grade / CGPA / Percentage</label>
-                                <input type="text" value={edu.grade || edu.percentage_gpa || ''} onChange={(e) => { const list = [...educationList]; list[index].grade = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. 8.5 CGPA / 85%" />
-                              </div>
-                            </div>
-                          ))}
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      {educationList.map((edu, index) => (
+                        <div key={index} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 relative">
                           <button
                             type="button"
-                            onClick={() => setEducationList([...educationList, { degree: '', institution: '', year: '', grade: '' }])}
-                            className="py-3 px-4 border border-dashed border-purple-300 dark:border-purple-700 text-xs font-bold rounded-xl w-full text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors cursor-pointer"
+                            onClick={() => setEducationList(educationList.filter((_, i) => i !== index))}
+                            className="absolute top-3 right-3 text-rose-600 hover:text-rose-700 text-xs font-bold cursor-pointer"
                           >
-                            + Add Educational Qualification
+                            Remove
                           </button>
-                        </div>
-                      ) : educationList.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center p-6 border border-dashed border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 rounded-2xl text-center">
-                          <span className="text-xl mb-1">🎓</span>
-                          <p className="text-xs font-bold text-purple-700 dark:text-purple-300">No Education Records Added</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click edit to add your degrees & academic qualifications.</p>
-                        </div>
-                      ) : (
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {educationList.map((edu, idx) => (
-                            <div key={idx} className="p-4.5 rounded-2xl border border-purple-100 dark:border-purple-900/30 bg-purple-50/30 dark:bg-purple-950/20 hover:border-purple-300 hover:shadow-md transition-all space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-[10px] font-black uppercase tracking-wider">
-                                  {edu.year || edu.passing_year || 'Graduated'}
-                                </span>
-                                {(edu.grade || edu.percentage_gpa) && (
-                                  <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400">
-                                    ★ {edu.grade || edu.percentage_gpa}
-                                  </span>
-                                )}
-                              </div>
-                              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white leading-snug">
-                                {edu.degree}
-                              </h4>
-                              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                                <span>🏛️</span>
-                                <span>{edu.institution}</span>
-                              </p>
+                          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                            <div>
+                              <label className="profile-custom-form-label">Degree / Qualification</label>
+                              <input type="text" required value={edu.degree} onChange={(e) => { const list = [...educationList]; list[index].degree = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. B.Tech Computer Science" />
                             </div>
-                          ))}
+                            <div>
+                              <label className="profile-custom-form-label">University / Institution</label>
+                              <input type="text" required value={edu.institution} onChange={(e) => { const list = [...educationList]; list[index].institution = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. JNTU / Andhra University" />
+                            </div>
+                            <div>
+                              <label className="profile-custom-form-label">Year of Passing</label>
+                              <input type="text" value={edu.year || edu.passing_year || ''} onChange={(e) => { const list = [...educationList]; list[index].year = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. 2020" />
+                            </div>
+                            <div className="sm:col-span-2 lg:col-span-3">
+                              <label className="profile-custom-form-label">Grade / CGPA / Percentage</label>
+                              <input type="text" value={edu.grade || edu.percentage_gpa || ''} onChange={(e) => { const list = [...educationList]; list[index].grade = e.target.value; setEducationList(list); }} className="premium-input" placeholder="e.g. 8.5 CGPA / 85%" />
+                            </div>
+                          </div>
                         </div>
-                      )}
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setEducationList([...educationList, { degree: '', institution: '', year: '', grade: '' }])}
+                        className="py-3 px-4 border border-dashed border-purple-300 dark:border-purple-700 text-xs font-bold rounded-xl w-full text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors cursor-pointer"
+                      >
+                        + Add Educational Qualification
+                      </button>
                     </div>
-                  </div>
-                )}
-
-                {/* ⚡ TAB 4: SKILLS & EXPERTISE */}
-                {activeTab === 'skills' && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div className="rounded-3xl border border-cyan-100 dark:border-cyan-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-500 absolute top-0 inset-x-0" />
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 text-sm font-semibold">⚡</span>
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Technical Skills & Professional Expertise</h3>
-                        </div>
-                      </div>
-
-                      {skillsList.length === 0 && !isEditing ? (
-                        <div className="flex flex-col items-center justify-center p-6 border border-dashed border-cyan-200 dark:border-cyan-900/40 bg-cyan-50/40 dark:bg-cyan-950/20 rounded-2xl text-center">
-                          <span className="text-xl mb-1">⚡</span>
-                          <p className="text-xs font-bold text-cyan-700 dark:text-cyan-300">No Technical Skills Recorded</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click edit button above to add your technical skills.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-6">
-                          {/* Skills Badges Pill Grid */}
-                          <div className="flex flex-wrap gap-2.5">
-                            {skillsList.map((skill, idx) => (
-                              <div
-                                key={idx}
-                                className="px-4 py-2 rounded-2xl bg-gradient-to-r from-indigo-50 to-sky-50 dark:from-indigo-950/40 dark:to-sky-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-slate-800 dark:text-slate-100 text-xs font-extrabold flex items-center gap-2 shadow-2xs hover:scale-105 transition-transform"
-                              >
-                                <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-                                <span>{skill}</span>
-                                {isEditing && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setSkillsList(skillsList.filter((_, i) => i !== idx))}
-                                    className="text-rose-500 hover:text-rose-700 ml-1 text-xs font-bold cursor-pointer"
-                                  >
-                                    ✕
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Add Skill Input in Edit Mode */}
-                          {isEditing && (
-                            <div className="flex items-center gap-3 pt-2">
-                              <input
-                                type="text"
-                                placeholder="Type a skill (e.g. Next.js, Keycloak) and click Add..."
-                                value={newSkillInput}
-                                onChange={(e) => setNewSkillInput(e.target.value)}
-                                className="premium-input flex-1"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    if (newSkillInput.trim()) {
-                                      setSkillsList([...skillsList, newSkillInput.trim()]);
-                                      setNewSkillInput('');
-                                    }
-                                  }
-                                }}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (newSkillInput.trim()) {
-                                    setSkillsList([...skillsList, newSkillInput.trim()]);
-                                    setNewSkillInput('');
-                                  }
-                                }}
-                                className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-xl uppercase tracking-wider cursor-pointer shadow-md shadow-cyan-600/20"
-                              >
-                                + Add Skill
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                  ) : educationList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-6 border border-dashed border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 rounded-2xl text-center">
+                      <span className="text-xl mb-1">🎓</span>
+                      <p className="text-xs font-bold text-purple-700 dark:text-purple-300">No Education Records Added</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click edit to add your degrees & academic qualifications.</p>
                     </div>
-                  </div>
-                )}
-
-                {/* 3️⃣ TAB 3: COMPLIANCE & BANKING */}
-                {activeTab === 'compliance' && (
-                  <div className="space-y-6">
-                    
-                    {/* Compliance & Identifiers Card */}
-                    <div className="rounded-3xl border border-amber-100 dark:border-amber-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 absolute top-0 inset-x-0" />
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-sm font-semibold">🛡️</span>
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit">Compliance & Identifiers</h3>
-                        </div>
-                      </div>
-                      {isEditing ? (
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div>
-                            <label className="profile-custom-form-label">PAN Card Number</label>
-                            <input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value)} className="premium-input" />
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">Aadhar Card Number</label>
-                            <input type="text" value={aadharNumber} onChange={(e) => setAadharNumber(e.target.value)} className="premium-input" />
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">ESI Account Number</label>
-                            <input type="text" value={esiNumber} onChange={(e) => setEsiNumber(e.target.value)} className="premium-input" />
-                          </div>
-                          <div>
-                            <label className="profile-custom-form-label">UAN (Universal Account Number)</label>
-                            <input type="text" value={uanNumber} onChange={(e) => setUanNumber(e.target.value)} className="premium-input" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {renderSecureFieldBlock("PAN Card Number", panNumber, revealPAN, setRevealPAN)}
-                          {renderSecureFieldBlock("Aadhar Card Number", aadharNumber, revealAadhar, setRevealAadhar)}
-                          {renderSecureFieldBlock("ESI Account Number", esiNumber, revealESI, setRevealESI)}
-                          {renderSecureFieldBlock("UAN (Universal Account Number)", uanNumber, revealUAN, setRevealUAN)}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Bank Accounts Card */}
-                    <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full">
-                      <div className="h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 absolute top-0 inset-x-0" />
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">🏦</span>
-                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-outfit font-bold">Bank Accounts</h3>
-                        </div>
-                      </div>
-                      {isEditing ? (
-                        <div className="space-y-4">
-                          {safeBankInfoList.map((bank, index) => (
-                            <div key={index} className="grid gap-4 sm:grid-cols-2 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 relative">
-                              <button
-                                type="button"
-                                onClick={() => setBankInfoList(safeBankInfoList.filter((_, i) => i !== index))}
-                                className="absolute top-3 right-3 text-rose-600 hover:text-rose-700 text-xs font-bold cursor-pointer"
-                              >
-                                Remove
-                              </button>
-                              <div>
-                                <label className="profile-custom-form-label">Bank Name</label>
-                                <input type="text" required value={bank.bank_name} onChange={(e) => { const list = [...safeBankInfoList]; list[index].bank_name = e.target.value; setBankInfoList(list); }} className="premium-input" />
-                              </div>
-                              <div>
-                                <label className="profile-custom-form-label">Account Number</label>
-                                <input type="text" required value={bank.account_number} onChange={(e) => { const list = [...safeBankInfoList]; list[index].account_number = e.target.value; setBankInfoList(list); }} className="premium-input" />
-                              </div>
-                              <div>
-                                <label className="profile-custom-form-label">IFSC Code</label>
-                                <input type="text" required value={bank.ifsc_code} onChange={(e) => { const list = [...safeBankInfoList]; list[index].ifsc_code = e.target.value; setBankInfoList(list); }} className="premium-input" />
-                              </div>
-                              <div>
-                                <label className="profile-custom-form-label">Branch Name</label>
-                                <input type="text" required value={bank.branch_name} onChange={(e) => { const list = [...safeBankInfoList]; list[index].branch_name = e.target.value; setBankInfoList(list); }} className="premium-input" />
-                              </div>
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => setBankInfoList([...safeBankInfoList, { bank_name: '', account_number: '', ifsc_code: '', branch_name: '' }])}
-                            className="py-3 px-4 border border-dashed border-indigo-300 dark:border-indigo-700 text-xs font-bold rounded-xl w-full text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer"
-                          >
-                            + Add Bank Account
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          {safeBankInfoList.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-6 border border-dashed border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 rounded-2xl text-center">
-                              <span className="text-lg mb-1">⚠️</span>
-                              <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Pending Bank Account Records</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click Edit Profile to add bank details for payroll processing.</p>
-                            </div>
-                          ) : (
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              {safeBankInfoList.map((bank, index) => (
-                                <div key={index} className="w-full bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 text-white rounded-2xl p-5 border border-indigo-500/30 shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
-                                  <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-indigo-500/10 blur-2xl group-hover:bg-indigo-500/20 transition-all" />
-                                  <div className="flex justify-between items-center relative z-10">
-                                    <span className="text-xs font-black tracking-widest uppercase text-indigo-200 flex items-center gap-2">
-                                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                                      {bank.bank_name || 'BANK ACCOUNT'}
-                                    </span>
-                                  </div>
-
-                                  <div className="my-3 relative z-10">
-                                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Account Number</p>
-                                    <p className="text-sm font-mono font-extrabold tracking-wider text-white select-all">
-                                      {bank.account_number ? bank.account_number.replace(/(.{4})/g, '$1 ').trim() : '•••• •••• ••••'}
-                                    </p>
-                                  </div>
-
-                                  <div className="flex justify-between items-end relative z-10 pt-2 border-t border-white/10 text-xs">
-                                    <div>
-                                      <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Holder</p>
-                                      <p className="font-bold text-white uppercase">{firstName ? `${firstName} ${lastName}` : 'EMPLOYEE'}</p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">IFSC Code</p>
-                                      <p className="font-mono font-bold text-indigo-200 select-all">{bank.ifsc_code}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                  </div>
-                )}
-
-                {/* 4️⃣ TAB 4: SECURITY & CREDENTIALS */}
-                {activeTab === 'security' && (
-                  <div className="space-y-6">
-                    <div className="rounded-3xl border border-rose-200/90 dark:border-rose-900/50 bg-gradient-to-br from-white via-rose-50/20 to-indigo-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 p-6 sm:p-7 shadow-lg hover:shadow-2xl hover:shadow-rose-500/10 transition-all duration-500 relative overflow-hidden group w-full">
-                      <div className="h-1.5 bg-gradient-to-r from-rose-500 via-purple-500 to-indigo-500 absolute top-0 inset-x-0 animate-pulse" />
-                      
-                      <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-4 mb-6">
-                        <div className="flex items-center gap-3">
-                          <span className="p-2 rounded-2xl bg-gradient-to-br from-rose-500 to-indigo-600 text-white text-base font-bold shadow-md shadow-rose-500/20">🔒</span>
-                          <div>
-                            <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-white font-outfit">Update Keycloak Password</h3>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Sync your password directly with Keycloak Identity Server</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-5">
-                        <div className="grid gap-5 sm:grid-cols-2">
-                          <div>
-                            <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">New Password</label>
-                            <div className="relative flex items-center group/input">
-                              <input
-                                type={showNewPassword ? "text" : "password"}
-                                placeholder="••••••••"
-                                value={newPasswordInput}
-                                onChange={(e) => setNewPasswordInput(e.target.value)}
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/90 text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500 transition-all pr-12 shadow-2xs"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowNewPassword(!showNewPassword)}
-                                className="absolute right-3.5 text-base text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:scale-110 active:scale-95 transition-all cursor-pointer"
-                                title={showNewPassword ? 'Hide password' : 'Show password'}
-                              >
-                                {showNewPassword ? '🙈' : '👁'}
-                              </button>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Confirm Password</label>
-                            <div className="relative flex items-center group/input">
-                              <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                placeholder="••••••••"
-                                value={confirmPasswordInput}
-                                onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                                className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/90 text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/40 focus:border-rose-500 transition-all pr-12 shadow-2xs"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                className="absolute right-3.5 text-base text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:scale-110 active:scale-95 transition-all cursor-pointer"
-                                title={showConfirmPassword ? 'Hide password' : 'Show password'}
-                              >
-                                {showConfirmPassword ? '🙈' : '👁'}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Real-time Password Strength Meter & Requirement Chips */}
-                        {(newPasswordInput || confirmPasswordInput) && (
-                          <div className="p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-rose-100 dark:border-rose-900/40 space-y-3 shadow-sm animate-fadeIn">
-                            {/* Strength Gauge Bar */}
-                            <div className="space-y-1.5">
-                              <div className="flex justify-between items-center text-[10.5px] font-extrabold uppercase tracking-wider">
-                                <span className="text-slate-500 dark:text-slate-400">Password Security Rating</span>
-                                <span className={
-                                  (() => {
-                                    const count = [isLengthValid, hasCapital, hasSmall, hasNumber, hasSpecial, (newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput)].filter(Boolean).length;
-                                    if (count <= 2) return 'text-rose-600 dark:text-rose-400';
-                                    if (count <= 5) return 'text-amber-600 dark:text-amber-400';
-                                    return 'text-emerald-600 dark:text-emerald-400';
-                                  })()
-                                }>
-                                  {(() => {
-                                    const count = [isLengthValid, hasCapital, hasSmall, hasNumber, hasSpecial, (newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput)].filter(Boolean).length;
-                                    if (count <= 2) return '🔴 Weak Password';
-                                    if (count <= 5) return '🟡 Good Password';
-                                    return '🟢 Excellent Strong Password!';
-                                  })()}
-                                </span>
-                              </div>
-                              
-                              <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-200/60 dark:border-slate-700/60">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-500 ${
-                                    (() => {
-                                      const count = [isLengthValid, hasCapital, hasSmall, hasNumber, hasSpecial, (newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput)].filter(Boolean).length;
-                                      if (count <= 2) return 'w-1/3 bg-gradient-to-r from-rose-500 to-red-600 shadow-md shadow-rose-500/50';
-                                      if (count <= 5) return 'w-2/3 bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/50';
-                                      return 'w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 shadow-md shadow-emerald-500/50';
-                                    })()
-                                  }`}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Requirements Checklist Chips */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1">
-                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
-                                isLengthValid 
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
-                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
-                              }`}>
-                                <span className={`text-xs ${isLengthValid ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{isLengthValid ? '✓' : '○'}</span>
-                                <span>6 to 14 characters</span>
-                              </div>
-
-                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
-                                hasCapital 
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
-                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
-                              }`}>
-                                <span className={`text-xs ${hasCapital ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{hasCapital ? '✓' : '○'}</span>
-                                <span>Capital letter (A-Z)</span>
-                              </div>
-
-                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
-                                hasSmall 
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
-                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
-                              }`}>
-                                <span className={`text-xs ${hasSmall ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{hasSmall ? '✓' : '○'}</span>
-                                <span>Small letter (a-z)</span>
-                              </div>
-
-                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
-                                hasNumber 
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
-                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
-                              }`}>
-                                <span className={`text-xs ${hasNumber ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{hasNumber ? '✓' : '○'}</span>
-                                <span>Number (0-9)</span>
-                              </div>
-
-                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
-                                hasSpecial 
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
-                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
-                              }`}>
-                                <span className={`text-xs ${hasSpecial ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{hasSpecial ? '✓' : '○'}</span>
-                                <span>Special char (!@#$)</span>
-                              </div>
-
-                              <div className={`px-3 py-1.5 rounded-xl border text-[11px] font-extrabold transition-all duration-300 flex items-center gap-2 ${
-                                newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput 
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60 shadow-2xs scale-[1.02]' 
-                                  : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:text-slate-500 dark:border-slate-700/50'
-                              }`}>
-                                <span className={`text-xs ${newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput ? 'text-emerald-500 animate-bounce' : 'text-slate-400'}`}>{newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput ? '✓' : '○'}</span>
-                                <span>Passwords match</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex justify-end pt-3">
-                          <button
-                            type="button"
-                            onClick={handleUpdatePassword}
-                            disabled={!isSaveEnabled || updatingPassword}
-                            className={`px-6 py-3 text-xs font-black rounded-2xl uppercase tracking-widest transition-all duration-300 flex items-center gap-2.5 ${
-                              isSaveEnabled && !updatingPassword
-                                ? 'bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white shadow-lg shadow-rose-600/30 hover:scale-105 active:scale-95 cursor-pointer animate-pulse'
-                                : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none opacity-60'
-                            }`}
-                          >
-                            {updatingPassword ? (
-                              <>
-                                <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                                Updating Password...
-                              </>
-                            ) : (
-                              <>
-                                <span>🔑 Update Keycloak Password</span>
-                              </>
+                  ) : (
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {educationList.map((edu, idx) => (
+                        <div key={idx} className="p-4.5 rounded-2xl border border-purple-100 dark:border-purple-900/30 bg-purple-50/30 dark:bg-purple-950/20 hover:border-purple-300 hover:shadow-md transition-all space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-[10px] font-black uppercase tracking-wider">
+                              {edu.year || edu.passing_year || 'Graduated'}
+                            </span>
+                            {(edu.grade || edu.percentage_gpa) && (
+                              <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400">
+                                ★ {edu.grade || edu.percentage_gpa}
+                              </span>
                             )}
-                          </button>
+                          </div>
+                          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white leading-snug">
+                            {edu.degree}
+                          </h4>
+                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <span>🏛️</span>
+                            <span>{edu.institution}</span>
+                          </p>
                         </div>
-                      </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ⚡ TAB 4: SKILLS & EXPERTISE */}
+            {activeTab === 'skills' && (
+              <div className="space-y-6 animate-fadeIn">
+                <div className="rounded-3xl border border-cyan-100 dark:border-cyan-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                  <div className="h-1 bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-500 absolute top-0 inset-x-0" />
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 text-sm font-semibold">⚡</span>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">Technical Skills & Professional Expertise</h3>
                     </div>
                   </div>
-                )}
+
+                  {skillsList.length === 0 && !isEditing ? (
+                    <div className="flex flex-col items-center justify-center p-6 border border-dashed border-cyan-200 dark:border-cyan-900/40 bg-cyan-50/40 dark:bg-cyan-950/20 rounded-2xl text-center">
+                      <span className="text-xl mb-1">⚡</span>
+                      <p className="text-xs font-bold text-cyan-700 dark:text-cyan-300">No Technical Skills Recorded</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click edit button above to add your technical skills.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Skills Badges Pill Grid */}
+                      <div className="flex flex-wrap gap-2.5">
+                        {skillsList.map((skill, idx) => (
+                          <div
+                            key={idx}
+                            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-indigo-50 to-sky-50 dark:from-indigo-950/40 dark:to-sky-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-slate-800 dark:text-slate-100 text-xs font-extrabold flex items-center gap-2 shadow-2xs hover:scale-105 transition-transform"
+                          >
+                            <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                            <span>{skill}</span>
+                            {isEditing && (
+                              <button
+                                type="button"
+                                onClick={() => setSkillsList(skillsList.filter((_, i) => i !== idx))}
+                                className="text-rose-500 hover:text-rose-700 ml-1 text-xs font-bold cursor-pointer"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Add Skill Input in Edit Mode */}
+                      {isEditing && (
+                        <div className="flex items-center gap-3 pt-2">
+                          <input
+                            type="text"
+                            placeholder="Type a skill (e.g. Next.js, Keycloak) and click Add..."
+                            value={newSkillInput}
+                            onChange={(e) => setNewSkillInput(e.target.value)}
+                            className="premium-input flex-1"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (newSkillInput.trim()) {
+                                  setSkillsList([...skillsList, newSkillInput.trim()]);
+                                  setNewSkillInput('');
+                                }
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newSkillInput.trim()) {
+                                setSkillsList([...skillsList, newSkillInput.trim()]);
+                                setNewSkillInput('');
+                              }
+                            }}
+                            className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-xl uppercase tracking-wider cursor-pointer shadow-md shadow-cyan-600/20"
+                          >
+                            + Add Skill
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 3️⃣ TAB 5: COMPLIANCE & BANKING */}
+            {activeTab === 'compliance' && (
+              <div className="space-y-6 animate-fadeIn">
+                
+                {/* Compliance & Identifiers Card - 3 fields per row */}
+                <div className="rounded-3xl border border-amber-100 dark:border-amber-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                  <div className="h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 absolute top-0 inset-x-0" />
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 text-sm font-semibold">🛡️</span>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white">Compliance & Identifiers</h3>
+                    </div>
+                  </div>
+                  {isEditing ? (
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      <div>
+                        <label className="profile-custom-form-label">PAN Card Number</label>
+                        <input type="text" maxLength={10} placeholder="e.g. ABCDE1234F" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())} className="premium-input uppercase" />
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">Aadhar Card Number</label>
+                        <input type="text" maxLength={12} placeholder="12-digit Aadhar" value={aadharNumber} onChange={(e) => setAadharNumber(e.target.value.replace(/\D/g, ''))} className="premium-input" />
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">ESI Account Number</label>
+                        <input type="text" maxLength={10} placeholder="10-digit ESI" value={esiNumber} onChange={(e) => setEsiNumber(e.target.value.replace(/\D/g, ''))} className="premium-input" />
+                      </div>
+                      <div>
+                        <label className="profile-custom-form-label">UAN (Universal Account Number)</label>
+                        <input type="text" maxLength={12} placeholder="12-digit UAN" value={uanNumber} onChange={(e) => setUanNumber(e.target.value.replace(/\D/g, ''))} className="premium-input" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {renderSecureFieldBlock("PAN Card Number", panNumber, revealPAN, setRevealPAN)}
+                      {renderSecureFieldBlock("Aadhar Card Number", aadharNumber, revealAadhar, setRevealAadhar)}
+                      {renderSecureFieldBlock("ESI Account Number", esiNumber, revealESI, setRevealESI)}
+                      {renderSecureFieldBlock("UAN (Universal Account Number)", uanNumber, revealUAN, setRevealUAN)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Bank Accounts Card - 3 per row */}
+                <div className="rounded-3xl border border-indigo-100 dark:border-indigo-900/40 bg-white/90 dark:bg-slate-900/90 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 relative overflow-hidden group w-full">
+                  <div className="h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 absolute top-0 inset-x-0" />
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-sm font-semibold">🏦</span>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-white font-bold">Bank Accounts</h3>
+                    </div>
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      {safeBankInfoList.map((bank, index) => (
+                        <div key={index} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 relative">
+                          <button
+                            type="button"
+                            onClick={() => setBankInfoList(safeBankInfoList.filter((_, i) => i !== index))}
+                            className="absolute top-3 right-3 text-rose-600 hover:text-rose-700 text-xs font-bold cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                            <div>
+                              <label className="profile-custom-form-label">Bank Name</label>
+                              <input type="text" required value={bank.bank_name} onChange={(e) => { const list = [...safeBankInfoList]; list[index].bank_name = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                            </div>
+                            <div>
+                              <label className="profile-custom-form-label">Account Number</label>
+                              <input type="text" required value={bank.account_number} onChange={(e) => { const list = [...safeBankInfoList]; list[index].account_number = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                            </div>
+                            <div>
+                              <label className="profile-custom-form-label">IFSC Code</label>
+                              <input type="text" required value={bank.ifsc_code} onChange={(e) => { const list = [...safeBankInfoList]; list[index].ifsc_code = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                            </div>
+                            <div className="sm:col-span-2 lg:col-span-3">
+                              <label className="profile-custom-form-label">Branch Name</label>
+                              <input type="text" required value={bank.branch_name} onChange={(e) => { const list = [...safeBankInfoList]; list[index].branch_name = e.target.value; setBankInfoList(list); }} className="premium-input" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setBankInfoList([...safeBankInfoList, { bank_name: '', account_number: '', ifsc_code: '', branch_name: '' }])}
+                        className="py-3 px-4 border border-dashed border-indigo-300 dark:border-indigo-700 text-xs font-bold rounded-xl w-full text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer"
+                      >
+                        + Add Bank Account
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {safeBankInfoList.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-6 border border-dashed border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 rounded-2xl text-center">
+                          <span className="text-lg mb-1">⚠️</span>
+                          <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Pending Bank Account Records</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click Edit Profile to add bank details for payroll processing.</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                          {safeBankInfoList.map((bank, index) => (
+                            <div key={index} className="w-full bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 text-white rounded-2xl p-5 border border-indigo-500/30 shadow-xl hover:scale-[1.02] transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+                              <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-indigo-500/10 blur-2xl group-hover:bg-indigo-500/20 transition-all" />
+                              <div className="flex justify-between items-center relative z-10">
+                                <span className="text-xs font-black tracking-widest uppercase text-indigo-200 flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                  {bank.bank_name || 'BANK ACCOUNT'}
+                                </span>
+                              </div>
+
+                              <div className="my-3 relative z-10 flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Account Number</p>
+                                  <p className="text-sm font-extrabold tracking-wider text-white select-all">
+                                    {bank.account_number ? bank.account_number.replace(/(.{4})/g, '$1 ').trim() : '•••• •••• ••••'}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Branch Name</p>
+                                  <p className="text-xs font-extrabold text-indigo-200">{bank.branch_name || 'Main Branch'}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex justify-between items-end relative z-10 pt-2 border-t border-white/10 text-xs">
+                                <div>
+                                  <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Holder</p>
+                                  <p className="font-bold text-white uppercase">{firstName ? `${firstName} ${lastName}` : 'EMPLOYEE'}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">IFSC Code</p>
+                                  <p className="font-bold text-indigo-200 select-all">{bank.ifsc_code}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
 
               </div>
+            )}
 
-            </div>
+            {/* 4️⃣ TAB 6: SECURITY & CREDENTIALS */}
+            {activeTab === 'security' && (
+              <div className="space-y-6 animate-fadeIn">
+                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-xs relative overflow-hidden group w-full">
+                  <div className="h-1 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 absolute top-0 inset-x-0" />
+                  
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-xs">
+                        <Lock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">Update Password</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Enhance your account security with a strong, complex password</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-5">
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">New Password</label>
+                        <div className="relative flex items-center group/input">
+                          <input
+                            type={showNewPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            value={newPasswordInput}
+                            onChange={(e) => setNewPasswordInput(e.target.value)}
+                            autoComplete="new-password"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all cursor-pointer p-1"
+                            title={showNewPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Confirm Password</label>
+                        <div className="relative flex items-center group/input">
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            value={confirmPasswordInput}
+                            onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                            autoComplete="new-password"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all cursor-pointer p-1"
+                            title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Real-time Password Strength Meter & Modern Single Row Checklist */}
+                    {(newPasswordInput || confirmPasswordInput) && (
+                      <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs animate-fadeIn">
+                        {/* Strength Gauge Bar */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-[10.5px] font-bold uppercase tracking-wider">
+                            <span className="text-slate-500 dark:text-slate-400">Password Security Rating</span>
+                            <span className={
+                              (() => {
+                                const count = [isLengthValid, hasCapital, hasSmall, hasNumber, hasSpecial, (newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput)].filter(Boolean).length;
+                                if (count <= 2) return 'text-rose-600 dark:text-rose-400';
+                                if (count <= 5) return 'text-amber-600 dark:text-amber-400';
+                                return 'text-emerald-600 dark:text-emerald-400';
+                              })()
+                            }>
+                              {(() => {
+                                const count = [isLengthValid, hasCapital, hasSmall, hasNumber, hasSpecial, (newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput)].filter(Boolean).length;
+                                if (count <= 2) return '● Weak Password';
+                                if (count <= 5) return '● Good Password';
+                                return '● Strong Password';
+                              })()}
+                            </span>
+                          </div>
+                          
+                          <div className="h-1.5 w-full bg-slate-200/70 dark:bg-slate-700/60 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                (() => {
+                                  const count = [isLengthValid, hasCapital, hasSmall, hasNumber, hasSpecial, (newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput)].filter(Boolean).length;
+                                  if (count <= 2) return 'w-1/3 bg-rose-500';
+                                  if (count <= 5) return 'w-2/3 bg-amber-500';
+                                  return 'w-full bg-emerald-500';
+                                })()
+                              }`}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Modern Single-Row Requirements Checklist */}
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <div className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition-all duration-200 inline-flex items-center gap-1.5 ${
+                            isLengthValid 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
+                              : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <span className={`text-xs ${isLengthValid ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-300 dark:text-slate-600'}`}>{isLengthValid ? '✓' : '○'}</span>
+                            <span>6-14 characters</span>
+                          </div>
+
+                          <div className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition-all duration-200 inline-flex items-center gap-1.5 ${
+                            hasCapital 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
+                              : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <span className={`text-xs ${hasCapital ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-300 dark:text-slate-600'}`}>{hasCapital ? '✓' : '○'}</span>
+                            <span>Uppercase (A-Z)</span>
+                          </div>
+
+                          <div className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition-all duration-200 inline-flex items-center gap-1.5 ${
+                            hasSmall 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
+                              : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <span className={`text-xs ${hasSmall ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-300 dark:text-slate-600'}`}>{hasSmall ? '✓' : '○'}</span>
+                            <span>Lowercase (a-z)</span>
+                          </div>
+
+                          <div className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition-all duration-200 inline-flex items-center gap-1.5 ${
+                            hasNumber 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
+                              : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <span className={`text-xs ${hasNumber ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-300 dark:text-slate-600'}`}>{hasNumber ? '✓' : '○'}</span>
+                            <span>Number (0-9)</span>
+                          </div>
+
+                          <div className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition-all duration-200 inline-flex items-center gap-1.5 ${
+                            hasSpecial 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
+                              : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <span className={`text-xs ${hasSpecial ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-300 dark:text-slate-600'}`}>{hasSpecial ? '✓' : '○'}</span>
+                            <span>Special char (!@#$)</span>
+                          </div>
+
+                          <div className={`px-2.5 py-1 rounded-full border text-[11px] font-medium transition-all duration-200 inline-flex items-center gap-1.5 ${
+                            newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
+                              : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <span className={`text-xs ${newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-300 dark:text-slate-600'}`}>{newPasswordInput && confirmPasswordInput && newPasswordInput === confirmPasswordInput ? '✓' : '○'}</span>
+                            <span>Passwords match</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end pt-3">
+                      <button
+                        type="button"
+                        onClick={handleUpdatePassword}
+                        disabled={!isSaveEnabled || updatingPassword}
+                        className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 flex items-center gap-2 ${
+                          isSaveEnabled && !updatingPassword
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-70'
+                        }`}
+                      >
+                        {updatingPassword ? (
+                          <>
+                            <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                            Updating Password...
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Update Password</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
           </form>
 
@@ -1981,7 +1954,7 @@ export default function ProfilePage() {
                             <circle cx="12" cy="12" r="9" strokeOpacity="0.4" />
                             <path d="M12 3a9 9 0 0 1 9 9 9 9 0 0 1-9 9" strokeLinecap="round" />
                           </svg>
-                          <span className="text-xl font-black tracking-tight text-white drop-shadow-sm font-outfit uppercase">
+                          <span className="text-xl font-black tracking-tight text-white drop-shadow-sm uppercase">
                             Brihaspathi
                           </span>
                         </div>
