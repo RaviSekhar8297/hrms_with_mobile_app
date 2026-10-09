@@ -659,12 +659,42 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           ),
         },
         {
+          tab: 'attendance/raw-punches',
+          label: 'Logs',
+          permission: 'attendance_raw_punches_view',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'attendance_summary',
+          label: 'Summary',
+          permission: 'attendance_summary_view',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          ),
+        },
+        {
           tab: 'atd_history',
           label: 'History',
           permission: 'attendance_summary_view',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+        },
+        {
+          tab: 'summary_count',
+          label: 'Count',
+          permission: 'attendance_summary_count_view',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
             </svg>
           ),
         },
@@ -727,36 +757,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15c-3.314 0-6-2.686-6-6s2.686-6 6-6 6 2.686 6 6-2.686 6-6 6zm-3.79-1.11L7 22l5-3 5 3-1.21-8.11" />
-            </svg>
-          ),
-        },
-        {
-          tab: 'summary_count',
-          label: 'Count',
-          permission: 'attendance_summary_count_view',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-            </svg>
-          ),
-        },
-        {
-          tab: 'attendance/raw-punches',
-          label: 'Logs',
-          permission: 'attendance_raw_punches_view',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          ),
-        },
-        {
-          tab: 'attendance_summary',
-          label: 'Summary',
-          permission: 'attendance_summary_view',
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           ),
         },

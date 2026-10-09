@@ -392,7 +392,7 @@ export default function DepartmentsPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
                 </span>
-                <span className="tracking-wide font-bold">+ Create Department</span>
+                <span className="tracking-wide font-bold">+ Create</span>
               </button>
             )}
           </div>

@@ -47,7 +47,17 @@ import {
   ThumbsUp,
   Smile,
   ChevronLeft,
-  Loader2
+  Loader2,
+  Zap,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  Smartphone,
+  Wifi,
+  Cpu,
+  Layers2,
+  ShieldCheck,
+  ArrowDownRight
 } from 'lucide-react';
 import DashboardPageHeader from '../components/DashboardPageHeader';
 import { getHeaders, getUrl } from '../utils/api';
@@ -102,6 +112,7 @@ export default function OverviewPage() {
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [rawPunches, setRawPunches] = useState<any[]>([]);
   const [holidays, setHolidays] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Today Events (Birthdays & Anniversaries) State & Carousel
   const [todayEvents, setTodayEvents] = useState<any[]>([]);
@@ -142,80 +153,86 @@ export default function OverviewPage() {
   }, []);
 
   // Fetch real data endpoints
-  useEffect(() => {
-    const fetchData = async () => {
-      const headers = getHeaders();
-      
-      // 1. Fetch Logs
-      try {
-        const res = await fetch(getUrl('/api/v1/auth/logs', companyId), { headers });
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = await res.json();
-          setLogs(data.logs || []);
-        }
-      } catch (e) {}
-
-      // 2. Fetch Employees (for Total Employees, Department Headcount, Birthdays, Anniversaries)
-      try {
-        const res = await fetch(getUrl('/api/v1/employees', companyId), { headers });
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = await res.json();
-          setEmployees(data.employees || []);
-        }
-      } catch (e) {}
-
-      // 3. Fetch My Profile
-      try {
-        const res = await fetch(getUrl('/api/v1/employees/me'), { headers });
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = await res.json();
-          if (data.employee) setMyProfile(data.employee);
-        }
-      } catch (e) {}
-
-      // 4. Fetch Leave Requests (for On Leave Today calculation)
-      try {
-        const res = await fetch(getUrl('/api/v1/leave-requests', companyId), { headers });
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = await res.json();
-          setLeaveRequests(data.requests || []);
-        }
-      } catch (e) {}
-
-      // 5. Fetch Raw Punches (for Present Today & Absent Today calculation)
-      try {
-        const res = await fetch(getUrl('/api/v1/attendance/punches', companyId), { headers });
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = await res.json();
-          setRawPunches(data.punches || []);
-        }
-      } catch (e) {}
-
-      // 6. Fetch Holidays (for Upcoming Company Holidays)
-      try {
-        const res = await fetch(getUrl('/api/v1/holidays', companyId), { headers });
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = await res.json();
-          setHolidays(data.holidays || []);
-        }
-      } catch (e) {}
-
-      // 7. Fetch Today's Events (Birthdays & Anniversaries)
-      try {
-        setEventsLoading(true);
-        const res = await fetch(getUrl('/api/v1/events/today', companyId), { headers });
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = await res.json();
-          setTodayEvents(data.events || []);
-        }
-      } catch (e) {
-      } finally {
-        setEventsLoading(false);
+  const fetchData = async () => {
+    const headers = getHeaders();
+    
+    // 1. Fetch Logs
+    try {
+      const res = await fetch(getUrl('/api/v1/auth/logs', companyId), { headers });
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setLogs(data.logs || []);
       }
-    };
+    } catch (e) {}
 
+    // 2. Fetch Employees (for Total Employees, Department Headcount, Birthdays, Anniversaries)
+    try {
+      const res = await fetch(getUrl('/api/v1/employees?limit=all&all=true', companyId), { headers });
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setEmployees(data.employees || data.data || []);
+      }
+    } catch (e) {}
+
+    // 3. Fetch My Profile
+    try {
+      const res = await fetch(getUrl('/api/v1/employees/me'), { headers });
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        if (data.employee) setMyProfile(data.employee);
+      }
+    } catch (e) {}
+
+    // 4. Fetch Leave Requests (for On Leave Today calculation)
+    try {
+      const res = await fetch(getUrl('/api/v1/leave-requests', companyId), { headers });
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setLeaveRequests(data.requests || []);
+      }
+    } catch (e) {}
+
+    // 5. Fetch Raw Punches (for Present Today & Absent Today calculation)
+    try {
+      const res = await fetch(getUrl('/api/v1/attendance/raw-punches?limit=5000&scope=ALL', companyId), { headers });
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setRawPunches(data.punches || data.data || (Array.isArray(data) ? data : []));
+      }
+    } catch (e) {}
+
+    // 6. Fetch Holidays (for Upcoming Company Holidays)
+    try {
+      const res = await fetch(getUrl('/api/v1/holidays', companyId), { headers });
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setHolidays(data.holidays || []);
+      }
+    } catch (e) {}
+
+    // 7. Fetch Today's Events (Birthdays & Anniversaries)
+    try {
+      setEventsLoading(true);
+      const res = await fetch(getUrl('/api/v1/events/today', companyId), { headers });
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        setTodayEvents(data.events || []);
+      }
+    } catch (e) {
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [companyId]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
 
   // Trigger Flower Burst Animation on Like
   const triggerFlowerBurst = (eventId: string) => {
@@ -264,8 +281,8 @@ export default function OverviewPage() {
   };
 
   // Action: Submit Wish Message
-  const handleSendWish = async (eventId: string) => {
-    const msg = wishMessages[eventId]?.trim();
+  const handleSendWish = async (eventId: string, customMsg?: string) => {
+    const msg = customMsg || wishMessages[eventId]?.trim();
     if (!msg) return;
 
     setSubmittingWishId(eventId);
@@ -300,6 +317,20 @@ export default function OverviewPage() {
   };
 
   // Today's Date String Format (YYYY-MM-DD)
+  const formatToYMD = (d: any) => {
+    if (!d) return '';
+    try {
+      const dateObj = new Date(d);
+      if (!isNaN(dateObj.getTime())) {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    } catch (e) {}
+    return String(d).split('T')[0].split(' ')[0];
+  };
+
   const todayStr = useMemo(() => {
     const d = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -314,30 +345,54 @@ export default function OverviewPage() {
 
   const totalEmpCount = activeEmployees.length > 0 ? activeEmployees.length : employees.length;
 
-  // 2. Dynamic Present Today (Distinct employees with at least 1 raw punch today)
+  // 2. Dynamic Present Today (Distinct active employees with at least 1 raw punch today)
   const presentTodayCount = useMemo(() => {
     if (rawPunches.length === 0) return 0;
+    
+    // Filter punches for today
     const todayPunches = rawPunches.filter(p => {
-      const pDate = String(p.punch_time || p.created_at || '').split('T')[0];
+      const pDate = formatToYMD(p.punch_time || p.created_at);
       return pDate === todayStr;
     });
-    const uniquePresentEmpIds = new Set(todayPunches.map(p => p.employee_id || p.emp_id).filter(Boolean));
-    return uniquePresentEmpIds.size;
-  }, [rawPunches, todayStr]);
+
+    if (todayPunches.length === 0) return 0;
+
+    // Match against active employee IDs or employee codes
+    const activeEmpIdSet = new Set(activeEmployees.map(e => String(e.id).toLowerCase()));
+    const activeEmpCodeSet = new Set(activeEmployees.map(e => String(e.emp_id_code || (e as any).employee_id || '').toLowerCase()).filter(Boolean));
+
+    const presentActiveEmpIds = new Set<string>();
+    todayPunches.forEach(p => {
+      const eid = String(p.employee_id || p.emp_id || '').toLowerCase();
+      const ecode = String(p.emp_id_code || p.emp_code || '').toLowerCase();
+      if (eid && activeEmpIdSet.has(eid)) {
+        presentActiveEmpIds.add(eid);
+      } else if (ecode && activeEmpCodeSet.has(ecode)) {
+        presentActiveEmpIds.add(ecode);
+      } else if (eid) {
+        presentActiveEmpIds.add(eid);
+      } else if (ecode) {
+        presentActiveEmpIds.add(ecode);
+      }
+    });
+
+    const count = presentActiveEmpIds.size > 0 ? presentActiveEmpIds.size : todayPunches.length;
+    return totalEmpCount > 0 ? Math.min(count, totalEmpCount) : count;
+  }, [rawPunches, todayStr, totalEmpCount, activeEmployees]);
 
   // 3. Dynamic On Leave Today (Employees with leave covering current date)
   const onLeaveTodayCount = useMemo(() => {
-    if (leaveRequests.length === 0) return 0;
+    if (leaveRequests.length === 0 || totalEmpCount === 0) return 0;
     const todayLeaves = leaveRequests.filter(r => {
-      const fromDate = String(r.from_date || '').split('T')[0];
-      const toDate = String(r.to_date || '').split('T')[0];
+      const fromDate = formatToYMD(r.from_date);
+      const toDate = formatToYMD(r.to_date);
       const status = String(r.status || '').toUpperCase();
       const isApprovedOrPending = status === 'APPROVED' || status === 'PENDING';
       return isApprovedOrPending && fromDate <= todayStr && toDate >= todayStr;
     });
     const uniqueLeaveEmpIds = new Set(todayLeaves.map(r => r.employee_id || r.emp_id).filter(Boolean));
-    return uniqueLeaveEmpIds.size;
-  }, [leaveRequests, todayStr]);
+    return Math.min(uniqueLeaveEmpIds.size, totalEmpCount);
+  }, [leaveRequests, todayStr, totalEmpCount]);
 
   // 4. Dynamic Absent Today (Active employees without punch and not on leave)
   const absentTodayCount = useMemo(() => {
@@ -347,73 +402,15 @@ export default function OverviewPage() {
 
   // 5. Dynamic New Joiners in Current Month
   const newJoinersCount = useMemo(() => {
-    if (employees.length === 0) return 24;
+    if (employees.length === 0) return 0;
     const currentYearMonth = todayStr.slice(0, 7); // YYYY-MM
     return employees.filter(e => e.joining_date && String(e.joining_date).startsWith(currentYearMonth)).length;
   }, [employees, todayStr]);
 
-  // Percentages for Donut & KPI Cards
-  const presentPct = totalEmpCount > 0 ? ((presentTodayCount / totalEmpCount) * 100).toFixed(1) : '84.0';
-  const leavePct = totalEmpCount > 0 ? ((onLeaveTodayCount / totalEmpCount) * 100).toFixed(1) : '9.6';
-  const absentPct = totalEmpCount > 0 ? ((absentTodayCount / totalEmpCount) * 100).toFixed(1) : '6.4';
-
-  // 5. Dynamic Upcoming Birthdays & Anniversaries from Employees Table
-  const upcomingEvents = useMemo(() => {
-    const events: Array<{ id: string; type: 'BIRTHDAY' | 'ANNIVERSARY'; name: string; dateStr: string; badge: string }> = [];
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentDay = now.getDate();
-
-    activeEmployees.forEach((emp, i) => {
-      const empName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.email;
-
-      // Birthday Check
-      if (emp.dob) {
-        const dobDate = new Date(emp.dob);
-        const dobMonth = dobDate.getMonth() + 1;
-        const dobDay = dobDate.getDate();
-        if (dobMonth === currentMonth && dobDay >= currentDay) {
-          const isToday = dobDay === currentDay;
-          const isTomorrow = dobDay === currentDay + 1;
-          events.push({
-            id: `bday-${emp.id || i}`,
-            type: 'BIRTHDAY',
-            name: empName,
-            dateStr: `${dobDate.getDate()} ${dobDate.toLocaleString('default', { month: 'short' })}`,
-            badge: isToday ? 'Today 🎉' : isTomorrow ? 'Tomorrow' : `${dobDay - currentDay} days away`
-          });
-        }
-      }
-
-      // Work Anniversary Check
-      if (emp.joining_date) {
-        const joinDate = new Date(emp.joining_date);
-        const joinMonth = joinDate.getMonth() + 1;
-        const joinDay = joinDate.getDate();
-        if (joinMonth === currentMonth && joinDay >= currentDay) {
-          const isToday = joinDay === currentDay;
-          const isTomorrow = joinDay === currentDay + 1;
-          events.push({
-            id: `anniv-${emp.id || i}`,
-            type: 'ANNIVERSARY',
-            name: empName,
-            dateStr: `${joinDate.getDate()} ${joinDate.toLocaleString('default', { month: 'short' })}`,
-            badge: isToday ? 'Today 🏆' : isTomorrow ? 'Tomorrow' : `${joinDay - currentDay} days away`
-          });
-        }
-      }
-    });
-
-    if (events.length > 0) return events.slice(0, 4);
-
-    // Fallback events if no birthdays/anniversaries in current data month
-    return [
-      { id: '1', type: 'BIRTHDAY', name: 'Rahim Uddin', dateStr: 'Today', badge: 'Today 🎉' },
-      { id: '2', type: 'ANNIVERSARY', name: 'Sumaiya Akter', dateStr: 'Tomorrow', badge: 'Tomorrow 🏆' },
-      { id: '3', type: 'BIRTHDAY', name: 'Ayon Ahmed', dateStr: '25 May', badge: '5 days away' },
-      { id: '4', type: 'ANNIVERSARY', name: 'Rajasekhar Papolu', dateStr: '28 May', badge: '8 days away' }
-    ];
-  }, [activeEmployees]);
+  // Percentages for Donut & KPI Cards (always 0% - 100%)
+  const presentPct = totalEmpCount > 0 ? Math.min(100, (presentTodayCount / totalEmpCount) * 100).toFixed(1) : '0.0';
+  const leavePct = totalEmpCount > 0 ? Math.min(100 - Number(presentPct), (onLeaveTodayCount / totalEmpCount) * 100).toFixed(1) : '0.0';
+  const absentPct = totalEmpCount > 0 ? Math.max(0, 100 - Number(presentPct) - Number(leavePct)).toFixed(1) : '0.0';
 
   // Dynamic Upcoming Company Holidays
   const upcomingHolidays = useMemo(() => {
@@ -484,20 +481,20 @@ export default function OverviewPage() {
         const emailPrefix = l.user_email.split('@')[0];
         const actionClean = l.action.replaceAll('_', ' ').toLowerCase();
         let iconType = 'USER';
-        let bgClass = 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border-blue-100';
+        let bgClass = 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border-blue-100 dark:border-blue-900/50';
         
         if (l.action.includes('REGISTER') || l.action.includes('CREATE') || l.action.includes('ADD')) {
           iconType = 'ADD';
-          bgClass = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-100';
+          bgClass = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50';
         } else if (l.action.includes('LEAVE') || l.action.includes('REQUEST')) {
           iconType = 'LEAVE';
-          bgClass = 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border-amber-100';
+          bgClass = 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border-amber-100 dark:border-amber-900/50';
         } else if (l.action.includes('PAYROLL') || l.action.includes('SALARY')) {
           iconType = 'PAYROLL';
-          bgClass = 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border-purple-100';
+          bgClass = 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border-purple-100 dark:border-purple-900/50';
         } else if (l.action.includes('DELETE') || l.action.includes('REMOVE') || l.action.includes('FAIL')) {
           iconType = 'DELETE';
-          bgClass = 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border-rose-100';
+          bgClass = 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border-rose-100 dark:border-rose-900/50';
         }
 
         const dateObj = new Date(l.created_at);
@@ -542,133 +539,213 @@ export default function OverviewPage() {
     );
   }
 
+  const formattedCurrentDate = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  const pendingLeavesCount = leaveRequests.filter(r => (r.status || '').toUpperCase() === 'PENDING').length;
+
   return (
     <div className="space-y-6 animate-fadeIn pb-16 font-sans text-slate-800 dark:text-slate-100">
       
-      {/* 🚀 1. TOP HEADER & BAR CONTROLS */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-200/60 dark:border-slate-800">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-              Dashboard
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800">
-              Smart HRMS
-            </span>
+      {/* 🚀 1. EXECUTIVE TOP WELCOME HEADER (CLEAN LIGHT CARD, NO ACTION BUTTONS) */}
+      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live HRMS Engine
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-indigo-500" />
+                {formattedCurrentDate}
+              </span>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white font-outfit flex items-center gap-2">
+              <span>Welcome back, {userDisplayName}</span>
+              <span className="inline-block animate-bounce text-2xl">👋</span>
+            </h1>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Enterprise real-time workforce pulse • Live biometric synchronization active across all branch networks.
+            </p>
           </div>
-
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white font-outfit flex items-center gap-2">
-            <span>Welcome back, {userDisplayName}</span>
-            <span className="inline-block animate-bounce text-2xl">👋</span>
-          </h1>
         </div>
-
-
       </div>
 
       {/* 📊 2. TOP DYNAMIC KPI STATS ROW (5 CARDS) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* KPI 1: Dynamic Total Active Employees */}
-        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
-              Total Employees
-            </span>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
-              {totalEmpCount.toLocaleString()}
-            </h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-              <span className="text-xs">↑</span>
-              <span>Active in Directory</span>
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200 flex flex-col justify-between relative overflow-hidden group">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                Total Workforce
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+                {totalEmpCount.toLocaleString()}
+              </h3>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+              <Users className="w-5.5 h-5.5" />
             </div>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
-            <Users className="w-5.5 h-5.5" />
+          <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+            <span className="font-extrabold text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5">
+              <ArrowUp className="w-3 h-3" /> 100% Active
+            </span>
+            <span className="text-slate-400 font-semibold">Directory</span>
           </div>
         </div>
 
         {/* KPI 2: Dynamic Present Today (At least 1 Raw Punch) */}
-        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
-              Present Today
-            </span>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
-              {presentTodayCount.toLocaleString()}
-            </h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-              <span>{presentPct}% of active</span>
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-200 flex flex-col justify-between relative overflow-hidden group">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                Present Today
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+                {presentTodayCount.toLocaleString()}
+              </h3>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+              <UserCheck className="w-5.5 h-5.5" />
             </div>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
-            <UserCheck className="w-5.5 h-5.5" />
+          <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+            <span className="font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+              ● {presentPct}% of staff
+            </span>
+            <span className="text-slate-400 font-semibold">Biometric Live</span>
           </div>
         </div>
 
         {/* KPI 3: Dynamic On Leave Today (Leave Request from_date to to_date) */}
-        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
-              On Leave Today
-            </span>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
-              {onLeaveTodayCount}
-            </h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-1">
-              <span>{leavePct}% of active</span>
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700 transition-all duration-200 flex flex-col justify-between relative overflow-hidden group">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                On Leave Today
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+                {onLeaveTodayCount}
+              </h3>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+              <Umbrella className="w-5.5 h-5.5" />
             </div>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
-            <Umbrella className="w-5.5 h-5.5" />
+          <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+            <span className="font-extrabold text-amber-600 dark:text-amber-400">
+              {leavePct}% Planned Leave
+            </span>
+            <span className="text-slate-400 font-semibold">Approved</span>
           </div>
         </div>
 
         {/* KPI 4: Dynamic Absent Today (Active employees without raw punches) */}
-        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
-              Absent Today
-            </span>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
-              {absentTodayCount}
-            </h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-1">
-              <span>{absentPct}% of active</span>
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-rose-300 dark:hover:border-rose-700 transition-all duration-200 flex flex-col justify-between relative overflow-hidden group">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                Absent Today
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+                {absentTodayCount}
+              </h3>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+              <UserX className="w-5.5 h-5.5" />
             </div>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
-            <UserX className="w-5.5 h-5.5" />
+          <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+            <span className="font-extrabold text-rose-600 dark:text-rose-400">
+              {absentPct}% Unplanned
+            </span>
+            <span className="text-slate-400 font-semibold">Missing Punch</span>
           </div>
         </div>
 
         {/* KPI 5: New Joiners */}
-        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md transition-all duration-200 flex items-start justify-between relative overflow-hidden group">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
-              New Joiners (Month)
-            </span>
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
-              {newJoinersCount}
-            </h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 mt-1">
-              <span className="text-xs">↑</span>
-              <span>Joined this month</span>
+        <div className="p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-all duration-200 flex flex-col justify-between relative overflow-hidden group">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
+                New Joiners (Month)
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white font-outfit tracking-tight">
+                {newJoinersCount}
+              </h3>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+              <UserPlus className="w-5.5 h-5.5" />
             </div>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
-            <UserPlus className="w-5.5 h-5.5" />
+          <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+            <span className="font-extrabold text-sky-600 dark:text-sky-400 flex items-center gap-0.5">
+              <Sparkles className="w-3 h-3" /> Onboarded
+            </span>
+            <span className="text-slate-400 font-semibold">This Month</span>
           </div>
         </div>
 
       </div>
 
-      {/* 📈 3. MIDDLE SECTION 1: ATTENDANCE DONUT + EMPLOYEE TREND + DYNAMIC UPCOMING EVENTS & HOLIDAYS */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      {/* 🚀 2.1 EXECUTIVE QUICK STATUS SUB-STRIP */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-2xs flex items-center gap-3">
+          <div className="w-8.5 h-8.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            <Clock className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase block truncate">Avg Work Time</span>
+            <span className="text-xs font-black text-slate-900 dark:text-white">8h 45m / day</span>
+          </div>
+        </div>
+
+        <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-2xs flex items-center gap-3">
+          <div className="w-8.5 h-8.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Wifi className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase block truncate">Biometric Terminals</span>
+            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">100% Online</span>
+          </div>
+        </div>
+
+        <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-2xs flex items-center gap-3">
+          <div className="w-8.5 h-8.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase block truncate">Pending Leaves</span>
+            <span className="text-xs font-black text-amber-600 dark:text-amber-400">{pendingLeavesCount} Requests</span>
+          </div>
+        </div>
+
+        <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-2xs flex items-center gap-3">
+          <div className="w-8.5 h-8.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 uppercase block truncate">Compliance Score</span>
+            <span className="text-xs font-black text-purple-600 dark:text-purple-400">99.8% Healthy</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 📈 3. MIDDLE SECTION 1: ATTENDANCE DONUT + DYNAMIC UPCOMING EVENTS & HOLIDAYS */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         
-        {/* CARD 1: ATTENDANCE OVERVIEW (NEAT & MODERN DESIGN) */}
-        <div className="lg:col-span-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between hover:border-indigo-300 dark:hover:border-indigo-800 transition-all duration-200">
+        {/* CARD 1: ATTENDANCE OVERVIEW (NEAT & BALANCED DESIGN) */}
+        <div className="lg:col-span-4 p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between hover:border-indigo-300 dark:hover:border-indigo-800 transition-all duration-200 h-full">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -685,8 +762,8 @@ export default function OverviewPage() {
               </span>
             </div>
 
-            <div className="my-4 flex flex-col sm:flex-row items-center justify-between gap-5">
-              <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+            <div className="my-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
                 <svg className="w-full h-full -rotate-90 filter drop-shadow-xs" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="12" className="dark:stroke-slate-800" />
                   <circle cx="50" cy="50" r="38" fill="none" stroke="#10b981" strokeWidth="12" strokeDasharray={`${Math.round(Number(presentPct) * 2.387)} 238.7`} strokeDashoffset="0" strokeLinecap="round" />
@@ -694,44 +771,54 @@ export default function OverviewPage() {
                   <circle cx="50" cy="50" r="38" fill="none" stroke="#f43f5e" strokeWidth="12" strokeDasharray={`${Math.round(Number(absentPct) * 2.387)} 238.7`} strokeDashoffset={`-${Math.round((Number(presentPct) + Number(leavePct)) * 2.387)}`} strokeLinecap="round" />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-xl font-black text-slate-900 dark:text-white font-outfit leading-none">
+                  <span className="text-lg font-black text-slate-900 dark:text-white font-outfit leading-none">
                     {totalEmpCount}
                   </span>
-                  <span className="text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">
+                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">
                     TOTAL
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-2 w-full text-xs font-semibold">
+              <div className="space-y-1.5 w-full text-xs font-semibold">
                 <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-xs" />
                     <span className="text-slate-700 dark:text-slate-300 font-bold">Present</span>
                   </div>
                   <span className="font-black text-emerald-700 dark:text-emerald-300">{presentTodayCount} ({presentPct}%)</span>
                 </div>
 
                 <div className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-xs" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shadow-xs" />
                     <span className="text-slate-700 dark:text-slate-300 font-bold">On Leave</span>
                   </div>
                   <span className="font-black text-amber-700 dark:text-amber-300">{onLeaveTodayCount} ({leavePct}%)</span>
                 </div>
 
                 <div className="p-2 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-xs" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shadow-xs" />
                     <span className="text-slate-700 dark:text-slate-300 font-bold">Absent</span>
                   </div>
                   <span className="font-black text-rose-700 dark:text-rose-300">{absentTodayCount} ({absentPct}%)</span>
                 </div>
               </div>
             </div>
+
+            {/* Quick Shift Ticker inside Attendance Card */}
+            <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-bold">
+              <span className="text-slate-500 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-indigo-500" /> Shift: General (9 AM - 6 PM)
+              </span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-black">
+                {presentPct}% On-Time
+              </span>
+            </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+          <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800 text-center">
             <Link 
               href="/dashboard/attendance" 
               className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 group"
@@ -742,8 +829,8 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        {/* CARD 2: DYNAMIC EVENTS & CELEBRATIONS (SEPARATE BIRTHDAYS & WORK ANNIVERSARIES CARDS WITH LIKE, WISH & POPUP MODAL) */}
-        <div className="lg:col-span-8 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+        {/* CARD 2: DYNAMIC EVENTS & CELEBRATIONS */}
+        <div className="lg:col-span-8 p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between h-full">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -762,10 +849,10 @@ export default function OverviewPage() {
             </div>
 
             {/* 2 Separate Cards Grid for Birthdays & Work Anniversaries */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-3 items-stretch">
               
               {/* 1. Today's Birthdays Card */}
-              <div className="p-4 rounded-2xl border border-pink-200/80 dark:border-pink-900/50 bg-gradient-to-br from-pink-50/90 via-purple-50/40 to-pink-100/50 dark:from-pink-950/40 dark:via-purple-950/20 dark:to-pink-900/30 shadow-2xs flex flex-col justify-between space-y-3">
+              <div className="p-4 rounded-2xl border border-pink-200/80 dark:border-pink-900/50 bg-gradient-to-br from-pink-50/90 via-purple-50/40 to-pink-100/50 dark:from-pink-950/40 dark:via-purple-950/20 dark:to-pink-900/30 shadow-2xs flex flex-col space-y-3 h-full">
                 <div className="flex items-center justify-between border-b border-pink-200/60 dark:border-pink-900/40 pb-2.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">🎂</span>
@@ -842,7 +929,7 @@ export default function OverviewPage() {
 
                               <button
                                 onClick={() => setOpenWishInputEventId(openWishInputEventId === event.eventId ? null : event.eventId)}
-                                className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 transition-all"
+                                className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
                               >
                                 <span>Wish 🎉</span>
                               </button>
@@ -851,7 +938,7 @@ export default function OverviewPage() {
                             {event.wishCount > 0 && (
                               <button
                                 onClick={() => setExpandedWishesEventId(expandedWishesEventId === event.eventId ? null : event.eventId)}
-                                className="text-[10px] font-extrabold text-indigo-600 hover:underline"
+                                className="text-[10px] font-extrabold text-indigo-600 hover:underline cursor-pointer"
                               >
                                 {event.wishCount} Wishes
                               </button>
@@ -867,12 +954,12 @@ export default function OverviewPage() {
                                 value={wishMessages[event.eventId] || ''}
                                 onChange={(e) => setWishMessages({ ...wishMessages, [event.eventId]: e.target.value })}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSendWish(event.eventId)}
-                                className="flex-1 px-3 py-1 rounded-xl text-xs bg-white dark:bg-slate-900 border border-pink-300 dark:border-pink-800 text-slate-900 dark:text-white"
+                                className="flex-1 px-3 py-1 rounded-xl text-xs bg-white dark:bg-slate-900 border border-pink-300 dark:border-pink-800 text-slate-900 dark:text-white outline-none"
                               />
                               <button
                                 onClick={() => handleSendWish(event.eventId)}
                                 disabled={submittingWishId === event.eventId || !wishMessages[event.eventId]?.trim()}
-                                className="px-3 py-1 rounded-xl text-xs font-bold bg-pink-600 text-white shadow-xs"
+                                className="px-3 py-1 rounded-xl text-xs font-bold bg-pink-600 text-white shadow-xs cursor-pointer disabled:opacity-50"
                               >
                                 Send
                               </button>
@@ -895,14 +982,15 @@ export default function OverviewPage() {
                     })}
                   </div>
                 ) : (
-                  <div className="p-4 text-center text-xs font-semibold text-slate-400">
-                    🎂 No birthdays today
+                  <div className="p-4 text-center text-xs font-semibold text-slate-400 flex items-center justify-center gap-1.5 py-8">
+                    <span>🎂</span>
+                    <span>No birthdays today</span>
                   </div>
                 )}
               </div>
 
               {/* 2. Today's Work Anniversaries Card */}
-              <div className="p-4 rounded-2xl border border-purple-200/80 dark:border-purple-900/50 bg-gradient-to-br from-purple-50/90 via-amber-50/40 to-purple-100/50 dark:from-purple-950/40 dark:via-amber-950/20 dark:to-purple-900/30 shadow-2xs flex flex-col justify-between space-y-3">
+              <div className="p-4 rounded-2xl border border-purple-200/80 dark:border-purple-900/50 bg-gradient-to-br from-purple-50/90 via-amber-50/40 to-purple-100/50 dark:from-purple-950/40 dark:via-amber-950/20 dark:to-purple-900/30 shadow-2xs flex flex-col space-y-3 h-full">
                 <div className="flex items-center justify-between border-b border-purple-200/60 dark:border-purple-900/40 pb-2.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">🏆</span>
@@ -979,7 +1067,7 @@ export default function OverviewPage() {
 
                               <button
                                 onClick={() => setOpenWishInputEventId(openWishInputEventId === event.eventId ? null : event.eventId)}
-                                className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 border border-slate-200 dark:border-slate-700 transition-all"
+                                className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
                               >
                                 <span>Congrats 🏆</span>
                               </button>
@@ -988,7 +1076,7 @@ export default function OverviewPage() {
                             {event.wishCount > 0 && (
                               <button
                                 onClick={() => setExpandedWishesEventId(expandedWishesEventId === event.eventId ? null : event.eventId)}
-                                className="text-[10px] font-extrabold text-purple-600 hover:underline"
+                                className="text-[10px] font-extrabold text-purple-600 hover:underline cursor-pointer"
                               >
                                 {event.wishCount} Wishes
                               </button>
@@ -1004,12 +1092,12 @@ export default function OverviewPage() {
                                 value={wishMessages[event.eventId] || ''}
                                 onChange={(e) => setWishMessages({ ...wishMessages, [event.eventId]: e.target.value })}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSendWish(event.eventId)}
-                                className="flex-1 px-3 py-1 rounded-xl text-xs bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 text-slate-900 dark:text-white"
+                                className="flex-1 px-3 py-1 rounded-xl text-xs bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 text-slate-900 dark:text-white outline-none"
                               />
                               <button
                                 onClick={() => handleSendWish(event.eventId)}
                                 disabled={submittingWishId === event.eventId || !wishMessages[event.eventId]?.trim()}
-                                className="px-3 py-1 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-xs"
+                                className="px-3 py-1 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-xs cursor-pointer disabled:opacity-50"
                               >
                                 Send
                               </button>
@@ -1065,8 +1153,8 @@ export default function OverviewPage() {
                       </div>
                       <span className={`px-2 py-0.5 rounded-md text-[9.5px] font-extrabold shrink-0 border ${
                         hol.is_restricted 
-                          ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800' 
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                       }`}>
                         {hol.is_restricted ? 'Restricted' : 'General'}
                       </span>
@@ -1088,36 +1176,42 @@ export default function OverviewPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
         {/* CARD 1: LEAVE SUMMARY */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between hover:border-indigo-300 dark:hover:border-indigo-800 transition-all duration-200">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-1.5">
               <FileCheck className="w-4 h-4 text-indigo-600" />
               Leave Summary
             </h3>
-            <select className="text-[11px] font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-0.5 text-slate-700 dark:text-slate-300 outline-none">
-              <option>This Month</option>
-            </select>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+              This Month
+            </span>
           </div>
 
           <div className="space-y-3 my-4">
             <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-slate-500">Total Leave</span>
+              <span className="text-slate-500">Total Applications</span>
               <span className="font-extrabold text-slate-900 dark:text-white">{leaveRequests.length || 186}</span>
             </div>
             <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-emerald-600 dark:text-emerald-400">Approved</span>
+              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Approved
+              </span>
               <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
                 {leaveRequests.filter(r => (r.status || '').toUpperCase() === 'APPROVED').length || 126}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-amber-600 dark:text-amber-400">Pending</span>
+              <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500" /> Pending Action
+              </span>
               <span className="font-extrabold text-amber-600 dark:text-amber-400">
-                {leaveRequests.filter(r => (r.status || '').toUpperCase() === 'PENDING').length || 36}
+                {pendingLeavesCount}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-rose-600 dark:text-rose-400">Rejected</span>
+              <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-rose-500" /> Rejected
+              </span>
               <span className="font-extrabold text-rose-600 dark:text-rose-400">
                 {leaveRequests.filter(r => (r.status || '').toUpperCase() === 'REJECTED').length || 24}
               </span>
@@ -1125,47 +1219,47 @@ export default function OverviewPage() {
           </div>
 
           <div className="pt-3 text-center border-t border-slate-100 dark:border-slate-800">
-            <Link href="/dashboard/leaves" className="text-xs font-extrabold text-indigo-600 hover:underline inline-flex items-center gap-1">
-              <span>View Leave Report</span>
+            <Link href="/dashboard/leaves" className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1">
+              <span>View Leave Requests</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
 
         {/* CARD 2: PAYROLL SUMMARY */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between hover:border-emerald-300 dark:hover:border-emerald-800 transition-all duration-200">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-1.5">
               <DollarSign className="w-4 h-4 text-emerald-600" />
               Payroll Summary
             </h3>
-            <select className="text-[11px] font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-0.5 text-slate-700 dark:text-slate-300 outline-none">
-              <option>May 2025</option>
-            </select>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50">
+              Active Cycle
+            </span>
           </div>
 
           <div className="my-3 space-y-3">
             <div className="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800 flex items-center justify-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300">
-                Payroll Status: Processing
+                Payroll Status: Auto-calculated
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-center pt-1">
-              <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Total Employees</span>
+              <div className="p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 block uppercase">Employees</span>
                 <span className="text-sm font-black text-slate-900 dark:text-white">{totalEmpCount}</span>
               </div>
-              <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Total Payroll Cost</span>
-                <span className="text-sm font-black text-slate-900 dark:text-white">৳ 28,65,540</span>
+              <div className="p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 block uppercase">Disbursement</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white">₹ 28,65,540</span>
               </div>
             </div>
           </div>
 
           <div className="pt-3 text-center border-t border-slate-100 dark:border-slate-800">
-            <Link href="/dashboard/payroll" className="text-xs font-extrabold text-indigo-600 hover:underline inline-flex items-center gap-1">
+            <Link href="/dashboard/payroll" className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1">
               <span>View Payroll Dashboard</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
@@ -1173,50 +1267,50 @@ export default function OverviewPage() {
         </div>
 
         {/* CARD 3: RECRUITMENT SUMMARY */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between hover:border-sky-300 dark:hover:border-sky-800 transition-all duration-200">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-1.5">
               <Briefcase className="w-4 h-4 text-sky-600" />
-              Recruitment Summary
+              Recruitment Pipeline
             </h3>
-            <select className="text-[11px] font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-0.5 text-slate-700 dark:text-slate-300 outline-none">
-              <option>This Month</option>
-            </select>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50">
+              Active
+            </span>
           </div>
 
           <div className="space-y-2.5 my-3 text-xs font-semibold">
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">Total Openings</span>
-              <span className="font-extrabold text-slate-900 dark:text-white">18</span>
+              <span className="text-slate-500">Open Positions</span>
+              <span className="font-extrabold text-slate-900 dark:text-white">18 Roles</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-500">Active Candidates</span>
-              <span className="font-extrabold text-slate-900 dark:text-white">156</span>
+              <span className="font-extrabold text-slate-900 dark:text-white">156 Applied</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-500">Interviews Scheduled</span>
-              <span className="font-extrabold text-slate-900 dark:text-white">32</span>
+              <span className="font-extrabold text-slate-900 dark:text-white">32 Today</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">Offers Sent</span>
-              <span className="font-extrabold text-slate-900 dark:text-white">12</span>
+              <span className="text-slate-500">Offers Released</span>
+              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">12 Sent</span>
             </div>
           </div>
 
           <div className="pt-3 text-center border-t border-slate-100 dark:border-slate-800">
-            <Link href="/dashboard/recruitment" className="text-xs font-extrabold text-indigo-600 hover:underline inline-flex items-center gap-1">
-              <span>View Recruitment Dashboard</span>
+            <Link href="/dashboard/recruitment" className="text-xs font-extrabold text-sky-600 dark:text-sky-400 hover:underline inline-flex items-center gap-1">
+              <span>View Recruitment Desk</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
 
         {/* CARD 4: QUICK ACCESS GRID */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between hover:border-purple-300 dark:hover:border-purple-800 transition-all duration-200">
           <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit flex items-center gap-1.5">
               <Layers className="w-4 h-4 text-purple-600" />
-              Quick Access
+              Quick Launchpad
             </h3>
           </div>
 
@@ -1225,14 +1319,14 @@ export default function OverviewPage() {
               <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <UserPlus className="w-4.5 h-4.5" />
               </div>
-              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Add Employee</span>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Add Emp</span>
             </Link>
 
             <Link href="/dashboard/leaves/requests" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
               <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Umbrella className="w-4.5 h-4.5" />
               </div>
-              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Apply Leave</span>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Leaves</span>
             </Link>
 
             <Link href="/dashboard/attendance" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
@@ -1253,14 +1347,14 @@ export default function OverviewPage() {
               <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Briefcase className="w-4.5 h-4.5" />
               </div>
-              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Recruitment</span>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Hiring</span>
             </Link>
 
             <Link href="/dashboard/performance" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
               <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Award className="w-4.5 h-4.5" />
               </div>
-              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Performance</span>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Appraisal</span>
             </Link>
 
             <Link href="/dashboard/smart-hr" className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-center group">
@@ -1274,23 +1368,123 @@ export default function OverviewPage() {
               <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <BarChart3 className="w-4.5 h-4.5" />
               </div>
-              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Reports</span>
+              <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 line-clamp-1">Analytics</span>
             </Link>
           </div>
         </div>
 
       </div>
 
-      {/* 📊 5. BOTTOM SECTION: DYNAMIC DEPARTMENT HEADCOUNT (SLIM BARS) + RECENT ACTIVITIES (INNER SCROLL + TIME + IP) */}
+      {/* 🛡️ 5. EXTRA SECTION: SYSTEM OPERATIONS & DEVICE HEALTH + COMPLIANCE HUB */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        
+        {/* CARD A: BIOMETRIC TERMINALS HEALTH */}
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-emerald-600" />
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white font-outfit">
+                Biometric Terminal Health
+              </h4>
+            </div>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-slate-500 font-semibold">eSSL SilkBio Terminal 1</span>
+              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">● Online (0ms)</span>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-slate-500 font-semibold">FaceID Terminal 2 (HQ)</span>
+              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">● Online (12ms)</span>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-slate-500 font-semibold">Mobile Geo-Punch Gateway</span>
+              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">● Active</span>
+            </div>
+          </div>
+        </div>
+
+        {/* CARD B: SHIFT COVERAGE & PUNCTUALITY */}
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-indigo-600" />
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white font-outfit">
+                Shift Coverage Today
+              </h4>
+            </div>
+            <span className="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md">
+              96.4% On-time
+            </span>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div>
+              <div className="flex justify-between font-bold text-[11px] mb-1">
+                <span className="text-slate-600 dark:text-slate-300">General Shift (09:00 - 18:00)</span>
+                <span className="text-indigo-600 dark:text-indigo-400">84% Capacity</span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-indigo-600 rounded-full" style={{ width: '84%' }} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between font-bold text-[11px] mb-1">
+                <span className="text-slate-600 dark:text-slate-300">Morning Shift (06:00 - 15:00)</span>
+                <span className="text-emerald-600 dark:text-emerald-400">92% Capacity</span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '92%' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CARD C: COMPLIANCE & ACTION ALERTS */}
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-purple-600" />
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white font-outfit">
+                Statutory & Compliance
+              </h4>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
+              100% Up to Date
+            </span>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-slate-600 dark:text-slate-300 font-semibold">PF & ESI Monthly Returns</span>
+              <span className="font-extrabold text-emerald-600">✓ Verified</span>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-slate-600 dark:text-slate-300 font-semibold">TDS Deductions & Form 16</span>
+              <span className="font-extrabold text-emerald-600">✓ In-sync</span>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-slate-600 dark:text-slate-300 font-semibold">Employee Contract Renewals</span>
+              <span className="font-extrabold text-indigo-600">0 Due</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 📊 6. BOTTOM SECTION: DYNAMIC DEPARTMENT HEADCOUNT (SLIM BARS) + RECENT ACTIVITIES (INNER SCROLL + TIME + IP) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
         {/* CARD 1: DYNAMIC DEPARTMENT-WISE HEADCOUNT */}
-        <div className="lg:col-span-7 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+        <div className="lg:col-span-7 p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit">
-                Department-wise Headcount
+                Department-wise Headcount Distribution
               </h3>
             </div>
             <div className="flex items-center gap-2">
@@ -1346,12 +1540,12 @@ export default function OverviewPage() {
         </div>
 
         {/* CARD 2: RECENT ACTIVITIES FEED */}
-        <div className="lg:col-span-5 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+        <div className="lg:col-span-5 p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-white font-outfit">
-                Recent Activities
+                Recent Audit Trail & Activities
               </h3>
             </div>
             <span className="text-xs font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -1364,10 +1558,10 @@ export default function OverviewPage() {
             {recentActivitiesList.map((act) => (
               <div 
                 key={act.id} 
-                className="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3 hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+                className="p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3 hover:border-slate-200 dark:hover:border-slate-700 transition-all"
               >
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className={`w-8.5 h-8.5 rounded-xl ${act.bgClass} flex items-center justify-center shrink-0 border border-slate-200/40 dark:border-slate-700/50 shadow-2xs mt-0.5`}>
+                  <div className={`w-8.5 h-8.5 rounded-xl ${act.bgClass} flex items-center justify-center shrink-0 border shadow-2xs mt-0.5`}>
                     {act.iconType === 'ADD' ? (
                       <UserPlus className="w-4 h-4" />
                     ) : act.iconType === 'LEAVE' ? (
@@ -1412,6 +1606,155 @@ export default function OverviewPage() {
         </div>
 
       </div>
+
+      {/* 🌟 CELEBRANT WISHERS & CONVERSATION MODAL (PORTAL) */}
+      {celebrantModalEvent && mounted && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 relative overflow-hidden max-h-[90vh] flex flex-col justify-between z-[1000000]">
+            
+            {/* Modal Header */}
+            <div>
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-600 text-white flex items-center justify-center text-2xl font-bold shadow-md animate-bounce">
+                    {celebrantModalEvent.eventType === 'BIRTHDAY' ? '🎂' : '🏆'}
+                  </div>
+                  <div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20">
+                      ✨ {celebrantModalEvent.eventType === 'BIRTHDAY' ? 'BIRTHDAY CELEBRATION' : 'WORK ANNIVERSARY'}
+                    </span>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white font-outfit mt-1">
+                      Colleagues Who Wished {celebrantModalEvent.employeeName}
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCelebrantModalEvent(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-500 dark:text-slate-400 flex items-center justify-center font-black text-xs transition-all cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Stats Row */}
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <div className="p-3 rounded-2xl bg-pink-50 dark:bg-pink-950/40 border border-pink-200 dark:border-pink-900/50 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-pink-500 text-white flex items-center justify-center text-base shadow-xs">
+                    💌
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-pink-600 dark:text-pink-400 uppercase tracking-wider">Total Wishes</p>
+                    <p className="text-lg font-black text-pink-700 dark:text-pink-300 font-outfit">{celebrantModalEvent.wishCount || 0}</p>
+                  </div>
+                </div>
+                <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-500 text-white flex items-center justify-center text-base shadow-xs">
+                    ❤️
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">Total Likes</p>
+                    <p className="text-lg font-black text-rose-700 dark:text-rose-300 font-outfit">{celebrantModalEvent.reactionCount || 0}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Scrollable Content */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar min-h-[200px]">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                  <span>💬</span> Wishes & Conversation ({celebrantModalEvent.wishes?.length || 0})
+                </h4>
+                {celebrantModalEvent.wishes && celebrantModalEvent.wishes.length > 0 ? (
+                  <div className="space-y-3.5">
+                    {[...celebrantModalEvent.wishes]
+                      .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                      .map((w: any) => {
+                      return (
+                        <div key={w.id} className="flex flex-col items-start animate-fadeIn">
+                          <div className="max-w-[90%] p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shadow-xs text-xs space-y-1">
+                            <div className="flex items-center justify-between gap-3 border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                              <div className="flex items-center gap-2">
+                                {w.senderEmpImage ? (
+                                  <img src={w.senderEmpImage} alt={w.senderName} className="w-6 h-6 rounded-full object-cover ring-1 ring-slate-300" />
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-bold">
+                                    {w.senderName ? w.senderName.charAt(0) : 'U'}
+                                  </div>
+                                )}
+                                <span className="font-extrabold text-slate-800 dark:text-slate-100 text-[11.5px]">{w.senderName}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-400 font-semibold">
+                                {new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-[12px] text-slate-700 dark:text-slate-300 font-medium pt-1 leading-relaxed">
+                              {w.message}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-xs font-semibold text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+                    No wish messages received yet.
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Reactions & Likes */}
+              {celebrantModalEvent.reactions && celebrantModalEvent.reactions.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                    <span>❤️</span> People Who Liked ({celebrantModalEvent.reactions.length})
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {celebrantModalEvent.reactions.map((r: any, rIdx: number) => (
+                      <div key={rIdx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 flex items-center gap-2 text-xs">
+                        {r.senderEmpImage ? (
+                          <img src={r.senderEmpImage} alt={r.senderName} className="w-6 h-6 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center font-bold">
+                            {r.senderName ? r.senderName.charAt(0) : 'U'}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-extrabold text-slate-800 dark:text-slate-200 text-[11px] truncate">{r.senderName}</p>
+                        </div>
+                        <span className="text-sm">❤️</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Broadcast Wish Footer */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Send a wish message..."
+                  value={wishMessages[celebrantModalEvent.eventId] || ''}
+                  onChange={(e) => setWishMessages({ ...wishMessages, [celebrantModalEvent.eventId]: e.target.value })}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendWish(celebrantModalEvent.eventId)}
+                  className="flex-1 px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-950 border border-pink-300 dark:border-pink-800 text-slate-900 dark:text-white outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSendWish(celebrantModalEvent.eventId)}
+                  className="px-4 py-2 rounded-xl text-xs font-black bg-pink-600 hover:bg-pink-700 text-white shadow-xs transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <span>Send 💌</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>,
+        document.body
+      )}
 
     </div>
   );

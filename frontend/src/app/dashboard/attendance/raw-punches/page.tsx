@@ -467,7 +467,7 @@ export default function RawPunchLogsPage() {
                 className="h-9 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#07518a] hover:bg-[#064270] text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer no-underline"
               >
                 <span>⏱️</span>
-                <span>Mark Attendance</span>
+                <span>+ Punch</span>
               </Link>
             </TooltipTrigger>
             <TooltipContent>Open Live Attendance Marking Page</TooltipContent>
@@ -861,8 +861,14 @@ export default function RawPunchLogsPage() {
 
       {/* Location Map Preview Modal */}
       {mounted && selectedMapPunch && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn font-sans">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-[0_0_80px_rgba(0,0,0,0.5)] overflow-hidden text-left flex flex-col max-h-[90vh] z-[10000]">
+        <div 
+          onClick={() => setSelectedMapPunch(null)}
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn font-sans cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-[0_0_80px_rgba(0,0,0,0.5)] overflow-hidden text-left flex flex-col max-h-[90vh] z-[10000] cursor-default"
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30">
               <div className="flex items-center gap-3">
@@ -887,79 +893,121 @@ export default function RawPunchLogsPage() {
             </div>
 
             {/* Modal Body */}
+            {/* Modal Body */}
             <div className="p-6 space-y-4 overflow-y-auto">
-              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 text-xs">
-                <div>
-                  <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Punch Time</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
-                    {(() => {
-                      let iso = String(selectedMapPunch.punch_time || selectedMapPunch.created_at || '').trim();
-                      if (!iso.includes('T') && iso.includes(' ')) iso = iso.replace(' ', 'T');
-                      const d = new Date(iso);
-                      return isNaN(d.getTime()) ? selectedMapPunch.punch_time : d.toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-                    })()}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Source / Direction</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200 font-sans">{selectedMapPunch.source || selectedMapPunch.verification_mode || 'WEB'} ({selectedMapPunch.punch_direction || selectedMapPunch.direction || 'IN'})</span>
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40">
-                <span className="text-[9.5px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-1">
-                  Verified Address / Location
-                </span>
-                {isGeocoding ? (
-                  <div className="flex items-center gap-2 text-slate-500 text-xs py-1">
-                    <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                    <span>Resolving location address...</span>
-                  </div>
-                ) : (
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
-                    {resolvedAddress || (selectedMapPunch.latitude && selectedMapPunch.longitude
-                      ? `GPS Coordinates (${selectedMapPunch.latitude}, ${selectedMapPunch.longitude})`
-                      : 'Physical Biometric Terminal Punch')}
-                  </p>
-                )}
-              </div>
-
-              {/* 📸 Captured Verification Selfie in GPS Modal */}
-              {selectedMapPunch.image_url && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10.5px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Camera className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                      <span>Captured Verification Selfie</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200/60">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                      Verified Photo
-                    </span>
-                  </div>
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-700 bg-slate-950 shadow-md group">
+              
+              {/* Top Info / Selfie Card */}
+              {selectedMapPunch.image_url ? (
+                /* Side-by-side: Left Image, Right Location Details */
+                <div className="p-4 rounded-3xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800 flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                  {/* Left: Compact Selfie */}
+                  <div className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 shadow-sm shrink-0 group">
                     <img
                       src={selectedMapPunch.image_url}
                       alt="Attendance Selfie"
-                      className="w-full h-56 object-cover object-center"
+                      className="w-full h-full object-cover object-center"
                     />
-                    <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-slate-950/90 via-slate-950/60 to-transparent flex items-center justify-between">
-                      <div className="text-white">
-                        <p className="text-[11px] font-bold">Captured Live Selfie</p>
-                        <p className="text-[9.5px] text-slate-300">Recorded on mobile check-in</p>
+                    <a
+                      href={selectedMapPunch.image_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold gap-1"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Full View</span>
+                    </a>
+                  </div>
+
+                  {/* Right: Location & Punch Details */}
+                  <div className="flex-1 space-y-2.5 min-w-0 w-full text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[9.5px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                        Punch Details
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200/60 shrink-0">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Verified Selfie
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/60">
+                        <span className="text-[9px] font-bold uppercase text-slate-400 block">Time</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                          {(() => {
+                            let iso = String(selectedMapPunch.punch_time || selectedMapPunch.created_at || '').trim();
+                            if (!iso.includes('T') && iso.includes(' ')) iso = iso.replace(' ', 'T');
+                            const d = new Date(iso);
+                            return isNaN(d.getTime()) ? selectedMapPunch.punch_time : d.toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+                          })()}
+                        </span>
                       </div>
-                      <a
-                        href={selectedMapPunch.image_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold backdrop-blur-xs transition-colors"
-                      >
-                        <span>Full View</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                      <div className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/60">
+                        <span className="text-[9px] font-bold uppercase text-slate-400 block">Mode</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {selectedMapPunch.source || selectedMapPunch.verification_mode || 'GPS'} ({selectedMapPunch.punch_direction || selectedMapPunch.direction || 'IN'})
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40">
+                      <span className="text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 block mb-0.5">
+                        Location / Address
+                      </span>
+                      {isGeocoding ? (
+                        <div className="flex items-center gap-1.5 text-slate-500 text-[11px] py-0.5">
+                          <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          <span>Resolving location...</span>
+                        </div>
+                      ) : (
+                        <p className="text-[11.5px] font-semibold text-slate-800 dark:text-slate-200 leading-snug font-sans">
+                          {resolvedAddress || (selectedMapPunch.latitude && selectedMapPunch.longitude
+                            ? `GPS (${selectedMapPunch.latitude}, ${selectedMapPunch.longitude})`
+                            : 'Physical Biometric Terminal Punch')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
+              ) : (
+                /* No Selfie: Standard 2-column info */
+                <>
+                  <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 text-xs">
+                    <div>
+                      <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Punch Time</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                        {(() => {
+                          let iso = String(selectedMapPunch.punch_time || selectedMapPunch.created_at || '').trim();
+                          if (!iso.includes('T') && iso.includes(' ')) iso = iso.replace(' ', 'T');
+                          const d = new Date(iso);
+                          return isNaN(d.getTime()) ? selectedMapPunch.punch_time : d.toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                        })()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Source / Direction</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 font-sans">{selectedMapPunch.source || selectedMapPunch.verification_mode || 'WEB'} ({selectedMapPunch.punch_direction || selectedMapPunch.direction || 'IN'})</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40">
+                    <span className="text-[9.5px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-1">
+                      Verified Address / Location
+                    </span>
+                    {isGeocoding ? (
+                      <div className="flex items-center gap-2 text-slate-500 text-xs py-1">
+                        <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        <span>Resolving location address...</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
+                        {resolvedAddress || (selectedMapPunch.latitude && selectedMapPunch.longitude
+                          ? `GPS Coordinates (${selectedMapPunch.latitude}, ${selectedMapPunch.longitude})`
+                          : 'Physical Biometric Terminal Punch')}
+                      </p>
+                    )}
+                  </div>
+                </>
               )}
 
               {selectedMapPunch.latitude && selectedMapPunch.longitude ? (
